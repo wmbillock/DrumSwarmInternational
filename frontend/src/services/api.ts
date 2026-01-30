@@ -78,6 +78,19 @@ export const pollMessages = (corpsId: string, role?: string) => {
   return request(`/api/corps/${corpsId}/messages${params}`);
 };
 
+// Chat
+export const sendChat = (corpsId: string, content: string, toRole: string = "executive_director") =>
+  request(`/api/corps/${corpsId}/chat`, {
+    method: "POST", body: JSON.stringify({ content, to_role: toRole }),
+  });
+
+export const getChatHistory = (corpsId: string) =>
+  request(`/api/corps/${corpsId}/chat`);
+
+// Session Activity
+export const getSessionActivity = (sessionId: string) =>
+  request(`/api/sessions/${sessionId}/activity`);
+
 // Improvement
 export const runBasics = (corpsId: string, caption: string) =>
   request(`/api/corps/${corpsId}/basics/${caption}`, { method: "POST" });

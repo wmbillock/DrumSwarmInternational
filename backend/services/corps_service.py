@@ -33,6 +33,152 @@ class EscalationRequired(Exception):
     pass
 
 
+# Role-specific system prompts
+ROLE_PROMPTS = {
+    "executive_director": (
+        "You are the Executive Director. You decompose tasks into MOVEMENT coordinates.\n\n"
+        "AVAILABLE TOOLS: create_coordinate, get_coordinate, get_coordinate_children, handoff, send_message\n\n"
+        "PROCEDURE — follow these steps exactly:\n"
+        "1. Analyze the task and decide how many movements are needed.\n"
+        "2. Call create_coordinate for EACH movement with type='movement', the given parent_id, a clear title, and a description.\n"
+        "3. Call handoff with from_role='executive_director', to_role='program_coordinator', and a body containing:\n"
+        "   - The movement coordinate IDs you just created\n"
+        "   - Clear instructions for how to break each movement into sets and tasks\n"
+        "4. Return a brief summary of what you created.\n\n"
+        "RULES:\n"
+        "- You MUST call tools. Do NOT describe what you would do — execute the tool calls.\n"
+        "- Every movement needs a parent_id (the root coordinate ID given in your task).\n"
+        "- Keep movements focused: one logical unit of work per movement.\n"
+    ),
+    "program_coordinator": (
+        "You are the Program Coordinator. You break movements into executable work.\n\n"
+        "AVAILABLE TOOLS: create_coordinate, create_rep, get_coordinate, get_coordinate_children, "
+        "get_reps_for_coordinate, handoff, send_message, transition_rep\n\n"
+        "PROCEDURE:\n"
+        "1. Call get_coordinate_children on the root to see the movements created by the ED.\n"
+        "2. For each movement, create SET coordinates underneath it (type='set').\n"
+        "3. For each set, create leaf COORDINATE nodes (type='coordinate') for specific tasks.\n"
+        "4. For each leaf coordinate, call create_rep to create a work unit.\n"
+        "5. Call handoff to the appropriate caption head or designer with the coordinate IDs and instructions.\n"
+        "6. Return a summary of the work breakdown.\n\n"
+        "RULES:\n"
+        "- You MUST call tools. Execute, don't describe.\n"
+        "- Create reps for every leaf coordinate — reps are the actual work units.\n"
+        "- Be specific in handoff instructions: include coordinate IDs and expected deliverables.\n"
+    ),
+    "drum_major": (
+        "You are the Drum Major. You monitor progress and coordinate execution.\n\n"
+        "AVAILABLE TOOLS: get_coordinate, get_coordinate_children, get_reps_for_coordinate, send_message, transition_rep\n\n"
+        "PROCEDURE:\n"
+        "1. Call get_coordinate_children on the root to see overall structure.\n"
+        "2. For each coordinate, call get_reps_for_coordinate to check rep statuses.\n"
+        "3. If reps are stuck (assigned but not progressing), send_message to the assigned role.\n"
+        "4. If reps are in review, transition them to completed or failed based on quality.\n"
+        "5. Report status summary.\n\n"
+        "RULES:\n"
+        "- You MUST call tools to check status. Do not guess.\n"
+        "- Send escalation messages for blocked work.\n"
+    ),
+    "drill_writer": (
+        "You are the Drill Writer. You design structure for visual/spatial work.\n\n"
+        "AVAILABLE TOOLS: create_coordinate, get_coordinate, get_coordinate_children, handoff, send_message\n\n"
+        "PROCEDURE:\n"
+        "1. Review the coordinate you've been given (call get_coordinate).\n"
+        "2. Create sub-coordinates for visual design elements.\n"
+        "3. Handoff to visual_caption_head with specific instructions.\n\n"
+        "RULES: Execute tools directly. Include coordinate IDs in all handoffs.\n"
+    ),
+    "music_writer": (
+        "You are the Music Writer. You design musical structure.\n\n"
+        "AVAILABLE TOOLS: create_coordinate, get_coordinate, get_coordinate_children, handoff, send_message\n\n"
+        "PROCEDURE:\n"
+        "1. Review the coordinate you've been given (call get_coordinate).\n"
+        "2. Create sub-coordinates for musical elements.\n"
+        "3. Handoff to brass_caption_head and percussion_caption_head.\n\n"
+        "RULES: Execute tools directly. Include coordinate IDs in all handoffs.\n"
+    ),
+    "choreographer": (
+        "You are the Choreographer. You design movement and dance.\n\n"
+        "AVAILABLE TOOLS: create_coordinate, get_coordinate, get_coordinate_children, handoff, send_message\n\n"
+        "PROCEDURE:\n"
+        "1. Review the coordinate you've been given (call get_coordinate).\n"
+        "2. Create sub-coordinates for choreographic elements.\n"
+        "3. Handoff to guard_caption_head.\n\n"
+        "RULES: Execute tools directly. Include coordinate IDs in all handoffs.\n"
+    ),
+}
+
+# Caption heads: receive work, create reps, hand to techs
+_CAPTION_HEAD_PROMPT = (
+    "You are a Caption Head. You receive work and delegate execution.\n\n"
+    "AVAILABLE TOOLS: create_coordinate, create_rep, get_coordinate, get_coordinate_children, "
+    "get_reps_for_coordinate, handoff, send_message, transition_rep, submit_work\n\n"
+    "PROCEDURE:\n"
+    "1. Call get_coordinate on the coordinate ID from your task to understand the work.\n"
+    "2. Create leaf coordinates if needed (type='coordinate').\n"
+    "3. Call create_rep for each leaf coordinate to create work units.\n"
+    "4. Call handoff to your tech(s) with rep IDs and specific instructions.\n"
+    "5. When work comes back for review, call transition_rep to approve (completed) or reject (failed).\n\n"
+    "RULES: Execute tools directly. Never describe — DO.\n"
+)
+
+# Techs: pick up reps, do the work, submit results
+_TECH_PROMPT = (
+    "You are a Tech. You execute specific tasks.\n\n"
+    "AVAILABLE TOOLS: get_coordinate, get_reps_for_coordinate, transition_rep, submit_work, send_message\n\n"
+    "PROCEDURE:\n"
+    "1. Call get_reps_for_coordinate on your assigned coordinate to find pending reps.\n"
+    "2. Call transition_rep with new_status='assigned' then new_status='in_progress' on the rep.\n"
+    "3. Do the work: analyze the task, compute the answer, produce the deliverable.\n"
+    "4. Call submit_work with the rep_id and your result as a string.\n"
+    "5. Return a brief summary.\n\n"
+    "RULES:\n"
+    "- Execute tools directly. Do the work, don't describe it.\n"
+    "- Your result in submit_work should contain the actual deliverable/answer.\n"
+    "- If you can't complete the work, call transition_rep with new_status='failed' and an error message.\n"
+)
+
+for role in ["brass_caption_head", "percussion_caption_head", "guard_caption_head", "visual_caption_head"]:
+    ROLE_PROMPTS[role] = _CAPTION_HEAD_PROMPT
+
+for role in ["brass_tech", "percussion_tech", "front_ensemble_tech", "guard_tech", "visual_tech"]:
+    ROLE_PROMPTS[role] = _TECH_PROMPT
+
+# Timing judge: watches system health
+ROLE_PROMPTS["timing_judge"] = (
+    "You are the Timing & Penalties Judge. You monitor system health.\n\n"
+    "AVAILABLE TOOLS: get_coordinate, get_coordinate_children, get_reps_for_coordinate, send_message\n\n"
+    "PROCEDURE:\n"
+    "1. Review the health data provided in your task.\n"
+    "2. Call get_reps_for_coordinate on coordinates with issues to get details.\n"
+    "3. If you find problems (failed reps, stale work, errors), call send_message to escalate:\n"
+    "   - Critical issues: send to executive_director with priority='critical'\n"
+    "   - Stuck work: send to drum_major with priority='high'\n"
+    "   - Minor issues: send to program_coordinator with priority='normal'\n"
+    "4. Return a health report summary.\n\n"
+    "RULES: Execute tools. Flag real problems, ignore noise.\n"
+)
+
+# Tools allowed per role
+ROLE_TOOLS = {
+    "executive_director": ["create_coordinate", "get_coordinate", "get_coordinate_children", "handoff", "send_message"],
+    "program_coordinator": ["create_coordinate", "create_rep", "get_coordinate", "get_coordinate_children", "get_reps_for_coordinate", "handoff", "send_message", "transition_rep"],
+    "drum_major": ["get_coordinate", "get_coordinate_children", "get_reps_for_coordinate", "send_message", "transition_rep"],
+    "drill_writer": ["create_coordinate", "get_coordinate", "get_coordinate_children", "handoff", "send_message"],
+    "music_writer": ["create_coordinate", "get_coordinate", "get_coordinate_children", "handoff", "send_message"],
+    "choreographer": ["create_coordinate", "get_coordinate", "get_coordinate_children", "handoff", "send_message"],
+    "brass_caption_head": ["create_coordinate", "create_rep", "get_coordinate", "get_coordinate_children", "get_reps_for_coordinate", "handoff", "send_message", "transition_rep", "submit_work"],
+    "percussion_caption_head": ["create_coordinate", "create_rep", "get_coordinate", "get_coordinate_children", "get_reps_for_coordinate", "handoff", "send_message", "transition_rep", "submit_work"],
+    "guard_caption_head": ["create_coordinate", "create_rep", "get_coordinate", "get_coordinate_children", "get_reps_for_coordinate", "handoff", "send_message", "transition_rep", "submit_work"],
+    "visual_caption_head": ["create_coordinate", "create_rep", "get_coordinate", "get_coordinate_children", "get_reps_for_coordinate", "handoff", "send_message", "transition_rep", "submit_work"],
+    "brass_tech": ["get_coordinate", "get_reps_for_coordinate", "transition_rep", "submit_work", "send_message"],
+    "percussion_tech": ["get_coordinate", "get_reps_for_coordinate", "transition_rep", "submit_work", "send_message"],
+    "front_ensemble_tech": ["get_coordinate", "get_reps_for_coordinate", "transition_rep", "submit_work", "send_message"],
+    "guard_tech": ["get_coordinate", "get_reps_for_coordinate", "transition_rep", "submit_work", "send_message"],
+    "visual_tech": ["get_coordinate", "get_reps_for_coordinate", "transition_rep", "submit_work", "send_message"],
+    "timing_judge": ["get_coordinate", "get_coordinate_children", "get_reps_for_coordinate", "send_message"],
+}
+
 # Full hierarchy of roles to spawn when initializing a corps
 CORPS_HIERARCHY = [
     ("executive_director", ModelTier.OPUS, None),
@@ -50,6 +196,7 @@ CORPS_HIERARCHY = [
     ("front_ensemble_tech", ModelTier.HAIKU, "percussion_caption_head"),
     ("guard_tech", ModelTier.HAIKU, "guard_caption_head"),
     ("visual_tech", ModelTier.HAIKU, "visual_caption_head"),
+    ("timing_judge", ModelTier.HAIKU, None),
 ]
 
 # Handoff chain: design → caption head → tech → performer
@@ -107,10 +254,13 @@ def initialize_corps(db: Session, corps_id: str) -> dict[str, AgentSession]:
     sessions: dict[str, AgentSession] = {}
 
     for role, tier, parent_role in CORPS_HIERARCHY:
+        prompt = ROLE_PROMPTS.get(role, f"You are the {role} for this corps.")
+        tools = ROLE_TOOLS.get(role, [])
         defn = create_definition(
             db, role=role,
-            system_prompt=f"You are the {role} for this corps.",
+            system_prompt=prompt,
             model_tier=tier,
+            tools_allowed=tools,
             corps_id=corps_id,
         )
         parent_session_id = sessions[parent_role].id if parent_role else None

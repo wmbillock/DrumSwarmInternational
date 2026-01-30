@@ -1,0 +1,229 @@
+"""Register service-layer tools that agents can call.
+
+These wrap the actual service functions (create_coordinate, create_rep, etc.)
+so agents can manipulate the domain model through tool use.
+"""
+
+from backend.services.tool_executor import ToolRegistry
+
+
+def register_service_tools(registry: ToolRegistry) -> None:
+    """Register domain tools that wrap service layer functions.
+
+    Tools receive a `db` argument injected by the tool executor.
+    """
+
+    def create_coordinate(db, type: str, title: str, description: str = "", parent_id: str = "", caption: str = ""):
+        from backend.models.coordinate import CoordinateType
+        from backend.services.coordinate_service import create_coordinate as _create
+        coord = _create(
+            db,
+            type=CoordinateType(type),
+            title=title,
+            description=description or None,
+            parent_id=parent_id or None,
+            caption=caption or None,
+        )
+        return {"id": coord.id, "type": coord.type.value, "title": coord.title, "status": coord.status.value}
+
+    def create_rep(db, coordinate_id: str):
+        from backend.services.rep_service import create_rep as _create
+        rep = _create(db, coordinate_id=coordinate_id)
+        return {"id": rep.id, "status": rep.status.value, "coordinate_id": rep.coordinate_id}
+
+    def transition_rep(db, rep_id: str, new_status: str, assigned_to: str = "", result: str = "", error: str = ""):
+        from backend.models.rep import RepStatus
+        from backend.services.rep_service import transition_rep as _transition
+        rep = _transition(
+            db,
+            rep_id=rep_id,
+            new_status=RepStatus(new_status),
+            assigned_to=assigned_to or None,
+            result=result or None,
+            error=error or None,
+        )
+        return {"id": rep.id, "status": rep.status.value}
+
+    def send_message(db, corps_id: str, from_role: str, to_role: str, type: str, subject: str, body: str = "", priority: str = "normal", coordinate_id: str = ""):
+        from backend.models.message import MessageType, MessagePriority
+        from backend.services.message_service import send_message as _send
+        msg = _send(
+            db,
+            corps_id=corps_id,
+            from_role=from_role,
+            to_role=to_role,
+            type=MessageType(type),
+            subject=subject,
+            body=body or None,
+            priority=MessagePriority(priority),
+            coordinate_id=coordinate_id or None,
+        )
+        return {"id": msg.id, "type": msg.type.value, "subject": msg.subject}
+
+    def handoff(db, corps_id: str, from_role: str, to_role: str, subject: str, body: str = "", coordinate_id: str = ""):
+        from backend.services.corps_service import handoff as _handoff
+        _handoff(
+            db,
+            corps_id=corps_id,
+            from_role=from_role,
+            to_role=to_role,
+            subject=subject,
+            body=body or None,
+            coordinate_id=coordinate_id or None,
+        )
+        return {"status": "handed_off", "from": from_role, "to": to_role}
+
+    def get_coordinate_children(db, coordinate_id: str):
+        from backend.services.coordinate_service import get_children
+        children = get_children(db, coordinate_id)
+        return [{"id": c.id, "type": c.type.value, "title": c.title, "status": c.status.value} for c in children]
+
+    def get_coordinate(db, coordinate_id: str):
+        from backend.services.coordinate_service import get_coordinate as _get
+        coord = _get(db, coordinate_id)
+        if not coord:
+            return {"error": "not found"}
+        return {"id": coord.id, "type": coord.type.value, "title": coord.title, "status": coord.status.value, "description": coord.description}
+
+    def get_reps_for_coordinate(db, coordinate_id: str):
+        from backend.services.rep_service import get_reps_for_coordinate as _get
+        reps = _get(db, coordinate_id)
+        return [{"id": r.id, "status": r.status.value, "assigned_to": r.assigned_to, "result": r.result} for r in reps]
+
+    def submit_work(db, rep_id: str, result: str):
+        """Convenience: transition a rep to review with a result."""
+        from backend.models.rep import RepStatus
+        from backend.services.rep_service import transition_rep as _transition
+        rep = _transition(db, rep_id=rep_id, new_status=RepStatus.REVIEW, result=result)
+        return {"id": rep.id, "status": rep.status.value}
+
+    # --- Register all tools ---
+
+    registry.register("create_coordinate", create_coordinate, {
+        "name": "create_coordinate",
+        "description": "Create a new coordinate (work unit) in the hierarchy. Types: show, movement, set, coordinate. Must specify parent_id for non-show types.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "type": {"type": "string", "enum": ["show", "movement", "set", "coordinate"], "description": "Coordinate type"},
+                "title": {"type": "string", "description": "Title of the coordinate"},
+                "description": {"type": "string", "description": "Description of what this coordinate covers"},
+                "parent_id": {"type": "string", "description": "Parent coordinate ID (required for non-show types)"},
+                "caption": {"type": "string", "description": "Caption/section (e.g. brass, percussion, guard, visual)"},
+            },
+            "required": ["type", "title"],
+        },
+    })
+
+    registry.register("create_rep", create_rep, {
+        "name": "create_rep",
+        "description": "Create a new rep (rehearsal attempt) for a coordinate. The rep starts in PENDING status.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "coordinate_id": {"type": "string", "description": "The coordinate to create a rep for"},
+            },
+            "required": ["coordinate_id"],
+        },
+    })
+
+    registry.register("transition_rep", transition_rep, {
+        "name": "transition_rep",
+        "description": "Transition a rep to a new status. Valid transitions: pending->assigned, assigned->in_progress, in_progress->review/failed, review->completed/failed/in_progress.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "rep_id": {"type": "string"},
+                "new_status": {"type": "string", "enum": ["pending", "assigned", "in_progress", "review", "completed", "failed"]},
+                "assigned_to": {"type": "string", "description": "Session ID to assign to"},
+                "result": {"type": "string", "description": "Work result (for review/completed)"},
+                "error": {"type": "string", "description": "Error message (for failed)"},
+            },
+            "required": ["rep_id", "new_status"],
+        },
+    })
+
+    registry.register("send_message", send_message, {
+        "name": "send_message",
+        "description": "Send a message to another role in the corps hierarchy.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "corps_id": {"type": "string"},
+                "from_role": {"type": "string"},
+                "to_role": {"type": "string"},
+                "type": {"type": "string", "enum": ["handoff", "escalation", "flag", "status", "directive", "feedback"]},
+                "subject": {"type": "string"},
+                "body": {"type": "string"},
+                "priority": {"type": "string", "enum": ["critical", "high", "normal", "low"]},
+                "coordinate_id": {"type": "string"},
+            },
+            "required": ["corps_id", "from_role", "to_role", "type", "subject"],
+        },
+    })
+
+    registry.register("handoff", handoff, {
+        "name": "handoff",
+        "description": "Hand off work to a downstream role. Must follow the handoff chain.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "corps_id": {"type": "string"},
+                "from_role": {"type": "string"},
+                "to_role": {"type": "string"},
+                "subject": {"type": "string"},
+                "body": {"type": "string", "description": "Detailed instructions for the handoff"},
+                "coordinate_id": {"type": "string"},
+            },
+            "required": ["corps_id", "from_role", "to_role", "subject"],
+        },
+    })
+
+    registry.register("get_coordinate", get_coordinate, {
+        "name": "get_coordinate",
+        "description": "Get details about a specific coordinate.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "coordinate_id": {"type": "string"},
+            },
+            "required": ["coordinate_id"],
+        },
+    })
+
+    registry.register("get_coordinate_children", get_coordinate_children, {
+        "name": "get_coordinate_children",
+        "description": "Get the child coordinates of a parent coordinate.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "coordinate_id": {"type": "string"},
+            },
+            "required": ["coordinate_id"],
+        },
+    })
+
+    registry.register("get_reps_for_coordinate", get_reps_for_coordinate, {
+        "name": "get_reps_for_coordinate",
+        "description": "Get all reps for a coordinate.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "coordinate_id": {"type": "string"},
+            },
+            "required": ["coordinate_id"],
+        },
+    })
+
+    registry.register("submit_work", submit_work, {
+        "name": "submit_work",
+        "description": "Submit completed work for a rep. Transitions it to review status with the result.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "rep_id": {"type": "string"},
+                "result": {"type": "string", "description": "The completed work output"},
+            },
+            "required": ["rep_id", "result"],
+        },
+    })

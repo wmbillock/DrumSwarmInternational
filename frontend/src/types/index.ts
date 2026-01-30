@@ -23,6 +23,7 @@ export interface AgentSession {
   status: "active" | "completed" | "failed" | "timed_out";
   parent_session_id?: string;
   started_at?: string;
+  ended_at?: string;
 }
 
 export interface Coordinate {
@@ -68,6 +69,67 @@ export interface Message {
   subject: string;
   priority: "critical" | "high" | "normal" | "low";
   acknowledged_at?: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  type: string;
+  from_role: string;
+  to_role?: string;
+  subject: string;
+  body?: string;
+  priority?: string;
+  created_at?: string;
+  acknowledged_at?: string;
+}
+
+export interface WebSocketEvent {
+  type: string;
+  corps_id?: string;
+  session_id?: string;
+  role?: string;
+  content?: string;
+  status?: string;
+  from_role?: string;
+  to_role?: string;
+  error?: string;
+  [key: string]: unknown;
+}
+
+export interface AgentActivityEvent {
+  type: "tool_call" | "agent_response" | "agent_status";
+  corps_id: string;
+  session_id: string;
+  role: string;
+  tool?: string;
+  args?: Record<string, unknown>;
+  result?: Record<string, unknown>;
+  content?: string;
+  status?: string;
+}
+
+export interface SessionActivity {
+  session_id: string;
+  role: string;
+  status: string;
+  started_at?: string;
+  ended_at?: string;
+  tool_calls: Array<{
+    tool: string;
+    arguments: Record<string, unknown>;
+    result?: { success: boolean; output?: unknown; error?: string };
+  }>;
+  final_response: string;
+  iterations: number;
+  messages: Array<{
+    id: string;
+    type: string;
+    from_role: string;
+    to_role?: string;
+    subject: string;
+    body?: string;
+    created_at?: string;
+  }>;
 }
 
 export interface BasicsResult {

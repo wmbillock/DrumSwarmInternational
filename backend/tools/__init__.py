@@ -4,6 +4,7 @@ Registers all tools in a shared ToolRegistry for use by agent sessions.
 """
 
 from backend.services.tool_executor import ToolRegistry
+from backend.services.tool_registry_setup import register_service_tools
 from backend.tools.metronome import tick as metronome_tick
 from backend.tools.tuner import Tuner
 from backend.tools.gock_block import GockBlock
@@ -15,40 +16,63 @@ def create_tool_registry() -> ToolRegistry:
     """Create and populate the default tool registry."""
     registry = ToolRegistry()
 
+    # Rehearsal tools
     registry.register("metronome", metronome_tick, {
         "name": "metronome",
         "description": "Liveness monitor — checks and reclaims stale reps",
-        "parameters": {"corps_id": {"type": "string"}},
+        "input_schema": {
+            "type": "object",
+            "properties": {"corps_id": {"type": "string"}},
+            "required": ["corps_id"],
+        },
     })
 
-    # Class-based tools — register their primary methods
     tuner = Tuner()
     registry.register("tuner", tuner.validate, {
         "name": "tuner",
         "description": "Validation tool — types, tests, schema checks",
-        "parameters": {"coordinate_id": {"type": "string"}},
+        "input_schema": {
+            "type": "object",
+            "properties": {"coordinate_id": {"type": "string"}},
+            "required": ["coordinate_id"],
+        },
     })
 
     gock = GockBlock()
     registry.register("gock_block", gock.run, {
         "name": "gock_block",
         "description": "Isolated timing/performance check",
-        "parameters": {"coordinate_id": {"type": "string"}},
+        "input_schema": {
+            "type": "object",
+            "properties": {"coordinate_id": {"type": "string"}},
+            "required": ["coordinate_id"],
+        },
     })
 
     dressing = Dressing()
     registry.register("dressing", dressing.check_alignment, {
         "name": "dressing",
         "description": "Alignment check with adjacent/related work",
-        "parameters": {"coordinate_id": {"type": "string"}},
+        "input_schema": {
+            "type": "object",
+            "properties": {"coordinate_id": {"type": "string"}},
+            "required": ["coordinate_id"],
+        },
     })
 
     cleaning = Cleaning()
     registry.register("cleaning", cleaning.sweep, {
         "name": "cleaning",
         "description": "Quality sweep on completed artifacts",
-        "parameters": {"coordinate_id": {"type": "string"}},
+        "input_schema": {
+            "type": "object",
+            "properties": {"coordinate_id": {"type": "string"}},
+            "required": ["coordinate_id"],
+        },
     })
+
+    # Service-layer tools (create_coordinate, create_rep, handoff, etc.)
+    register_service_tools(registry)
 
     return registry
 

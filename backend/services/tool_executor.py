@@ -1,9 +1,13 @@
-"""Tool execution framework. Permission check → execute → return result.
+"""Tool execution framework. Permission check -> execute -> return result.
 
 Tools are registered callables. When an agent requests a tool invocation,
 the executor checks the agent's definition for permission, then runs the tool.
+
+Tools may accept a `db` parameter as their first argument. If the tool function
+signature includes `db`, the executor injects the current database session.
 """
 
+import inspect
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
@@ -89,7 +93,13 @@ class ToolExecutor:
         # Get and run the tool
         tool_func = self.registry.get_tool(tool_name)
         try:
-            output = tool_func(**arguments)
+            # Inject db if the tool function accepts it
+            sig = inspect.signature(tool_func)
+            params = list(sig.parameters.keys())
+            if params and params[0] == "db":
+                output = tool_func(db, **arguments)
+            else:
+                output = tool_func(**arguments)
             return ToolResult(success=True, output=output)
         except Exception as e:
             return ToolResult(success=False, error=str(e))

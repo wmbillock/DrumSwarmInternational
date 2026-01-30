@@ -99,9 +99,18 @@ ROLE_HIERARCHY = {
 # Added after dict construction to avoid forward reference
 ROLE_HIERARCHY["system"] = set(ROLE_HIERARCHY.keys())
 
+# User can direct message any staff/leadership role
+ROLE_HIERARCHY["user"] = {
+    "executive_director", "program_coordinator", "drum_major",
+    "drill_writer", "music_writer", "choreographer",
+    "brass_caption_head", "percussion_caption_head",
+    "guard_caption_head", "visual_caption_head",
+}
+
 # Message types restricted by role category
 # Directives can only come from staff/leadership, not performers
 DIRECTIVE_ALLOWED_ROLES = {
+    "user",
     "executive_director",
     "program_coordinator",
     "drill_writer",

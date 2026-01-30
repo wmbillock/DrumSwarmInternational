@@ -1,6 +1,7 @@
 """FastAPI application — DCI Layer API."""
 
 import json
+import logging
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -11,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from backend.database import Base, create_db_engine, create_session_factory
 
+logger = logging.getLogger(__name__)
 
 # --- Database setup ---
 
@@ -18,10 +20,84 @@ engine = create_db_engine()
 SessionFactory = create_session_factory(engine)
 
 
+# --- WebSocket Connection Manager ---
+
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: dict[str, list[WebSocket]] = {}
+
+    async def connect(self, websocket: WebSocket, corps_id: str):
+        await websocket.accept()
+        self.active_connections.setdefault(corps_id, []).append(websocket)
+
+    def disconnect(self, websocket: WebSocket, corps_id: str):
+        conns = self.active_connections.get(corps_id, [])
+        if websocket in conns:
+            conns.remove(websocket)
+
+    async def broadcast(self, corps_id: str, message: dict):
+        stale = []
+        for ws in self.active_connections.get(corps_id, []):
+            try:
+                await ws.send_json(message)
+            except Exception:
+                stale.append(ws)
+        # Clean up stale connections
+        for ws in stale:
+            self.disconnect(ws, corps_id)
+
+
+manager = ConnectionManager()
+
+# Singleton references set during lifespan
+_task_manager = None
+
+
+def get_task_manager():
+    return _task_manager
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global _task_manager
     Base.metadata.create_all(engine)
+
+    # Initialize task manager with real LLM client and tool registry
+    from backend.services.llm_client import AnthropicLLMClient
+    from backend.tools import create_tool_registry
+    from backend.services.tool_executor import ToolExecutor
+    from backend.services.task_manager import TaskManager
+    import os
+
+    import shutil
+    if shutil.which("claude"):
+        from backend.services.llm_client import ClaudeCLIClient
+        llm_client = ClaudeCLIClient()
+        logger.info("Using Claude CLI client")
+    elif shutil.which("chatgpt"):
+        from backend.services.llm_client import ChatGPTCLIClient
+        llm_client = ChatGPTCLIClient()
+        logger.info("Using ChatGPT CLI client")
+    elif os.environ.get("ANTHROPIC_API_KEY"):
+        llm_client = AnthropicLLMClient()
+        logger.info("Using Anthropic API client")
+    elif os.environ.get("OPENAI_API_KEY"):
+        from backend.services.llm_client import OpenAIClient
+        llm_client = OpenAIClient()
+        logger.info("Using OpenAI API client")
+    else:
+        from backend.services.llm_client import MockLLMClient
+        llm_client = MockLLMClient()
+        logger.warning("No LLM client available — using MockLLMClient")
+
+    registry = create_tool_registry()
+    tool_executor = ToolExecutor(registry)
+    _task_manager = TaskManager(manager, llm_client, tool_executor)
+    _task_manager.start_metronome()
+
     yield
+
+    _task_manager.stop()
 
 
 def get_db():
@@ -94,6 +170,10 @@ class MessageCreate(BaseModel):
     priority: str = "normal"
     coordinate_id: Optional[str] = None
 
+class ChatSend(BaseModel):
+    content: str
+    to_role: str = "executive_director"
+
 
 # --- Show endpoints ---
 
@@ -124,13 +204,36 @@ def api_get_show(show_id: str, db: Session = Depends(get_db)):
 
 
 @app.post("/api/shows/{show_id}/activate")
-def api_activate_show(show_id: str, db: Session = Depends(get_db)):
+async def api_activate_show(show_id: str, db: Session = Depends(get_db)):
     from backend.services.show_service import activate_show, ShowError
     try:
         show = activate_show(db, show_id)
-        return {"id": show.id, "status": show.status.value, "corps_id": show.corps_id}
     except ShowError as e:
         raise HTTPException(400, str(e))
+
+    # Auto-generate work: queue ED to design the show structure
+    tm = get_task_manager()
+    if tm and show.corps_id and show.coordinate_root_id:
+        # Find the ED session
+        ed_session_id = tm.get_session_for_role(db, show.corps_id, "executive_director")
+        if ed_session_id:
+            tm.start_agent(
+                session_id=ed_session_id,
+                task_description=(
+                    f"The show '{show.title}' has been activated. The root coordinate ID is {show.coordinate_root_id}. "
+                    f"The corps ID is {show.corps_id}. "
+                    f"Design the show structure: create MOVEMENT coordinates under the root coordinate, "
+                    f"then hand off to the program_coordinator to break down further."
+                ),
+                corps_id=show.corps_id,
+            )
+            await manager.broadcast(show.corps_id, {
+                "type": "message",
+                "role": "system",
+                "content": f"Show activated. Executive Director is designing the show structure...",
+            })
+
+    return {"id": show.id, "status": show.status.value, "corps_id": show.corps_id}
 
 
 @app.post("/api/shows/{show_id}/complete")
@@ -195,6 +298,7 @@ def api_get_roster(corps_id: str, db: Session = Depends(get_db)):
             "status": s.status.value,
             "parent_session_id": s.parent_session_id,
             "started_at": s.started_at.isoformat() if s.started_at else None,
+            "ended_at": s.ended_at.isoformat() if s.ended_at else None,
         })
     return result
 
@@ -332,6 +436,122 @@ def api_poll_messages(corps_id: str, role: Optional[str] = None, db: Session = D
              } for m in msgs]
 
 
+# --- Chat endpoints ---
+
+@app.post("/api/corps/{corps_id}/chat")
+async def api_send_chat(corps_id: str, data: ChatSend, db: Session = Depends(get_db)):
+    """Send a user message to an agent role. Creates a message record and wakes the target agent."""
+    from backend.models.message import MessageType, MessagePriority
+    from backend.services.message_service import send_message
+
+    # Record the message
+    msg = send_message(
+        db, corps_id=corps_id, from_role="user",
+        to_role=data.to_role, type=MessageType.DIRECTIVE,
+        subject=data.content[:100], body=data.content,
+        priority=MessagePriority.NORMAL,
+    )
+
+    # Broadcast to WebSocket
+    await manager.broadcast(corps_id, {
+        "type": "chat",
+        "from_role": "user",
+        "to_role": data.to_role,
+        "content": data.content,
+        "message_id": msg.id,
+    })
+
+    # Wake target agent via task_manager
+    tm = get_task_manager()
+    if tm:
+        session_id = tm.get_session_for_role(db, corps_id, data.to_role)
+        if session_id and not tm.is_active(session_id):
+            tm.start_agent(
+                session_id=session_id,
+                task_description=f"User message: {data.content}",
+                corps_id=corps_id,
+            )
+
+    return {"id": msg.id, "status": "sent"}
+
+
+@app.get("/api/corps/{corps_id}/chat")
+def api_get_chat_history(corps_id: str, db: Session = Depends(get_db)):
+    """Get chat history — all messages for a corps, ordered chronologically."""
+    from backend.models.message import Message
+    msgs = (
+        db.query(Message)
+        .filter(Message.corps_id == corps_id)
+        .order_by(Message.created_at)
+        .all()
+    )
+    return [{
+        "id": m.id,
+        "type": m.type.value,
+        "from_role": m.from_role,
+        "to_role": m.to_role,
+        "subject": m.subject,
+        "body": m.body,
+        "priority": m.priority.value,
+        "created_at": m.created_at.isoformat() if m.created_at else None,
+        "acknowledged_at": m.acknowledged_at.isoformat() if m.acknowledged_at else None,
+    } for m in msgs]
+
+
+# --- Session Activity Log ---
+
+@app.get("/api/sessions/{session_id}/activity")
+def api_get_session_activity(session_id: str, db: Session = Depends(get_db)):
+    """Get activity log for an agent session."""
+    from backend.models.agent_session import AgentSession
+    from backend.models.agent_definition import AgentDefinition
+    from backend.models.message import Message
+
+    session = db.get(AgentSession, session_id)
+    if not session:
+        raise HTTPException(404, "Session not found")
+
+    defn = db.get(AgentDefinition, session.definition_id)
+
+    # Get messages sent by or to this session
+    messages = (
+        db.query(Message)
+        .filter(
+            (Message.from_session_id == session_id) | (Message.to_session_id == session_id)
+        )
+        .order_by(Message.created_at)
+        .all()
+    )
+
+    # Get context snapshot for tool call history
+    snapshot = None
+    if session.context_snapshot:
+        try:
+            snapshot = json.loads(session.context_snapshot)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    return {
+        "session_id": session_id,
+        "role": defn.role if defn else "unknown",
+        "status": session.status.value,
+        "started_at": session.started_at.isoformat() if session.started_at else None,
+        "ended_at": session.ended_at.isoformat() if session.ended_at else None,
+        "tool_calls": snapshot.get("tool_calls", []) if snapshot else [],
+        "final_response": snapshot.get("final_response", "") if snapshot else "",
+        "iterations": snapshot.get("iterations", 0) if snapshot else 0,
+        "messages": [{
+            "id": m.id,
+            "type": m.type.value,
+            "from_role": m.from_role,
+            "to_role": m.to_role,
+            "subject": m.subject,
+            "body": m.body,
+            "created_at": m.created_at.isoformat() if m.created_at else None,
+        } for m in messages],
+    }
+
+
 # --- Improvement endpoints ---
 
 @app.post("/api/corps/{corps_id}/basics/{caption}")
@@ -410,37 +630,57 @@ def api_merge_check(corps_id: str, db: Session = Depends(get_db)):
 
 # --- WebSocket for real-time updates ---
 
-class ConnectionManager:
-    def __init__(self):
-        self.active_connections: dict[str, list[WebSocket]] = {}
-
-    async def connect(self, websocket: WebSocket, corps_id: str):
-        await websocket.accept()
-        self.active_connections.setdefault(corps_id, []).append(websocket)
-
-    def disconnect(self, websocket: WebSocket, corps_id: str):
-        conns = self.active_connections.get(corps_id, [])
-        if websocket in conns:
-            conns.remove(websocket)
-
-    async def broadcast(self, corps_id: str, message: dict):
-        for ws in self.active_connections.get(corps_id, []):
-            try:
-                await ws.send_json(message)
-            except Exception:
-                pass
-
-
-manager = ConnectionManager()
-
-
 @app.websocket("/ws/{corps_id}")
 async def websocket_endpoint(websocket: WebSocket, corps_id: str):
     await manager.connect(websocket, corps_id)
     try:
         while True:
             data = await websocket.receive_text()
-            # Echo back for now; in production, handle commands
-            await websocket.send_json({"type": "ack", "data": data})
+            try:
+                msg = json.loads(data)
+                if msg.get("type") == "chat":
+                    # Handle incoming chat via WebSocket
+                    db = SessionFactory()
+                    try:
+                        from backend.models.message import MessageType, MessagePriority
+                        from backend.services.message_service import send_message
+
+                        to_role = msg.get("to_role", "executive_director")
+                        content = msg.get("content", "")
+
+                        record = send_message(
+                            db, corps_id=corps_id, from_role="user",
+                            to_role=to_role, type=MessageType.DIRECTIVE,
+                            subject=content[:100], body=content,
+                            priority=MessagePriority.NORMAL,
+                        )
+
+                        await manager.broadcast(corps_id, {
+                            "type": "chat",
+                            "from_role": "user",
+                            "to_role": to_role,
+                            "content": content,
+                            "message_id": record.id,
+                        })
+
+                        # Wake agent
+                        tm = get_task_manager()
+                        if tm:
+                            session_id = tm.get_session_for_role(db, corps_id, to_role)
+                            if session_id and not tm.is_active(session_id):
+                                tm.start_agent(
+                                    session_id=session_id,
+                                    task_description=f"User message: {content}",
+                                    corps_id=corps_id,
+                                )
+                    finally:
+                        db.close()
+                else:
+                    await websocket.send_json({"type": "ack", "data": data})
+            except json.JSONDecodeError:
+                await websocket.send_json({"type": "ack", "data": data})
     except WebSocketDisconnect:
+        manager.disconnect(websocket, corps_id)
+    except Exception:
+        logger.exception("WebSocket error for corps %s", corps_id)
         manager.disconnect(websocket, corps_id)

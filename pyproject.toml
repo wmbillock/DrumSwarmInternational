@@ -13,7 +13,12 @@ dependencies = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.27",
     "httpx>=0.27",
+    "anthropic>=0.40",
+    "mcp>=1.0",
 ]
+
+[project.optional-dependencies.openai]
+openai = ["openai>=1.0"]
 
 [project.optional-dependencies]
 dev = [
@@ -22,8 +27,8 @@ dev = [
     "httpx>=0.27",
 ]
 
-[project.scripts]
-dci = "scripts.cli:main"
+[tool.setuptools.packages.find]
+include = ["backend*"]
 
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]

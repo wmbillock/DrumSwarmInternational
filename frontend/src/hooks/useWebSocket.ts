@@ -2,33 +2,83 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import type { WebSocketMessage } from "../types";
 
 const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8000";
+const RECONNECT_DELAYS = [1000, 2000, 4000, 8000, 16000];
+const HEARTBEAT_INTERVAL = 25000; // 25s
+const MAX_RECONNECT_ATTEMPTS = 20;
 
 export function useWebSocket(corpsId: string | null) {
   const wsRef = useRef<WebSocket | null>(null);
   const [connected, setConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
+  const reconnectAttempt = useRef(0);
+  const reconnectTimer = useRef<ReturnType<typeof setTimeout>>();
+  const heartbeatTimer = useRef<ReturnType<typeof setInterval>>();
 
-  useEffect(() => {
+  const stopHeartbeat = useCallback(() => {
+    if (heartbeatTimer.current) {
+      clearInterval(heartbeatTimer.current);
+      heartbeatTimer.current = undefined;
+    }
+  }, []);
+
+  const startHeartbeat = useCallback(() => {
+    stopHeartbeat();
+    heartbeatTimer.current = setInterval(() => {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: "ping" }));
+      }
+    }, HEARTBEAT_INTERVAL);
+  }, [stopHeartbeat]);
+
+  const connect = useCallback(() => {
     if (!corpsId) return;
+    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    if (reconnectAttempt.current >= MAX_RECONNECT_ATTEMPTS) return;
 
     const ws = new WebSocket(`${WS_URL}/ws/${corpsId}`);
     wsRef.current = ws;
 
-    ws.onopen = () => setConnected(true);
-    ws.onclose = () => setConnected(false);
+    ws.onopen = () => {
+      setConnected(true);
+      reconnectAttempt.current = 0;
+      startHeartbeat();
+    };
+
+    ws.onclose = () => {
+      setConnected(false);
+      stopHeartbeat();
+      if (reconnectAttempt.current < MAX_RECONNECT_ATTEMPTS) {
+        const delay = RECONNECT_DELAYS[Math.min(reconnectAttempt.current, RECONNECT_DELAYS.length - 1)];
+        reconnectAttempt.current++;
+        reconnectTimer.current = setTimeout(connect, delay);
+      }
+    };
+
     ws.onmessage = (event) => {
       try {
-        setLastMessage(JSON.parse(event.data));
+        const data = JSON.parse(event.data);
+        // Ignore pong responses
+        if (data.type === "pong" || data.type === "ack") return;
+        setLastMessage(data);
       } catch {
         setLastMessage({ type: "raw", data: event.data });
       }
     };
 
+    ws.onerror = () => {
+      // Will trigger onclose for reconnect
+    };
+  }, [corpsId, startHeartbeat, stopHeartbeat]);
+
+  useEffect(() => {
+    connect();
     return () => {
-      ws.close();
+      clearTimeout(reconnectTimer.current);
+      stopHeartbeat();
+      wsRef.current?.close();
       setConnected(false);
     };
-  }, [corpsId]);
+  }, [connect, stopHeartbeat]);
 
   const send = useCallback((data: unknown) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {

@@ -1,8 +1,12 @@
 import { useState } from "react";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import { CorpsThemeProvider } from "./contexts/CorpsThemeContext";
+import { ShowProvider, useShow } from "./contexts/ShowContext";
 import { CorpsThemePicker } from "./components/CorpsThemePicker";
-import { TheSeason } from "./components/TheSeason";
+import { ShowSelector } from "./components/ShowSelector";
+import { ChatRoom } from "./components/ChatRoom";
+import { ProjectState } from "./components/ProjectState";
+import { CorpsDetail } from "./components/CorpsDetail";
 import { TheRoster } from "./components/TheRoster";
 import { TheField } from "./components/TheField";
 import { TheReps } from "./components/TheReps";
@@ -18,37 +22,62 @@ import { Critique } from "./components/Critique";
 import { TheBanquet } from "./components/TheBanquet";
 import "./App.css";
 
-type Screen =
-  | "season" | "roster" | "field" | "reps" | "chart"
-  | "tape" | "met" | "sheets" | "books" | "stand"
-  | "lot" | "basics" | "critique" | "banquet";
+type DetailView =
+  | { type: "corps" }
+  | { type: "roster" }
+  | { type: "field" }
+  | { type: "reps" }
+  | { type: "chart" }
+  | { type: "tape" }
+  | { type: "met" }
+  | { type: "sheets" }
+  | { type: "books" }
+  | { type: "stand" }
+  | { type: "lot" }
+  | { type: "basics" }
+  | { type: "critique" }
+  | { type: "banquet" }
+  | { type: "coordinate"; id: string }
+  | { type: "session"; id: string }
+  | null;
 
-const NAV_ITEMS: { id: Screen; label: string; shortLabel: string }[] = [
-  { id: "season", label: "The Season", shortLabel: "Season" },
-  { id: "roster", label: "The Roster", shortLabel: "Roster" },
-  { id: "field", label: "The Field", shortLabel: "Field" },
-  { id: "reps", label: "The Reps", shortLabel: "Reps" },
-  { id: "chart", label: "The Chart", shortLabel: "Chart" },
-  { id: "tape", label: "The Tape", shortLabel: "Tape" },
-  { id: "met", label: "The Met", shortLabel: "Met" },
-  { id: "sheets", label: "The Sheets", shortLabel: "Sheets" },
-  { id: "books", label: "The Books", shortLabel: "Books" },
-  { id: "stand", label: "The Stand", shortLabel: "Stand" },
-  { id: "lot", label: "The Lot", shortLabel: "Lot" },
-  { id: "basics", label: "Basics", shortLabel: "Basics" },
-  { id: "critique", label: "Critique", shortLabel: "Critique" },
-  { id: "banquet", label: "The Banquet", shortLabel: "Banquet" },
+const DETAIL_ITEMS: { id: string; label: string }[] = [
+  { id: "corps", label: "Corps Detail" },
+  { id: "roster", label: "Roster" },
+  { id: "field", label: "Field" },
+  { id: "reps", label: "Reps" },
+  { id: "sheets", label: "Sheets" },
+  { id: "chart", label: "Chart" },
+  { id: "tape", label: "Tape" },
+  { id: "met", label: "Met" },
+  { id: "books", label: "Books" },
+  { id: "stand", label: "Stand" },
+  { id: "lot", label: "Lot" },
+  { id: "basics", label: "Basics" },
+  { id: "critique", label: "Critique" },
+  { id: "banquet", label: "Banquet" },
 ];
 
 function AppContent() {
   const { theme, toggleTheme } = useTheme();
-  const [screen, setScreen] = useState<Screen>("season");
-  const [corpsId, setCorpsId] = useState<string | null>(null);
-  const [rootCoordId, setRootCoordId] = useState<string | null>(null);
+  const { corpsId, rootCoordId } = useShow();
+  const [detailView, setDetailView] = useState<DetailView>({ type: "corps" });
+  const [detailOpen, setDetailOpen] = useState(true);
 
-  const renderScreen = () => {
-    switch (screen) {
-      case "season": return <TheSeason />;
+  const handleSelectItem = (itemType: string, id: string) => {
+    if (itemType === "coordinate") {
+      setDetailView({ type: "coordinate", id });
+    } else if (itemType === "session") {
+      setDetailView({ type: "session", id });
+    }
+    setDetailOpen(true);
+  };
+
+  const renderDetail = () => {
+    if (!detailView) return null;
+
+    switch (detailView.type) {
+      case "corps": return <CorpsDetail />;
       case "roster": return <TheRoster corpsId={corpsId} />;
       case "field": return <TheField rootCoordinateId={rootCoordId} />;
       case "reps": return <TheReps corpsId={corpsId} />;
@@ -62,45 +91,76 @@ function AppContent() {
       case "basics": return <Basics corpsId={corpsId} />;
       case "critique": return <Critique corpsId={corpsId} />;
       case "banquet": return <TheBanquet corpsId={corpsId} />;
+      case "coordinate": return <TheField rootCoordinateId={detailView.id} />;
+      case "session": return <CorpsDetail />;
+      default: return null;
     }
   };
 
   return (
     <div className={`app ${theme}`}>
+      {/* Header */}
       <header className="app-header">
         <h1 className="app-title">DCI Swarm</h1>
         <div className="header-controls">
-          <input
-            className="corps-input"
-            placeholder="Corps ID"
-            value={corpsId || ""}
-            onChange={(e) => setCorpsId(e.target.value || null)}
-          />
-          <input
-            className="corps-input"
-            placeholder="Root Coordinate ID"
-            value={rootCoordId || ""}
-            onChange={(e) => setRootCoordId(e.target.value || null)}
-          />
+          <ShowSelector />
           <CorpsThemePicker />
           <button className="theme-toggle" onClick={toggleTheme}>
             {theme === "dark" ? "Light" : "Dark"}
           </button>
         </div>
       </header>
-      <div className="app-layout">
-        <nav className="sidebar">
-          {NAV_ITEMS.map((item) => (
-            <button
-              key={item.id}
-              className={`nav-item ${screen === item.id ? "active" : ""}`}
-              onClick={() => setScreen(item.id)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </nav>
-        <main className="main-content">{renderScreen()}</main>
+
+      {/* Three-panel layout */}
+      <div className="app-layout-3">
+        {/* Left: Project State */}
+        <aside className="panel-left">
+          <ProjectState onSelectItem={handleSelectItem} />
+        </aside>
+
+        {/* Center: Chat Room */}
+        <main className="panel-center">
+          <ChatRoom />
+        </main>
+
+        {/* Right: Detail Panel */}
+        {detailOpen && (
+          <aside className="panel-right">
+            <div className="detail-header">
+              <div className="detail-tabs">
+                {DETAIL_ITEMS.map((item) => (
+                  <button
+                    key={item.id}
+                    className={`detail-tab ${detailView?.type === item.id ? "active" : ""}`}
+                    onClick={() => setDetailView({ type: item.id } as DetailView)}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+              <button
+                className="detail-close"
+                onClick={() => setDetailOpen(false)}
+                title="Close detail panel"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="detail-content">
+              {renderDetail()}
+            </div>
+          </aside>
+        )}
+
+        {!detailOpen && (
+          <button
+            className="panel-open-btn"
+            onClick={() => setDetailOpen(true)}
+            title="Open detail panel"
+          >
+            &laquo;
+          </button>
+        )}
       </div>
     </div>
   );
@@ -110,7 +170,9 @@ export default function App() {
   return (
     <ThemeProvider>
       <CorpsThemeProvider>
-        <AppContent />
+        <ShowProvider>
+          <AppContent />
+        </ShowProvider>
       </CorpsThemeProvider>
     </ThemeProvider>
   );

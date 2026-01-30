@@ -121,7 +121,7 @@ body {
   border: 1px solid var(--border);
 }
 
-/* Layout */
+/* Legacy Layout (kept for compatibility) */
 .app-layout {
   display: flex;
   min-height: calc(100vh - 53px);
@@ -162,6 +162,119 @@ body {
   flex: 1;
   padding: 24px;
   overflow-y: auto;
+}
+
+/* Three-Panel Layout */
+.app-layout-3 {
+  display: flex;
+  height: calc(100vh - 53px);
+  overflow: hidden;
+}
+
+.panel-left {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+}
+
+.panel-center {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-right {
+  width: 380px;
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-open-btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 8px 4px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-right: none;
+  border-radius: 4px 0 0 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  z-index: 10;
+}
+
+/* Detail panel header */
+.detail-header {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+  flex-shrink: 0;
+}
+
+.detail-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  flex: 1;
+  padding: 4px;
+}
+
+.detail-tab {
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.detail-tab:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.detail-tab.active {
+  color: var(--accent);
+  background: var(--bg-hover);
+  font-weight: 600;
+}
+
+.detail-close {
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.detail-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}
+
+/* Hover highlight for sidebar items */
+.hover-highlight:hover {
+  background: var(--bg-hover);
+}
+
+/* Pulse animation for active agents */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
 
 /* Screen */
