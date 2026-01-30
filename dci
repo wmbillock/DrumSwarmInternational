@@ -1,0 +1,253 @@
+#!/usr/bin/env bash
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                    DCI SWARM — CLI                          ║
+# ║  Unified entry point for the DCI Swarm orchestration engine ║
+# ╚══════════════════════════════════════════════════════════════╝
+#
+# Usage:
+#   ./dci <command> [options]
+#
+# Commands:
+#   up            Start backend + frontend (foreground, Ctrl+C to stop)
+#   backend       Start backend API server only
+#   frontend      Start frontend dev server only
+#   monitor       Launch TMUX monitoring dashboard (4-pane view)
+#   stop          Stop all running DCI processes
+#   test          Run the test suite
+#   status        Show status of running services
+#   db-init       Initialize the database
+#   help          Show this help message
+#
+# Environment:
+#   DCI_PORT      Backend port (default: 8000)
+#   DCI_SESSION   TMUX session name (default: dci-swarm)
+
+set -euo pipefail
+
+PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
+VENV_DIR="$PROJECT_ROOT/.venv"
+BACKEND_PORT="${DCI_PORT:-8000}"
+FRONTEND_DIR="$PROJECT_ROOT/frontend"
+SCRIPTS_DIR="$PROJECT_ROOT/scripts"
+
+# --- Colors ---
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+log_info()  { echo -e "${GREEN}[dci]${NC} $1"; }
+log_warn()  { echo -e "${YELLOW}[dci]${NC} $1"; }
+log_error() { echo -e "${RED}[dci]${NC} $1"; }
+
+# --- Helpers ---
+
+activate_venv() {
+    if [ -f "$VENV_DIR/bin/activate" ]; then
+        source "$VENV_DIR/bin/activate"
+    else
+        log_warn "No virtualenv found at $VENV_DIR. Run: python3 -m venv .venv && pip install -e '.[dev]'"
+    fi
+}
+
+ensure_node_modules() {
+    if [ ! -d "$FRONTEND_DIR/node_modules" ]; then
+        log_info "Installing frontend dependencies..."
+        (cd "$FRONTEND_DIR" && npm install)
+    fi
+}
+
+kill_port() {
+    local port=$1
+    lsof -ti:"$port" 2>/dev/null | xargs kill -9 2>/dev/null || true
+}
+
+# --- Commands ---
+
+cmd_up() {
+    log_info "Starting DCI Swarm — full stack"
+    activate_venv
+    ensure_node_modules
+
+    cleanup() {
+        echo ""
+        log_info "Shutting down..."
+        kill "$BACKEND_PID" 2>/dev/null || true
+        kill "$FRONTEND_PID" 2>/dev/null || true
+        exit 0
+    }
+    trap cleanup INT TERM
+
+    # Kill existing
+    kill_port "$BACKEND_PORT"
+    kill_port 5173
+
+    # Start backend
+    cd "$PROJECT_ROOT"
+    uvicorn backend.api.app:app --host 0.0.0.0 --port "$BACKEND_PORT" --reload \
+        > "$PROJECT_ROOT/backend.log" 2>&1 &
+    BACKEND_PID=$!
+    log_info "Backend started (PID: $BACKEND_PID) on port $BACKEND_PORT"
+
+    # Wait for backend
+    for i in $(seq 1 15); do
+        if curl -s "http://localhost:$BACKEND_PORT/api/shows" >/dev/null 2>&1; then
+            log_info "Backend is ready"
+            break
+        fi
+        sleep 1
+    done
+
+    # Start frontend
+    cd "$FRONTEND_DIR"
+    npm run dev > "$PROJECT_ROOT/frontend.log" 2>&1 &
+    FRONTEND_PID=$!
+    log_info "Frontend started (PID: $FRONTEND_PID) on port 5173"
+
+    echo ""
+    echo -e "${BOLD}╔══════════════════════════════════════╗${NC}"
+    echo -e "${BOLD}║         DCI SWARM — RUNNING          ║${NC}"
+    echo -e "${BOLD}╠══════════════════════════════════════╣${NC}"
+    echo -e "║  Backend:  ${BLUE}http://localhost:$BACKEND_PORT${NC}      ║"
+    echo -e "║  Frontend: ${BLUE}http://localhost:5173${NC}     ║"
+    echo -e "║  Logs:     backend.log, frontend.log ║"
+    echo -e "${BOLD}╚══════════════════════════════════════╝${NC}"
+    echo ""
+    echo "Press Ctrl+C to stop."
+    wait
+}
+
+cmd_backend() {
+    log_info "Starting backend API server"
+    activate_venv
+    kill_port "$BACKEND_PORT"
+    cd "$PROJECT_ROOT"
+    uvicorn backend.api.app:app --host 0.0.0.0 --port "$BACKEND_PORT" --reload
+}
+
+cmd_frontend() {
+    log_info "Starting frontend dev server"
+    ensure_node_modules
+    cd "$FRONTEND_DIR"
+    npm run dev
+}
+
+cmd_monitor() {
+    if [ ! -f "$SCRIPTS_DIR/monitoring/start_monitor.sh" ]; then
+        log_error "Monitoring scripts not found at $SCRIPTS_DIR/monitoring/"
+        exit 1
+    fi
+    exec bash "$SCRIPTS_DIR/monitoring/start_monitor.sh" "${1:-start}"
+}
+
+cmd_stop() {
+    log_info "Stopping all DCI Swarm processes..."
+
+    # Kill TMUX session
+    tmux kill-session -t "${DCI_SESSION:-dci-swarm}" 2>/dev/null && \
+        log_info "TMUX session stopped" || true
+
+    # Kill backend/frontend ports
+    kill_port "$BACKEND_PORT" && log_info "Backend stopped" || true
+    kill_port 5173 && log_info "Frontend stopped" || true
+
+    log_info "All services stopped"
+}
+
+cmd_test() {
+    log_info "Running test suite"
+    activate_venv
+    cd "$PROJECT_ROOT"
+    python -m pytest "${@:---v}"
+}
+
+cmd_status() {
+    echo -e "${BOLD}DCI Swarm — Status${NC}"
+    echo ""
+
+    # Backend
+    if curl -s "http://localhost:$BACKEND_PORT/api/shows" >/dev/null 2>&1; then
+        echo -e "  Backend:   ${GREEN}running${NC} (port $BACKEND_PORT)"
+    else
+        echo -e "  Backend:   ${RED}stopped${NC}"
+    fi
+
+    # Frontend
+    if curl -s "http://localhost:5173" >/dev/null 2>&1; then
+        echo -e "  Frontend:  ${GREEN}running${NC} (port 5173)"
+    else
+        echo -e "  Frontend:  ${RED}stopped${NC}"
+    fi
+
+    # TMUX
+    if tmux has-session -t "${DCI_SESSION:-dci-swarm}" 2>/dev/null; then
+        echo -e "  Monitor:   ${GREEN}running${NC} (tmux: ${DCI_SESSION:-dci-swarm})"
+    else
+        echo -e "  Monitor:   ${RED}stopped${NC}"
+    fi
+
+    echo ""
+}
+
+cmd_db_init() {
+    log_info "Initializing database"
+    activate_venv
+    cd "$PROJECT_ROOT"
+    python -c "
+from backend.database import create_db_engine, Base
+import backend.models  # noqa: F401 — registers all models
+engine = create_db_engine()
+Base.metadata.create_all(engine)
+print('Database initialized.')
+"
+}
+
+cmd_help() {
+    echo -e "${BOLD}DCI Swarm${NC} — Agent orchestration engine"
+    echo ""
+    echo -e "${BOLD}Usage:${NC}"
+    echo "  ./dci <command> [options]"
+    echo ""
+    echo -e "${BOLD}Commands:${NC}"
+    echo "  up            Start backend + frontend (foreground, Ctrl+C to stop)"
+    echo "  backend       Start backend API server only"
+    echo "  frontend      Start frontend dev server only"
+    echo "  monitor       Launch TMUX monitoring dashboard"
+    echo "  stop          Stop all running DCI processes"
+    echo "  test          Run the test suite (passes extra args to pytest)"
+    echo "  status        Show status of running services"
+    echo "  db-init       Initialize the database schema"
+    echo "  help          Show this help message"
+    echo ""
+    echo -e "${BOLD}Examples:${NC}"
+    echo "  ./dci up                    # Start everything"
+    echo "  ./dci monitor               # Open TMUX dashboard"
+    echo "  ./dci test -k scoring       # Run scoring tests only"
+    echo "  ./dci status                # Check what's running"
+    echo ""
+    echo -e "${BOLD}Environment:${NC}"
+    echo "  DCI_PORT=8000               Backend port"
+    echo "  DCI_SESSION=dci-swarm       TMUX session name"
+}
+
+# --- Main ---
+
+case "${1:-help}" in
+    up)       cmd_up ;;
+    backend)  cmd_backend ;;
+    frontend) cmd_frontend ;;
+    monitor)  cmd_monitor "${2:-start}" ;;
+    stop)     cmd_stop ;;
+    test)     shift; cmd_test "$@" ;;
+    status)   cmd_status ;;
+    db-init)  cmd_db_init ;;
+    help|-h|--help) cmd_help ;;
+    *)
+        log_error "Unknown command: $1"
+        echo ""
+        cmd_help
+        exit 1
+        ;;
+esac

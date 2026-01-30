@@ -1,0 +1,204 @@
+from datetime import datetime, timezone
+from typing import Optional
+
+from sqlalchemy.orm import Session
+
+from backend.models.agent_definition import (
+    AgentDefinition,
+    MAJOR_CHANGE_FIELDS,
+    ModelTier,
+)
+from backend.models.agent_session import AgentSession, SessionStatus, TERMINAL_STATUSES
+
+
+class InvalidSessionTransition(Exception):
+    pass
+
+
+class PermissionDenied(Exception):
+    pass
+
+
+class ApprovalRequired(Exception):
+    pass
+
+
+# --- Agent Definition Management ---
+
+
+def create_definition(
+    db: Session,
+    role: str,
+    system_prompt: str,
+    model_tier: ModelTier = ModelTier.SONNET,
+    tools_allowed: Optional[list[str]] = None,
+    corps_id: Optional[str] = None,
+) -> AgentDefinition:
+    defn = AgentDefinition(
+        role=role,
+        system_prompt=system_prompt,
+        model_tier=model_tier,
+        tools_allowed=",".join(tools_allowed) if tools_allowed else "",
+        corps_id=corps_id,
+    )
+    db.add(defn)
+    db.commit()
+    db.refresh(defn)
+    return defn
+
+
+def modify_definition(
+    db: Session,
+    definition_id: str,
+    modified_by_session_id: str,
+    changes: dict,
+    approved: bool = False,
+) -> AgentDefinition:
+    """Modify an agent definition with tiered approval.
+
+    Minor changes (system_prompt) are free.
+    Major changes (tools_allowed, model_tier) require approved=True.
+    """
+    defn = db.get(AgentDefinition, definition_id)
+    if defn is None:
+        raise ValueError(f"Definition {definition_id} not found")
+
+    # Check if any changes require approval
+    major_changes = set(changes.keys()) & MAJOR_CHANGE_FIELDS
+    if major_changes and not approved:
+        raise ApprovalRequired(
+            f"Changes to {major_changes} require caption head approval"
+        )
+
+    for field, value in changes.items():
+        if field == "tools_allowed" and isinstance(value, list):
+            value = ",".join(value)
+        setattr(defn, field, value)
+
+    defn.version += 1
+    defn.modified_by = modified_by_session_id
+    db.commit()
+    db.refresh(defn)
+    return defn
+
+
+def get_definition(db: Session, definition_id: str) -> Optional[AgentDefinition]:
+    return db.get(AgentDefinition, definition_id)
+
+
+# --- Agent Session Lifecycle ---
+
+
+def spawn_session(
+    db: Session,
+    definition_id: str,
+    corps_id: str,
+    parent_session_id: Optional[str] = None,
+) -> AgentSession:
+    defn = db.get(AgentDefinition, definition_id)
+    if defn is None:
+        raise ValueError(f"Definition {definition_id} not found")
+
+    if parent_session_id is not None:
+        parent = db.get(AgentSession, parent_session_id)
+        if parent is None:
+            raise ValueError(f"Parent session {parent_session_id} not found")
+
+    session = AgentSession(
+        definition_id=definition_id,
+        corps_id=corps_id,
+        parent_session_id=parent_session_id,
+    )
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return session
+
+
+def complete_session(
+    db: Session,
+    session_id: str,
+    context_snapshot: Optional[str] = None,
+) -> AgentSession:
+    return _terminate_session(
+        db, session_id, SessionStatus.COMPLETED, context_snapshot=context_snapshot
+    )
+
+
+def fail_session(
+    db: Session,
+    session_id: str,
+    error: Optional[str] = None,
+    context_snapshot: Optional[str] = None,
+) -> AgentSession:
+    return _terminate_session(
+        db, session_id, SessionStatus.FAILED, error=error, context_snapshot=context_snapshot
+    )
+
+
+def timeout_session(
+    db: Session,
+    session_id: str,
+    context_snapshot: Optional[str] = None,
+) -> AgentSession:
+    return _terminate_session(
+        db, session_id, SessionStatus.TIMED_OUT, context_snapshot=context_snapshot
+    )
+
+
+def _terminate_session(
+    db: Session,
+    session_id: str,
+    new_status: SessionStatus,
+    error: Optional[str] = None,
+    context_snapshot: Optional[str] = None,
+) -> AgentSession:
+    session = db.get(AgentSession, session_id)
+    if session is None:
+        raise ValueError(f"Session {session_id} not found")
+
+    if session.status in TERMINAL_STATUSES:
+        raise InvalidSessionTransition(
+            f"Session already in terminal state {session.status.value}"
+        )
+
+    if session.status != SessionStatus.ACTIVE:
+        raise InvalidSessionTransition(
+            f"Cannot transition from {session.status.value} to {new_status.value}"
+        )
+
+    session.status = new_status
+    session.ended_at = datetime.now(timezone.utc)
+    if error is not None:
+        session.error = error
+    if context_snapshot is not None:
+        session.context_snapshot = context_snapshot
+    db.commit()
+    db.refresh(session)
+    return session
+
+
+def is_alive(db: Session, session_id: str) -> bool:
+    session = db.get(AgentSession, session_id)
+    if session is None:
+        return False
+    return session.status == SessionStatus.ACTIVE
+
+
+def get_children(db: Session, session_id: str) -> list[AgentSession]:
+    return (
+        db.query(AgentSession)
+        .filter(AgentSession.parent_session_id == session_id)
+        .all()
+    )
+
+
+def check_tool_permission(db: Session, session_id: str, tool_name: str) -> bool:
+    """Check if a session's definition allows a specific tool."""
+    session = db.get(AgentSession, session_id)
+    if session is None:
+        return False
+    defn = db.get(AgentDefinition, session.definition_id)
+    if defn is None:
+        return False
+    return tool_name in defn.tools_allowed_list

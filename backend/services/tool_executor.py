@@ -1,0 +1,95 @@
+"""Tool execution framework. Permission check → execute → return result.
+
+Tools are registered callables. When an agent requests a tool invocation,
+the executor checks the agent's definition for permission, then runs the tool.
+"""
+
+from dataclasses import dataclass
+from typing import Any, Callable, Optional
+
+from sqlalchemy.orm import Session
+
+from backend.services.agent_lifecycle import check_tool_permission
+
+
+@dataclass
+class ToolResult:
+    success: bool
+    output: Any = None
+    error: Optional[str] = None
+
+
+class ToolNotFound(Exception):
+    pass
+
+
+class ToolPermissionDenied(Exception):
+    pass
+
+
+class ToolRegistry:
+    """Registry of callable tools available to agents."""
+
+    def __init__(self):
+        self._tools: dict[str, Callable] = {}
+        self._schemas: dict[str, dict] = {}
+
+    def register(
+        self,
+        name: str,
+        func: Callable,
+        schema: Optional[dict] = None,
+    ) -> None:
+        self._tools[name] = func
+        if schema:
+            self._schemas[name] = schema
+
+    def get_tool(self, name: str) -> Callable:
+        if name not in self._tools:
+            raise ToolNotFound(f"Tool '{name}' not registered")
+        return self._tools[name]
+
+    def get_schema(self, name: str) -> Optional[dict]:
+        return self._schemas.get(name)
+
+    def list_tools(self) -> list[str]:
+        return list(self._tools.keys())
+
+    def get_schemas_for_session(
+        self, db: Session, session_id: str
+    ) -> list[dict]:
+        """Return tool schemas for tools this session is allowed to use."""
+        result = []
+        for name in self._tools:
+            if check_tool_permission(db, session_id, name):
+                schema = self._schemas.get(name, {"name": name})
+                result.append(schema)
+        return result
+
+
+class ToolExecutor:
+    """Executes tool calls with permission checking."""
+
+    def __init__(self, registry: ToolRegistry):
+        self.registry = registry
+
+    def execute(
+        self,
+        db: Session,
+        session_id: str,
+        tool_name: str,
+        arguments: dict,
+    ) -> ToolResult:
+        # Permission check
+        if not check_tool_permission(db, session_id, tool_name):
+            raise ToolPermissionDenied(
+                f"Session {session_id} does not have permission to use '{tool_name}'"
+            )
+
+        # Get and run the tool
+        tool_func = self.registry.get_tool(tool_name)
+        try:
+            output = tool_func(**arguments)
+            return ToolResult(success=True, output=output)
+        except Exception as e:
+            return ToolResult(success=False, error=str(e))
