@@ -235,9 +235,11 @@ Available tools:
             # Resume existing session — CLI preserves full conversation history
             cmd.extend(["--resume", session_id])
         elif session_id:
-            # First call for this session — set up system prompt and tools
+            # First call for this session (this process) — try --session-id first
+            # but we'll retry with --resume if the CLI says it already exists
             cmd.extend(["--session-id", session_id])
             self._active_sessions.add(session_id)
+            self._is_new_session = True  # flag for retry logic below
             if tools:
                 system_prompt += "\n" + self.TOOL_PROTOCOL + self._format_tools_for_prompt(tools)
             if system_prompt.strip():
@@ -265,7 +267,33 @@ Available tools:
 
             if proc.returncode != 0:
                 error_msg = proc.stderr.strip() or f"claude CLI exited with code {proc.returncode}"
-                return LLMResponse(content=f"Error: {error_msg}", stop_reason="error")
+                # If --session-id failed because it already exists, retry with --resume
+                if "already in use" in error_msg and getattr(self, '_is_new_session', False):
+                    self._is_new_session = False
+                    resume_cmd = [
+                        "claude",
+                        "--print",
+                        "--model", model_alias,
+                        "--output-format", "json",
+                        "--dangerously-skip-permissions",
+                        "--resume", session_id,
+                    ]
+                    if self.max_budget_usd:
+                        resume_cmd.extend(["--max-budget-usd", str(self.max_budget_usd)])
+                    resume_cmd.append(user_content)
+                    proc = subprocess.run(
+                        resume_cmd,
+                        capture_output=True,
+                        text=True,
+                        timeout=120,
+                        cwd=self._project_root,
+                    )
+                    if proc.returncode != 0:
+                        error_msg = proc.stderr.strip() or f"claude CLI exited with code {proc.returncode}"
+                        return LLMResponse(content=f"Error: {error_msg}", stop_reason="error")
+                else:
+                    return LLMResponse(content=f"Error: {error_msg}", stop_reason="error")
+            self._is_new_session = False
 
             # Parse JSON output from claude CLI
             raw_content = proc.stdout.strip()
