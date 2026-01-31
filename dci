@@ -200,11 +200,17 @@ cmd_set_the_field() {
     log_info "Laying out the coordinate grid..."
     activate_venv
     cd "$PROJECT_ROOT"
+
+    # Run Alembic migrations first, then create any remaining tables
+    if [ -f "alembic.ini" ]; then
+        log_info "Running database migrations..."
+        alembic upgrade head
+    fi
+
     python -c "
-from backend.database import create_db_engine, Base
-import backend.models  # noqa: F401 — registers all models
+from backend.database import create_db_engine, Base, init_db
 engine = create_db_engine()
-Base.metadata.create_all(engine)
+init_db(engine)
 print('Field is set.')
 "
 }

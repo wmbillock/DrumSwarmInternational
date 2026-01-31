@@ -60,7 +60,8 @@ def get_task_manager():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _task_manager
-    Base.metadata.create_all(engine)
+    from backend.database import init_db
+    init_db(engine)
 
     # Initialize task manager with real LLM client and tool registry
     from backend.services.llm_client import AnthropicLLMClient
