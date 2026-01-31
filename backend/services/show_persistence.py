@@ -74,10 +74,14 @@ def update_status(show_dir: Path, new_status: str) -> None:
 
 
 def append_design_notes(show_dir: Path, text: str) -> None:
-    """Append text to design_notes.md."""
+    """Append text to design_notes.md with auto-generated routing tags."""
+    from backend.services.note_router import route_note
+
+    tags = route_note(text)
+    tag_comment = f"<!-- tags: {', '.join(tags)} -->\n"
     path = Path(show_dir) / "design_notes.md"
     with open(path, "a") as f:
-        f.write(text + "\n")
+        f.write(tag_comment + text + "\n")
 
 
 def synthesize_prompt(show_dir: Path) -> None:
