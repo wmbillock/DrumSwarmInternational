@@ -17,6 +17,7 @@ import backend.models.penalty  # noqa: F401
 import backend.models.corps  # noqa: F401
 import backend.models.show  # noqa: F401
 import backend.models.work_log  # noqa: F401
+import backend.models.performer  # noqa: F401
 
 
 @pytest.fixture
