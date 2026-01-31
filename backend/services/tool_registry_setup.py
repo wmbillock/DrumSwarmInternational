@@ -100,16 +100,20 @@ def register_service_tools(registry: ToolRegistry) -> None:
     def verify_work(db, rep_id: str, coordinate_id: str = ""):
         """Run verification gates on a rep's result before completion."""
         from backend.models.rep import Rep
-        from backend.services.verification import VerificationEngine
+        from backend.models.coordinate import Coordinate
+        from backend.services.verification import get_verification_engine
         rep = db.get(Rep, rep_id)
         if not rep:
             return {"error": "Rep not found"}
         if not rep.result:
             return {"passed": False, "summary": "Rep has no result to verify."}
-        engine = VerificationEngine()
-        result = engine.verify(rep_id=rep_id, result=rep.result, coordinate_id=coordinate_id or rep.coordinate_id)
-        return {"passed": result.passed, "summary": result.summary, "gates": [
-            {"gate": g.gate_name, "passed": g.passed, "message": g.message} for g in result.gates
+        engine = get_verification_engine()
+        cid = coordinate_id or rep.coordinate_id
+        coord = db.get(Coordinate, cid) if cid else None
+        coord_type = coord.type.value if coord and coord.type else None
+        vr = engine.verify(rep_id=rep_id, result=rep.result, coordinate_id=cid, coordinate_type=coord_type)
+        return {"passed": vr.passed, "summary": vr.summary, "gates": [
+            {"gate": g.gate_name, "passed": g.passed, "message": g.message} for g in vr.gates
         ]}
 
     # --- Register all tools ---

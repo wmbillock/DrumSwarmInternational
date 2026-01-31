@@ -249,8 +249,12 @@ def create_corps(db: Session, name: str, show_id: Optional[str] = None) -> Corps
     return corps
 
 
-def initialize_corps(db: Session, corps_id: str) -> dict[str, AgentSession]:
-    """Spawn the full hierarchy from definitions, returning role→session map."""
+def initialize_corps(db: Session, corps_id: str, use_auditions: bool = True) -> dict[str, AgentSession]:
+    """Spawn the full hierarchy from definitions, returning role→session map.
+
+    If use_auditions is True, performers are auditioned for each role and linked
+    to the spawned sessions. Otherwise, sessions are created without performers.
+    """
     corps = db.get(Corps, corps_id)
     if corps is None:
         raise CorpsError(f"Corps {corps_id} not found")
@@ -277,6 +281,18 @@ def initialize_corps(db: Session, corps_id: str) -> dict[str, AgentSession]:
             db, definition_id=defn.id, corps_id=corps_id,
             parent_session_id=parent_session_id,
         )
+
+        # Audition a performer for this role
+        if use_auditions:
+            try:
+                from backend.services.performer_service import audition_for_role
+                performer = audition_for_role(db, role)
+                if performer:
+                    session.performer_id = performer.id
+                    db.commit()
+            except Exception:
+                pass  # Auditions are best-effort
+
         sessions[role] = session
 
     corps.status = CorpsStatus.REHEARSAL

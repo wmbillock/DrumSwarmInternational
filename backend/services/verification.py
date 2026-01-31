@@ -88,6 +88,14 @@ def gate_brown_m_and_m(result: str, canary_phrase: str = "", **kwargs) -> GateRe
 # Default gate chain
 DEFAULT_GATES = [gate_non_empty, gate_minimum_length, gate_json_valid]
 
+# Gate configurations per coordinate type — maps type name to gate overrides
+COORDINATE_TYPE_GATES: dict[str, dict] = {
+    "show": {"min_length": 50},
+    "movement": {"min_length": 20},
+    "set": {"min_length": 10},
+    "coordinate": {"min_length": 10},
+}
+
 
 class VerificationEngine:
     """Runs verification gates on rep results before completion."""
@@ -95,6 +103,8 @@ class VerificationEngine:
     def __init__(self):
         self._gates: list[Callable] = list(DEFAULT_GATES)
         self._custom_gates: dict[str, list[Callable]] = {}  # coordinate_id -> custom gates
+        self._type_gates: dict[str, list[Callable]] = {}  # coordinate_type -> extra gates
+        self._type_kwargs: dict[str, dict] = dict(COORDINATE_TYPE_GATES)
 
     def add_gate(self, gate_func: Callable) -> None:
         """Add a global verification gate."""
@@ -104,16 +114,28 @@ class VerificationEngine:
         """Add a custom gate for a specific coordinate."""
         self._custom_gates.setdefault(coordinate_id, []).append(gate_func)
 
+    def add_type_gate(self, coordinate_type: str, gate_func: Callable) -> None:
+        """Add a gate for all coordinates of a given type."""
+        self._type_gates.setdefault(coordinate_type, []).append(gate_func)
+
+    def set_type_kwargs(self, coordinate_type: str, **kwargs) -> None:
+        """Set gate keyword overrides for a coordinate type."""
+        self._type_kwargs.setdefault(coordinate_type, {}).update(kwargs)
+
     def verify(
         self,
         rep_id: str,
         result: str,
         coordinate_id: Optional[str] = None,
+        coordinate_type: Optional[str] = None,
         canary_phrase: str = "",
     ) -> VerificationResult:
         """Run all applicable gates on a result."""
         gate_results = []
+        # Merge type-specific kwargs
         kwargs = {"canary_phrase": canary_phrase}
+        if coordinate_type and coordinate_type in self._type_kwargs:
+            kwargs.update(self._type_kwargs[coordinate_type])
 
         # Run global gates
         for gate in self._gates:
@@ -123,6 +145,11 @@ class VerificationEngine:
         if canary_phrase:
             gate_results.append(gate_brown_m_and_m(result, **kwargs))
 
+        # Run type-specific gates
+        if coordinate_type and coordinate_type in self._type_gates:
+            for gate in self._type_gates[coordinate_type]:
+                gate_results.append(gate(result, **kwargs))
+
         # Run custom gates for coordinate
         if coordinate_id and coordinate_id in self._custom_gates:
             for gate in self._custom_gates[coordinate_id]:
@@ -130,3 +157,22 @@ class VerificationEngine:
 
         all_passed = all(g.passed for g in gate_results)
         return VerificationResult(rep_id=rep_id, passed=all_passed, gates=gate_results)
+
+
+class VerificationError(Exception):
+    """Raised when verification gates fail on rep completion."""
+    def __init__(self, verification_result: VerificationResult):
+        self.result = verification_result
+        super().__init__(verification_result.summary)
+
+
+# Module-level singleton
+_engine: Optional[VerificationEngine] = None
+
+
+def get_verification_engine() -> VerificationEngine:
+    """Get or create the global verification engine."""
+    global _engine
+    if _engine is None:
+        _engine = VerificationEngine()
+    return _engine

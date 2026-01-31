@@ -150,7 +150,7 @@ class TestEndToEnd:
         rep = create_rep(db, coordinate_id=set_coord.id)
         transition_rep(db, rep.id, RepStatus.ASSIGNED, assigned_to="agent-1")
         transition_rep(db, rep.id, RepStatus.IN_PROGRESS)
-        transition_rep(db, rep.id, RepStatus.REVIEW, result="Done")
+        transition_rep(db, rep.id, RepStatus.REVIEW, result="Completed brass work output")
         transition_rep(db, rep.id, RepStatus.COMPLETED)
 
         # Score it

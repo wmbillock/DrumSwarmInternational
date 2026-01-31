@@ -130,7 +130,7 @@ class TestAutoScoring:
         rep = create_rep(db, coordinate_id=coord.id)
         transition_rep(db, rep.id, RepStatus.ASSIGNED, assigned_to="agent-1")
         transition_rep(db, rep.id, RepStatus.IN_PROGRESS)
-        transition_rep(db, rep.id, RepStatus.REVIEW, result="Done")
+        transition_rep(db, rep.id, RepStatus.REVIEW, result="Completed generic task output")
         transition_rep(db, rep.id, RepStatus.COMPLETED)
 
         scores = db.query(Score).filter(Score.rep_id == rep.id).all()
@@ -145,7 +145,7 @@ class TestAutoScoring:
         rep1 = create_rep(db, coordinate_id=child.id)
         transition_rep(db, rep1.id, RepStatus.ASSIGNED, assigned_to="a1")
         transition_rep(db, rep1.id, RepStatus.IN_PROGRESS)
-        transition_rep(db, rep1.id, RepStatus.REVIEW, result="ok")
+        transition_rep(db, rep1.id, RepStatus.REVIEW, result="Short result text")
         transition_rep(db, rep1.id, RepStatus.COMPLETED)
 
         # Long result

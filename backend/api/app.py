@@ -1314,6 +1314,15 @@ def api_retire_performer(performer_id: str, db: Session = Depends(get_db)):
         raise HTTPException(404, str(e))
 
 
+# --- Evaluation ---
+
+@app.post("/api/corps/{corps_id}/evaluate")
+def api_evaluate_corps(corps_id: str, db: Session = Depends(get_db)):
+    """Run post-show evaluation on all performers in a corps."""
+    from backend.services.evaluation_service import evaluate_corps
+    return evaluate_corps(db, corps_id)
+
+
 # --- WebSocket for real-time updates ---
 
 @app.websocket("/ws/{corps_id}")

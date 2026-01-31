@@ -79,7 +79,7 @@ class TestRepTransitions:
         rep = create_rep(db, c.id)
         transition_rep(db, rep.id, RepStatus.ASSIGNED)
         transition_rep(db, rep.id, RepStatus.IN_PROGRESS)
-        transition_rep(db, rep.id, RepStatus.REVIEW)
+        transition_rep(db, rep.id, RepStatus.REVIEW, result="Completed work output for test")
         rep = transition_rep(db, rep.id, RepStatus.COMPLETED)
         assert rep.status == RepStatus.COMPLETED
 
@@ -144,7 +144,7 @@ class TestInvalidTransitions:
         rep = create_rep(db, c.id)
         transition_rep(db, rep.id, RepStatus.ASSIGNED)
         transition_rep(db, rep.id, RepStatus.IN_PROGRESS)
-        transition_rep(db, rep.id, RepStatus.REVIEW)
+        transition_rep(db, rep.id, RepStatus.REVIEW, result="Completed work output for test")
         transition_rep(db, rep.id, RepStatus.COMPLETED)
         with pytest.raises(InvalidRepTransition):
             transition_rep(db, rep.id, RepStatus.PENDING)
@@ -180,7 +180,7 @@ class TestRepCoordinateSync:
         rep = create_rep(db, c.id)
         transition_rep(db, rep.id, RepStatus.ASSIGNED)
         transition_rep(db, rep.id, RepStatus.IN_PROGRESS)
-        transition_rep(db, rep.id, RepStatus.REVIEW)
+        transition_rep(db, rep.id, RepStatus.REVIEW, result="Completed work output for test")
         transition_rep(db, rep.id, RepStatus.COMPLETED)
 
         db.refresh(c)
@@ -191,7 +191,7 @@ class TestRepCoordinateSync:
         rep = create_rep(db, c.id)
         transition_rep(db, rep.id, RepStatus.ASSIGNED)
         transition_rep(db, rep.id, RepStatus.IN_PROGRESS)
-        transition_rep(db, rep.id, RepStatus.REVIEW)
+        transition_rep(db, rep.id, RepStatus.REVIEW, result="Completed work output for test")
         transition_rep(db, rep.id, RepStatus.COMPLETED)
 
         db.refresh(s)
@@ -226,7 +226,7 @@ class TestRepCoordinateSync:
         r2 = create_rep(db, c.id)
         transition_rep(db, r2.id, RepStatus.ASSIGNED)
         transition_rep(db, r2.id, RepStatus.IN_PROGRESS)
-        transition_rep(db, r2.id, RepStatus.REVIEW)
+        transition_rep(db, r2.id, RepStatus.REVIEW, result="Completed work output for test")
         transition_rep(db, r2.id, RepStatus.COMPLETED)
 
         db.refresh(c)

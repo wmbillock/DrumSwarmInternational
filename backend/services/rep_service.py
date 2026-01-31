@@ -39,6 +39,10 @@ def transition_rep(
             f"Cannot transition rep from {rep.status.value} to {new_status.value}"
         )
 
+    # Run verification gates before allowing COMPLETED transition
+    if new_status == RepStatus.COMPLETED:
+        _run_verification(db, rep, result)
+
     rep.status = new_status
 
     if assigned_to is not None:
@@ -59,6 +63,39 @@ def transition_rep(
     _sync_coordinate_from_reps(db, rep.coordinate_id)
 
     return rep
+
+
+def _run_verification(db: Session, rep: Rep, result: Optional[str]) -> None:
+    """Run verification gates before completing a rep. Raises VerificationError on failure."""
+    import logging
+    logger = logging.getLogger(__name__)
+    try:
+        from backend.models.coordinate import Coordinate
+        from backend.services.verification import get_verification_engine, VerificationError
+
+        engine = get_verification_engine()
+        check_result = result if result is not None else (rep.result or "")
+
+        coord = db.get(Coordinate, rep.coordinate_id)
+        coord_type = coord.type.value if coord and coord.type else None
+        canary = ""
+
+        vr = engine.verify(
+            rep_id=rep.id,
+            result=check_result,
+            coordinate_id=rep.coordinate_id,
+            coordinate_type=coord_type,
+            canary_phrase=canary or "",
+        )
+        if not vr.passed:
+            logger.warning("Verification failed for rep %s: %s", rep.id, vr.summary)
+            raise VerificationError(vr)
+    except ImportError:
+        pass  # verification module not available
+    except Exception as e:
+        if type(e).__name__ == "VerificationError":
+            raise
+        logger.warning("Verification check error for rep %s: %s", rep.id, e)
 
 
 def _auto_score_rep(db: Session, rep: "Rep") -> None:
