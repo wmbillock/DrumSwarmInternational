@@ -38,24 +38,26 @@ class TestBuildInitialMessages:
     def test_basic_messages(self, db):
         defn = create_definition(db, "performer", "You are a performer.")
         messages = build_initial_messages(defn, "Implement the login page")
-        assert len(messages) == 2
+        # At minimum: system + task. Memory bank may add recall messages.
+        assert len(messages) >= 2
         assert messages[0].role == "system"
         assert messages[0].content == "You are a performer."
-        assert messages[1].role == "user"
-        assert messages[1].content == "Implement the login page"
+        assert messages[-1].role == "user"
+        assert messages[-1].content == "Implement the login page"
 
     def test_with_context_snapshot(self, db):
         defn = create_definition(db, "performer", "You are a performer.")
         snapshot = json.dumps({"summary": "Started login, got to 50%"})
         messages = build_initial_messages(defn, "Continue the work", context_snapshot=snapshot)
-        assert len(messages) == 4
+        # At minimum: system, snapshot, ack, task. Memory bank may add more.
+        assert len(messages) >= 4
         assert messages[0].role == "system"
         assert messages[1].role == "user"
         assert "previous session" in messages[1].content
         assert snapshot in messages[1].content
         assert messages[2].role == "assistant"
-        assert messages[3].role == "user"
-        assert messages[3].content == "Continue the work"
+        assert messages[-1].role == "user"
+        assert messages[-1].content == "Continue the work"
 
 
 class TestLLMClient:
@@ -271,7 +273,8 @@ class TestAgentRuntime:
 
         # Verify the messages sent to LLM include the snapshot
         sent_messages = client.calls[0]["messages"]
-        assert len(sent_messages) == 4  # system, snapshot user, snapshot ack, task
+        # Messages: system, snapshot user, snapshot ack, [optional memory recall, memory ack], task
+        assert len(sent_messages) >= 4
         assert "previous session" in sent_messages[1].content
         assert "50%" in sent_messages[1].content
 

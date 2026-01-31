@@ -28,6 +28,7 @@ from backend.services.failure_fingerprint import FailureFingerprint, FailureRegi
 from backend.services.llm_client import LLMClient, LLMMessage, LLMResponse
 from backend.services.message_bus import get_message_bus, AgentPhaseChanged, AgentCompleted
 from backend.services.tool_executor import ToolExecutor, ToolPermissionDenied, ToolNotFound
+from backend.services.memory_bank import get_memory_bank
 from backend.services.verification import VerificationEngine
 
 
@@ -79,6 +80,19 @@ def build_initial_messages(
                 content="Understood. I have the context from the previous session and will continue from where it left off.",
             )
         )
+
+    # Inject relevant memories from memory bank
+    memory_bank = get_memory_bank()
+    if memory_bank.available and definition.role:
+        agent_identity = definition.nickname or definition.role
+        memory_context = memory_bank.get_context_for_task(agent_identity, task_description)
+        if memory_context:
+            messages.append(
+                LLMMessage(role="user", content=memory_context)
+            )
+            messages.append(
+                LLMMessage(role="assistant", content="I'll use these memories to inform my work.")
+            )
 
     task_content = task_description
     if manifest_context:
@@ -354,6 +368,26 @@ def run_agent(
             status=result.status, corps_id=corps_id,
         ))
 
+        # Store session summary in memory bank
+        try:
+            memory_bank = get_memory_bank()
+            if memory_bank.available and result.final_response:
+                agent_identity = definition.nickname or definition.role
+                summary = (
+                    f"Task: {task_description[:500]}\n"
+                    f"Result ({result.status}): {result.final_response[:1000]}\n"
+                    f"Tools used: {len(result.tool_calls_made)}, Iterations: {result.iterations}"
+                )
+                memory_bank.store_session_summary(
+                    agent_identity=agent_identity,
+                    session_id=session_id,
+                    role=definition.role,
+                    summary=summary,
+                    corps_id=corps_id,
+                )
+        except Exception:
+            pass  # Don't let memory storage break the flow
+
     except Exception as e:
         result.status = "failed"
         result.error = str(e)
@@ -370,10 +404,40 @@ def run_agent(
             "session_id": session_id, "status": "failed", "error": str(e),
         }, corps_id, phase_controller.current_phase.value)
 
+        # Store failure lesson in memory bank
         try:
-            fail_session(db, session_id, error=str(e))
+            memory_bank = get_memory_bank()
+            if memory_bank.available:
+                agent_identity = definition.nickname or definition.role
+                memory_bank.store_failure_lesson(
+                    agent_identity=agent_identity,
+                    session_id=session_id,
+                    what_failed=task_description[:300],
+                    lesson=f"Failed with error: {str(e)[:500]}. "
+                           f"Tools attempted: {[tc['tool'] for tc in result.tool_calls_made]}",
+                )
         except Exception:
-            pass  # Session may already be in terminal state
+            pass
+
+        # Save snapshot on failure so respawned sessions get context
+        try:
+            result.phase_state = phase_controller.get_state()
+            failure_snapshot = json.dumps({
+                "final_response": result.final_response,
+                "tool_calls": result.tool_calls_made,
+                "iterations": result.iterations,
+                "phase_state": result.phase_state,
+                "failure_fingerprints": failure_registry.get_all_fingerprints(),
+                "failed": True,
+                "failure_reason": str(e),
+                "task_description": task_description,
+            })
+            fail_session(db, session_id, error=str(e), context_snapshot=failure_snapshot)
+        except Exception:
+            try:
+                fail_session(db, session_id, error=str(e))
+            except Exception:
+                pass  # Session may already be in terminal state
 
     return result
 

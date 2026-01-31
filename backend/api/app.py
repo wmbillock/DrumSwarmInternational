@@ -1211,6 +1211,70 @@ async def api_execute_corps_command(corps_id: str, data: CorpsCommand, db: Sessi
     return result
 
 
+# --- Performers API ---
+
+@app.get("/api/performers")
+def api_list_performers(status: Optional[str] = None, db: Session = Depends(get_db)):
+    from backend.models.performer import Performer, PerformerStatus
+    from backend.services.performer_service import list_performers
+
+    ps = None
+    if status:
+        try:
+            ps = PerformerStatus(status)
+        except ValueError:
+            raise HTTPException(400, f"Invalid status: {status}")
+
+    performers = list_performers(db, status=ps)
+    return [
+        {
+            "id": p.id,
+            "name": p.name,
+            "role_type": p.role_type,
+            "trust_score": round(p.trust_score, 1),
+            "total_sessions": p.total_sessions,
+            "successful_sessions": p.successful_sessions,
+            "failed_sessions": p.failed_sessions,
+            "status": p.status.value,
+            "retirement_reason": p.retirement_reason,
+            "created_at": p.created_at.isoformat() if p.created_at else None,
+        }
+        for p in performers
+    ]
+
+
+@app.get("/api/performers/{performer_id}")
+def api_get_performer(performer_id: str, db: Session = Depends(get_db)):
+    from backend.services.performer_service import get_performer
+    p = get_performer(db, performer_id)
+    if not p:
+        raise HTTPException(404, "Performer not found")
+    return {
+        "id": p.id,
+        "name": p.name,
+        "role_type": p.role_type,
+        "trust_score": round(p.trust_score, 1),
+        "total_sessions": p.total_sessions,
+        "successful_sessions": p.successful_sessions,
+        "failed_sessions": p.failed_sessions,
+        "status": p.status.value,
+        "specialties": p.specialties,
+        "retirement_reason": p.retirement_reason,
+        "created_at": p.created_at.isoformat() if p.created_at else None,
+        "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+    }
+
+
+@app.post("/api/performers/{performer_id}/retire")
+def api_retire_performer(performer_id: str, db: Session = Depends(get_db)):
+    from backend.services.performer_service import retire_performer
+    try:
+        p = retire_performer(db, performer_id, reason="Manual retirement via API")
+        return {"id": p.id, "name": p.name, "status": p.status.value}
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
 # --- WebSocket for real-time updates ---
 
 @app.websocket("/ws/{corps_id}")

@@ -42,6 +42,9 @@ class AgentSession(Base):
         Enum(SessionStatus), default=SessionStatus.ACTIVE
     )
     context_snapshot: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    performer_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("performers.id"), nullable=True
+    )
     error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

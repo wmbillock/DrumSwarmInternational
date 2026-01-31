@@ -21,6 +21,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 METRONOME_INTERVAL_SECONDS = 30
+MAX_AUTO_RETRIES = 3
+AUTO_RETRY_ROLES = {"executive_director", "program_coordinator", "drum_major"}
 
 
 class TaskManager:
@@ -37,6 +39,7 @@ class TaskManager:
         self._stopped = False
         self.autoscaler = AutoScaler()
         self.message_bus = get_message_bus()
+        self._retry_counts: dict[str, int] = {}
 
     def start_metronome(self) -> None:
         """Start the automatic metronome tick loop."""
@@ -245,6 +248,41 @@ class TaskManager:
                     "from_role": role,
                     "content": result.final_response,
                 })
+
+            # Auto-retry critical roles on failure
+            if result.status == "failed" and role in AUTO_RETRY_ROLES:
+                retry_count = self._retry_counts.get(session_id, 0)
+                if retry_count < MAX_AUTO_RETRIES:
+                    self._retry_counts[session_id] = retry_count + 1
+                    logger.info(
+                        "Auto-retrying %s (attempt %d/%d) for session %s",
+                        role, retry_count + 1, MAX_AUTO_RETRIES, session_id,
+                    )
+                    new_session_id = self.get_session_for_role(
+                        self._session_factory(), corps_id, role
+                    )
+                    if new_session_id:
+                        retry_desc = (
+                            f"You are resuming after a failure (attempt {retry_count + 2}). "
+                            f"Previous error: {result.error or 'unknown'}. "
+                            f"Try a different approach if the same strategy failed before.\n\n"
+                            f"{task_description}"
+                        )
+                        self.start_agent(
+                            session_id=new_session_id,
+                            task_description=retry_desc,
+                            corps_id=corps_id,
+                            context_snapshot=context_snapshot,
+                        )
+                        await self.connection_manager.broadcast(corps_id, {
+                            "type": "agent_status",
+                            "corps_id": corps_id,
+                            "session_id": new_session_id,
+                            "role": role,
+                            "nickname": nickname,
+                            "status": "auto_retry",
+                            "attempt": retry_count + 2,
+                        })
 
         except Exception as e:
             logger.exception("Agent task failed for session %s", session_id)
