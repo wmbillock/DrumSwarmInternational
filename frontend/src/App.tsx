@@ -275,8 +275,8 @@ function ShowDetail({
       const contentKey = id || `ws:${e.from_role || e.role}:${(e.content || "").slice(0, 100)}`;
       if (seenIds.has(contentKey)) continue;
       seenIds.add(contentKey);
-      // agent_response events are internal swarm chatter
-      const isInternal = e.type === "agent_response";
+      // agent_response events with a message_id were persisted as user-facing chat replies
+      const isInternal = e.type === "agent_response" && !id;
       allChat.push({ from: e.from_role || e.role || "agent", nickname: e.nickname, content: e.content || "", time: undefined, internal: isInternal });
     }
   }
