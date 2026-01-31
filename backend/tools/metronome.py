@@ -97,8 +97,11 @@ def tick(db: Session, corps_id: str) -> MetronomeResult:
     if result.reclaimed > 0 or result.idle_kicked > 0:
         db.commit()
 
-    # Watchdog chain: check critical roles
-    result.watchdog_respawned = _watchdog_check(db, corps_id)
+    # Watchdog chain: check critical roles (scoped by rehearsal mode)
+    from backend.models.corps import Corps, RehearsalMode
+    corps = db.get(Corps, corps_id)
+    current_mode = corps.rehearsal_mode if corps else None
+    result.watchdog_respawned = _watchdog_check(db, corps_id, rehearsal_mode=current_mode)
 
     return result
 
@@ -113,15 +116,38 @@ def _apply_idle_penalty(db: Session, session: AgentSession) -> None:
         logger.warning("Failed to apply idle penalty for session %s", session.id)
 
 
-def _watchdog_check(db: Session, corps_id: str) -> list[str]:
+def _get_watchdog_roles_for_mode(rehearsal_mode) -> list[str]:
+    """Return the subset of WATCHDOG_CHAIN appropriate for the current mode."""
+    from backend.models.corps import RehearsalMode
+    if rehearsal_mode == RehearsalMode.BASICS:
+        return ["timing_judge", "executive_director"]
+    if rehearsal_mode == RehearsalMode.SECTIONALS:
+        return [
+            "timing_judge", "drum_major", "program_coordinator",
+            "brass_caption_head", "percussion_caption_head",
+            "guard_caption_head", "visual_caption_head",
+        ]
+    # FULL_ENSEMBLE, RUN_THROUGH, ON_TOUR, or None → full chain
+    return list(WATCHDOG_CHAIN)
+
+
+def _watchdog_check(db: Session, corps_id: str, rehearsal_mode=None) -> list[str]:
     """Check watchdog chain roles and flag any that are dead.
 
     Returns list of role names that need respawning.
+    Scoped by rehearsal mode: BASICS only monitors timing_judge + ED,
+    SECTIONALS adds PC + caption heads, FULL_ENSEMBLE+ monitors all.
+
+    Circuit breaker: if a role has been respawned many times recently
+    (i.e. it keeps completing immediately without doing real work),
+    skip respawning to avoid an infinite respawn loop.
     """
     from backend.models.agent_definition import AgentDefinition
 
+    monitored_roles = _get_watchdog_roles_for_mode(rehearsal_mode)
+
     dead_roles = []
-    for role in WATCHDOG_CHAIN:
+    for role in monitored_roles:
         sessions = (
             db.query(AgentSession)
             .join(AgentDefinition, AgentSession.definition_id == AgentDefinition.id)
@@ -142,6 +168,29 @@ def _watchdog_check(db: Session, corps_id: str) -> list[str]:
         )
 
         if all_terminal and not has_active:
+            # Circuit breaker: count how many sessions completed in the last
+            # 10 minutes with a short lifespan (< 60s). If too many, the role
+            # is stuck in a respawn loop — skip it.
+            from datetime import datetime, timedelta, timezone
+            cutoff = datetime.now(timezone.utc) - timedelta(minutes=10)
+            recent_short_lived = 0
+            for s in sessions:
+                if (
+                    s.status == SessionStatus.COMPLETED
+                    and s.ended_at
+                    and s.started_at
+                    and s.ended_at.replace(tzinfo=timezone.utc) > cutoff
+                    and (s.ended_at - s.started_at).total_seconds() < 60
+                ):
+                    recent_short_lived += 1
+            if recent_short_lived >= 5:
+                logger.warning(
+                    "Watchdog circuit breaker: role %s in corps %s has %d short-lived "
+                    "sessions in last 10min, skipping respawn",
+                    role, corps_id, recent_short_lived,
+                )
+                continue
+
             dead_roles.append(role)
             logger.warning("Watchdog: role %s is dead in corps %s", role, corps_id)
 

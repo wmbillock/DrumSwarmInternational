@@ -1,0 +1,80 @@
+:root {
+  /* Blue Devils (bd) - Royal blue base with black and metallic silver highlights */
+  --bd-primary: #0047AB;
+  --bd-secondary: #000000;
+  --bd-accent: #B7B9BC;
+
+  /* The Cavaliers (cav) - Green Machine identity */
+  --cav-primary: #0B3D2E;
+  --cav-secondary: #000000;
+  --cav-tertiary: #FFFFFF;
+
+  /* The Cadets (cadets) - Traditional burgundy and cream */
+  --cadets-primary: #6E1F2B;
+  --cadets-secondary: #F3E6CF;
+
+  /* Santa Clara Vanguard (scv) - Classic triad with white accents */
+  --scv-primary: #9E1B32;
+  --scv-secondary: #006341;
+  --scv-tertiary: #000000;
+  --scv-accent: #FFFFFF;
+
+  /* Phantom Regiment (phantom) - Stable core with variable show accent */
+  --phantom-primary: #000000;
+  --phantom-accent: #B1B3B3;
+
+  /* Bluecoats (blo) - Lighter blue than royal, strong white presence */
+  --blo-primary: #4F83C2;
+  --blo-secondary: #FFFFFF;
+
+  /* Carolina Crown (crown) - Regal, non-blue identity */
+  --crown-primary: #4B2E83;
+  --crown-secondary: #C5C7C9;
+  --crown-tertiary: #000000;
+
+  /* Madison Scouts (scouts) - Bold, aggressive traditional palette */
+  --scouts-primary: #006A3F;
+  --scouts-secondary: #C8102E;
+  --scouts-tertiary: #FFFFFF;
+
+  /* Blue Stars (bstars) - Clean, naval, chrome-accented look */
+  --bstars-primary: #0A1F44;
+  --bstars-secondary: #FFFFFF;
+  --bstars-accent: #C0C5C9;
+
+  /* Boston Crusaders (boston) - Red coats, metallic emphasis */
+  --boston-primary: #B11226;
+  --boston-secondary: #000000;
+  --boston-accent: #B7B9BC;
+
+  /* Glassmen (glass) - Metal-forward identity, no blue */
+  --glass-primary: #000000;
+  --glass-secondary: #C9A227;
+  --glass-tertiary: #B7B9BC;
+
+  /* Crossmen (cross) - Cross-forward identity */
+  --cross-primary: #9E1B32;
+  --cross-secondary: #000000;
+  --cross-accent: #B7B9BC;
+
+  /* Colts (colts) - Explicit "red team" with cream */
+  --colts-primary: #B11226;
+  --colts-secondary: #000000;
+  --colts-tertiary: #EFE2C6;
+
+  /* Pioneer (pioneer) - Traditional Irish scheme */
+  --pioneer-primary: #FFFFFF;
+  --pioneer-secondary: #009A44;
+  --pioneer-tertiary: #FF7A00;
+
+  /* Racine Kilties (kilties) - Buchanan Modern tartan */
+  --kilties-primary: #FFD100;
+  --kilties-secondary: #FF8C00;
+  --kilties-tertiary: #C8102E;
+  --kilties-quaternary: #000000;
+
+  /* Sacramento Freelancers (free) - Historic, aggressive identity */
+  --free-primary: #000000;
+  --free-secondary: #C8102E;
+  --free-accent: #B7B9BC;
+}

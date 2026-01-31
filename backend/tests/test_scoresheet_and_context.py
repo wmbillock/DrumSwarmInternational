@@ -50,7 +50,7 @@ def db():
 @pytest.fixture
 def show_with_corps(db):
     """Create a show with a corps and segment tree."""
-    corps = Corps(name="Test Corps", status=CorpsStatus.REHEARSAL)
+    corps = Corps(name="Test Corps", status=CorpsStatus.WINTER_CAMPS)
     db.add(corps)
     db.flush()
 
@@ -206,7 +206,7 @@ class TestScoresheetAPI:
     def test_scoresheet_empty_corps(self, client):
         c, SessionFactory = client
         db = SessionFactory()
-        corps = Corps(name="Empty Corps", status=CorpsStatus.REHEARSAL)
+        corps = Corps(name="Empty Corps", status=CorpsStatus.WINTER_CAMPS)
         db.add(corps)
         db.commit()
         db.refresh(corps)
@@ -223,7 +223,7 @@ class TestScoresheetAPI:
         c, SessionFactory = client
         db = SessionFactory()
 
-        corps = Corps(name="Scored Corps", status=CorpsStatus.REHEARSAL)
+        corps = Corps(name="Scored Corps", status=CorpsStatus.WINTER_CAMPS)
         db.add(corps)
         db.flush()
 
@@ -263,7 +263,7 @@ class TestScoresheetAPI:
         c, SessionFactory = client
         db = SessionFactory()
 
-        corps = Corps(name="Exec Corps", status=CorpsStatus.REHEARSAL)
+        corps = Corps(name="Exec Corps", status=CorpsStatus.WINTER_CAMPS)
         db.add(corps)
         db.flush()
 
@@ -298,7 +298,7 @@ class TestChatContextBuilder:
     @pytest.fixture
     def db_with_chat(self, db):
         """Set up a corps with chat history."""
-        corps = Corps(name="Chat Corps", status=CorpsStatus.REHEARSAL)
+        corps = Corps(name="Chat Corps", status=CorpsStatus.WINTER_CAMPS)
         db.add(corps)
         db.flush()
 
@@ -453,7 +453,7 @@ class TestDashboardFinalScore:
         c, SessionFactory = client
         db = SessionFactory()
 
-        corps = Corps(name="Score Corps", status=CorpsStatus.REHEARSAL)
+        corps = Corps(name="Score Corps", status=CorpsStatus.WINTER_CAMPS)
         db.add(corps)
         db.flush()
 

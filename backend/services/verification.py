@@ -89,7 +89,7 @@ def gate_brown_m_and_m(result: str, canary_phrase: str = "", **kwargs) -> GateRe
 DEFAULT_GATES = [gate_non_empty, gate_minimum_length, gate_json_valid]
 
 # Gate configurations per segment type — maps type name to gate overrides
-COORDINATE_TYPE_GATES: dict[str, dict] = {
+SEGMENT_TYPE_GATES: dict[str, dict] = {
     "show": {"min_length": 50},
     "movement": {"min_length": 20},
     "set": {"min_length": 10},
@@ -104,7 +104,7 @@ class VerificationEngine:
         self._gates: list[Callable] = list(DEFAULT_GATES)
         self._custom_gates: dict[str, list[Callable]] = {}  # segment_id -> custom gates
         self._type_gates: dict[str, list[Callable]] = {}  # segment_type -> extra gates
-        self._type_kwargs: dict[str, dict] = dict(COORDINATE_TYPE_GATES)
+        self._type_kwargs: dict[str, dict] = dict(SEGMENT_TYPE_GATES)
 
     def add_gate(self, gate_func: Callable) -> None:
         """Add a global verification gate."""

@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -5,6 +6,8 @@ from sqlalchemy.orm import Session
 from backend.models.segment import SegmentStatus
 from backend.models.rep import Rep, RepStatus, VALID_TRANSITIONS
 from backend.services.segment_service import update_status_from_children
+
+logger = logging.getLogger(__name__)
 
 
 class InvalidRepTransition(Exception):
@@ -75,7 +78,7 @@ def transition_rep(
             "new_status": new_status.value,
         })
     except Exception:
-        pass
+        logger.debug("Event bus publish failed for rep transition", exc_info=True)
 
     return rep
 

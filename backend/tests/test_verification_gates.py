@@ -17,7 +17,7 @@ from backend.services.verification import (
     gate_json_valid,
     gate_brown_m_and_m,
     get_verification_engine,
-    COORDINATE_TYPE_GATES,
+    SEGMENT_TYPE_GATES,
 )
 
 
@@ -142,8 +142,8 @@ class TestVerificationEngine:
         assert vr2.passed
 
     def test_segment_type_gates_config(self):
-        assert "show" in COORDINATE_TYPE_GATES
-        assert COORDINATE_TYPE_GATES["show"]["min_length"] == 50
+        assert "show" in SEGMENT_TYPE_GATES
+        assert SEGMENT_TYPE_GATES["show"]["min_length"] == 50
 
     def test_singleton_engine(self):
         e1 = get_verification_engine()

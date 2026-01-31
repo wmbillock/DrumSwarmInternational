@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String, Text, func
+from sqlalchemy import DateTime, Enum, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.database import Base
@@ -11,24 +11,25 @@ from backend.database import Base
 
 class CorpsStatus(str, enum.Enum):
     INITIALIZING = "initializing"
-    REHEARSAL = "rehearsal"
-    TOUR = "tour"
+    WINTER_CAMPS = "winter_camps"  # Planning phase (replaces REHEARSAL)
+    ON_TOUR = "on_tour"  # Autonomous execution (replaces TOUR)
     COMPLETED = "completed"
     DISBANDED = "disbanded"
 
 
 class RehearsalMode(str, enum.Enum):
-    BASICS = "basics"  # Internal caption self-improvement
-    SECTIONALS = "sectionals"  # Per-caption rehearsal
-    FULL_ENSEMBLE = "full_ensemble"  # All captions together
-    RUN_THROUGH = "run_through"  # Full show execution
+    BASICS = "basics"  # Self-improvement: understand role, tools, show structure
+    SECTIONALS = "sectionals"  # Section coordination: work within caption
+    FULL_ENSEMBLE = "full_ensemble"  # Cross-section coordination via PC
+    RUN_THROUGH = "run_through"  # Red-green-refactor: implement, test, deliver
 
 
 class Corps(Base):
     """The agent swarm instantiated for a show.
 
-    Owns all agents, reps, and messages. Can be in rehearsal mode
-    (human-guided) or tour mode (autonomous).
+    Owns all agents, reps, and messages. Status is WINTER_CAMPS (planning)
+    or ON_TOUR (autonomous execution). Rehearsal mode tracks progression
+    through BASICS → SECTIONALS → FULL_ENSEMBLE → RUN_THROUGH.
     """
 
     __tablename__ = "corps"
@@ -44,7 +45,6 @@ class Corps(Base):
     rehearsal_mode: Mapped[Optional[RehearsalMode]] = mapped_column(
         Enum(RehearsalMode), nullable=True
     )
-    tour_mode: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

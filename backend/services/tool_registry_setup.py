@@ -47,15 +47,24 @@ def register_service_tools(registry: ToolRegistry) -> None:
     def send_message(db, corps_id: str, from_role: str, to_role: str, type: str, subject: str, body: str = "", priority: str = "normal", segment_id: str = ""):
         from backend.models.message import MessageType, MessagePriority
         from backend.services.message_service import send_message as _send
+        # Coerce unknown message types to STATUS instead of raising ValueError
+        try:
+            msg_type = MessageType(type)
+        except ValueError:
+            msg_type = MessageType.STATUS
+        try:
+            msg_priority = MessagePriority(priority)
+        except ValueError:
+            msg_priority = MessagePriority.NORMAL
         msg = _send(
             db,
             corps_id=corps_id,
             from_role=from_role,
             to_role=to_role,
-            type=MessageType(type),
+            type=msg_type,
             subject=subject,
             body=body or None,
-            priority=MessagePriority(priority),
+            priority=msg_priority,
             segment_id=segment_id or None,
         )
         return {"id": msg.id, "type": msg.type.value, "subject": msg.subject}
@@ -169,7 +178,7 @@ def register_service_tools(registry: ToolRegistry) -> None:
             "type": "object",
             "properties": {
                 "to_role": {"type": "string", "description": "Target role to send the message to"},
-                "type": {"type": "string", "enum": ["handoff", "escalation", "flag", "status", "directive", "feedback"]},
+                "type": {"type": "string", "enum": ["handoff", "escalation", "flag", "status", "directive", "feedback", "question", "request"]},
                 "subject": {"type": "string"},
                 "body": {"type": "string"},
                 "priority": {"type": "string", "enum": ["critical", "high", "normal", "low"]},
@@ -255,3 +264,4 @@ def register_service_tools(registry: ToolRegistry) -> None:
             "required": ["rep_id"],
         },
     })
+

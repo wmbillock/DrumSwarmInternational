@@ -230,6 +230,7 @@ async def api_activate_show(show_id: str, db: Session = Depends(get_db)):
                 task_description=(
                     f"The show '{show.title}' has been activated. The root segment ID is {show.segment_root_id}. "
                     f"The corps ID is {show.corps_id}. "
+                    f"You are in Winter Camps, BASICS mode. "
                     f"Design the show structure: create MOVEMENT segments under the root segment, "
                     f"then hand off to the program_coordinator to break down further."
                 ),
@@ -238,7 +239,7 @@ async def api_activate_show(show_id: str, db: Session = Depends(get_db)):
             await manager.broadcast(show.corps_id, {
                 "type": "message",
                 "role": "system",
-                "content": f"Show activated. Executive Director is designing the show structure...",
+                "content": "Show activated. Winter Camps — ED is designing the show structure...",
             })
 
     return {"id": show.id, "status": show.status.value, "corps_id": show.corps_id}
@@ -256,7 +257,7 @@ def api_toggle_tour(show_id: str, data: TourToggle, db: Session = Depends(get_db
     from backend.services.show_service import toggle_tour, ShowError
     try:
         show = toggle_tour(db, show_id, data.enable)
-        return {"id": show.id, "tour_mode": data.enable}
+        return {"id": show.id, "status": show.status.value}
     except ShowError as e:
         raise HTTPException(400, str(e))
 
@@ -300,8 +301,37 @@ def api_get_corps(corps_id: str, db: Session = Depends(get_db)):
     if not corps:
         raise HTTPException(404, "Corps not found")
     return {"id": corps.id, "name": corps.name, "status": corps.status.value,
-            "tour_mode": corps.tour_mode,
             "rehearsal_mode": corps.rehearsal_mode.value if corps.rehearsal_mode else None}
+
+
+@app.get("/api/corps/{corps_id}/progression")
+def api_get_progression(corps_id: str, db: Session = Depends(get_db)):
+    """Current rehearsal mode, milestones, and what's needed to advance."""
+    from backend.models.corps import Corps, RehearsalMode
+    from backend.services.rehearsal_progression import (
+        _basics_met, _sectionals_met, _full_ensemble_met, _next_mode,
+    )
+    corps = db.get(Corps, corps_id)
+    if not corps:
+        raise HTTPException(404, "Corps not found")
+
+    current = corps.rehearsal_mode
+    checks = {
+        RehearsalMode.BASICS: ("basics_met", _basics_met),
+        RehearsalMode.SECTIONALS: ("sectionals_met", _sectionals_met),
+        RehearsalMode.FULL_ENSEMBLE: ("full_ensemble_met", _full_ensemble_met),
+    }
+    milestones = {}
+    for mode, (key, fn) in checks.items():
+        milestones[key] = fn(db, corps_id)
+
+    return {
+        "corps_id": corps_id,
+        "status": corps.status.value,
+        "current_mode": current.value if current else None,
+        "next_mode": _next_mode(current).value if current and _next_mode(current) else None,
+        "milestones": milestones,
+    }
 
 
 @app.post("/api/corps/{corps_id}/rehearsal-mode")
@@ -855,6 +885,24 @@ def api_run_banquet(corps_id: str, db: Session = Depends(get_db)):
 
 # --- Work Log endpoint ---
 
+def _nickname_lookup(db: Session, logs) -> dict[str, str]:
+    """Build session_id→nickname lookup for a set of work log entries."""
+    from backend.models.agent_session import AgentSession
+    from backend.models.agent_definition import AgentDefinition
+    session_ids = {log.session_id for log in logs if log.session_id}
+    if not session_ids:
+        return {}
+    sessions = db.query(AgentSession).filter(AgentSession.id.in_(session_ids)).all()
+    defn_ids = {s.definition_id for s in sessions if s.definition_id}
+    defns = {d.id: d for d in db.query(AgentDefinition).filter(AgentDefinition.id.in_(defn_ids)).all()} if defn_ids else {}
+    result = {}
+    for s in sessions:
+        defn = defns.get(s.definition_id)
+        if defn and defn.nickname:
+            result[s.id] = defn.nickname
+    return result
+
+
 @app.get("/api/work-log")
 def api_get_global_work_log(limit: int = 100, event_type: Optional[str] = None, db: Session = Depends(get_db)):
     """Get work log across all corps."""
@@ -863,11 +911,13 @@ def api_get_global_work_log(limit: int = 100, event_type: Optional[str] = None, 
     if event_type:
         query = query.filter(WorkLog.event_type == event_type)
     logs = query.order_by(WorkLog.timestamp.desc()).limit(limit).all()
+    nicknames = _nickname_lookup(db, logs)
     return [{
         "id": log.id,
         "session_id": log.session_id,
         "corps_id": log.corps_id,
         "role": log.role,
+        "nickname": nicknames.get(log.session_id),
         "event_type": log.event_type,
         "phase": log.phase,
         "details": log.details,
@@ -883,10 +933,12 @@ def api_get_work_log(corps_id: str, limit: int = 100, event_type: Optional[str] 
     if event_type:
         query = query.filter(WorkLog.event_type == event_type)
     logs = query.order_by(WorkLog.timestamp.desc()).limit(limit).all()
+    nicknames = _nickname_lookup(db, logs)
     return [{
         "id": log.id,
         "session_id": log.session_id,
         "role": log.role,
+        "nickname": nicknames.get(log.session_id),
         "event_type": log.event_type,
         "phase": log.phase,
         "details": log.details,
@@ -968,7 +1020,7 @@ def api_agents_overview(db: Session = Depends(get_db)):
     from backend.models.agent_definition import AgentDefinition
     sessions = (
         db.query(AgentSession)
-        .join(AgentDefinition, AgentSession.definition_id == AgentDefinition.id)
+        .outerjoin(AgentDefinition, AgentSession.definition_id == AgentDefinition.id)
         .filter(AgentSession.status == SessionStatus.ACTIVE)
         .all()
     )
@@ -1047,19 +1099,19 @@ def api_merge_check(corps_id: str, db: Session = Depends(get_db)):
 # --- Swarm Control Panel: Corps Commands ---
 
 class CorpsCommand(BaseModel):
-    command: str  # resume_hut, attention, at_ease, dismissed, run_through, basics, sectionals, tour_start, tour_stop, metronome_tick, merge_check
+    command: str
 
 CORPS_COMMANDS = {
     "resume_hut": {"label": "Resume, Hut!", "description": "Wake all agents and begin/resume work", "category": "control"},
     "attention": {"label": "Attention!", "description": "All agents pause and report current status", "category": "control"},
     "at_ease": {"label": "At Ease", "description": "Finish current tasks then idle", "category": "control"},
     "dismissed": {"label": "Dismissed", "description": "Stop all agents, disband the corps", "category": "control"},
-    "basics": {"label": "Basics", "description": "Switch to basics rehearsal mode", "category": "rehearsal"},
-    "sectionals": {"label": "Sectionals", "description": "Switch to sectionals rehearsal mode", "category": "rehearsal"},
-    "full_ensemble": {"label": "Full Ensemble", "description": "Switch to full ensemble rehearsal", "category": "rehearsal"},
-    "run_through": {"label": "Run Through", "description": "Full run-through rehearsal mode", "category": "rehearsal"},
-    "tour_start": {"label": "Start Tour", "description": "Enable tour mode — autonomous execution", "category": "tour"},
-    "tour_stop": {"label": "Stop Tour", "description": "Disable tour mode — return to rehearsal", "category": "tour"},
+    "basics": {"label": "Basics", "description": "Switch to basics rehearsal mode (manual override)", "category": "rehearsal"},
+    "sectionals": {"label": "Sectionals", "description": "Switch to sectionals rehearsal mode (manual override)", "category": "rehearsal"},
+    "full_ensemble": {"label": "Full Ensemble", "description": "Switch to full ensemble rehearsal (manual override)", "category": "rehearsal"},
+    "run_through": {"label": "Run Through", "description": "Full run-through rehearsal mode (manual override)", "category": "rehearsal"},
+    "go_on_tour": {"label": "Go On Tour", "description": "Autonomous execution — agents work independently", "category": "execution"},
+    "return_to_camps": {"label": "Return to Camps", "description": "Back to planning phase", "category": "execution"},
     "metronome_tick": {"label": "Metronome Tick", "description": "Manual metronome tick — reclaim stale work", "category": "system"},
     "merge_check": {"label": "Merge Check", "description": "Check and merge completed work", "category": "system"},
 }
@@ -1076,7 +1128,7 @@ async def api_execute_corps_command(corps_id: str, data: CorpsCommand, db: Sessi
     """Execute a corps command."""
     from backend.models.corps import Corps, CorpsStatus, RehearsalMode
     from backend.services.corps_service import (
-        start_tour, stop_tour, set_rehearsal_mode, disband_corps, merge_monitor_check, CorpsError,
+        go_on_tour, return_to_camps, set_rehearsal_mode, disband_corps, merge_monitor_check, CorpsError,
     )
     from backend.tools.metronome import tick
 
@@ -1145,14 +1197,13 @@ async def api_execute_corps_command(corps_id: str, data: CorpsCommand, db: Sessi
 
     elif cmd == "at_ease":
         # Soft pause — let current work finish, don't start new
-        corps.status = CorpsStatus.REHEARSAL
-        corps.tour_mode = False
+        corps.status = CorpsStatus.WINTER_CAMPS
         db.commit()
         await manager.broadcast(corps_id, {
             "type": "command", "command": "at_ease",
-            "content": "At ease. Finishing current tasks, then standing by.",
+            "content": "At ease. Returning to Winter Camps. Finishing current tasks, then standing by.",
         })
-        result["detail"] = "Corps set to rehearsal mode, tour disabled"
+        result["detail"] = "Corps returned to Winter Camps"
 
     elif cmd == "dismissed":
         try:
@@ -1177,25 +1228,25 @@ async def api_execute_corps_command(corps_id: str, data: CorpsCommand, db: Sessi
         except (ValueError, CorpsError) as e:
             raise HTTPException(400, str(e))
 
-    elif cmd == "tour_start":
+    elif cmd == "go_on_tour":
         try:
-            start_tour(db, corps_id)
+            go_on_tour(db, corps_id)
             await manager.broadcast(corps_id, {
-                "type": "command", "command": "tour_start",
-                "content": "Tour mode enabled — autonomous execution active.",
+                "type": "command", "command": "go_on_tour",
+                "content": "On Tour — autonomous execution active.",
             })
-            result["detail"] = "Tour mode enabled"
+            result["detail"] = "On Tour"
         except CorpsError as e:
             raise HTTPException(400, str(e))
 
-    elif cmd == "tour_stop":
+    elif cmd == "return_to_camps":
         try:
-            stop_tour(db, corps_id)
+            return_to_camps(db, corps_id)
             await manager.broadcast(corps_id, {
-                "type": "command", "command": "tour_stop",
-                "content": "Tour mode disabled — returning to rehearsal.",
+                "type": "command", "command": "return_to_camps",
+                "content": "Returned to Winter Camps — planning phase.",
             })
-            result["detail"] = "Tour mode disabled"
+            result["detail"] = "Returned to Winter Camps"
         except CorpsError as e:
             raise HTTPException(400, str(e))
 

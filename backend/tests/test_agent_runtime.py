@@ -298,7 +298,7 @@ class TestAgentRuntime:
         registry, executor = _make_registry_and_executor()
 
         class FailingClient(MockLLMClient):
-            def chat(self, messages, model_tier, tools=None):
+            def chat(self, messages, model_tier, tools=None, **kwargs):
                 raise RuntimeError("API down")
 
         client = FailingClient()

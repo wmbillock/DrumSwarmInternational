@@ -19,8 +19,7 @@ export interface Show {
 export interface Corps {
   id: string;
   name: string;
-  status: "initializing" | "rehearsal" | "tour" | "completed" | "disbanded";
-  tour_mode: boolean;
+  status: "initializing" | "winter_camps" | "on_tour" | "completed" | "disbanded";
   rehearsal_mode?: "basics" | "sectionals" | "full_ensemble" | "run_through";
 }
 
@@ -60,6 +59,7 @@ export interface WorkLogEntry {
   session_id: string;
   corps_id?: string;
   role: string;
+  nickname?: string;
   event_type: string;
   phase?: string;
   details?: string;

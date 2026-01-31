@@ -12,8 +12,8 @@ from backend.models.rep import Rep, RepStatus
 from backend.services.corps_service import (
     create_corps,
     initialize_corps,
-    start_tour,
-    stop_tour,
+    go_on_tour,
+    return_to_camps,
     set_rehearsal_mode,
     validate_handoff,
     handoff,
@@ -58,7 +58,6 @@ class TestCorpsCreation:
         assert corps.id is not None
         assert corps.name == "Phantom Regiment"
         assert corps.status == CorpsStatus.INITIALIZING
-        assert corps.tour_mode is False
 
     def test_create_corps_with_show(self, db):
         corps = create_corps(db, name="Blue Devils", show_id="show-1")
@@ -74,11 +73,12 @@ class TestCorpsInitialization:
         assert "program_coordinator" in sessions
         assert "brass_tech" in sessions
 
-    def test_initialize_sets_rehearsal_status(self, db):
+    def test_initialize_sets_winter_camps_status(self, db):
         corps = create_corps(db, name="Test Corps")
         initialize_corps(db, corps.id)
         db.refresh(corps)
-        assert corps.status == CorpsStatus.REHEARSAL
+        assert corps.status == CorpsStatus.WINTER_CAMPS
+        assert corps.rehearsal_mode == RehearsalMode.BASICS
 
     def test_initialize_parent_child_chain(self, db):
         corps = create_corps(db, name="Test Corps")
@@ -96,32 +96,31 @@ class TestCorpsInitialization:
 
 
 class TestTourMode:
-    def test_start_tour(self, db):
+    def test_go_on_tour(self, db):
         corps = create_corps(db, name="Test")
         initialize_corps(db, corps.id)
-        corps = start_tour(db, corps.id)
-        assert corps.tour_mode is True
-        assert corps.status == CorpsStatus.TOUR
+        corps = go_on_tour(db, corps.id)
+        assert corps.status == CorpsStatus.ON_TOUR
+        assert corps.rehearsal_mode == RehearsalMode.RUN_THROUGH
 
-    def test_stop_tour(self, db):
+    def test_return_to_camps(self, db):
         corps = create_corps(db, name="Test")
         initialize_corps(db, corps.id)
-        start_tour(db, corps.id)
-        corps = stop_tour(db, corps.id)
-        assert corps.tour_mode is False
-        assert corps.status == CorpsStatus.REHEARSAL
+        go_on_tour(db, corps.id)
+        corps = return_to_camps(db, corps.id)
+        assert corps.status == CorpsStatus.WINTER_CAMPS
 
     def test_cannot_tour_from_initializing(self, db):
         corps = create_corps(db, name="Test")
-        with pytest.raises(CorpsError, match="Cannot start tour"):
-            start_tour(db, corps.id)
+        with pytest.raises(CorpsError, match="Cannot go on tour"):
+            go_on_tour(db, corps.id)
 
     def test_cannot_tour_disbanded(self, db):
         corps = create_corps(db, name="Test")
         initialize_corps(db, corps.id)
         disband_corps(db, corps.id)
-        with pytest.raises(CorpsError, match="Cannot start tour"):
-            start_tour(db, corps.id)
+        with pytest.raises(CorpsError, match="Cannot go on tour"):
+            go_on_tour(db, corps.id)
 
 
 class TestHandoffChain:
@@ -221,7 +220,7 @@ class TestRehearsalModes:
     def test_can_set_mode_during_tour(self, db):
         corps = create_corps(db, name="Test")
         initialize_corps(db, corps.id)
-        start_tour(db, corps.id)
+        go_on_tour(db, corps.id)
         corps = set_rehearsal_mode(db, corps.id, RehearsalMode.RUN_THROUGH)
         assert corps.rehearsal_mode == RehearsalMode.RUN_THROUGH
 
@@ -289,7 +288,6 @@ class TestDisbandCorps:
         initialize_corps(db, corps.id)
         corps = disband_corps(db, corps.id)
         assert corps.status == CorpsStatus.DISBANDED
-        assert corps.tour_mode is False
 
     def test_disband_nonexistent(self, db):
         with pytest.raises(CorpsError):

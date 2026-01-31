@@ -12,6 +12,7 @@ work logging, message bus events, and task manifest injection.
 """
 
 import json
+import logging
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
@@ -30,7 +31,9 @@ from backend.services.message_bus import get_message_bus, AgentPhaseChanged, Age
 from backend.services.tool_executor import ToolExecutor, ToolPermissionDenied, ToolNotFound
 from backend.services.memory_bank import get_memory_bank
 from backend.services.verification import VerificationEngine
+from backend.utils.snapshot import parse_snapshot
 
+logger = logging.getLogger(__name__)
 
 MAX_ITERATIONS = 20
 
@@ -53,15 +56,19 @@ def build_initial_messages(
     context_snapshot: Optional[str] = None,
     phase_guidance: str = "",
     manifest_context: str = "",
+    corps_context: str = "",
 ) -> list[LLMMessage]:
     """Build the initial message list for an agent session.
 
     Includes system prompt from definition, optional warm-up context
-    from a previous session's snapshot, phase guidance, and task manifest.
+    from a previous session's snapshot, phase guidance, corps context
+    (status + rehearsal mode guidance), and task manifest.
     """
     system_content = definition.system_prompt
     if phase_guidance:
         system_content += f"\n\n{phase_guidance}"
+    if corps_context:
+        system_content += f"\n\n{corps_context}"
 
     messages = [
         LLMMessage(role="system", content=system_content),
@@ -121,7 +128,7 @@ def _write_work_log(db: Session, event: dict, corps_id: str = "", phase: str = "
         db.add(log_entry)
         db.commit()
     except Exception:
-        pass  # Don't let logging failures break the agent loop
+        logger.debug("Work log write failed", exc_info=True)
 
 
 def run_agent(
@@ -158,7 +165,7 @@ def run_agent(
             db.add(log)
             db.commit()
         except Exception:
-            pass  # Work log writing is best-effort
+            logger.debug("Work log write failed", exc_info=True)
 
     agent_session = db.get(AgentSession, session_id)
     if agent_session is None:
@@ -168,28 +175,27 @@ def run_agent(
     if definition is None:
         raise ValueError(f"Definition {agent_session.definition_id} not found")
 
-    # Initialize phase controller
+    # Initialize phase controller and failure registry from snapshot
+    snap = parse_snapshot(context_snapshot)
     phase_controller = PhaseController()
-    if context_snapshot:
-        try:
-            snap = json.loads(context_snapshot) if isinstance(context_snapshot, str) else {}
-            if "phase_state" in snap:
-                phase_controller = PhaseController.from_state(snap["phase_state"])
-        except (json.JSONDecodeError, TypeError):
-            pass
+    if "phase_state" in snap:
+        phase_controller = PhaseController.from_state(snap["phase_state"])
 
-    # Initialize failure registry
     failure_registry = FailureRegistry()
-    if context_snapshot:
-        try:
-            snap = json.loads(context_snapshot) if isinstance(context_snapshot, str) else {}
-            if "failure_fingerprints" in snap:
-                failure_registry.load_fingerprints(snap["failure_fingerprints"])
-        except (json.JSONDecodeError, TypeError):
-            pass
+    if "failure_fingerprints" in snap:
+        failure_registry.load_fingerprints(snap["failure_fingerprints"])
 
     corps_id = agent_session.corps_id or ""
     bus = get_message_bus()
+
+    # Look up corps context (status + rehearsal mode guidance)
+    corps_context_str = ""
+    if corps_id:
+        try:
+            from backend.services.corps_service import get_corps_context
+            corps_context_str = get_corps_context(db, corps_id, role=definition.role)
+        except Exception:
+            logger.debug("Failed to load corps context", exc_info=True)
 
     _emit({
         "type": "agent_status",
@@ -207,6 +213,7 @@ def run_agent(
         definition, task_description, context_snapshot,
         phase_guidance=phase_controller.get_guidance(),
         manifest_context=manifest_context,
+        corps_context=corps_context_str,
     )
     tool_schemas = tool_executor.registry.get_schemas_for_session(db, session_id)
 
@@ -220,6 +227,7 @@ def run_agent(
                 messages=messages,
                 model_tier=definition.model_tier,
                 tools=tool_schemas if tool_schemas else None,
+                session_id=session_id,
             )
 
             if response.stop_reason == "error":
@@ -401,7 +409,7 @@ def run_agent(
                     corps_id=corps_id,
                 )
         except Exception:
-            pass  # Don't let memory storage break the flow
+            logger.debug("Memory bank storage failed", exc_info=True)
 
     except Exception as e:
         result.status = "failed"

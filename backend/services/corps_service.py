@@ -1,5 +1,5 @@
-"""Corps orchestration — initialization, tour mode, handoff chain, escalation,
-merge monitor, rehearsal modes."""
+"""Corps orchestration — initialization, winter camps / on tour lifecycle,
+handoff chain, escalation, merge monitor, rehearsal modes, mode guidance."""
 
 from dataclasses import dataclass, field
 from typing import Optional
@@ -60,7 +60,7 @@ ROLE_PROMPTS = {
         "PROCEDURE:\n"
         "1. Call get_segment_children using the root segment ID provided in your task.\n"
         "2. For each movement, create SET segments underneath it (type='set').\n"
-        "3. For each set, create leaf COORDINATE nodes (type='segment') for specific tasks.\n"
+        "3. For each set, create leaf SEGMENT nodes (type='segment') for specific tasks.\n"
         "4. For each leaf segment, call create_rep to create a work unit.\n"
         "5. Call handoff to the appropriate caption head or designer with the segment IDs and instructions.\n"
         "6. Return a summary of the work breakdown.\n\n"
@@ -295,7 +295,8 @@ def initialize_corps(db: Session, corps_id: str, use_auditions: bool = True) -> 
 
         sessions[role] = session
 
-    corps.status = CorpsStatus.REHEARSAL
+    corps.status = CorpsStatus.WINTER_CAMPS
+    corps.rehearsal_mode = RehearsalMode.BASICS
     db.commit()
     return sessions
 
@@ -366,41 +367,46 @@ def get_or_create_admin_corps(db: Session) -> Corps:
         )
         sessions[role] = session
 
-    admin.status = CorpsStatus.TOUR
+    admin.status = CorpsStatus.ON_TOUR
     db.commit()
     return admin
 
 
-def start_tour(db: Session, corps_id: str) -> Corps:
-    """Enable tour mode — remove human approval gates."""
+def go_on_tour(db: Session, corps_id: str) -> Corps:
+    """Transition to autonomous execution — ON_TOUR + RUN_THROUGH."""
     corps = db.get(Corps, corps_id)
     if corps is None:
         raise CorpsError(f"Corps {corps_id} not found")
-    if corps.status not in (CorpsStatus.REHEARSAL, CorpsStatus.TOUR):
-        raise CorpsError(f"Cannot start tour from {corps.status.value}")
-    corps.tour_mode = True
-    corps.status = CorpsStatus.TOUR
+    if corps.status not in (CorpsStatus.WINTER_CAMPS, CorpsStatus.ON_TOUR):
+        raise CorpsError(f"Cannot go on tour from {corps.status.value}")
+    corps.status = CorpsStatus.ON_TOUR
+    corps.rehearsal_mode = RehearsalMode.RUN_THROUGH
     db.commit()
     db.refresh(corps)
     return corps
 
 
-def stop_tour(db: Session, corps_id: str) -> Corps:
+def return_to_camps(db: Session, corps_id: str) -> Corps:
+    """Return to planning phase — keeps current rehearsal_mode."""
     corps = db.get(Corps, corps_id)
     if corps is None:
         raise CorpsError(f"Corps {corps_id} not found")
-    corps.tour_mode = False
-    corps.status = CorpsStatus.REHEARSAL
+    corps.status = CorpsStatus.WINTER_CAMPS
     db.commit()
     db.refresh(corps)
     return corps
+
+
+# Legacy aliases for backward compatibility during transition
+start_tour = go_on_tour
+stop_tour = return_to_camps
 
 
 def set_rehearsal_mode(db: Session, corps_id: str, mode: RehearsalMode) -> Corps:
     corps = db.get(Corps, corps_id)
     if corps is None:
         raise CorpsError(f"Corps {corps_id} not found")
-    if corps.status not in (CorpsStatus.REHEARSAL, CorpsStatus.TOUR):
+    if corps.status not in (CorpsStatus.WINTER_CAMPS, CorpsStatus.ON_TOUR):
         raise CorpsError(f"Cannot set rehearsal mode in {corps.status.value}")
     corps.rehearsal_mode = mode
     db.commit()
@@ -516,7 +522,89 @@ def disband_corps(db: Session, corps_id: str) -> Corps:
     if corps is None:
         raise CorpsError(f"Corps {corps_id} not found")
     corps.status = CorpsStatus.DISBANDED
-    corps.tour_mode = False
     db.commit()
     db.refresh(corps)
     return corps
+
+
+# ---------------------------------------------------------------------------
+# Rehearsal mode guidance — injected into every agent's system prompt
+# ---------------------------------------------------------------------------
+
+REHEARSAL_MODE_GUIDANCE: dict[RehearsalMode, dict[str, str]] = {
+    RehearsalMode.BASICS: {
+        "_default": (
+            "REHEARSAL MODE: BASICS — Self-improvement. Understand your role, tools, "
+            "and the show structure. Review segments. Report your understanding. "
+            "Do NOT execute work yet."
+        ),
+        "executive_director": (
+            "REHEARSAL MODE: BASICS — Design the work tree. Create MOVEMENT segments "
+            "under the root. Define the show structure. Hand off to program_coordinator "
+            "once structure is ready."
+        ),
+        "program_coordinator": (
+            "REHEARSAL MODE: BASICS — Review segments created by the ED. Prepare to "
+            "decompose movements into sets and tasks. Do not create reps yet."
+        ),
+    },
+    RehearsalMode.SECTIONALS: {
+        "_default": (
+            "REHEARSAL MODE: SECTIONALS — Section coordination. Work within your caption. "
+            "Create reps, assign work to your section. Coordinate with your caption head. "
+            "Do not cross section boundaries yet."
+        ),
+        "program_coordinator": (
+            "REHEARSAL MODE: SECTIONALS — Decompose movements into sets and segments. "
+            "Create reps for each leaf segment. Hand off to caption heads."
+        ),
+    },
+    RehearsalMode.FULL_ENSEMBLE: {
+        "_default": (
+            "REHEARSAL MODE: FULL ENSEMBLE — Cross-section coordination. Work with "
+            "other captions through the program coordinator. Integrate deliverables "
+            "across sections. Complete the delivery."
+        ),
+    },
+    RehearsalMode.RUN_THROUGH: {
+        "_default": (
+            "REHEARSAL MODE: RUN THROUGH — Red-green-refactor. Implement, test, and "
+            "deliver. Create tests first (red), implement (green), then refine (refactor). "
+            "Submit completed work for review."
+        ),
+    },
+}
+
+CORPS_STATUS_GUIDANCE: dict[CorpsStatus, str] = {
+    CorpsStatus.WINTER_CAMPS: (
+        "You are in Winter Camps (planning phase). Focus on preparation and coordination. "
+        "Work methodically through the current rehearsal mode before advancing."
+    ),
+    CorpsStatus.ON_TOUR: (
+        "You are On Tour (execution phase). Execute autonomously. Deliver results "
+        "continuously. All sections should be working in parallel."
+    ),
+}
+
+
+def get_corps_context(db: Session, corps_id: str, role: str = "") -> str:
+    """Build the full corps context string for injection into agent prompts."""
+    corps = db.get(Corps, corps_id)
+    if corps is None:
+        return ""
+
+    parts: list[str] = []
+
+    # Status guidance
+    status_guidance = CORPS_STATUS_GUIDANCE.get(corps.status)
+    if status_guidance:
+        parts.append(status_guidance)
+
+    # Rehearsal mode guidance
+    if corps.rehearsal_mode:
+        mode_map = REHEARSAL_MODE_GUIDANCE.get(corps.rehearsal_mode, {})
+        guidance = mode_map.get(role) or mode_map.get("_default", "")
+        if guidance:
+            parts.append(guidance)
+
+    return "\n\n".join(parts)

@@ -12,9 +12,13 @@ Usage:
 
 import argparse
 import json
+import re
 import sys
 import os
 import time
+import urllib.request
+from dataclasses import dataclass, field
+from typing import Optional
 
 # Ensure project root is on path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -32,6 +36,147 @@ EULER_PROBLEMS = {
     9: "Find the product abc where a+b+c=1000 and a^2+b^2=c^2 (Pythagorean triplet).",
     10: "Find the sum of all primes below two million.",
 }
+
+
+# --- Euler answer verification ---
+
+_euler_answer_cache: Optional[dict[int, str]] = None
+
+
+def fetch_euler_answers() -> dict[int, str]:
+    """Fetch known Euler answers from Nayuki's published answer list.
+
+    Project Euler doesn't publish answers publicly. Nayuki's GitHub repo
+    maintains a verified Answers.txt with one answer per line (line N = problem N).
+    https://github.com/nayuki/Project-Euler-solutions/blob/master/Answers.txt
+    """
+    url = "https://raw.githubusercontent.com/nayuki/Project-Euler-solutions/master/Answers.txt"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "dci-swarm-drill/1.0"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            lines = resp.read().decode().strip().split("\n")
+        return {i + 1: line.strip() for i, line in enumerate(lines) if line.strip()}
+    except Exception:
+        return {}
+
+
+def get_euler_answer(problem_id: int) -> Optional[str]:
+    global _euler_answer_cache
+    if _euler_answer_cache is None:
+        _euler_answer_cache = fetch_euler_answers()
+    return _euler_answer_cache.get(problem_id)
+
+
+@dataclass
+class DrillVerdict:
+    passed: bool
+    answer_correct: Optional[bool]
+    expected_answer: Optional[str]
+    found_answer: Optional[str]
+    reps_total: int
+    reps_verified: int
+    reps_passed_gates: int
+    gate_failures: list[str] = field(default_factory=list)
+    details: list[str] = field(default_factory=list)
+
+
+def verify_drill(db, root_id: str, problem_id: Optional[int] = None) -> DrillVerdict:
+    """Verify drill results: run verification gates and check Euler answer."""
+    from backend.services.tree_service import build_tree_dict
+    from backend.services.verification import get_verification_engine
+
+    tree = build_tree_dict(db, root_id)
+    engine = get_verification_engine()
+
+    # Collect all completed rep results
+    all_results = []
+    _collect_rep_results(tree, all_results)
+
+    reps_total = len(all_results)
+    reps_verified = 0
+    reps_passed = 0
+    gate_failures = []
+
+    for rep_info in all_results:
+        result_text = rep_info.get("result", "") or ""
+        rep_id = rep_info.get("id", "?")
+        vr = engine.verify(rep_id=rep_id, result=result_text)
+        reps_verified += 1
+        if vr.passed:
+            reps_passed += 1
+        else:
+            for g in vr.failed_gates:
+                gate_failures.append(f"rep {rep_id[:8]}: {g.gate_name} — {g.message or 'failed'}")
+
+    # Check Euler answer
+    expected = get_euler_answer(problem_id) if problem_id else None
+    found_answer = None
+    answer_correct = None
+
+    if expected:
+        # Search all rep results for the expected numeric answer
+        all_text = " ".join(r.get("result", "") or "" for r in all_results)
+        # Extract all numbers from rep results
+        numbers = re.findall(r'\b\d+\b', all_text)
+        if expected in numbers:
+            found_answer = expected
+            answer_correct = True
+        elif numbers:
+            # Report the largest number found as a candidate
+            found_answer = max(numbers, key=lambda x: len(x))
+            answer_correct = False
+        else:
+            answer_correct = False
+
+    passed = (reps_passed > 0 and answer_correct is True) if expected else (reps_passed > 0)
+
+    return DrillVerdict(
+        passed=passed,
+        answer_correct=answer_correct,
+        expected_answer=expected,
+        found_answer=found_answer,
+        reps_total=reps_total,
+        reps_verified=reps_verified,
+        reps_passed_gates=reps_passed,
+        gate_failures=gate_failures,
+        details=[],
+    )
+
+
+def _collect_rep_results(node: dict, results: list):
+    """Recursively collect rep result dicts from a tree dict."""
+    for rep in node.get("reps", []):
+        results.append(rep)
+    for child in node.get("children", []):
+        _collect_rep_results(child, results)
+
+
+def print_verdict(verdict: DrillVerdict):
+    """Print a color-coded PASS/FAIL verdict."""
+    print(f"\n{'='*60}")
+    if verdict.passed:
+        print(f"  {GREEN}{BOLD}PASS{NC}")
+    else:
+        print(f"  {RED}{BOLD}FAIL{NC}")
+    print(f"{'='*60}")
+
+    if verdict.expected_answer:
+        print(f"  Expected: {CYAN}{verdict.expected_answer}{NC} (from Nayuki's verified list)")
+        if verdict.found_answer:
+            match = f"{GREEN}✓{NC}" if verdict.answer_correct else f"{RED}✗{NC}"
+            print(f"  Found:    {CYAN}{verdict.found_answer}{NC} {match}")
+        else:
+            print(f"  Found:    {RED}NOT FOUND{NC}")
+
+    print(f"  Reps: {verdict.reps_passed_gates}/{verdict.reps_verified} passed gates (of {verdict.reps_total} total)")
+
+    if verdict.gate_failures:
+        print(f"  Gate failures:")
+        for f in verdict.gate_failures[:10]:
+            print(f"    {RED}• {f}{NC}")
+
+    print()
+
 
 # Colors
 RED = "\033[0;31m"
@@ -133,46 +278,12 @@ def build_llm_client():
 
 
 def find_session_for_role(db, corps_id: str, role: str):
-    """Find or create an active agent session for a role in a corps.
-
-    If the previous session completed, spawns a new one with context from the old session.
-    """
-    from backend.models.agent_session import AgentSession, SessionStatus
-    from backend.models.agent_definition import AgentDefinition
-    from backend.services.agent_lifecycle import spawn_session
-
-    # Look for active session first
-    active = (
-        db.query(AgentSession)
-        .join(AgentDefinition, AgentSession.definition_id == AgentDefinition.id)
-        .filter(
-            AgentSession.corps_id == corps_id,
-            AgentDefinition.role == role,
-            AgentSession.status == SessionStatus.ACTIVE,
-        )
-        .first()
-    )
-    if active:
-        return active
-
-    # Find the most recent completed session and respawn
-    completed = (
-        db.query(AgentSession)
-        .join(AgentDefinition, AgentSession.definition_id == AgentDefinition.id)
-        .filter(
-            AgentSession.corps_id == corps_id,
-            AgentDefinition.role == role,
-            AgentSession.status == SessionStatus.COMPLETED,
-        )
-        .order_by(AgentSession.id.desc())
-        .first()
-    )
-    if completed:
-        new_session = spawn_session(db, completed.definition_id, corps_id)
-        log(DIM, "orchestrator", f"Respawned {role} session: {new_session.id[:8]}...")
-        return new_session
-
-    return None
+    """Find or create an active agent session for a role in a corps."""
+    from backend.services.session_lookup import find_or_respawn_session
+    session = find_or_respawn_session(db, corps_id, role)
+    if session:
+        log(DIM, "orchestrator", f"Session for {role}: {session.id[:8]}...")
+    return session
 
 
 def run_agent_for_role(db, role, session, llm_client, tool_executor, task_desc, corps_id):
@@ -183,7 +294,7 @@ def run_agent_for_role(db, role, session, llm_client, tool_executor, task_desc, 
     print(f"\n{'-'*40}")
 
     # Load previous context snapshot for continuity
-    context_snapshot = session.context_snapshot if hasattr(session, 'context_snapshot') else None
+    context_snapshot = session.context_snapshot
 
     start = time.time()
     result = run_agent(
@@ -213,8 +324,14 @@ def run_orchestration_loop(db, corps_id, root_coord_id, llm_client, tool_executo
     from backend.services.message_service import poll_messages, acknowledge_message
     from backend.models.message import MessageType
     from backend.models.rep import RepStatus
+    from backend.models.corps import Corps
+    from backend.models.rehearsal_mode import RehearsalMode
     from backend.services.rep_service import get_reps_for_segment
     from backend.services.segment_service import get_children
+    from backend.services.rehearsal_progression import check_and_advance
+
+    BASICS_ROLES = {"executive_director", "program_coordinator"}
+    SECTIONALS_ROLES = BASICS_ROLES | {"caption_head_music", "caption_head_visual", "caption_head_movement"}
 
     print(f"\n{BOLD}{'='*60}{NC}")
     log(MAGENTA, "orchestrator", "Starting orchestration loop")
@@ -223,7 +340,14 @@ def run_orchestration_loop(db, corps_id, root_coord_id, llm_client, tool_executo
     total_agents_run = 0
 
     for round_num in range(1, max_rounds + 1):
-        log(MAGENTA, "orchestrator", f"--- Round {round_num}/{max_rounds} ---")
+        # Check rehearsal mode and auto-advance
+        corps = db.get(Corps, corps_id)
+        current_mode = corps.rehearsal_mode if corps else None
+        new_mode = check_and_advance(db, corps_id)
+        if new_mode and new_mode != current_mode:
+            log(CYAN, "orchestrator", f"Rehearsal mode advanced: {current_mode} → {new_mode}")
+
+        log(MAGENTA, "orchestrator", f"--- Round {round_num}/{max_rounds} (mode: {corps.rehearsal_mode if corps else '?'}) ---")
 
         # Find all unacknowledged handoff messages
         messages = poll_messages(db, corps_id)
@@ -268,6 +392,19 @@ def run_orchestration_loop(db, corps_id, root_coord_id, llm_client, tool_executo
 
         for msg in handoffs:
             role = msg.to_role
+
+            # Mode-aware dispatch: skip agents not allowed in current rehearsal mode
+            corps = db.get(Corps, corps_id)
+            mode = corps.rehearsal_mode if corps else None
+            if mode == RehearsalMode.BASICS and role not in BASICS_ROLES:
+                log(DIM, "orchestrator", f"Skipping {role} — not allowed in BASICS mode")
+                acknowledge_message(db, msg.id)
+                continue
+            if mode == RehearsalMode.SECTIONALS and role not in SECTIONALS_ROLES:
+                log(DIM, "orchestrator", f"Skipping {role} — not allowed in SECTIONALS mode")
+                acknowledge_message(db, msg.id)
+                continue
+
             session = find_session_for_role(db, corps_id, role)
 
             if not session:
@@ -307,60 +444,14 @@ def run_orchestration_loop(db, corps_id, root_coord_id, llm_client, tool_executo
 
 def _build_tree_summary(db, root_coord_id) -> str:
     """Build a text summary of the segment tree with IDs."""
-    from backend.services.segment_service import get_children, get_segment
-    from backend.services.rep_service import get_reps_for_segment
-
-    lines = []
-
-    def _walk(cid, indent=0):
-        coord = get_segment(db, cid)
-        if not coord:
-            return
-        prefix = "  " * indent
-        lines.append(f"{prefix}{coord.type.value}: {coord.title} [id={coord.id}, status={coord.status.value}]")
-        reps = get_reps_for_segment(db, cid)
-        for rep in reps:
-            lines.append(f"{prefix}  rep [id={rep.id}, status={rep.status.value}]")
-        for child in get_children(db, cid):
-            _walk(child.id, indent + 1)
-
-    _walk(root_coord_id)
-    return "\n".join(lines) if lines else "(empty tree)"
+    from backend.services.tree_service import build_tree_summary
+    return build_tree_summary(db, root_coord_id)
 
 
 def _check_pending_work(db, root_coord_id) -> int:
     """Count pending work: reps not in terminal state + leaf segments with no reps."""
-    from backend.models.rep import RepStatus
-    from backend.models.segment import SegmentType
-    from backend.services.segment_service import get_children, get_segment
-    from backend.services.rep_service import get_reps_for_segment
-
-    pending_count = 0
-    coords_to_check = [root_coord_id]
-    checked = set()
-
-    while coords_to_check:
-        cid = coords_to_check.pop()
-        if cid in checked:
-            continue
-        checked.add(cid)
-
-        children = get_children(db, cid)
-        for child in children:
-            coords_to_check.append(child.id)
-
-        coord = get_segment(db, cid)
-        reps = get_reps_for_segment(db, cid)
-
-        if reps:
-            for rep in reps:
-                if rep.status not in (RepStatus.COMPLETED, RepStatus.FAILED):
-                    pending_count += 1
-        elif coord and coord.status.value == "pending" and not children:
-            # Leaf segment with no reps — needs work
-            pending_count += 1
-
-    return pending_count
+    from backend.services.tree_service import count_pending_work
+    return count_pending_work(db, root_coord_id)
 
 
 def print_final_summary(db, root_coord_id):
@@ -466,6 +557,37 @@ def run_drill(task_description: str, max_rounds: int = 50):
             print_final_summary(db, show.segment_root_id)
             return ed_result
 
+        # ED recovery: check if segments were actually created
+        from backend.services.segment_service import get_children
+        children = get_children(db, show.segment_root_id)
+        ed_retries = 0
+        while not children and ed_retries < 2:
+            ed_retries += 1
+            log(YELLOW, "drill", f"ED produced no segments — retry {ed_retries}/2 with corrective guidance")
+            ed_session = find_session_for_role(db, show.corps_id, "executive_director")
+            if not ed_session:
+                break
+            ed_result = run_agent(
+                db=db,
+                session_id=ed_session.id,
+                llm_client=llm_client,
+                tool_executor=tool_executor,
+                task_description=(
+                    f"Root segment ID: {show.segment_root_id}. Task: {task_description}\n\n"
+                    f"You MUST call create_segment to create MOVEMENT segments under root ID {show.segment_root_id}, "
+                    f"then call handoff to hand off to program_coordinator. "
+                    f"Do NOT include corps_id or from_role in tool calls — they are auto-injected."
+                ),
+                on_event=on_event,
+                keep_alive=True,
+            )
+            children = get_children(db, show.segment_root_id)
+
+        if not children:
+            log(RED, "drill", "ED failed to create any segments after retries")
+            print_final_summary(db, show.segment_root_id)
+            return ed_result
+
         # Phase 2: Orchestration loop — dispatch downstream agents
         log(GREEN, "drill", "Phase 2: Orchestration loop")
         total_start = time.time()
@@ -486,10 +608,26 @@ def run_drill(task_description: str, max_rounds: int = 50):
             print(f"{'='*60}")
             print(tool_executor.get_summary())
 
-        return ed_result
+        # Verification: check results against expected answer
+        problem_id = _extract_problem_id(task_description)
+        verdict = verify_drill(db, show.segment_root_id, problem_id)
+        print_verdict(verdict)
+
+        return verdict
 
     finally:
         db.close()
+
+
+def _extract_problem_id(task_description: str) -> Optional[int]:
+    """Try to extract a Project Euler problem number from the task description."""
+    for pid, desc in EULER_PROBLEMS.items():
+        if desc in task_description:
+            return pid
+    m = re.search(r'[Ee]uler\s*#?\s*(\d+)', task_description)
+    if m:
+        return int(m.group(1))
+    return None
 
 
 def run_calibration_loop(problem_ids: list[int], max_rounds: int = 50):
@@ -502,10 +640,25 @@ def run_calibration_loop(problem_ids: list[int], max_rounds: int = 50):
     for pid in problem_ids:
         desc = EULER_PROBLEMS.get(pid, f"Project Euler problem #{pid}")
         print(f"\n{BOLD}--- Problem #{pid} ---{NC}")
-        result = run_drill(desc, max_rounds=max_rounds)
-        results.append({"problem": pid, "status": result.status if result else "error",
-                        "iterations": result.iterations if result else 0,
-                        "tool_calls": len(result.tool_calls_made) if result else 0})
+        verdict = run_drill(desc, max_rounds=max_rounds)
+        if isinstance(verdict, DrillVerdict):
+            results.append({
+                "problem": pid,
+                "passed": verdict.passed,
+                "expected": verdict.expected_answer,
+                "found": verdict.found_answer,
+                "answer_correct": verdict.answer_correct,
+                "reps_verified": verdict.reps_verified,
+                "reps_total": verdict.reps_total,
+                "reps_passed": verdict.reps_passed_gates,
+            })
+        else:
+            results.append({
+                "problem": pid, "passed": False,
+                "expected": get_euler_answer(pid), "found": None,
+                "answer_correct": None, "reps_verified": 0,
+                "reps_total": 0, "reps_passed": 0,
+            })
         print()
 
     # Summary
@@ -513,9 +666,14 @@ def run_calibration_loop(problem_ids: list[int], max_rounds: int = 50):
     print(f"{BOLD}  CALIBRATION SUMMARY{NC}")
     print(f"{BOLD}{'='*60}{NC}")
     for r in results:
-        status_color = GREEN if r["status"] == "completed" else RED
-        print(f"  Problem #{r['problem']:>3}  {status_color}{r['status']:>15}{NC}  "
-              f"iters={r['iterations']}  tools={r['tool_calls']}")
+        status_color = GREEN if r["passed"] else RED
+        status = "PASS" if r["passed"] else "FAIL"
+        expected = r.get("expected", "?")
+        found = r.get("found") or "NOT FOUND"
+        match = "✓" if r.get("answer_correct") else "✗" if r.get("answer_correct") is False else "?"
+        print(f"  Problem #{r['problem']:>3}  {status_color}{status:>4}{NC}  "
+              f"Expected: {expected}  Found: {found} {match}  "
+              f"Reps: {r['reps_passed']}/{r['reps_verified']} verified")
 
 
 def main():

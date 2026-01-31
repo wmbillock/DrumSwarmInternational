@@ -21,7 +21,9 @@ Individual agent sessions. Performers spawn per rep, die when done. Staff agents
 | **Segment** | A specific task or feature to be implemented |
 | **Rep** | A single work attempt against a segment or set. The atomic work unit. Multiple reps may be needed to "learn" (complete) a segment. |
 | **Corps** | The agent swarm instantiated for a show |
-| **Rehearsal** | An execution cycle — basics, sectionals, full ensemble, or run-through |
+| **Winter Camps** | Planning phase — user talks to ED, clarifies requirements, agents prepare |
+| **On Tour** | Execution phase — agents work autonomously, deliver results continuously |
+| **Rehearsal Mode** | Graduated integration level: basics → sectionals → full_ensemble → run_through. Auto-progresses as milestones are met. |
 | **Score** | Multi-dimensional quality evaluation of a rep or show |
 | **Penalty** | Deduction for rule violation |
 
@@ -49,6 +51,25 @@ Individual agent sessions. Performers spawn per rep, die when done. Staff agents
 - Messages are hierarchy-enforced — a performer cannot send a directive, a designer cannot message a performer directly
 - AgentDefinitions are versioned with tiered modification permissions
 - Performers get context via segment description + parent snapshot, not full conversation replay
+
+## Corps Lifecycle
+
+### Status Flow
+`INITIALIZING` → `WINTER_CAMPS` → `ON_TOUR` → `COMPLETED` / `DISBANDED`
+
+- **Winter Camps** (planning): User talks to ED, clarifies requirements. ED designs work tree. Rehearsal modes auto-progress through BASICS → SECTIONALS → FULL_ENSEMBLE → RUN_THROUGH as agents hit milestones.
+- **On Tour** (execution): Autonomous execution. Agents work independently, deliver results continuously. Rehearsal mode locked to RUN_THROUGH.
+
+### Rehearsal Mode Auto-Progression
+Each mode injects guidance into every agent's system prompt. Advancement criteria:
+- **BASICS → SECTIONALS**: ED has created ≥1 movement. Work tree exists.
+- **SECTIONALS → FULL_ENSEMBLE**: ≥1 rep created per active caption.
+- **FULL_ENSEMBLE → RUN_THROUGH**: Cross-section messages exist, no blocked segments.
+
+Mode-aware dispatch restricts handoffs: BASICS only dispatches ED+PC; SECTIONALS dispatches within sections; FULL_ENSEMBLE+ enables cross-section coordination.
+
+### Activation Flow
+Show activate → corps initialized (WINTER_CAMPS/BASICS) → ED designs structure → auto-progression through modes → manual `go_on_tour` when ready.
 
 ## Communication
 - Priority queue per corps (polling-based with SQLite for v1)

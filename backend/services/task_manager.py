@@ -13,6 +13,7 @@ from backend.services.agent_runtime import run_agent
 from backend.services.autoscaler import AutoScaler
 from backend.services.llm_client import LLMClient
 from backend.services.message_bus import get_message_bus
+from backend.services.session_lookup import find_or_respawn_session
 from backend.services.tool_executor import ToolExecutor
 
 if TYPE_CHECKING:
@@ -76,15 +77,24 @@ class TaskManager:
             try:
                 active_corps = (
                     db.query(Corps)
-                    .filter(Corps.status.in_([CorpsStatus.REHEARSAL, CorpsStatus.TOUR]))
+                    .filter(Corps.status.in_([CorpsStatus.WINTER_CAMPS, CorpsStatus.ON_TOUR]))
                     .all()
                 )
                 results = []
                 for corps in active_corps:
                     met_result = tick(db, corps.id)
                     merge_result = merge_monitor_check(db, corps.id)
+
+                    # Auto-progression for WINTER_CAMPS corps
+                    advancement = None
+                    if corps.status == CorpsStatus.WINTER_CAMPS:
+                        from backend.services.rehearsal_progression import check_and_advance
+                        advancement = check_and_advance(db, corps.id)
+
                     results.append({
                         "corps_id": corps.id,
+                        "corps_status": corps.status.value,
+                        "rehearsal_mode": corps.rehearsal_mode.value if corps.rehearsal_mode else None,
                         "metronome": {
                             "checked": met_result.checked,
                             "reclaimed": met_result.reclaimed,
@@ -98,6 +108,7 @@ class TaskManager:
                             "conflicts": merge_result.conflicts,
                         },
                         "watchdog_respawned": met_result.watchdog_respawned,
+                        "rehearsal_advanced": advancement.value if advancement else None,
                     })
                 return results
             finally:
@@ -121,6 +132,15 @@ class TaskManager:
                             "corps_id": corps_id,
                             **merge,
                         })
+            # Broadcast rehearsal advancement
+            for r in results:
+                if r.get("rehearsal_advanced"):
+                    await self.connection_manager.broadcast(r["corps_id"], {
+                        "type": "rehearsal_advanced",
+                        "corps_id": r["corps_id"],
+                        "mode": r["rehearsal_advanced"],
+                    })
+
             # Respawn dead watchdog chain roles
             for r in results:
                 corps_id = r["corps_id"]
@@ -389,7 +409,7 @@ class TaskManager:
                 active_corps = (
                     db.query(Corps)
                     .filter(
-                        Corps.status.in_([CorpsStatus.REHEARSAL, CorpsStatus.TOUR]),
+                        Corps.status.in_([CorpsStatus.WINTER_CAMPS, CorpsStatus.ON_TOUR]),
                         Corps.name != ADMIN_CORPS_NAME,
                     )
                     .all()
@@ -498,11 +518,27 @@ class TaskManager:
             logger.exception("Error pinging admin ED")
 
     async def _process_pending_handoffs(self, corps_id: str) -> None:
-        """Check for unacknowledged handoff messages and dispatch receiving agents."""
+        """Check for unacknowledged handoff messages and dispatch receiving agents.
+
+        Mode-aware dispatch:
+        - WINTER_CAMPS + BASICS: Only dispatch ED and roles it hands off to
+        - WINTER_CAMPS + SECTIONALS+: Dispatch within sections
+        - ON_TOUR: Full dispatch (all roles)
+        """
         def _find_and_dispatch():
             from backend.services.message_service import poll_messages, acknowledge_message, MessageType
+            from backend.models.corps import Corps, CorpsStatus, RehearsalMode
             db = self._session_factory()
             try:
+                # Check corps mode for dispatch filtering
+                corps = db.get(Corps, corps_id)
+                basics_only = (
+                    corps
+                    and corps.status == CorpsStatus.WINTER_CAMPS
+                    and corps.rehearsal_mode == RehearsalMode.BASICS
+                )
+                basics_roles = {"executive_director", "program_coordinator"}
+
                 # Get all unacknowledged messages for this corps
                 pending = poll_messages(db, corps_id, unacknowledged_only=True)
                 dispatches = []
@@ -510,6 +546,10 @@ class TaskManager:
                     if msg.type != MessageType.HANDOFF or not msg.to_role:
                         continue
                     target_role = msg.to_role
+
+                    # In BASICS mode, only dispatch to ED and PC
+                    if basics_only and target_role not in basics_roles:
+                        continue
                     session_id = self.get_session_for_role(db, corps_id, target_role)
                     if session_id and not self.is_active(session_id):
                         # Build task description from handoff message
@@ -548,54 +588,10 @@ class TaskManager:
     SINGLETON_ROLES = {"executive_director"}
 
     def get_session_for_role(self, db, corps_id: str, role: str) -> Optional[str]:
-        """Find the session_id for a given role in a corps. Respawns completed sessions.
-
-        For singleton roles (e.g. executive_director), only one active session
-        is allowed per corps. Returns the existing active session rather than
-        spawning a duplicate.
-        """
-        from backend.models.agent_session import AgentSession, SessionStatus
-        from backend.models.agent_definition import AgentDefinition
-        from backend.services.agent_lifecycle import spawn_session
-
-        # Try active first
-        active = (
-            db.query(AgentSession)
-            .join(AgentDefinition, AgentSession.definition_id == AgentDefinition.id)
-            .filter(
-                AgentSession.corps_id == corps_id,
-                AgentDefinition.role == role,
-                AgentSession.status == SessionStatus.ACTIVE,
-            )
-            .first()
-        )
-        if active:
-            # For singleton roles, also check if it's already running as a task
-            if role in self.SINGLETON_ROLES and self.is_active(active.id):
-                logger.debug("Singleton role %s already active in corps %s", role, corps_id)
-            return active.id
-
-        # Find most recent completed/failed session and respawn
-        old = (
-            db.query(AgentSession)
-            .join(AgentDefinition, AgentSession.definition_id == AgentDefinition.id)
-            .filter(
-                AgentSession.corps_id == corps_id,
-                AgentDefinition.role == role,
-            )
-            .order_by(AgentSession.started_at.desc())
-            .first()
-        )
-        if old:
-            new_session = spawn_session(
-                db, definition_id=old.definition_id,
-                corps_id=corps_id, parent_session_id=old.parent_session_id,
-            )
-            # Carry over context snapshot from the old session
-            if old.context_snapshot:
-                new_session.context_snapshot = old.context_snapshot
-                db.commit()
-            logger.info("Respawned session for role %s: %s -> %s", role, old.id, new_session.id)
-            return new_session.id
-
-        return None
+        """Find the session_id for a given role in a corps. Respawns completed sessions."""
+        session = find_or_respawn_session(db, corps_id, role)
+        if session is None:
+            return None
+        if role in self.SINGLETON_ROLES and self.is_active(session.id):
+            logger.debug("Singleton role %s already active in corps %s", role, corps_id)
+        return session.id

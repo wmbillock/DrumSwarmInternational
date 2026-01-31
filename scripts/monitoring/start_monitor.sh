@@ -68,6 +68,7 @@ create_session() {
     tmux split-window -h -t "$SESSION_NAME:0.0" -c "$PROJECT_ROOT" -p 40
 
     # --- Pane 0: Claude Code workspace (left, large) ---
+    local CLAUDE_SESSION_FILE="$PROJECT_ROOT/.claude-session-id"
     tmux send-keys -t "$SESSION_NAME:0.0" "cd '$PROJECT_ROOT' && clear" C-m
     if command -v claude &>/dev/null; then
         tmux send-keys -t "$SESSION_NAME:0.0" "claude" C-m

@@ -50,12 +50,17 @@ def upgrade() -> None:
     _rename_col(conn, 'messages', 'coordinate_id', 'segment_id')
     _rename_col(conn, 'context_snapshots', 'coordinate_id', 'segment_id')
     _rename_col(conn, 'work_logs', 'coordinate_id', 'segment_id')
+    _rename_col(conn, 'scores', 'coordinate_id', 'segment_id')
+    _rename_col(conn, 'penalties', 'coordinate_id', 'segment_id')
+    _rename_col(conn, 'problems', 'coordinate_id', 'segment_id')
+    _rename_col(conn, 'subscriptions', 'coordinate_id', 'segment_id')
     _rename_col(conn, 'capability_ledger', 'coordinate_id', 'segment_id')
 
 
 def downgrade() -> None:
     """Revert segments back to coordinates."""
     op.execute('ALTER TABLE capability_ledger RENAME COLUMN segment_id TO coordinate_id')
+    op.execute('ALTER TABLE scores RENAME COLUMN segment_id TO coordinate_id')
     op.execute('ALTER TABLE work_logs RENAME COLUMN segment_id TO coordinate_id')
     op.execute('ALTER TABLE context_snapshots RENAME COLUMN segment_id TO coordinate_id')
     op.execute('ALTER TABLE messages RENAME COLUMN segment_id TO coordinate_id')

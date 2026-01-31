@@ -83,3 +83,28 @@ export const executeCorpsCommand = (corpsId: string, command: string) =>
 // Metronome
 export const metronomeTick = (corpsId: string) =>
   request(`/api/corps/${corpsId}/metronome/tick`, { method: "POST" });
+
+// Show templates
+export const getShowTemplates = () => request<{ templates: string[] }>("/api/show-templates");
+export const getShowTemplate = (name: string) => request(`/api/show-templates/${name}`);
+export const instantiateTemplate = (name: string) =>
+  request("/api/show-templates/instantiate", { method: "POST", body: JSON.stringify({ name }) });
+
+// Performers
+export const getPerformers = () => request<any[]>("/api/performers");
+export const getPerformer = (id: string) => request<any>(`/api/performers/${id}`);
+export const getPerformerLedger = (id: string) => request<any[]>(`/api/performers/${id}/ledger`);
+export const getPerformerStats = (id: string) => request<any>(`/api/performers/${id}/stats`);
+export const retirePerformer = (id: string) =>
+  request(`/api/performers/${id}/retire`, { method: "POST" });
+
+// Metrics
+export const getCorpsMetrics = (corpsId: string) => request<any>(`/api/corps/${corpsId}/metrics`);
+
+// Seance
+export const querySeance = (query: string, corpsId?: string) =>
+  request<any>("/api/seance", { method: "POST", body: JSON.stringify({ query, corps_id: corpsId }) });
+
+// Evaluate
+export const evaluateCorps = (corpsId: string) =>
+  request<any>(`/api/corps/${corpsId}/evaluate`, { method: "POST" });

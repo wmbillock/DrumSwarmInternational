@@ -53,6 +53,7 @@ class LLMClient(ABC):
         messages: list[LLMMessage],
         model_tier: ModelTier,
         tools: Optional[list[dict]] = None,
+        **kwargs,
     ) -> LLMResponse:
         """Send messages to the LLM and get a response."""
         ...
@@ -70,6 +71,7 @@ class AnthropicLLMClient(LLMClient):
         messages: list[LLMMessage],
         model_tier: ModelTier,
         tools: Optional[list[dict]] = None,
+        **kwargs,
     ) -> LLMResponse:
         model_id = MODEL_TIER_MAP[model_tier]
 
@@ -149,6 +151,7 @@ Available tools:
     def __init__(self, max_budget_usd: Optional[float] = None):
         self.max_budget_usd = max_budget_usd
         self._project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        self._active_sessions: set[str] = set()  # session IDs that have been initialized
 
     @staticmethod
     def _format_tools_for_prompt(tools: list[dict]) -> str:
@@ -202,12 +205,14 @@ Available tools:
         messages: list[LLMMessage],
         model_tier: ModelTier,
         tools: Optional[list[dict]] = None,
+        *,
+        session_id: Optional[str] = None,
         **kwargs,
     ) -> LLMResponse:
         import subprocess
         import json as _json
 
-        # Build system prompt with embedded tool schemas
+        # Extract system prompt and last user message from messages
         system_prompt = ""
         user_content = ""
         for msg in messages:
@@ -215,9 +220,6 @@ Available tools:
                 system_prompt += msg.content + "\n"
             elif msg.role == "user":
                 user_content = msg.content  # take last user message
-
-        if tools:
-            system_prompt += "\n" + self.TOOL_PROTOCOL + self._format_tools_for_prompt(tools)
 
         model_alias = self.MODEL_ALIAS.get(model_tier, "sonnet")
 
@@ -228,8 +230,25 @@ Available tools:
             "--output-format", "json",
             "--dangerously-skip-permissions",
         ]
-        if system_prompt.strip():
-            cmd.extend(["--system-prompt", system_prompt.strip()])
+
+        if session_id and session_id in self._active_sessions:
+            # Resume existing session — CLI preserves full conversation history
+            cmd.extend(["--resume", session_id])
+        elif session_id:
+            # First call for this session — set up system prompt and tools
+            cmd.extend(["--session-id", session_id])
+            self._active_sessions.add(session_id)
+            if tools:
+                system_prompt += "\n" + self.TOOL_PROTOCOL + self._format_tools_for_prompt(tools)
+            if system_prompt.strip():
+                cmd.extend(["--system-prompt", system_prompt.strip()])
+        else:
+            # No session — one-shot (legacy behavior)
+            if tools:
+                system_prompt += "\n" + self.TOOL_PROTOCOL + self._format_tools_for_prompt(tools)
+            if system_prompt.strip():
+                cmd.extend(["--system-prompt", system_prompt.strip()])
+
         if self.max_budget_usd:
             cmd.extend(["--max-budget-usd", str(self.max_budget_usd)])
 
@@ -406,6 +425,7 @@ class MockLLMClient(LLMClient):
         messages: list[LLMMessage],
         model_tier: ModelTier,
         tools: Optional[list[dict]] = None,
+        **kwargs,
     ) -> LLMResponse:
         self.calls.append({
             "messages": messages,

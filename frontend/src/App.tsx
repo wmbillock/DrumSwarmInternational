@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useWebSocket } from "./hooks/useWebSocket";
 import type { Show, AgentSession, WorkLogEntry, SegmentNode, ChatMessage, WebSocketEvent, Scoresheet } from "./types";
 import * as api from "./services/api";
+import { CorpsThemePicker } from "./components/CorpsThemePicker";
 import "./App.css";
 
 // --- Utility ---
@@ -19,8 +20,17 @@ function timeAgo(ts?: string): string {
   return `${Math.floor(diff / 86400000)}d ago`;
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  winter_camps: "Winter Camps",
+  on_tour: "On Tour",
+  in_progress: "In Progress",
+  full_ensemble: "Full Ensemble",
+  run_through: "Run Through",
+};
+
 function StatusBadge({ status }: { status: string }) {
-  return <span className={`badge ${status}`}>{status}</span>;
+  const label = STATUS_LABELS[status] || status;
+  return <span className={`badge ${status}`}>{label}</span>;
 }
 
 function TierBadge({ tier }: { tier?: string }) {
@@ -178,7 +188,7 @@ function Dashboard({
             {workLog.slice(0, 30).map(w => (
               <div key={w.id} className="activity-row">
                 <span className="activity-type">{w.event_type}</span>
-                <span className="activity-role">{formatRole(w.role)}</span>
+                <span className="activity-role">{w.nickname || formatRole(w.role)}</span>
                 <span className="activity-detail">{w.details?.slice(0, 100)}</span>
                 <span className="activity-time">{timeAgo(w.timestamp)}</span>
               </div>
@@ -239,6 +249,7 @@ function ShowDetail({
   const [chatInput, setChatInput] = useState("");
   const [chatTarget, setChatTarget] = useState("executive_director");
   const [activeTab, setActiveTab] = useState<"agents" | "work" | "activity" | "health" | "scores">("agents");
+  const [showSwarmChatter, setShowSwarmChatter] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Build unified chat from history + live ws events, deduped
@@ -249,23 +260,28 @@ function ShowDetail({
     if (a.nickname) nicknameByRole[a.role] = a.nickname;
   }
 
-  const allChat: { id?: string; from: string; nickname?: string; content: string; time?: string }[] = [];
+  const allChat: { id?: string; from: string; nickname?: string; content: string; time?: string; internal?: boolean }[] = [];
   for (const m of chatHistory) {
     if (!seenIds.has(m.id)) {
       seenIds.add(m.id);
-      allChat.push({ id: m.id, from: m.from_role, nickname: nicknameByRole[m.from_role], content: m.body || m.subject, time: m.created_at });
+      // Messages from "user" or directed to user are not internal; agent-to-agent are internal
+      const isInternal = m.from_role !== "user" && !m.to_role?.includes("user");
+      allChat.push({ id: m.id, from: m.from_role, nickname: nicknameByRole[m.from_role], content: m.body || m.subject, time: m.created_at, internal: isInternal });
     }
   }
   for (const e of wsEvents) {
     if (e.type === "chat" || e.type === "agent_response") {
       const id = (e as Record<string, unknown>).message_id as string | undefined;
-      // Deduplicate by message_id or by content fingerprint
       const contentKey = id || `ws:${e.from_role || e.role}:${(e.content || "").slice(0, 100)}`;
       if (seenIds.has(contentKey)) continue;
       seenIds.add(contentKey);
-      allChat.push({ from: e.from_role || e.role || "agent", nickname: e.nickname, content: e.content || "", time: undefined });
+      // agent_response events are internal swarm chatter
+      const isInternal = e.type === "agent_response";
+      allChat.push({ from: e.from_role || e.role || "agent", nickname: e.nickname, content: e.content || "", time: undefined, internal: isInternal });
     }
   }
+  const visibleChat = showSwarmChatter ? allChat : allChat.filter(m => !m.internal);
+  const hiddenCount = allChat.length - allChat.filter(m => !m.internal).length;
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -298,7 +314,7 @@ function ShowDetail({
         <div className="show-detail-actions">
           <button className="small" onClick={onRefresh}>Refresh</button>
           {show.status === "active" && (
-            <button className="small primary" onClick={() => onToggleTour(true)}>Start Tour</button>
+            <button className="small primary" onClick={() => onToggleTour(true)}>Go On Tour</button>
           )}
         </div>
       </div>
@@ -311,8 +327,14 @@ function ShowDetail({
         {/* ===== LEFT PANE: CHAT ===== */}
         <div className="pane-left">
           <div className="chat-panel">
+            <div className="chat-toolbar">
+              <label className="chatter-toggle" title="Show internal agent-to-agent messages">
+                <input type="checkbox" checked={showSwarmChatter} onChange={e => setShowSwarmChatter(e.target.checked)} />
+                <span>Swarm chatter{hiddenCount > 0 ? ` (${hiddenCount})` : ""}</span>
+              </label>
+            </div>
             <div className="chat-messages">
-              {allChat.length === 0 && (
+              {visibleChat.length === 0 && (
                 <div className="chat-empty">
                   <p>Send a message to start talking to the swarm.</p>
                   <p className="hint">Choose a role, or talk to the ED to segment the whole team.</p>
@@ -321,10 +343,11 @@ function ShowDetail({
                   )}
                 </div>
               )}
-              {allChat.map((m, i) => (
-                <div key={m.id || i} className={`chat-msg ${m.from === "user" ? "user" : "agent"}`}>
+              {visibleChat.map((m, i) => (
+                <div key={m.id || i} className={`chat-msg ${m.from === "user" ? "user" : "agent"} ${m.internal ? "internal" : ""}`}>
                   <div className="chat-msg-header">
                     <span className="chat-sender">{m.from === "user" ? "You" : (m.nickname || formatRole(m.from))}</span>
+                    {m.internal && <span className="chat-badge-internal">internal</span>}
                     {m.time && <span className="chat-time">{timeAgo(m.time)}</span>}
                   </div>
                   <div className="chat-msg-body">{m.content}</div>
@@ -428,7 +451,7 @@ function ShowDetail({
                       {workLog.slice(0, 30).map(w => (
                         <div key={w.id} className="activity-row">
                           <span className="activity-type">{w.event_type}</span>
-                          <span className="activity-role">{nicknameByRole[w.role] || formatRole(w.role)}</span>
+                          <span className="activity-role">{w.nickname || nicknameByRole[w.role] || formatRole(w.role)}</span>
                           <span className="activity-detail">{w.details?.slice(0, 80)}</span>
                           <span className="activity-time">{timeAgo(w.timestamp)}</span>
                         </div>
@@ -630,17 +653,17 @@ const COMMAND_GROUPS: Record<string, { label: string; commands: { cmd: string; l
   rehearsal: {
     label: "Rehearsal Mode",
     commands: [
-      { cmd: "basics", label: "Basics", desc: "Fundamentals rehearsal" },
-      { cmd: "sectionals", label: "Sectionals", desc: "Section-level rehearsal" },
-      { cmd: "full_ensemble", label: "Full Ensemble", desc: "All sections together" },
-      { cmd: "run_through", label: "Run Through", desc: "Full performance run" },
+      { cmd: "basics", label: "Basics", desc: "Manual override: basics mode" },
+      { cmd: "sectionals", label: "Sectionals", desc: "Manual override: sectionals" },
+      { cmd: "full_ensemble", label: "Full Ensemble", desc: "Manual override: full ensemble" },
+      { cmd: "run_through", label: "Run Through", desc: "Manual override: run through" },
     ],
   },
-  tour: {
-    label: "Tour",
+  execution: {
+    label: "Execution",
     commands: [
-      { cmd: "tour_start", label: "Start Tour", desc: "Autonomous execution", style: "primary" },
-      { cmd: "tour_stop", label: "Stop Tour", desc: "Return to rehearsal" },
+      { cmd: "go_on_tour", label: "Go On Tour", desc: "Autonomous execution", style: "primary" },
+      { cmd: "return_to_camps", label: "Return to Camps", desc: "Back to planning" },
     ],
   },
   system: {
@@ -801,8 +824,193 @@ function AdminChat({
 }
 
 
+// --- Show Templates View ---
+function TemplatesView() {
+  const [templates, setTemplates] = useState<string[]>([]);
+  const [selected, setSelected] = useState<any>(null);
+  const [msg, setMsg] = useState("");
+
+  useEffect(() => {
+    api.getShowTemplates().then((data: any) => {
+      setTemplates(Array.isArray(data) ? data : data?.templates || []);
+    }).catch(() => setTemplates([]));
+  }, []);
+
+  const handleInstantiate = async (name: string) => {
+    try {
+      const result = await api.instantiateTemplate(name);
+      setMsg(`Created show from template "${name}"`);
+    } catch (e: any) {
+      setMsg(`Error: ${e.message}`);
+    }
+  };
+
+  const handleSelect = async (name: string) => {
+    try {
+      const detail = await api.getShowTemplate(name);
+      setSelected(detail);
+    } catch { setSelected(null); }
+  };
+
+  return (
+    <div className="page-content">
+      <h2>Show Templates</h2>
+      {msg && <p className="info-msg">{msg}</p>}
+      <div className="card-grid">
+        {templates.map(name => (
+          <div key={name} className="card" onClick={() => handleSelect(name)}>
+            <h3>{formatRole(name)}</h3>
+            <button className="small primary" onClick={e => { e.stopPropagation(); handleInstantiate(name); }}>
+              Create Show
+            </button>
+          </div>
+        ))}
+        {templates.length === 0 && <p className="dim">No templates available.</p>}
+      </div>
+      {selected && (
+        <div className="detail-panel">
+          <h3>{selected.name}</h3>
+          <pre className="code-block">{JSON.stringify(selected, null, 2)}</pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Performers View ---
+function PerformersView() {
+  const [performers, setPerformers] = useState<any[]>([]);
+  const [selected, setSelected] = useState<any>(null);
+  const [ledger, setLedger] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
+
+  useEffect(() => {
+    api.getPerformers().then(setPerformers).catch(() => setPerformers([]));
+  }, []);
+
+  const handleSelect = async (id: string) => {
+    try {
+      const [detail, led, st] = await Promise.all([
+        api.getPerformer(id),
+        api.getPerformerLedger(id).catch(() => []),
+        api.getPerformerStats(id).catch(() => null),
+      ]);
+      setSelected(detail);
+      setLedger(led);
+      setStats(st);
+    } catch { setSelected(null); }
+  };
+
+  const handleRetire = async (id: string) => {
+    await api.retirePerformer(id);
+    api.getPerformers().then(setPerformers);
+    setSelected(null);
+  };
+
+  return (
+    <div className="page-content">
+      <h2>Performers</h2>
+      <div className="table-wrapper">
+        <table className="styled-table">
+          <thead><tr><th>Name</th><th>Role</th><th>Trust</th><th>Status</th><th>Sessions</th></tr></thead>
+          <tbody>
+            {performers.map((p: any) => (
+              <tr key={p.id} onClick={() => handleSelect(p.id)} className="clickable">
+                <td className="cell-primary">{p.name || p.id.slice(0, 8)}</td>
+                <td>{formatRole(p.role_type || "")}</td>
+                <td><span className="trust-score">{p.trust_score ?? "-"}</span></td>
+                <td><StatusBadge status={p.status || "active"} /></td>
+                <td>{p.total_sessions ?? 0}</td>
+              </tr>
+            ))}
+            {performers.length === 0 && <tr><td colSpan={5} className="dim">No performers yet.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+      {selected && (
+        <div className="detail-panel">
+          <h3>{selected.name || selected.id.slice(0, 8)}</h3>
+          <p className="dim" style={{ marginBottom: 8 }}>{formatRole(selected.role_type || "")}</p>
+          <button className="small danger" onClick={() => handleRetire(selected.id)}>Retire</button>
+          {stats && (
+            <div className="stats-grid">
+              <div><strong>Total Sessions</strong><span>{stats.total_sessions ?? 0}</span></div>
+              <div><strong>Success Rate</strong><span>{stats.success_rate != null ? `${(stats.success_rate * 100).toFixed(0)}%` : "-"}</span></div>
+              <div><strong>Avg Score</strong><span>{stats.avg_score != null ? stats.avg_score.toFixed(1) : "-"}</span></div>
+            </div>
+          )}
+          {ledger.length > 0 && (
+            <>
+              <h4>Capability Ledger</h4>
+              <div className="table-wrapper">
+                <table>
+                  <thead><tr><th>Capability</th><th>Level</th><th>Updated</th></tr></thead>
+                  <tbody>
+                    {ledger.map((entry: any, i: number) => (
+                      <tr key={i}>
+                        <td>{entry.capability || entry.tool_name || "-"}</td>
+                        <td>{entry.level ?? entry.score ?? "-"}</td>
+                        <td>{entry.updated_at ? timeAgo(entry.updated_at) : "-"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Seance View ---
+function SeanceView() {
+  const [query, setQuery] = useState("");
+  const [result, setResult] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleQuery = async () => {
+    if (!query.trim()) return;
+    setLoading(true);
+    try {
+      const res = await api.querySeance(query);
+      setResult(res);
+    } catch (e: any) {
+      setResult({ error: e.message });
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="page-content">
+      <h2>Seance</h2>
+      <p className="dim">Ask questions about the swarm's history and state.</p>
+      <div className="seance-input-row">
+        <input
+          value={query} onChange={e => setQuery(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && handleQuery()}
+          placeholder="Ask the swarm..."
+        />
+        <button className="primary" onClick={handleQuery} disabled={loading}>
+          {loading ? "..." : "Ask"}
+        </button>
+      </div>
+      {result && (
+        <div className="detail-panel">
+          {result.error
+            ? <p className="hint warning">{result.error}</p>
+            : <pre className="code-block">{JSON.stringify(result, null, 2)}</pre>
+          }
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
-  const [view, setView] = useState<"dashboard" | "show" | "admin">("dashboard");
+  type ViewType = "dashboard" | "show" | "admin" | "templates" | "performers" | "seance";
+  const [view, setView] = useState<ViewType>("dashboard");
   const [selectedShow, setSelectedShow] = useState<Show | null>(null);
   const [shows, setShows] = useState<Show[]>([]);
   const [agents, setAgents] = useState<AgentSession[]>([]);
@@ -953,8 +1161,15 @@ export default function App() {
     <div className="app">
       <header className="app-header">
         <h1 className="app-title" onClick={handleBack} style={{ cursor: "pointer" }}>DCI Swarm</h1>
+        <nav className="header-nav">
+          <button className={view === "dashboard" ? "nav-active small" : "small"} onClick={handleBack}>Dashboard</button>
+          <button className={view === "admin" ? "nav-active small" : "small"} onClick={handleOpenAdmin}>Critique</button>
+          <button className={view === "templates" ? "nav-active small" : "small"} onClick={() => setView("templates")}>Templates</button>
+          <button className={view === "performers" ? "nav-active small" : "small"} onClick={() => setView("performers")}>Performers</button>
+          <button className={view === "seance" ? "nav-active small" : "small"} onClick={() => setView("seance")}>Seance</button>
+        </nav>
         <div className="header-controls">
-          <button className={view === "admin" ? "primary small" : "small"} onClick={handleOpenAdmin}>Critique</button>
+          <CorpsThemePicker />
           <button className="theme-toggle" onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}>
             {theme === "dark" ? "\u2600 Light" : "\u263D Dark"}
           </button>
@@ -986,6 +1201,9 @@ export default function App() {
             onToggleTour={handleToggleTour} onRefresh={handleRefreshDetail}
           />
         )}
+        {view === "templates" && <TemplatesView />}
+        {view === "performers" && <PerformersView />}
+        {view === "seance" && <SeanceView />}
       </main>
     </div>
   );

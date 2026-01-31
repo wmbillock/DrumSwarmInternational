@@ -49,14 +49,14 @@ class MockCrashingLLMClient:
     def __init__(self):
         self.call_count = 0
 
-    def chat(self, messages, model_tier=None, tools=None):
+    def chat(self, messages, model_tier=None, tools=None, **kwargs):
         self.call_count += 1
         raise RuntimeError("LLM connection lost")
 
 
 class MockWorkingLLMClient:
     """LLM client that returns a normal response."""
-    def chat(self, messages, model_tier=None, tools=None):
+    def chat(self, messages, model_tier=None, tools=None, **kwargs):
         return LLMResponse(content="Work completed successfully", stop_reason="end_turn")
 
 

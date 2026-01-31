@@ -37,7 +37,7 @@ A comparative analysis for building the DCI Swarm orchestration engine.
 | Set/Form/Segment | Bead | Strong | Both are atomic, persistent work units. A segment tells a performer exactly where to be; a bead is an atomic work item. Both survive agent/performer death. |
 | Drill (all sets) | Beads (collection) | Moderate | The complete set of beads for a rig is structurally equivalent. |
 | Hook | Segment (inverted) | Moderate | Both bind a unit of work to a specific agent/performer. |
-| Tour (80-day refinement) | *No analog* | — | Gas Town has no bounded refinement cycle. Work is complete-and-move-on. Worth importing. |
+| Winter Camps / On Tour | *No analog* | — | Gas Town has no planning-vs-execution lifecycle. Winter Camps = planning phase with auto-progressing rehearsal modes. On Tour = autonomous execution. |
 | GUPP | Rehearsal discipline | Strong | "If work is on your hook, YOU RUN IT" = performer discipline after material handoff. Cultural alignment. |
 | MEOW | Sets/Segments | Strong | Both decompose goals into trackable atomic units. |
 | NDI | Correction Escalation | Moderate | Both ensure completion despite unreliability, but different failure modes. |
@@ -110,7 +110,7 @@ DCI's "own your part" is cultural. Gas Town makes it architectural. **Make it en
 
 | Mapping | Why It Breaks | Resolution |
 |---|---|---|
-| Tour = project lifecycle | A tour refines ONE show. Software evolves requirements. | Use "tour" for a bounded iteration, not the whole project. |
+| Tour = project lifecycle | A tour refines ONE show. Software evolves requirements. | Use "On Tour" for the autonomous execution phase; "Winter Camps" for planning. Not the whole project lifecycle. |
 | Performers = agents | Performers are persistent humans who learn. Agents are ephemeral and stateless. | Use Polecat lifecycle; preserve state in beads. |
 | Drill writer = planner | Drill writer produces one authoritative plan. Software planning is iterative. | Allow multiple design iterations with PC approval gates. |
 | Field = execution environment | A football field is fixed. Execution environments vary. | Don't over-map the physical metaphor. |

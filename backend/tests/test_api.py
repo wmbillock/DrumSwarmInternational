@@ -98,7 +98,7 @@ class TestCorpsAPI:
         corps_id = activate_resp.json()["corps_id"]
         resp = client.get(f"/api/corps/{corps_id}")
         assert resp.status_code == 200
-        assert resp.json()["status"] == "rehearsal"
+        assert resp.json()["status"] == "winter_camps"
 
     def test_get_roster(self, client):
         create_resp = client.post("/api/shows", json={"title": "Roster Test"})

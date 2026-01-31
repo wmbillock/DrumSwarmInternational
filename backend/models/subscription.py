@@ -13,8 +13,8 @@ class EventType(str, enum.Enum):
     REP_COMPLETED = "rep_completed"
     REP_FAILED = "rep_failed"
     REP_ASSIGNED = "rep_assigned"
-    COORDINATE_COMPLETED = "segment_completed"
-    COORDINATE_FAILED = "segment_failed"
+    SEGMENT_COMPLETED = "segment_completed"
+    SEGMENT_FAILED = "segment_failed"
     PROBLEM_POSTED = "problem_posted"
     PROBLEM_RESOLVED = "problem_resolved"
 

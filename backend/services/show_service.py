@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from backend.models.show import Show, ShowStatus
 from backend.models.segment import SegmentType
 from backend.services.segment_service import create_segment
-from backend.services.corps_service import create_corps, initialize_corps, start_tour, stop_tour
+from backend.services.corps_service import create_corps, initialize_corps, go_on_tour, return_to_camps
 from backend.services.nickname_generator import generate_corps_name
 
 
@@ -90,14 +90,14 @@ def archive_show(db: Session, show_id: str) -> Show:
 
 
 def toggle_tour(db: Session, show_id: str, enable: bool) -> Show:
-    """Toggle tour mode for a show's corps."""
+    """Toggle tour mode for a show's corps (go_on_tour / return_to_camps)."""
     show = db.get(Show, show_id)
     if show is None:
         raise ShowError(f"Show {show_id} not found")
     if show.corps_id is None:
         raise ShowError("Show has no corps — activate it first")
     if enable:
-        start_tour(db, show.corps_id)
+        go_on_tour(db, show.corps_id)
     else:
-        stop_tour(db, show.corps_id)
+        return_to_camps(db, show.corps_id)
     return show

@@ -6,6 +6,7 @@ from sqlalchemy.orm import sessionmaker
 
 from backend.database import Base
 from backend.models.show import Show, ShowStatus
+from backend.models.corps import CorpsStatus
 from backend.services.show_service import (
     create_show,
     get_show,

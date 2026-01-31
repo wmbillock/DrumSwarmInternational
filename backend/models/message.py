@@ -16,6 +16,8 @@ class MessageType(str, enum.Enum):
     STATUS = "status"
     DIRECTIVE = "directive"
     FEEDBACK = "feedback"
+    QUESTION = "question"
+    REQUEST = "request"
 
 
 class MessagePriority(str, enum.Enum):

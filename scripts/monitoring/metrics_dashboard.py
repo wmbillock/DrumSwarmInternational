@@ -104,9 +104,9 @@ def render():
 
         print()
         print(f"  {BOLD}{corps.get('name', '?')}{RESET}")
-        tour = corps.get("tour_mode", False)
+        on_tour = corps.get("status") == "on_tour"
         mode = corps.get("rehearsal_mode", "—")
-        print(f"  Tour: {GREEN}ON{RESET}" if tour else f"  Tour: {DIM}off{RESET}", end="")
+        print(f"  Tour: {GREEN}ON{RESET}" if on_tour else f"  Tour: {DIM}off{RESET}", end="")
         print(f"  Mode: {CYAN}{mode}{RESET}")
 
         # Roster counts
