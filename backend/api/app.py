@@ -463,14 +463,29 @@ async def api_send_chat(corps_id: str, data: ChatSend, db: Session = Depends(get
         "message_id": msg.id,
     })
 
-    # Wake target agent via task_manager
+    # Wake target agent via task_manager — include show context so agent knows what to do
     tm = get_task_manager()
     if tm:
         session_id = tm.get_session_for_role(db, corps_id, data.to_role)
         if session_id and not tm.is_active(session_id):
+            # Build rich context for the agent
+            from backend.models.show import Show as ShowModel
+            show = db.query(ShowModel).filter(ShowModel.corps_id == corps_id).first()
+            context_parts = [f"User message to {data.to_role}: {data.content}"]
+            if show:
+                context_parts.append(f"Show: '{show.title}'")
+                if show.coordinate_root_id:
+                    context_parts.append(f"Root coordinate ID: {show.coordinate_root_id}")
+                context_parts.append(f"Corps ID: {corps_id}")
+            if show and show.description:
+                context_parts.append(f"Show description: {show.description}")
+            context_parts.append(
+                "Respond to the user's message. Use your tools to take action. "
+                "If the user is asking you to do work, create coordinates and reps under the root coordinate."
+            )
             tm.start_agent(
                 session_id=session_id,
-                task_description=f"User message: {data.content}",
+                task_description="\n".join(context_parts),
                 corps_id=corps_id,
             )
 
@@ -813,14 +828,20 @@ async def websocket_endpoint(websocket: WebSocket, corps_id: str):
                             "message_id": record.id,
                         })
 
-                        # Wake agent
+                        # Wake agent with full context
                         tm = get_task_manager()
                         if tm:
                             session_id = tm.get_session_for_role(db, corps_id, to_role)
                             if session_id and not tm.is_active(session_id):
+                                from backend.models.show import Show as ShowModel
+                                show = db.query(ShowModel).filter(ShowModel.corps_id == corps_id).first()
+                                ctx = [f"User message to {to_role}: {content}"]
+                                if show:
+                                    ctx.append(f"Show: '{show.title}', Root coordinate: {show.coordinate_root_id}, Corps: {corps_id}")
+                                ctx.append("Respond to the user. Use tools to take action if requested.")
                                 tm.start_agent(
                                     session_id=session_id,
-                                    task_description=f"User message: {content}",
+                                    task_description="\n".join(ctx),
                                     corps_id=corps_id,
                                 )
                     finally:
