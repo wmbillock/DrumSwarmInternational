@@ -174,12 +174,12 @@ def get_segment_details(segment_id: str):
         if reps:
             print(f"{BOLD}Reps:{NC}")
             for rep in reps:
-                status_color = GREEN if rep['status'] == 'completed' else RED if rep['status'] == 'failed' else YELLOW
-                print(f"  {status_color}{rep['status']:>12}{NC} {rep['id']}")
-                if rep['assigned_to']:
-                    print(f"    Assigned to: {rep['assigned_to']}")
-                if rep['result']:
-                    preview = rep['result'][:100].replace('\n', ' ')
+                status_color = GREEN if rep.status.value == 'completed' else RED if rep.status.value == 'failed' else YELLOW
+                print(f"  {status_color}{rep.status.value:>12}{NC} {rep.id}")
+                if rep.assigned_to:
+                    print(f"    Assigned to: {rep.assigned_to}")
+                if rep.result:
+                    preview = rep.result[:100].replace('\n', ' ')
                     print(f"    Result: {preview}...")
             print()
 
