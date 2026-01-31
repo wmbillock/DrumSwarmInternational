@@ -49,6 +49,13 @@ A comparative analysis for building the DCI Swarm orchestration engine.
 | Basics/Sectionals/Ensemble/Run-Through | *No analog* | — | Gas Town has no graduated integration levels. Major DCI contribution. |
 | Adjudication/Scoring | *No analog* | — | Gas Town has no external evaluation. Work is done or not. |
 | Dual Tempo Sources | *No analog* | — | No redundant synchronization mechanism. |
+| Ageout | Performer retirement | Strong | Performer reaches age limit (22) and is automatically retired. Experience preserved in AgentExperience. |
+| Audition | Trust-based selection | Moderate | Selecting performers by trust score for available roles. Less competitive than DCI auditions. |
+| Self-Improvement | Agent definition versioning | Strong | Agents propose changes to their own definitions; supervisors approve/reject. Full audit trail. |
+| Memory (episodic) | TaskMemory | Strong | Records of past task executions — tool calls, outcomes, success. Indexed by task hash for replay. |
+| Memory (semantic) | ChromaDB memory_bank | Moderate | Similarity-based retrieval of past experience. Fuzzy matching against current task. |
+| Memory (explicit) | AgentMemory | Strong | Typed, versioned, confidence-scored knowledge entries. Decisions, lessons, preferences, profiles. |
+| Decision Memory | High-stakes tool call log | Strong | Automatically captured when agents use consequential tools (handoff, fire_staff, etc.). |
 | Competition | Convoy across rigs | Weak | Competition ranks independent orchestrations. Convoy tracks but doesn't rank. |
 
 ---

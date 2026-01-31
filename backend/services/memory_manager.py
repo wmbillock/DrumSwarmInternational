@@ -239,6 +239,7 @@ class MemoryManager:
             version=old.version + 1,
         )
         self.db.add(new_mem)
+        self.db.flush()  # generate new_mem.id
         old.superseded_by = new_mem.id
         self.db.commit()
         self.db.refresh(new_mem)

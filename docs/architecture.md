@@ -95,9 +95,92 @@ Performers are ephemeral — they can't wait for a response from another agent. 
 
 Permission-gated per agent definition.
 
+## Agent Classification
+
+Every agent definition has a `classification` from one of five categories:
+
+| Classification | Description | Example Roles |
+|---|---|---|
+| `performing_member` | Ephemeral workers (performers) | performer |
+| `instructional_staff` | Domain experts who translate design to execution | drill_writer, music_writer, choreographer, caption heads |
+| `administrative_staff` | Management and coordination | executive_director, program_coordinator, drum_major |
+| `logistics` | Operational and infrastructure support | brass_tech, percussion_tech, guard_tech, visual_tech |
+| `dci_assigned` | External evaluation (judges) | timing_judge |
+
+Classifications are assigned automatically from the `ROLE_CLASSIFICATIONS` mapping when agents are initialized.
+
+## Corps Identity
+
+Each corps has a visual identity:
+
+- **theme_id** — One of 17 predefined color themes (e.g. "phantom-regiment", "blue-devils", "kilties")
+- **mascot** — Auto-generated unique mascot name (e.g. "The Crimson Hawks")
+- **uniform_concept** — Optional text description of the corps' visual concept
+
+Themes are assigned randomly at corps creation (avoiding duplicates across active corps) and can be updated via the API.
+
+## Performer Lifecycle
+
+Performers have a simulated age system inspired by DCI eligibility rules:
+
+- **Age range**: 12–22 (DCI performing member age limits)
+- **Ageouts**: When a performer's age exceeds 22, they are automatically retired
+- **Experience seasons**: Incremented each season transition, tracks total experience
+- **Auditions**: New performers selected by trust score for available roles
+- **Season transitions**: End-of-season process that ages all performers, records experience, and retires ageouts
+
+Staff lifecycle is managed separately via hire/fire operations on agent definitions.
+
+## Self-Improvement
+
+Agents can propose changes to their own definitions, subject to approval:
+
+1. **Propose**: Agent creates a `SelfImprovementLog` entry with proposed changes (e.g. updated system prompt, new tool permissions)
+2. **Review**: Entry sits in `PENDING` status until a supervisor reviews it
+3. **Approve/Reject**: Supervisor approves (applying changes and bumping version) or rejects
+
+All self-improvement operations are audit-logged with the old/new version, changes, reason, and approver.
+
+## Memory System
+
+Three-layer architecture for agent memory:
+
+### Layer 1: Short-term (in-process)
+Handled by `agent_runtime` — conversation context within a single session. Dies with the session.
+
+### Layer 2: Semantic (ChromaDB)
+Similarity-based retrieval via `memory_bank`. Stores task+result summaries for fuzzy matching against future tasks. Optional — degrades gracefully if ChromaDB is unavailable.
+
+### Layer 3: Episodic/Structured (SQL + Files)
+Two complementary stores:
+
+- **AgentMemory** (SQL): Explicit, typed memories (decisions, profiles, summaries, preferences, lessons). Versioned with superseding. Confidence-scored. Queryable by type.
+- **TaskMemory** (SQL): Episodic records of task executions — tool calls, outcomes, success/failure. Indexed by task hash for exact-match retrieval.
+- **FileMemory** (filesystem): Human-inspectable state in `memory_store/agents/{identity}/` — JSON profiles, markdown session summaries, JSON decision records. Version-controllable via git.
+
+### Key Principles
+- Store summaries, not raw transcripts
+- Memory is explicit, inspectable, and editable (by humans and agents)
+- The system decides what memory structures exist, not the agent
+- Separate long-term knowledge from scratchpad/working memory
+
 ## Scoring / Adjudication
 - Judges live at the DCI layer, external to any corps
 - Evaluate reps on technique + GE per caption
 - Composite score: weighted caption scores minus penalties
 - Tiered response: minor issues → automatic rework (another rep); major issues → escalate to ED/user
 - Timing official: mechanical enforcement of deadlines and budgets
+
+### Judge Monitoring CLI
+
+The judge monitoring system provides real-time health observation via `backend/cli/judge.py`:
+
+- `health` — Analyze corps health (segment status, agent activity, stale reps)
+- `list-issues` — List active issues and problems across segments
+- `escalate` — Trigger escalation for a specific segment or problem
+- `segment` — Inspect segment tree and rep status
+
+Supporting services:
+- **`health_monitor.py`** — `analyze_corps_health()`, `get_segment_health()` for programmatic health checks
+- **`judge_dashboard.py`** — Real-time ASCII dashboard visualization for judge monitoring
+- **`examples/judge_monitoring_example.py`** — Complete workflow examples

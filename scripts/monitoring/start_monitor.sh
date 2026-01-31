@@ -3,13 +3,17 @@
 #
 # Layout:
 # ┌──────────────────────────────┬─────────────────────────┐
-# │                              │ [1:Metrics] [2:Agents]  │
-# │  Claude Code                 │ [3:Logs]   [4:Changes]  │
-# │  (large workspace)           │                         │
-# │                              │  (switchable right pane)│
-# │                              │                         │
+# │                              │  Dashboard (switchable)  │
+# │  Claude Code                 ├─────────────────────────┤
+# │  (large workspace)           │  Backend log (tail)      │
+# │                              ├─────────────────────────┤
+# │                              │  Frontend log (tail)     │
 # └──────────────────────────────┴─────────────────────────┘
-# Switch views: prefix+1/2/3/4
+#   Status bar: BE:ON FE:ON │ N corps │ prefix+s: menu
+#
+# Switch dashboard views: prefix+1..6
+# Swarm menu: prefix+s (popup)
+# Navigation: prefix+0=Claude, prefix+d=dashboard, prefix+l=BE log, prefix+;=FE log
 
 set -euo pipefail
 
@@ -18,6 +22,7 @@ PROJECT_ROOT="${DCI_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
 VENV_DIR="$PROJECT_ROOT/.venv"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 LOG_FILE="$PROJECT_ROOT/backend.log"
+FE_LOG_FILE="$PROJECT_ROOT/frontend.log"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -59,24 +64,35 @@ create_session() {
     VP="$(venv_prefix)"
 
     local VIEW_FILE="$PROJECT_ROOT/.dci-dashboard-view"
+    local ACTIONS="$SCRIPT_DIR/swarm_actions.sh"
+    local STATUS_LINE="$SCRIPT_DIR/status_line.sh"
 
     # Create session with pane 0 (Claude Code workspace — left, large)
     tmux new-session -d -s "$SESSION_NAME" -c "$PROJECT_ROOT" -x 220 -y 55
     tmux rename-window -t "$SESSION_NAME:0" "monitor"
 
-    # Split: right pane (single unified dashboard)
+    # Split: right column (40%)
     tmux split-window -h -t "$SESSION_NAME:0.0" -c "$PROJECT_ROOT" -p 40
 
+    # Split right column into 3: dashboard (top 60%), BE log (mid 20%), FE log (bottom 20%)
+    tmux split-window -v -t "$SESSION_NAME:0.1" -c "$PROJECT_ROOT" -p 40
+    tmux split-window -v -t "$SESSION_NAME:0.2" -c "$PROJECT_ROOT" -p 50
+
     # --- Pane 0: Claude Code workspace (left, large) ---
-    local CLAUDE_SESSION_FILE="$PROJECT_ROOT/.claude-session-id"
     tmux send-keys -t "$SESSION_NAME:0.0" "cd '$PROJECT_ROOT' && clear" C-m
     if command -v claude &>/dev/null; then
         tmux send-keys -t "$SESSION_NAME:0.0" "claude" C-m
     fi
 
-    # --- Pane 1: Unified Dashboard (right) ---
+    # --- Pane 1: Unified Dashboard (top right) ---
     echo "metrics" > "$VIEW_FILE"
     tmux send-keys -t "$SESSION_NAME:0.1" "${VP}python3 '$SCRIPT_DIR/unified_dashboard.py' --refresh 3" C-m
+
+    # --- Pane 2: Backend log (mid right) ---
+    tmux send-keys -t "$SESSION_NAME:0.2" "touch '$LOG_FILE' && tail -f '$LOG_FILE'" C-m
+
+    # --- Pane 3: Frontend log (bottom right) ---
+    tmux send-keys -t "$SESSION_NAME:0.3" "touch '$FE_LOG_FILE' && tail -f '$FE_LOG_FILE'" C-m
 
     # Pane titles
     tmux set-option -t "$SESSION_NAME" pane-border-status top
@@ -85,18 +101,47 @@ create_session() {
     tmux set-option -t "$SESSION_NAME" pane-active-border-style "fg=colour75"
 
     tmux select-pane -t "$SESSION_NAME:0.0" -T "Claude Code"
-    tmux select-pane -t "$SESSION_NAME:0.1" -T "Dashboard [1:Metrics 2:Agents 3:Logs 4:Changes]"
+    tmux select-pane -t "$SESSION_NAME:0.1" -T "Dashboard [1-6]"
+    tmux select-pane -t "$SESSION_NAME:0.2" -T "Backend Log"
+    tmux select-pane -t "$SESSION_NAME:0.3" -T "Frontend Log"
 
-    # Keybindings: switch dashboard views by writing to the view file
+    # ─── Dashboard view keybindings (prefix+1..6) ────────────────────
     tmux bind-key -T prefix 1 run-shell "echo metrics > '$VIEW_FILE'"
     tmux bind-key -T prefix 2 run-shell "echo agents > '$VIEW_FILE'"
     tmux bind-key -T prefix 3 run-shell "echo logs > '$VIEW_FILE'"
     tmux bind-key -T prefix 4 run-shell "echo changes > '$VIEW_FILE'"
+    tmux bind-key -T prefix 5 run-shell "echo memory > '$VIEW_FILE'"
+    tmux bind-key -T prefix 6 run-shell "echo lifecycle > '$VIEW_FILE'"
 
-    # prefix+d to toggle focus to dashboard pane
-    tmux bind-key -T prefix d select-pane -t "$SESSION_NAME:0.1"
-    # prefix+0 to return focus to Claude Code
+    # ─── Navigation keybindings ──────────────────────────────────────
     tmux bind-key -T prefix 0 select-pane -t "$SESSION_NAME:0.0"
+    tmux bind-key -T prefix d select-pane -t "$SESSION_NAME:0.1"
+    tmux bind-key -T prefix l select-pane -t "$SESSION_NAME:0.2"
+    tmux bind-key -T prefix \; select-pane -t "$SESSION_NAME:0.3"
+
+    # ─── Swarm menu (prefix+s) — display-menu popup ─────────────────
+    tmux bind-key -T prefix s display-menu -T "#[bold]DCI Swarm" \
+        "Resume Hut (restart BE+FE)"  r "display-popup -E -w 60 -h 20 '$ACTIONS resume-hut'" \
+        "Heartbeat"                   h "display-popup -E -w 60 -h 12 '$ACTIONS heartbeat'" \
+        "Run-Through (tests)"         t "display-popup -E -w 80 -h 30 '$ACTIONS run-tests'" \
+        "Restart Backend"             b "display-popup -E -w 60 -h 12 '$ACTIONS restart-backend'" \
+        "Restart Frontend"            f "display-popup -E -w 60 -h 12 '$ACTIONS restart-frontend'" \
+        "Run Migration"               m "display-popup -E -w 60 -h 12 '$ACTIONS migrate'" \
+        "Drill"                       d "display-popup -E -w 60 -h 15 '$ACTIONS drill'" \
+        "Check Step (status)"         c "display-popup -E -w 60 -h 20 '$ACTIONS check-step'" \
+        "Parade Rest (stop all)"      p "display-popup -E -w 60 -h 12 '$ACTIONS parade-rest'" \
+        "" \
+        "Open Browser"                o "run-shell '$ACTIONS open-browser'" \
+        "Help"                        ? "display-popup -E -w 65 -h 30 '$ACTIONS help'"
+
+    # ─── Status bar ──────────────────────────────────────────────────
+    tmux set-option -t "$SESSION_NAME" status on
+    tmux set-option -t "$SESSION_NAME" status-style "bg=colour235,fg=colour248"
+    tmux set-option -t "$SESSION_NAME" status-left "#[bold,fg=colour75] DCI SWARM #[default]│ "
+    tmux set-option -t "$SESSION_NAME" status-left-length 20
+    tmux set-option -t "$SESSION_NAME" status-right "#(bash '$STATUS_LINE') │ %H:%M"
+    tmux set-option -t "$SESSION_NAME" status-right-length 80
+    tmux set-option -t "$SESSION_NAME" status-interval 5
 
     # Focus Claude Code pane
     tmux select-pane -t "$SESSION_NAME:0.0"

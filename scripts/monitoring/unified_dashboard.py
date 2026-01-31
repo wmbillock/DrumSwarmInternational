@@ -33,7 +33,7 @@ API_BASE = os.environ.get("DCI_API_URL", "http://localhost:8000")
 PROJECT_ROOT = os.environ.get("DCI_ROOT", os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 LOG_FILE = os.path.join(PROJECT_ROOT, "backend.log")
 
-VIEWS = ["metrics", "agents", "logs", "changes"]
+VIEWS = ["metrics", "agents", "logs", "changes", "memory", "lifecycle"]
 VIEW_FILE = os.path.join(PROJECT_ROOT, ".dci-dashboard-view")
 
 STATUS_ICON = {
@@ -377,6 +377,127 @@ def _git_recent_commits(n=5):
         return []
 
 
+# --- View: Memory ---
+
+def render_memory():
+    now = datetime.now().strftime("%H:%M:%S")
+    print(f"{BOLD}{BLUE}MEMORY{RESET}  {DIM}{now}{RESET}")
+    print()
+
+    if not backend_up():
+        print(f"  {DIM}Backend offline.{RESET}")
+        return
+
+    shows = fetch("/api/shows") or []
+    active_shows = [s for s in shows if s.get("status") == "active" and s.get("corps_id")]
+
+    if not active_shows:
+        print(f"  {DIM}No active corps.{RESET}")
+        return
+
+    for show in active_shows[:3]:
+        corps_id = show["corps_id"]
+        roster = fetch(f"/api/corps/{corps_id}/roster") or []
+        title = show.get("title", "Untitled")
+        print(f"  {BOLD}{title}{RESET}")
+
+        for agent in roster[:8]:
+            identity = agent.get("nickname") or agent.get("role", "?")
+            stats = fetch(f"/api/agents/{identity}/memory-stats")
+            if not stats:
+                continue
+            total = stats.get("total_memories", 0)
+            tasks = stats.get("task_memories", 0)
+            avg_conf = stats.get("avg_confidence", 0)
+            by_type = stats.get("by_type", {})
+
+            parts = []
+            for mt, count in sorted(by_type.items()):
+                parts.append(f"{mt}:{count}")
+            type_str = " ".join(parts) if parts else "none"
+
+            role = agent.get("role", "?").replace("_", " ").title()[:18]
+            print(f"    {role:<20} {GREEN}{total}{RESET} mem  {CYAN}{tasks}{RESET} tasks  conf:{avg_conf:.1f}  ({type_str})")
+
+        print()
+
+
+# --- View: Lifecycle ---
+
+def render_lifecycle():
+    now = datetime.now().strftime("%H:%M:%S")
+    print(f"{BOLD}{MAGENTA}LIFECYCLE{RESET}  {DIM}{now}{RESET}")
+    print()
+
+    if not backend_up():
+        print(f"  {DIM}Backend offline.{RESET}")
+        return
+
+    shows = fetch("/api/shows") or []
+    active_shows = [s for s in shows if s.get("status") == "active" and s.get("corps_id")]
+
+    if not active_shows:
+        print(f"  {DIM}No active corps.{RESET}")
+        return
+
+    for show in active_shows[:3]:
+        corps_id = show["corps_id"]
+        corps = fetch(f"/api/corps/{corps_id}")
+        if not corps:
+            continue
+
+        title = show.get("title", "Untitled")
+        mascot = corps.get("mascot", "—")
+        theme = corps.get("theme_id", "—")
+        print(f"  {BOLD}{title}{RESET}  {DIM}({mascot} / {theme}){RESET}")
+        print()
+
+        # Ageouts
+        ageouts = fetch(f"/api/corps/{corps_id}/ageouts") or []
+        if ageouts:
+            print(f"  {YELLOW}Pending Ageouts: {len(ageouts)}{RESET}")
+            for a in ageouts[:5]:
+                print(f"    {a.get('name', '?')} — age {a.get('age', '?')}")
+        else:
+            print(f"  {GREEN}No pending ageouts{RESET}")
+
+        print()
+
+        # Roster classification breakdown
+        roster = fetch(f"/api/corps/{corps_id}/roster") or []
+        if roster:
+            by_class = {}
+            for agent in roster:
+                cls = agent.get("classification", "unknown")
+                by_class.setdefault(cls, []).append(agent)
+
+            print(f"  {BOLD}Classification Breakdown{RESET}")
+            class_icons = {
+                "performing_member": f"{YELLOW}\u266b{RESET}",
+                "instructional_staff": f"{BLUE}\u2691{RESET}",
+                "administrative_staff": f"{MAGENTA}\u2605{RESET}",
+                "logistics": f"{GREEN}\u2699{RESET}",
+                "dci_assigned": f"{DIM}\u2696{RESET}",
+            }
+            for cls in ["administrative_staff", "instructional_staff", "performing_member", "logistics", "dci_assigned"]:
+                agents = by_class.get(cls, [])
+                if agents:
+                    icon = class_icons.get(cls, "?")
+                    active = sum(1 for a in agents if a.get("status") == "active")
+                    label = cls.replace("_", " ").title()
+                    print(f"    {icon} {label}: {active}/{len(agents)}")
+
+        print()
+
+        # Self-improvement pending
+        pending = fetch("/api/self-improvement/pending") or []
+        if pending:
+            print(f"  {CYAN}Pending Improvements: {len(pending)}{RESET}")
+            for p in pending[:5]:
+                print(f"    v{p.get('old_version', '?')}→v{p.get('new_version', '?')}: {p.get('reason', '?')[:40]}")
+        print()
+
+
 # --- Main render dispatch ---
 
 VIEW_RENDERERS = {
@@ -384,6 +505,8 @@ VIEW_RENDERERS = {
     "agents": render_agents,
     "logs": render_logs,
     "changes": render_changes,
+    "memory": render_memory,
+    "lifecycle": render_lifecycle,
 }
 
 
