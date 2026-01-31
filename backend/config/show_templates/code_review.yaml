@@ -1,0 +1,20 @@
+title: "Code Review: {{target}}"
+description: "Structured code review for {{target}}"
+
+movements:
+  - title: "Analysis"
+    sets:
+      - title: "Static Analysis"
+        tasks:
+          - title: "Review code structure and patterns"
+          - title: "Check for security vulnerabilities"
+      - title: "Logic Review"
+        tasks:
+          - title: "Verify business logic correctness"
+          - title: "Check edge cases and error handling"
+
+  - title: "Report"
+    sets:
+      - title: "Findings"
+        tasks:
+          - title: "Compile findings and recommendations"

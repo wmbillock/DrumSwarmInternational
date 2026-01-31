@@ -1,0 +1,24 @@
+title: "Research: {{topic}}"
+description: "Structured research investigation of {{topic}}"
+
+movements:
+  - title: "Discovery"
+    sets:
+      - title: "Background Research"
+        tasks:
+          - title: "Survey existing knowledge on {{topic}}"
+          - title: "Identify key questions and hypotheses"
+
+  - title: "Analysis"
+    sets:
+      - title: "Deep Dive"
+        tasks:
+          - title: "Analyze primary sources"
+          - title: "Compare approaches and trade-offs"
+
+  - title: "Synthesis"
+    sets:
+      - title: "Report"
+        tasks:
+          - title: "Synthesize findings into report"
+          - title: "Provide recommendations"

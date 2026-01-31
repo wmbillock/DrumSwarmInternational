@@ -1,0 +1,47 @@
+title: "Software Project: {{project_name}}"
+description: "Full software development lifecycle for {{project_name}}"
+
+movements:
+  - title: "Planning & Architecture"
+    caption: visual
+    sets:
+      - title: "Requirements Analysis"
+        tasks:
+          - title: "Gather and document requirements"
+          - title: "Define acceptance criteria"
+      - title: "Architecture Design"
+        tasks:
+          - title: "Design system architecture"
+          - title: "Define API contracts"
+
+  - title: "Implementation"
+    caption: brass
+    sets:
+      - title: "Core Implementation"
+        tasks:
+          - title: "Implement core logic"
+          - title: "Write unit tests"
+      - title: "Integration"
+        tasks:
+          - title: "Integrate components"
+          - title: "Write integration tests"
+
+  - title: "Quality Assurance"
+    caption: guard
+    sets:
+      - title: "Testing"
+        tasks:
+          - title: "Run full test suite"
+          - title: "Fix failing tests"
+      - title: "Review"
+        tasks:
+          - title: "Code review"
+          - title: "Documentation review"
+
+  - title: "Delivery"
+    caption: percussion
+    sets:
+      - title: "Deployment Prep"
+        tasks:
+          - title: "Prepare deployment artifacts"
+          - title: "Write release notes"

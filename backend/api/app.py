@@ -1314,6 +1314,52 @@ def api_retire_performer(performer_id: str, db: Session = Depends(get_db)):
         raise HTTPException(404, str(e))
 
 
+# --- Metrics ---
+
+@app.get("/api/corps/{corps_id}/metrics")
+def api_corps_metrics(corps_id: str, db: Session = Depends(get_db)):
+    """Get aggregate metrics for a corps."""
+    from backend.services.metrics_collector import collect_corps_metrics
+    import dataclasses
+    metrics = collect_corps_metrics(db, corps_id)
+    return dataclasses.asdict(metrics)
+
+
+# --- Show Templates ---
+
+@app.get("/api/show-templates")
+def api_list_templates():
+    """List available show templates."""
+    from backend.services.show_templates import list_templates
+    return {"templates": list_templates()}
+
+
+@app.get("/api/show-templates/{name}")
+def api_get_template(name: str):
+    """Get a show template definition."""
+    from backend.services.show_templates import load_template
+    try:
+        return load_template(name)
+    except FileNotFoundError:
+        raise HTTPException(404, f"Template '{name}' not found")
+
+
+class CreateFromTemplateRequest(BaseModel):
+    template: str
+    title: Optional[str] = None
+    params: Optional[dict] = None
+
+
+@app.post("/api/show-templates/instantiate")
+def api_instantiate_template(req: CreateFromTemplateRequest, db: Session = Depends(get_db)):
+    """Create a show from a template."""
+    from backend.services.show_templates import create_show_from_template
+    try:
+        return create_show_from_template(db, req.template, title=req.title, params=req.params)
+    except FileNotFoundError:
+        raise HTTPException(404, f"Template '{req.template}' not found")
+
+
 # --- Evaluation ---
 
 @app.post("/api/corps/{corps_id}/evaluate")
