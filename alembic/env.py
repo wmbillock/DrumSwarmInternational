@@ -12,15 +12,7 @@ if config.config_file_name is not None:
 
 # Import all models so autogenerate can detect them
 from backend.database import Base
-import backend.models.agent_definition  # noqa: F401
-import backend.models.agent_session  # noqa: F401
-import backend.models.coordinate  # noqa: F401
-import backend.models.corps  # noqa: F401
-import backend.models.message  # noqa: F401
-import backend.models.rep  # noqa: F401
-import backend.models.score  # noqa: F401
-import backend.models.show  # noqa: F401
-import backend.models.work_log  # noqa: F401
+import backend.models  # noqa: F401 — registers all models via __init__.py
 
 target_metadata = Base.metadata
 
