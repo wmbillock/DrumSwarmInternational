@@ -753,6 +753,7 @@ async def api_send_chat(corps_id: str, data: ChatSend, db: Session = Depends(get
                 task_description=task_desc,
                 corps_id=corps_id,
                 context_snapshot=snapshot,
+                reply_to_user=True,
             )
 
     return {"id": msg.id, "status": "sent"}
@@ -1267,6 +1268,114 @@ async def api_execute_corps_command(corps_id: str, data: CorpsCommand, db: Sessi
         result["detail"] = f"Merged {merge_result.merged}, conflicts {merge_result.conflicts}"
 
     return result
+
+
+# --- System Heartbeat (cron target) ---
+
+@app.post("/api/heartbeat")
+async def api_heartbeat(db: Session = Depends(get_db)):
+    """External heartbeat endpoint for cron-based wakeup.
+
+    Pings the DCI head (admin ED), which then pings all admin/logistics
+    agents and the executive director for each active corps.
+    """
+    tm = get_task_manager()
+    if not tm:
+        raise HTTPException(503, "Task manager not initialized")
+
+    from backend.services.corps_service import get_or_create_admin_corps, ADMIN_CORPS_NAME
+    from backend.models.corps import Corps, CorpsStatus
+    from backend.models.agent_session import AgentSession, SessionStatus
+    from backend.models.agent_definition import AgentDefinition
+
+    admin_corps = get_or_create_admin_corps(db)
+
+    # 1. Build status summary for admin ED
+    active_corps = (
+        db.query(Corps)
+        .filter(
+            Corps.status.in_([CorpsStatus.WINTER_CAMPS, CorpsStatus.ON_TOUR]),
+            Corps.name != ADMIN_CORPS_NAME,
+        )
+        .all()
+    )
+
+    lines = ["SYSTEM HEARTBEAT — Periodic cron wakeup.\n"]
+    corps_eds_pinged = []
+
+    for corps in active_corps:
+        sessions = (
+            db.query(AgentSession)
+            .filter(AgentSession.corps_id == corps.id)
+            .all()
+        )
+        active_count = sum(1 for s in sessions if s.status == SessionStatus.ACTIVE)
+        completed_count = sum(1 for s in sessions if s.status == SessionStatus.COMPLETED)
+        failed_count = sum(1 for s in sessions if s.status == SessionStatus.FAILED)
+
+        lines.append(
+            f"  Corps '{corps.name}' ({corps.id[:8]}...) [{corps.status.value}]:\n"
+            f"    Sessions: {active_count} active, {completed_count} completed, {failed_count} failed"
+        )
+
+    if not active_corps:
+        lines.append("  No active corps currently running.")
+
+    lines.append(
+        "\nThis is a periodic system heartbeat. Review swarm status. "
+        "Ping each corps executive_director to request a status update. "
+        "Check on admin and logistics agents. Ensure all active corps have work progressing."
+    )
+
+    status_text = "\n".join(lines)
+
+    # 2. Ping admin ED
+    admin_ed_session = tm.get_session_for_role(db, admin_corps.id, "executive_director")
+    admin_ed_pinged = False
+    if admin_ed_session and not tm.is_active(admin_ed_session):
+        tm.start_agent(
+            session_id=admin_ed_session,
+            task_description=status_text,
+            corps_id=admin_corps.id,
+            keep_alive=True,
+        )
+        admin_ed_pinged = True
+
+    # 3. Ping all admin corps agents (program_coordinator, timing_judge)
+    admin_agents_pinged = []
+    for admin_role in ("program_coordinator", "timing_judge"):
+        sid = tm.get_session_for_role(db, admin_corps.id, admin_role)
+        if sid and not tm.is_active(sid):
+            tm.start_agent(
+                session_id=sid,
+                task_description=(
+                    f"SYSTEM HEARTBEAT — Periodic wakeup for admin {admin_role}. "
+                    f"Check your current assignments and report any issues."
+                ),
+                corps_id=admin_corps.id,
+            )
+            admin_agents_pinged.append(admin_role)
+
+    # 4. Ping the ED of each active corps
+    for corps in active_corps:
+        ed_session = tm.get_session_for_role(db, corps.id, "executive_director")
+        if ed_session and not tm.is_active(ed_session):
+            tm.start_agent(
+                session_id=ed_session,
+                task_description=(
+                    f"SYSTEM HEARTBEAT — Periodic wakeup. Check status of all work in your corps. "
+                    f"Ensure reps are progressing. If agents are idle, dispatch new work or escalate issues."
+                ),
+                corps_id=corps.id,
+            )
+            corps_eds_pinged.append(corps.name)
+
+    return {
+        "status": "ok",
+        "admin_ed_pinged": admin_ed_pinged,
+        "admin_agents_pinged": admin_agents_pinged,
+        "corps_eds_pinged": corps_eds_pinged,
+    }
 
 
 # --- Theme API ---

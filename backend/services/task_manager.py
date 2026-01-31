@@ -197,6 +197,7 @@ class TaskManager:
         corps_id: str,
         context_snapshot: Optional[str] = None,
         keep_alive: bool = False,
+        reply_to_user: bool = False,
     ) -> None:
         """Start an agent session as a background asyncio task.
 
@@ -205,6 +206,9 @@ class TaskManager:
 
         If keep_alive is True, the agent session stays ACTIVE after completing
         so it can be re-dispatched (e.g. on the next metronome ping).
+
+        If reply_to_user is True, the agent's final response will be persisted
+        to the Message table as a user-facing chat reply.
         """
         if session_id in self.active_tasks and not self.active_tasks[session_id].done():
             logger.warning("Session %s already has an active task", session_id)
@@ -233,7 +237,7 @@ class TaskManager:
                         db.close()
 
         task = asyncio.create_task(
-            self._run_agent_task(session_id, task_description, corps_id, context_snapshot, keep_alive)
+            self._run_agent_task(session_id, task_description, corps_id, context_snapshot, keep_alive, reply_to_user)
         )
         self.active_tasks[session_id] = task
         task.add_done_callback(lambda t: self._on_task_done(session_id, t))
@@ -260,6 +264,7 @@ class TaskManager:
         corps_id: str,
         context_snapshot: Optional[str] = None,
         keep_alive: bool = False,
+        reply_to_user: bool = False,
     ) -> None:
         """Run an agent in a thread and broadcast status events."""
         role, nickname = self._get_agent_identity(session_id)
@@ -319,6 +324,12 @@ class TaskManager:
             })
 
             if result.final_response:
+                # Persist user-facing chat replies to the Message table
+                msg_id = None
+                if reply_to_user:
+                    msg_id = await asyncio.to_thread(
+                        self._persist_agent_response, corps_id, session_id, role, result.final_response
+                    )
                 await self.connection_manager.broadcast(corps_id, {
                     "type": "agent_response",
                     "corps_id": corps_id,
@@ -327,6 +338,7 @@ class TaskManager:
                     "nickname": nickname,
                     "from_role": role,
                     "content": result.final_response,
+                    "message_id": msg_id,
                 })
 
             # Process pending handoff messages: dispatch receiving agents
@@ -378,6 +390,27 @@ class TaskManager:
                 "status": "failed",
                 "error": str(e),
             })
+
+    def _persist_agent_response(self, corps_id: str, session_id: str, role: str, content: str) -> Optional[str]:
+        """Save an agent response to the Message table so chat history persists across reconnects."""
+        try:
+            from backend.services.message_service import send_message
+            from backend.models.message import MessageType, MessagePriority
+            db = self._session_factory()
+            try:
+                msg = send_message(
+                    db, corps_id=corps_id, from_role=role,
+                    to_role="user", type=MessageType.STATUS,
+                    subject=content[:100], body=content,
+                    priority=MessagePriority.NORMAL,
+                    from_session_id=session_id,
+                )
+                return msg.id
+            finally:
+                db.close()
+        except Exception:
+            logger.exception("Failed to persist agent response for session %s", session_id)
+            return None
 
     def _on_task_done(self, session_id: str, task: asyncio.Task) -> None:
         self.active_tasks.pop(session_id, None)
