@@ -21,13 +21,19 @@ export interface Corps {
   name: string;
   status: "initializing" | "winter_camps" | "on_tour" | "completed" | "disbanded";
   rehearsal_mode?: "basics" | "sectionals" | "full_ensemble" | "run_through";
+  theme_id?: string;
+  mascot?: string;
+  uniform_concept?: string;
 }
+
+export type AgentClassification = "performing_member" | "instructional_staff" | "administrative_staff" | "logistics" | "dci_assigned";
 
 export interface AgentSession {
   id: string;
   role: string;
   nickname?: string;
   model_tier?: string;
+  classification?: AgentClassification;
   status: "active" | "completed" | "failed" | "timed_out";
   corps_id?: string;
   parent_session_id?: string;

@@ -3,6 +3,7 @@ import { useWebSocket } from "./hooks/useWebSocket";
 import type { Show, AgentSession, WorkLogEntry, SegmentNode, ChatMessage, WebSocketEvent, Scoresheet } from "./types";
 import * as api from "./services/api";
 import { CorpsThemePicker } from "./components/CorpsThemePicker";
+import { useCorpsTheme } from "./contexts/CorpsThemeContext";
 import "./App.css";
 
 // --- Utility ---
@@ -36,6 +37,20 @@ function StatusBadge({ status }: { status: string }) {
 function TierBadge({ tier }: { tier?: string }) {
   if (!tier) return null;
   return <span className={`tier-badge tier-${tier}`}>{tier}</span>;
+}
+
+const CLASSIFICATION_LABELS: Record<string, string> = {
+  performing_member: "Performer",
+  instructional_staff: "Staff",
+  administrative_staff: "Admin",
+  logistics: "Logistics",
+  dci_assigned: "Judge",
+};
+
+function ClassificationBadge({ classification }: { classification?: string }) {
+  if (!classification) return null;
+  const label = CLASSIFICATION_LABELS[classification] || classification;
+  return <span className={`classification-badge ${classification}`}>{label}</span>;
 }
 
 // --- Dashboard View ---
@@ -172,6 +187,7 @@ function Dashboard({
                         <span className="agent-nickname">{a.nickname || formatRole(a.role)}</span>
                         <span className="agent-role-small">{formatRole(a.role)}</span>
                         <TierBadge tier={a.model_tier} />
+                        <ClassificationBadge classification={a.classification} />
                       </div>
                     ))}
                   </div>
@@ -397,6 +413,7 @@ function ShowDetail({
                     {activeAgents.map(a => (
                       <div key={a.id} className="agent-row-compact">
                         <TierBadge tier={a.model_tier} />
+                        <ClassificationBadge classification={a.classification} />
                         <span className="agent-nickname">{a.nickname || formatRole(a.role)}</span>
                         <span className="agent-role-small">{formatRole(a.role)}</span>
                       </div>
@@ -1079,10 +1096,22 @@ export default function App() {
     }
   }, [clearEvents]);
 
+  const { setCorpsTheme } = useCorpsTheme();
+  const userThemeRef = useRef(localStorage.getItem("dci-corps-theme") || "default");
+
   const handleSelectShow = (show: Show) => {
     setSelectedShow(show);
     setView("show");
     loadShowDetail(show);
+    // Auto-apply corps theme if the show has one
+    if (show.corps_id) {
+      api.getCorps(show.corps_id).then(corps => {
+        if (corps?.theme_id) {
+          userThemeRef.current = localStorage.getItem("dci-corps-theme") || "default";
+          setCorpsTheme(corps.theme_id);
+        }
+      }).catch(() => {});
+    }
   };
 
   const handleCreateShow = async (title: string, desc?: string) => {
@@ -1146,6 +1175,8 @@ export default function App() {
     setSelectedShow(null);
     clearEvents();
     refreshDashboard();
+    // Restore user's preferred theme
+    setCorpsTheme(userThemeRef.current);
   };
 
   const handleToggleTour = async (enable: boolean) => {

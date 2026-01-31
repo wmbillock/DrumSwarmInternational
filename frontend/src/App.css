@@ -180,6 +180,17 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .tier-sonnet { background: #1a3a4e; color: #67e8f9; }
 .tier-haiku { background: #1a3a2a; color: #86efac; }
 
+/* Classification badges */
+.classification-badge {
+  display: inline-block; padding: 1px 6px; border-radius: 4px;
+  font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.classification-badge.performing_member { background: #3a2a10; color: #ffd700; }
+.classification-badge.instructional_staff { background: #1a2a4e; color: #7db3ff; }
+.classification-badge.administrative_staff { background: #2d1a4e; color: #c084fc; }
+.classification-badge.logistics { background: #1a3a2a; color: #86efac; }
+.classification-badge.dci_assigned { background: #2a2a2a; color: #8b949e; }
+
 /* Activity List */
 .activity-list { display: flex; flex-direction: column; gap: 2px; }
 .activity-row {

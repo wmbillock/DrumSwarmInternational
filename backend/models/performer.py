@@ -36,6 +36,8 @@ class Performer(Base):
     status: Mapped[PerformerStatus] = mapped_column(
         Enum(PerformerStatus, values_callable=lambda x: [e.value for e in x]), default=PerformerStatus.ACTIVE
     )
+    age: Mapped[int] = mapped_column(Integer, default=16)
+    experience_seasons: Mapped[int] = mapped_column(Integer, default=0)
     specialties: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     retirement_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(

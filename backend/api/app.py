@@ -301,7 +301,37 @@ def api_get_corps(corps_id: str, db: Session = Depends(get_db)):
     if not corps:
         raise HTTPException(404, "Corps not found")
     return {"id": corps.id, "name": corps.name, "status": corps.status.value,
-            "rehearsal_mode": corps.rehearsal_mode.value if corps.rehearsal_mode else None}
+            "rehearsal_mode": corps.rehearsal_mode.value if corps.rehearsal_mode else None,
+            "theme_id": corps.theme_id, "mascot": corps.mascot,
+            "uniform_concept": corps.uniform_concept}
+
+
+@app.get("/api/corps/{corps_id}/theme")
+def api_get_corps_theme(corps_id: str, db: Session = Depends(get_db)):
+    from backend.models.corps import Corps
+    corps = db.get(Corps, corps_id)
+    if not corps:
+        raise HTTPException(404, "Corps not found")
+    return {"corps_id": corps.id, "theme_id": corps.theme_id,
+            "mascot": corps.mascot, "uniform_concept": corps.uniform_concept}
+
+
+class CorpsThemeUpdate(BaseModel):
+    theme_id: Optional[str] = None
+    mascot: Optional[str] = None
+    uniform_concept: Optional[str] = None
+
+
+@app.put("/api/corps/{corps_id}/theme")
+def api_update_corps_theme(corps_id: str, data: CorpsThemeUpdate, db: Session = Depends(get_db)):
+    from backend.services.corps_service import update_corps_theme, CorpsError
+    try:
+        corps = update_corps_theme(db, corps_id, theme_id=data.theme_id,
+                                   mascot=data.mascot, uniform_concept=data.uniform_concept)
+        return {"corps_id": corps.id, "theme_id": corps.theme_id,
+                "mascot": corps.mascot, "uniform_concept": corps.uniform_concept}
+    except CorpsError as e:
+        raise HTTPException(404, str(e))
 
 
 @app.get("/api/corps/{corps_id}/progression")
@@ -365,7 +395,9 @@ def api_get_roster(corps_id: str, db: Session = Depends(get_db)):
             "role": defn.role if defn else "unknown",
             "nickname": defn.nickname if defn else None,
             "model_tier": defn.model_tier.value if defn else "unknown",
+            "classification": defn.classification.value if defn and defn.classification else None,
             "status": s.status.value,
+            "corps_id": s.corps_id,
             "parent_session_id": s.parent_session_id,
             "started_at": s.started_at.isoformat() if s.started_at else None,
             "ended_at": s.ended_at.isoformat() if s.ended_at else None,
@@ -1145,31 +1177,31 @@ async def api_execute_corps_command(corps_id: str, data: CorpsCommand, db: Sessi
     tm = get_task_manager()
 
     if cmd == "resume_hut":
-        # Wake all agents — find the ED and start them with a resume directive
+        # Wake all agents — find unique roles and start their current/respawned sessions
         if tm:
             from backend.models.agent_session import AgentSession, SessionStatus
             from backend.models.agent_definition import AgentDefinition
-            sessions = (
-                db.query(AgentSession)
-                .join(AgentDefinition)
+            # Get unique roles for this corps instead of all sessions
+            unique_roles = (
+                db.query(AgentDefinition.role)
+                .join(AgentSession)
                 .filter(AgentSession.corps_id == corps_id)
+                .distinct()
                 .all()
             )
             woken = 0
-            for s in sessions:
-                defn = db.get(AgentDefinition, s.definition_id)
-                if defn and not tm.is_active(s.id):
-                    sid = tm.get_session_for_role(db, corps_id, defn.role)
-                    if sid:
-                        tm.start_agent(
-                            session_id=sid,
-                            task_description=(
-                                f"RESUME HUT! The corps has been called to attention and work is resuming. "
-                                f"Check your current assignments and continue working. Corps ID: {corps_id}"
-                            ),
-                            corps_id=corps_id,
-                        )
-                        woken += 1
+            for (role,) in unique_roles:
+                sid = tm.get_session_for_role(db, corps_id, role)
+                if sid and not tm.is_active(sid):
+                    tm.start_agent(
+                        session_id=sid,
+                        task_description=(
+                            f"RESUME HUT! The corps has been called to attention and work is resuming. "
+                            f"Check your current assignments and continue working. Corps ID: {corps_id}"
+                        ),
+                        corps_id=corps_id,
+                    )
+                    woken += 1
             result["detail"] = f"Woke {woken} agents"
         await manager.broadcast(corps_id, {
             "type": "command", "command": "resume_hut",
@@ -1573,6 +1605,125 @@ def api_evaluate_corps(corps_id: str, db: Session = Depends(get_db)):
     """Run post-show evaluation on all performers in a corps."""
     from backend.services.evaluation_service import evaluate_corps
     return evaluate_corps(db, corps_id)
+
+
+# --- Lifecycle endpoints ---
+
+@app.post("/api/corps/{corps_id}/season-transition")
+def api_season_transition(corps_id: str, db: Session = Depends(get_db)):
+    """Run end-of-season lifecycle: age performers, check ageouts."""
+    from backend.services.lifecycle_manager import conduct_season_transition
+    return conduct_season_transition(db, corps_id)
+
+
+@app.get("/api/corps/{corps_id}/ageouts")
+def api_get_ageouts(corps_id: str, db: Session = Depends(get_db)):
+    """Get performers approaching ageout for this corps."""
+    from backend.services.lifecycle_manager import check_ageouts
+    ageouts = check_ageouts(db)
+    return [{"id": p.id, "name": p.name, "age": p.age, "role_type": p.role_type} for p in ageouts]
+
+
+class SelfImprovementProposal(BaseModel):
+    definition_id: str
+    changes: dict
+    reason: str
+
+
+@app.post("/api/self-improvement/propose")
+def api_propose_improvement(data: SelfImprovementProposal, db: Session = Depends(get_db)):
+    from backend.services.lifecycle_manager import propose_self_improvement
+    log = propose_self_improvement(db, data.definition_id, data.changes, data.reason)
+    return {"id": log.id, "status": log.status.value}
+
+
+class ImprovementAction(BaseModel):
+    approver_session_id: str
+
+
+@app.post("/api/self-improvement/{proposal_id}/approve")
+def api_approve_improvement(proposal_id: str, data: ImprovementAction, db: Session = Depends(get_db)):
+    from backend.services.lifecycle_manager import approve_self_improvement
+    defn = approve_self_improvement(db, proposal_id, data.approver_session_id)
+    return {"id": defn.id, "role": defn.role, "version": defn.version}
+
+
+@app.post("/api/self-improvement/{proposal_id}/reject")
+def api_reject_improvement(proposal_id: str, data: ImprovementAction, db: Session = Depends(get_db)):
+    from backend.services.lifecycle_manager import reject_self_improvement
+    log = reject_self_improvement(db, proposal_id, data.approver_session_id)
+    return {"id": log.id, "status": log.status.value}
+
+
+@app.get("/api/self-improvement/pending")
+def api_pending_improvements(db: Session = Depends(get_db)):
+    from backend.models.self_improvement_log import SelfImprovementLog, ImprovementStatus
+    from backend.models.agent_definition import AgentDefinition
+    logs = db.query(SelfImprovementLog).filter(
+        SelfImprovementLog.status == ImprovementStatus.PENDING
+    ).all()
+    result = []
+    for log in logs:
+        defn = db.get(AgentDefinition, log.agent_definition_id)
+        result.append({
+            "id": log.id,
+            "role": defn.role if defn else "unknown",
+            "nickname": defn.nickname if defn else None,
+            "old_version": log.old_version,
+            "new_version": log.new_version,
+            "changes": log.changes,
+            "reason": log.reason,
+            "created_at": log.created_at.isoformat() if log.created_at else None,
+        })
+    return result
+
+
+# --- Memory endpoints ---
+
+@app.get("/api/agents/{agent_identity}/memories")
+def api_get_memories(agent_identity: str, memory_type: Optional[str] = None, db: Session = Depends(get_db)):
+    from backend.services.memory_manager import MemoryManager
+    mgr = MemoryManager(db)
+    memories = mgr.get_memories(agent_identity, memory_type=memory_type)
+    return [
+        {
+            "id": m.id,
+            "memory_type": m.memory_type,
+            "title": m.title,
+            "content": m.content,
+            "confidence": m.confidence,
+            "version": m.version,
+            "created_at": m.created_at.isoformat() if m.created_at else None,
+        }
+        for m in memories
+    ]
+
+
+@app.get("/api/agents/{agent_identity}/memory-stats")
+def api_memory_stats(agent_identity: str, db: Session = Depends(get_db)):
+    from backend.services.memory_manager import MemoryManager
+    mgr = MemoryManager(db)
+    return mgr.get_memory_stats(agent_identity)
+
+
+class MemoryUpdate(BaseModel):
+    content: str
+
+
+@app.put("/api/memories/{memory_id}")
+def api_update_memory(memory_id: str, data: MemoryUpdate, db: Session = Depends(get_db)):
+    from backend.services.memory_manager import MemoryManager
+    mgr = MemoryManager(db)
+    new_mem = mgr.supersede_memory(memory_id, data.content)
+    return {"id": new_mem.id, "version": new_mem.version}
+
+
+@app.delete("/api/memories/{memory_id}")
+def api_delete_memory(memory_id: str, db: Session = Depends(get_db)):
+    from backend.services.memory_manager import MemoryManager
+    mgr = MemoryManager(db)
+    mgr.delete_memory(memory_id)
+    return {"status": "deleted"}
 
 
 # --- WebSocket for real-time updates ---

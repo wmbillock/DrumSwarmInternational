@@ -6,7 +6,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from backend.models.agent_definition import AgentDefinition, ModelTier
+from backend.models.agent_definition import AgentDefinition, AgentClassification, ModelTier, ROLE_CLASSIFICATIONS
 from backend.models.agent_session import AgentSession, SessionStatus
 from backend.models.corps import Corps, CorpsStatus, RehearsalMode
 from backend.models.segment import Segment, SegmentStatus, SegmentType
@@ -19,7 +19,7 @@ from backend.services.message_service import (
     MessagePriority,
     InvalidMessagePath,
 )
-from backend.services.nickname_generator import generate_nickname
+from backend.services.nickname_generator import generate_corps_name, generate_mascot, generate_nickname
 from backend.services.prompt_arranger import assemble_prompt, get_available_roles
 
 
@@ -241,9 +241,53 @@ ESCALATION_CHAIN = {
 }
 
 
-def create_corps(db: Session, name: str, show_id: Optional[str] = None) -> Corps:
-    corps = Corps(name=name, show_id=show_id)
+AVAILABLE_THEME_IDS = [
+    "default", "blue_devils", "cavaliers", "the_cadets", "santa_clara_vanguard",
+    "phantom_regiment", "bluecoats", "carolina_crown", "madison_scouts",
+    "blue_stars", "boston_crusaders", "glassmen", "crossmen", "colts",
+    "pioneer", "kilties", "sacramento_freelancers",
+]
+
+
+def create_corps(
+    db: Session,
+    name: str,
+    show_id: Optional[str] = None,
+    theme_id: Optional[str] = None,
+    mascot: Optional[str] = None,
+) -> Corps:
+    import random
+    assigned_theme = theme_id or random.choice(AVAILABLE_THEME_IDS)
+    assigned_mascot = mascot or generate_mascot()
+    corps = Corps(
+        name=name,
+        show_id=show_id,
+        theme_id=assigned_theme,
+        mascot=assigned_mascot,
+    )
     db.add(corps)
+    db.commit()
+    db.refresh(corps)
+    return corps
+
+
+def update_corps_theme(
+    db: Session,
+    corps_id: str,
+    theme_id: Optional[str] = None,
+    mascot: Optional[str] = None,
+    uniform_concept: Optional[str] = None,
+) -> Corps:
+    """Update corps visual identity."""
+    corps = db.get(Corps, corps_id)
+    if corps is None:
+        raise CorpsError(f"Corps {corps_id} not found")
+    if theme_id is not None:
+        corps.theme_id = theme_id
+    if mascot is not None:
+        corps.mascot = mascot
+    if uniform_concept is not None:
+        corps.uniform_concept = uniform_concept
     db.commit()
     db.refresh(corps)
     return corps
@@ -268,6 +312,7 @@ def initialize_corps(db: Session, corps_id: str, use_auditions: bool = True) -> 
         tools = ROLE_TOOLS.get(role, [])
         nickname = generate_nickname(role, used_nicknames)
         used_nicknames.add(nickname)
+        classification = ROLE_CLASSIFICATIONS.get(role)
         defn = create_definition(
             db, role=role,
             system_prompt=prompt,
@@ -276,6 +321,9 @@ def initialize_corps(db: Session, corps_id: str, use_auditions: bool = True) -> 
             corps_id=corps_id,
             nickname=nickname,
         )
+        if classification:
+            defn.classification = classification
+            db.commit()
         parent_session_id = sessions[parent_role].id if parent_role else None
         session = spawn_session(
             db, definition_id=defn.id, corps_id=corps_id,

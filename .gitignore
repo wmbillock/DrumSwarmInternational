@@ -37,3 +37,6 @@ Thumbs.db
 # ChromaDB
 .chromadb/
 .claude-session-id
+
+# Agent file-based memory
+memory_store/

@@ -1,6 +1,6 @@
 // API client for DCI Swarm backend
 
-import type { Show, AgentSession, SegmentNode, WorkLogEntry, ChatMessage, Scoresheet } from "../types";
+import type { Show, AgentSession, Corps, SegmentNode, WorkLogEntry, ChatMessage, Scoresheet } from "../types";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -39,7 +39,10 @@ export const getShow = (id: string) => request<Show>(`/api/shows/${id}`);
 export const getAdminCorps = () => request<{ id: string; name: string; status: string; roster: AgentSession[] }>("/api/admin-corps");
 
 // Corps
-export const getCorps = (id: string) => request(`/api/corps/${id}`);
+export const getCorps = (id: string) => request<Corps>(`/api/corps/${id}`);
+export const getCorpsTheme = (corpsId: string) => request<any>(`/api/corps/${corpsId}/theme`);
+export const updateCorpsTheme = (corpsId: string, data: { theme_id?: string; mascot?: string; uniform_concept?: string }) =>
+  request<any>(`/api/corps/${corpsId}/theme`, { method: "PUT", body: JSON.stringify(data) });
 export const getRoster = (corpsId: string) => request<AgentSession[]>(`/api/corps/${corpsId}/roster`);
 
 // Segment tree
@@ -108,3 +111,27 @@ export const querySeance = (query: string, corpsId?: string) =>
 // Evaluate
 export const evaluateCorps = (corpsId: string) =>
   request<any>(`/api/corps/${corpsId}/evaluate`, { method: "POST" });
+
+// Lifecycle
+export const seasonTransition = (corpsId: string) =>
+  request<any>(`/api/corps/${corpsId}/season-transition`, { method: "POST" });
+export const getAgeouts = (corpsId: string) => request<any[]>(`/api/corps/${corpsId}/ageouts`);
+export const getPendingImprovements = () => request<any[]>("/api/self-improvement/pending");
+export const approveImprovement = (id: string, approverSessionId: string) =>
+  request<any>(`/api/self-improvement/${id}/approve`, {
+    method: "POST", body: JSON.stringify({ approver_session_id: approverSessionId }),
+  });
+export const rejectImprovement = (id: string, approverSessionId: string) =>
+  request<any>(`/api/self-improvement/${id}/reject`, {
+    method: "POST", body: JSON.stringify({ approver_session_id: approverSessionId }),
+  });
+
+// Memory
+export const getAgentMemories = (identity: string, memoryType?: string) =>
+  request<any[]>(`/api/agents/${encodeURIComponent(identity)}/memories${memoryType ? `?memory_type=${memoryType}` : ""}`);
+export const getAgentMemoryStats = (identity: string) =>
+  request<any>(`/api/agents/${encodeURIComponent(identity)}/memory-stats`);
+export const updateMemory = (id: string, content: string) =>
+  request<any>(`/api/memories/${id}`, { method: "PUT", body: JSON.stringify({ content }) });
+export const deleteMemory = (id: string) =>
+  request<any>(`/api/memories/${id}`, { method: "DELETE" });

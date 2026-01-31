@@ -46,6 +46,31 @@ _CORPS_TYPES = [
 ]
 
 
+_MASCOT_ADJECTIVES = [
+    "Crimson", "Golden", "Silver", "Emerald", "Midnight", "Scarlet",
+    "Cobalt", "Blazing", "Iron", "Phantom", "Thunder", "Silent",
+    "Royal", "Soaring", "Burning", "Frozen", "Steel", "Shadow",
+]
+
+_MASCOT_ANIMALS = [
+    "Hawks", "Eagles", "Wolves", "Lions", "Stallions", "Falcons",
+    "Dragons", "Panthers", "Vipers", "Griffins", "Phoenixes", "Ravens",
+    "Mustangs", "Jaguars", "Serpents", "Titans", "Spartans", "Knights",
+]
+
+
+def generate_mascot(existing: set[str] | None = None) -> str:
+    """Generate a unique mascot name, e.g. 'The Crimson Hawks'."""
+    used = existing or set()
+    for _ in range(200):
+        adj = random.choice(_MASCOT_ADJECTIVES)
+        animal = random.choice(_MASCOT_ANIMALS)
+        name = f"The {adj} {animal}"
+        if name not in used:
+            return name
+    return f"The {random.choice(_MASCOT_ANIMALS)} #{random.randint(1, 99)}"
+
+
 def generate_corps_name(existing: set[str] | None = None) -> str:
     """Generate a unique whimsical fake drum corps name for a show swarm.
 
