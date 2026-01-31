@@ -952,7 +952,7 @@ def api_shows_overview(db: Session = Depends(get_db)):
     """Get all shows with summary stats for the dashboard."""
     from backend.models.show import Show
     from backend.models.corps import Corps
-    from backend.models.agent_session import AgentSession
+    from backend.models.agent_session import AgentSession, SessionStatus
     from backend.models.rep import Rep, RepStatus
     from backend.models.segment import Segment
 
@@ -963,7 +963,7 @@ def api_shows_overview(db: Session = Depends(get_db)):
         if show.corps_id:
             stats["agents_active"] = db.query(AgentSession).filter(
                 AgentSession.corps_id == show.corps_id,
-                AgentSession.status == "active",
+                AgentSession.status == SessionStatus.ACTIVE,
             ).count()
             stats["reps_total"] = db.query(Rep).join(Segment).filter(
                 Segment.id == Rep.segment_id,

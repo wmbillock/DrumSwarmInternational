@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 from sqlalchemy.orm import Session
 
-from backend.models.corps import Corps
+from backend.models.corps import Corps, CorpsStatus
 from backend.models.segment import Segment, SegmentStatus, SegmentType
 from backend.models.rep import Rep, RepStatus
 from backend.models.message import Message, MessageType, MessagePriority
@@ -247,7 +247,7 @@ def analyze_corps_health(db: Session, corps_id: str, stale_threshold_hours: int 
         stats["segments_by_status"][status] += 1
 
     # Severity checks
-    if corps.status.value == "disbanded":
+    if corps.status == CorpsStatus.DISBANDED:
         critical_issues.insert(0, "Corps status is DISBANDED")
     if total_failed > 0:
         if critical_issues:

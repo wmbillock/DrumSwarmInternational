@@ -4,6 +4,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from backend.models.segment import SegmentStatus
 from backend.services.segment_service import get_segment, get_children
 from backend.services.rep_service import get_reps_for_segment
 
@@ -75,7 +76,7 @@ def count_pending_work(db: Session, root_id: str) -> int:
             for rep in reps:
                 if rep.status not in (RepStatus.COMPLETED, RepStatus.FAILED):
                     pending += 1
-        elif seg and seg.status.value == "pending" and not children:
+        elif seg and seg.status == SegmentStatus.PENDING and not children:
             pending += 1
 
     return pending

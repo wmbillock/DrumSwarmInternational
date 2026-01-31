@@ -201,7 +201,8 @@ def on_event(event: dict):
 
     if t == "agent_status":
         status = event.get("status", "?")
-        color = GREEN if status in ("running", "completed") else RED if status == "failed" else YELLOW
+        from backend.services.agent_runtime import RunStatus
+        color = GREEN if status in ("running", RunStatus.COMPLETED) else RED if status == RunStatus.FAILED else YELLOW
         log(color, role, f"status: {status}")
         if event.get("error"):
             log(RED, role, f"  error: {event['error']}")
@@ -309,7 +310,8 @@ def run_agent_for_role(db, role, session, llm_client, tool_executor, task_desc, 
     )
     elapsed = time.time() - start
 
-    status_color = GREEN if result.status == "completed" else RED
+    from backend.services.agent_runtime import RunStatus
+    status_color = GREEN if result.status == RunStatus.COMPLETED else RED
     log(status_color, role,
         f"Done: {result.status} | {result.iterations} iters | {len(result.tool_calls_made)} tools | {elapsed:.1f}s")
 
@@ -321,6 +323,7 @@ def run_agent_for_role(db, role, session, llm_client, tool_executor, task_desc, 
 
 def run_orchestration_loop(db, corps_id, root_coord_id, llm_client, tool_executor, max_rounds=50):
     """Poll for handoff messages and dispatch agents until all work is done."""
+    from backend.services.agent_runtime import RunStatus
     from backend.services.message_service import poll_messages, acknowledge_message
     from backend.models.message import MessageType
     from backend.models.rep import RepStatus
@@ -379,7 +382,7 @@ def run_orchestration_loop(db, corps_id, root_coord_id, llm_client, tool_executo
                         )
                         result = run_agent_for_role(db, "program_coordinator", pc_session, llm_client, tool_executor, task_desc, corps_id)
                         total_agents_run += 1
-                        if result.status == "failed":
+                        if result.status == RunStatus.FAILED:
                             log(RED, "orchestrator", "PC auto-dispatch failed")
                             break
                         continue  # Re-check for new handoffs
@@ -432,7 +435,7 @@ def run_orchestration_loop(db, corps_id, root_coord_id, llm_client, tool_executo
             # Acknowledge the message after processing
             acknowledge_message(db, msg.id)
 
-            if result.status == "failed":
+            if result.status == RunStatus.FAILED:
                 log(RED, "orchestrator", f"Agent {role} failed — continuing with remaining work")
 
         # Brief pause between rounds
@@ -465,17 +468,19 @@ def print_final_summary(db, root_coord_id):
 
     def print_tree(coord_id, indent=0):
         from backend.services.segment_service import get_segment
+        from backend.models.segment import SegmentStatus
+        from backend.models.rep import RepStatus
         coord = get_segment(db, coord_id)
         if not coord:
             return
 
-        status_color = GREEN if coord.status.value == "completed" else RED if coord.status.value == "failed" else YELLOW
+        status_color = GREEN if coord.status == SegmentStatus.COMPLETED else RED if coord.status == SegmentStatus.FAILED else YELLOW
         prefix = "  " * indent
         print(f"{prefix}{status_color}{coord.type.value}: {coord.title} [{coord.status.value}]{NC}")
 
         reps = get_reps_for_segment(db, coord_id)
         for rep in reps:
-            rep_color = GREEN if rep.status.value == "completed" else RED if rep.status.value == "failed" else YELLOW
+            rep_color = GREEN if rep.status == RepStatus.COMPLETED else RED if rep.status == RepStatus.FAILED else YELLOW
             print(f"{prefix}  {rep_color}rep [{rep.status.value}]{NC}")
             if rep.result:
                 result_preview = rep.result[:200]
@@ -548,11 +553,12 @@ def run_drill(task_description: str, max_rounds: int = 50):
         )
         elapsed = time.time() - start
 
-        ed_color = GREEN if ed_result.status == "completed" else RED
+        from backend.services.agent_runtime import RunStatus
+        ed_color = GREEN if ed_result.status == RunStatus.COMPLETED else RED
         log(ed_color, "drill",
             f"ED: {ed_result.status} | {ed_result.iterations} iters | {len(ed_result.tool_calls_made)} tools | {elapsed:.1f}s")
 
-        if ed_result.status == "failed":
+        if ed_result.status == RunStatus.FAILED:
             log(RED, "drill", f"ED failed: {ed_result.error}")
             print_final_summary(db, show.segment_root_id)
             return ed_result

@@ -9,7 +9,7 @@ import logging
 from typing import TYPE_CHECKING, Optional
 
 from backend.database import create_db_engine, create_session_factory
-from backend.services.agent_runtime import run_agent
+from backend.services.agent_runtime import RunStatus, run_agent
 from backend.services.autoscaler import AutoScaler
 from backend.services.llm_client import LLMClient
 from backend.services.message_bus import get_message_bus
@@ -345,7 +345,7 @@ class TaskManager:
             await self._process_pending_handoffs(corps_id)
 
             # Auto-retry critical roles on failure
-            if result.status == "failed" and role in AUTO_RETRY_ROLES:
+            if result.status == RunStatus.FAILED and role in AUTO_RETRY_ROLES:
                 retry_count = self._retry_counts.get(session_id, 0)
                 if retry_count < MAX_AUTO_RETRIES:
                     self._retry_counts[session_id] = retry_count + 1

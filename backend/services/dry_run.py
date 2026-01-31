@@ -46,29 +46,33 @@ class DryRunToolExecutor:
 
     def _synthetic_result(self, tool_name: str, args: dict) -> dict[str, Any]:
         """Generate a synthetic result based on tool name."""
+        from backend.models.rep import RepStatus
+        from backend.models.segment import SegmentStatus, SegmentType
+        from backend.models.message import MessageType
+
         fake_id = f"dry-run-{self._counter:04d}"
 
         if tool_name == "create_segment":
-            return {"id": fake_id, "type": args.get("type", "segment"),
-                    "title": args.get("title", ""), "status": "pending"}
+            return {"id": fake_id, "type": args.get("type", SegmentType.SEGMENT.value),
+                    "title": args.get("title", ""), "status": SegmentStatus.PENDING.value}
         elif tool_name == "create_rep":
-            return {"id": fake_id, "status": "pending",
+            return {"id": fake_id, "status": RepStatus.PENDING.value,
                     "segment_id": args.get("segment_id", "")}
         elif tool_name == "transition_rep":
             return {"id": args.get("rep_id", fake_id),
-                    "status": args.get("new_status", "pending")}
+                    "status": args.get("new_status", RepStatus.PENDING.value)}
         elif tool_name == "submit_work":
-            return {"id": args.get("rep_id", fake_id), "status": "review"}
+            return {"id": args.get("rep_id", fake_id), "status": RepStatus.REVIEW.value}
         elif tool_name == "handoff":
             return {"status": "handed_off",
                     "from": args.get("from_role", ""),
                     "to": args.get("to_role", "")}
         elif tool_name == "send_message":
-            return {"id": fake_id, "type": args.get("type", "status"),
+            return {"id": fake_id, "type": args.get("type", MessageType.STATUS.value),
                     "subject": args.get("subject", "")}
         elif tool_name.startswith("get_"):
             return {"id": args.get("segment_id", fake_id),
-                    "status": "pending", "title": "Simulated"}
+                    "status": SegmentStatus.PENDING.value, "title": "Simulated"}
         else:
             return {"status": "ok", "dry_run": True}
 

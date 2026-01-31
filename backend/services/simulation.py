@@ -36,20 +36,23 @@ class DryRunToolExecutor(ToolExecutor):
         }
 
         # Produce tool-specific synthetic results
+        from backend.models.rep import RepStatus
+        from backend.models.segment import SegmentType
+
         if tool_name == "create_segment":
             synthetic.update({
-                "type": arguments.get("type", "segment"),
+                "type": arguments.get("type", SegmentType.SEGMENT.value),
                 "title": arguments.get("title", "simulated"),
             })
         elif tool_name == "create_rep":
             synthetic.update({
                 "segment_id": arguments.get("segment_id", ""),
-                "status": "pending",
+                "status": RepStatus.PENDING.value,
             })
         elif tool_name in ("transition_rep", "submit_work"):
             synthetic.update({
                 "rep_id": arguments.get("rep_id", ""),
-                "status": arguments.get("new_status", "review"),
+                "status": arguments.get("new_status", RepStatus.REVIEW.value),
             })
         elif tool_name == "handoff":
             synthetic.update({

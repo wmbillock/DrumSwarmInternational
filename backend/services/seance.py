@@ -84,7 +84,7 @@ def query_for_agent_context(
 
     # Capability ledger stats
     try:
-        from backend.models.agent_session import AgentSession
+        from backend.models.agent_session import AgentSession, SessionStatus
         from backend.models.agent_definition import AgentDefinition
 
         recent_sessions = (
@@ -96,8 +96,8 @@ def query_for_agent_context(
             .all()
         )
         if recent_sessions:
-            completed = sum(1 for s in recent_sessions if s.status.value == "completed")
-            failed = sum(1 for s in recent_sessions if s.status.value == "failed")
+            completed = sum(1 for s in recent_sessions if s.status == SessionStatus.COMPLETED)
+            failed = sum(1 for s in recent_sessions if s.status == SessionStatus.FAILED)
             parts.append(f"\n## Recent performance: {completed}/{len(recent_sessions)} sessions succeeded, {failed} failed.")
     except Exception:
         pass

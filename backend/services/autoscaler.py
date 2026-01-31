@@ -24,10 +24,12 @@ class ScaleConfig:
 
 
 # Priority levels for agents (lower number = higher priority)
+from backend.models.agent_definition import ModelTier
+
 TIER_PRIORITY = {
-    "opus": 0,
-    "sonnet": 1,
-    "haiku": 2,
+    ModelTier.OPUS: 0,
+    ModelTier.SONNET: 1,
+    ModelTier.HAIKU: 2,
 }
 
 
@@ -49,7 +51,7 @@ class AutoScaler:
     def active_count(self) -> int:
         return self._active_count
 
-    async def acquire(self, session_id: str, model_tier: str = "haiku") -> None:
+    async def acquire(self, session_id: str, model_tier: str = ModelTier.HAIKU) -> None:
         """Acquire a slot, waiting if at capacity. Higher-tier agents get priority."""
         priority = TIER_PRIORITY.get(model_tier, 2)
 

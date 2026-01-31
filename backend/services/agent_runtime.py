@@ -11,6 +11,7 @@ Enhanced with: failure fingerprinting, agent phases, verification gates,
 work logging, message bus events, and task manifest injection.
 """
 
+import enum
 import json
 import logging
 from dataclasses import dataclass, field
@@ -38,6 +39,13 @@ logger = logging.getLogger(__name__)
 MAX_ITERATIONS = 20
 
 
+class RunStatus(str, enum.Enum):
+    """Status of an agent runtime execution."""
+    COMPLETED = "completed"
+    FAILED = "failed"
+    MAX_ITERATIONS = "max_iterations"
+
+
 @dataclass
 class RunResult:
     """Result of an agent runtime execution."""
@@ -45,7 +53,7 @@ class RunResult:
     final_response: str = ""
     tool_calls_made: list[dict] = field(default_factory=list)
     iterations: int = 0
-    status: str = "completed"  # completed, failed, max_iterations
+    status: str = RunStatus.COMPLETED
     error: Optional[str] = None
     phase_state: Optional[dict] = None
 
@@ -232,7 +240,7 @@ def run_agent(
 
             if response.stop_reason == "error":
                 result.final_response = response.content
-                result.status = "failed"
+                result.status = RunStatus.FAILED
                 result.error = response.content
                 _emit({
                     "type": "agent_response",
@@ -244,7 +252,7 @@ def run_agent(
 
             if not response.wants_tool_use:
                 result.final_response = response.content
-                result.status = "completed"
+                result.status = RunStatus.COMPLETED
 
                 _emit({
                     "type": "agent_response",
@@ -355,7 +363,7 @@ def run_agent(
                     )
                 )
         else:
-            result.status = "max_iterations"
+            result.status = RunStatus.MAX_ITERATIONS
 
         # Save snapshot with phase state and failure fingerprints
         result.phase_state = phase_controller.get_state()

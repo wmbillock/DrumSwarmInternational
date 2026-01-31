@@ -12,6 +12,9 @@ def register_service_tools(registry: ToolRegistry) -> None:
 
     Tools receive a `db` argument injected by the tool executor.
     """
+    from backend.models.message import MessagePriority, MessageType
+    from backend.models.rep import RepStatus
+    from backend.models.segment import SegmentType
 
     def create_segment(db, type: str, title: str, description: str = "", parent_id: str = "", caption: str = ""):
         from backend.models.segment import SegmentType
@@ -44,7 +47,7 @@ def register_service_tools(registry: ToolRegistry) -> None:
         )
         return {"id": rep.id, "status": rep.status.value}
 
-    def send_message(db, corps_id: str, from_role: str, to_role: str, type: str, subject: str, body: str = "", priority: str = "normal", segment_id: str = ""):
+    def send_message(db, corps_id: str, from_role: str, to_role: str, type: str, subject: str, body: str = "", priority: str = MessagePriority.NORMAL.value, segment_id: str = ""):
         from backend.models.message import MessageType, MessagePriority
         from backend.services.message_service import send_message as _send
         # Coerce unknown message types to STATUS instead of raising ValueError
@@ -133,7 +136,7 @@ def register_service_tools(registry: ToolRegistry) -> None:
         "input_schema": {
             "type": "object",
             "properties": {
-                "type": {"type": "string", "enum": ["show", "movement", "set", "segment"], "description": "Segment type"},
+                "type": {"type": "string", "enum": [e.value for e in SegmentType], "description": "Segment type"},
                 "title": {"type": "string", "description": "Title of the segment"},
                 "description": {"type": "string", "description": "Description of what this segment covers"},
                 "parent_id": {"type": "string", "description": "Parent segment ID (required for non-show types)"},
@@ -162,7 +165,7 @@ def register_service_tools(registry: ToolRegistry) -> None:
             "type": "object",
             "properties": {
                 "rep_id": {"type": "string"},
-                "new_status": {"type": "string", "enum": ["pending", "assigned", "in_progress", "review", "completed", "failed"]},
+                "new_status": {"type": "string", "enum": [e.value for e in RepStatus]},
                 "assigned_to": {"type": "string", "description": "Session ID to assign to"},
                 "result": {"type": "string", "description": "Work result (for review/completed)"},
                 "error": {"type": "string", "description": "Error message (for failed)"},
@@ -178,10 +181,10 @@ def register_service_tools(registry: ToolRegistry) -> None:
             "type": "object",
             "properties": {
                 "to_role": {"type": "string", "description": "Target role to send the message to"},
-                "type": {"type": "string", "enum": ["handoff", "escalation", "flag", "status", "directive", "feedback", "question", "request"]},
+                "type": {"type": "string", "enum": [e.value for e in MessageType]},
                 "subject": {"type": "string"},
                 "body": {"type": "string"},
-                "priority": {"type": "string", "enum": ["critical", "high", "normal", "low"]},
+                "priority": {"type": "string", "enum": [e.value for e in MessagePriority]},
                 "segment_id": {"type": "string"},
             },
             "required": ["to_role", "type", "subject"],
