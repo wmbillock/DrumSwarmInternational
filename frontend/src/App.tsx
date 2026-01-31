@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useWebSocket } from "./hooks/useWebSocket";
-import type { Show, AgentSession, WorkLogEntry, CoordinateNode, ChatMessage, WebSocketEvent } from "./types";
+import type { Show, AgentSession, WorkLogEntry, CoordinateNode, ChatMessage, WebSocketEvent, Scoresheet } from "./types";
 import * as api from "./services/api";
 import "./App.css";
 
@@ -204,6 +204,7 @@ function ShowCard({ show, onSelect, onDelete, onActivate }: {
       <div className="show-stats">
         <span>{show.agents_active ?? 0} agents</span>
         <span>{(show.reps_completed ?? 0)}/{(show.reps_total ?? 0)} tasks done</span>
+        {show.final_score != null && <span className="show-score">Score: {show.final_score}</span>}
         {show.created_at && <span>{timeAgo(show.created_at)}</span>}
       </div>
       <div className="show-actions" onClick={e => e.stopPropagation()}>
@@ -218,7 +219,7 @@ function ShowCard({ show, onSelect, onDelete, onActivate }: {
 
 // --- Show Detail View ---
 function ShowDetail({
-  show, roster, tree, workLog, chatHistory, wsEvents, connected,
+  show, roster, tree, workLog, chatHistory, wsEvents, connected, scoresheet,
   onSendChat, onBack, onToggleTour, onRefresh,
 }: {
   show: Show;
@@ -228,6 +229,7 @@ function ShowDetail({
   chatHistory: ChatMessage[];
   wsEvents: WebSocketEvent[];
   connected: boolean;
+  scoresheet: Scoresheet | null;
   onSendChat: (msg: string, toRole: string) => void;
   onBack: () => void;
   onToggleTour: (enable: boolean) => void;
@@ -235,7 +237,7 @@ function ShowDetail({
 }) {
   const [chatInput, setChatInput] = useState("");
   const [chatTarget, setChatTarget] = useState("executive_director");
-  const [activeTab, setActiveTab] = useState<"agents" | "work" | "activity" | "health">("agents");
+  const [activeTab, setActiveTab] = useState<"agents" | "work" | "activity" | "health" | "scores">("agents");
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Build unified chat from history + live ws events, deduped
@@ -347,10 +349,11 @@ function ShowDetail({
         {/* ===== RIGHT PANE: INFO TABS ===== */}
         <div className="pane-right">
           <div className="info-tabs">
-            {(["agents", "work", "activity", "health"] as const).map(tab => (
+            {(["agents", "work", "scores", "activity", "health"] as const).map(tab => (
               <button key={tab} className={activeTab === tab ? "tab active" : "tab"} onClick={() => setActiveTab(tab)}>
                 {tab === "agents" ? `Agents (${activeAgents.length}/${roster.length})` :
                  tab === "work" ? "Work Tree" :
+                 tab === "scores" ? `Scores${scoresheet ? ` (${scoresheet.composite.final_score.toFixed(1)})` : ""}` :
                  tab === "activity" ? `Activity (${workLog.length})` :
                  "Health"}
               </button>
@@ -429,6 +432,96 @@ function ShowDetail({
                   </>
                 )}
                 {workLog.length === 0 && wsEvents.length === 0 && <p className="empty">No activity yet.</p>}
+              </div>
+            )}
+
+            {activeTab === "scores" && (
+              <div className="scores-panel">
+                {!scoresheet && <p className="empty">No scoring data yet. Scores are recorded as work completes.</p>}
+                {scoresheet && (
+                  <>
+                    {/* Composite score header */}
+                    <div className={`composite-score ${scoresheet.composite.needs_escalation ? "escalation" : scoresheet.composite.needs_rework ? "rework" : "healthy"}`}>
+                      <div className="composite-main">
+                        <span className="composite-value">{scoresheet.composite.final_score.toFixed(1)}</span>
+                        <span className="composite-label">Final Score</span>
+                      </div>
+                      <div className="composite-detail">
+                        <span>Raw: {scoresheet.composite.raw_total.toFixed(1)}</span>
+                        <span>Penalties: -{scoresheet.composite.penalties_total.toFixed(1)}</span>
+                        {scoresheet.composite.needs_rework && <span className="flag rework">Needs Rework</span>}
+                        {scoresheet.composite.needs_escalation && <span className="flag escalation">Needs Escalation</span>}
+                      </div>
+                    </div>
+
+                    {/* Caption scores */}
+                    <h4 className="section-label">Caption Scores</h4>
+                    <div className="caption-scores">
+                      {Object.entries(scoresheet.caption_scores).map(([caption, data]) => (
+                        <div key={caption} className="caption-row">
+                          <div className="caption-name">{caption.replace(/_/g, " ")}</div>
+                          <div className="caption-bar-container">
+                            <div className="caption-bar" style={{ width: `${data.average}%` }} />
+                          </div>
+                          <div className="caption-value">{data.count > 0 ? data.average.toFixed(1) : "-"}</div>
+                          <div className="caption-weight">{(data.weight * 100).toFixed(0)}%</div>
+                          {data.count > 0 && (
+                            <div className="caption-range">{data.min.toFixed(0)}-{data.max.toFixed(0)} ({data.count})</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Penalties */}
+                    {Object.keys(scoresheet.penalties).length > 0 && (
+                      <>
+                        <h4 className="section-label">Penalties</h4>
+                        <div className="penalty-list">
+                          {Object.entries(scoresheet.penalties).map(([type, data]) => (
+                            <div key={type} className="penalty-row">
+                              <span className="penalty-type">{type}</span>
+                              <span className="penalty-amount">-{data.total.toFixed(1)} ({data.count})</span>
+                              {data.reasons.slice(0, 2).map((r, i) => (
+                                <span key={i} className="penalty-reason">{r}</span>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+
+                    {/* Execution metrics */}
+                    <h4 className="section-label">Execution</h4>
+                    <div className="execution-metrics">
+                      <div className="metric-row">
+                        <span>Reps</span>
+                        <span>{scoresheet.execution.reps_completed}/{scoresheet.execution.reps_total} complete</span>
+                        <span>{scoresheet.execution.completion_rate}%</span>
+                      </div>
+                      <div className="metric-row">
+                        <span>In Progress</span>
+                        <span>{scoresheet.execution.reps_in_progress}</span>
+                      </div>
+                      <div className="metric-row">
+                        <span>Failed</span>
+                        <span className={scoresheet.execution.failure_rate > 20 ? "health-error" : ""}>{scoresheet.execution.reps_failed} ({scoresheet.execution.failure_rate}%)</span>
+                      </div>
+                      <div className="metric-row">
+                        <span>Coordinates</span>
+                        <span>{scoresheet.execution.coordinates_total}</span>
+                      </div>
+                    </div>
+
+                    {/* Activity summary */}
+                    <h4 className="section-label">Activity</h4>
+                    <div className="execution-metrics">
+                      <div className="metric-row"><span>Events</span><span>{scoresheet.activity.total_events}</span></div>
+                      <div className="metric-row"><span>Tool Calls</span><span>{scoresheet.activity.tool_calls}</span></div>
+                      <div className="metric-row"><span>Handoffs</span><span>{scoresheet.activity.handoffs}</span></div>
+                      <div className="metric-row"><span>Failures</span><span className={scoresheet.activity.failures > 5 ? "health-error" : ""}>{scoresheet.activity.failures}</span></div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
@@ -636,6 +729,7 @@ export default function App() {
   const [tree, setTree] = useState<CoordinateNode | null>(null);
   const [showLog, setShowLog] = useState<WorkLogEntry[]>([]);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [scoresheet, setScoresheet] = useState<Scoresheet | null>(null);
   const [adminCorpsId, setAdminCorpsId] = useState<string | null>(null);
   const [adminRoster, setAdminRoster] = useState<AgentSession[]>([]);
   const [adminChatHistory, setAdminChatHistory] = useState<ChatMessage[]>([]);
@@ -674,19 +768,21 @@ export default function App() {
   // Load show detail
   const loadShowDetail = useCallback(async (show: Show, isRefresh = false) => {
     if (!isRefresh) {
-      setRoster([]); setTree(null); setShowLog([]); setChatHistory([]);
+      setRoster([]); setTree(null); setShowLog([]); setChatHistory([]); setScoresheet(null);
       clearEvents();
     }
 
     if (show.corps_id) {
-      const [r, l, c] = await Promise.allSettled([
+      const [r, l, c, sc] = await Promise.allSettled([
         api.getRoster(show.corps_id),
         api.getWorkLog(show.corps_id, 100),
         api.getChatHistory(show.corps_id),
+        api.getScoresheet(show.corps_id),
       ]);
       if (r.status === "fulfilled") setRoster(r.value);
       if (l.status === "fulfilled") setShowLog(l.value);
       if (c.status === "fulfilled") setChatHistory(c.value);
+      if (sc.status === "fulfilled") setScoresheet(sc.value);
     }
     if (show.coordinate_root_id) {
       try { setTree(await api.getCoordinateTree(show.coordinate_root_id)); } catch {}
@@ -803,6 +899,7 @@ export default function App() {
           <ShowDetail
             show={selectedShow} roster={roster} tree={tree} workLog={showLog}
             chatHistory={chatHistory} wsEvents={events} connected={connected}
+            scoresheet={scoresheet}
             onSendChat={handleSendChat} onBack={handleBack}
             onToggleTour={handleToggleTour} onRefresh={handleRefreshDetail}
           />

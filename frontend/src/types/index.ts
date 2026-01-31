@@ -13,6 +13,7 @@ export interface Show {
   reps_total?: number;
   reps_completed?: number;
   reps_failed?: number;
+  final_score?: number | null;
 }
 
 export interface Corps {
@@ -92,6 +93,46 @@ export interface WebSocketEvent {
   result?: Record<string, unknown>;
   phase?: string;
   [key: string]: unknown;
+}
+
+export interface CaptionScore {
+  count: number;
+  average: number;
+  min: number;
+  max: number;
+  avg_box: number;
+  weight: number;
+  latest_feedback?: string | null;
+}
+
+export interface Scoresheet {
+  corps_id: string;
+  corps_name: string;
+  caption_scores: Record<string, CaptionScore>;
+  composite: {
+    raw_total: number;
+    penalties_total: number;
+    final_score: number;
+    needs_rework: boolean;
+    needs_escalation: boolean;
+  };
+  penalties: Record<string, { count: number; total: number; reasons: string[] }>;
+  execution: {
+    reps_total: number;
+    reps_completed: number;
+    reps_failed: number;
+    reps_in_progress: number;
+    completion_rate: number;
+    failure_rate: number;
+    coordinates_total: number;
+  };
+  roster: Record<string, { nickname?: string; model_tier: string; status: string; session_id: string }>;
+  activity: {
+    total_events: number;
+    tool_calls: number;
+    handoffs: number;
+    failures: number;
+  };
 }
 
 export type WebSocketMessage = {

@@ -51,10 +51,100 @@ def transition_rep(
     db.commit()
     db.refresh(rep)
 
+    # Auto-score on completion
+    if new_status == RepStatus.COMPLETED:
+        _auto_score_rep(db, rep)
+
     # Update the coordinate's status based on its reps
     _sync_coordinate_from_reps(db, rep.coordinate_id)
 
     return rep
+
+
+def _auto_score_rep(db: Session, rep: "Rep") -> None:
+    """Auto-generate scores for a completed rep based on result heuristics."""
+    import logging
+    logger = logging.getLogger(__name__)
+    try:
+        from backend.models.coordinate import Coordinate
+        from backend.models.score import JudgeType
+        from backend.services.scoring_service import record_score
+
+        coord = db.get(Coordinate, rep.coordinate_id)
+        if not coord:
+            return
+
+        # Find corps_id from coordinate tree
+        corps_id = _find_corps_id(db, coord)
+        if not corps_id:
+            return
+
+        result = rep.result or ""
+        result_len = len(result)
+
+        # Heuristic scoring: base score from result quality
+        base = 70.0
+        if result_len > 500:
+            base += 10
+        if result_len > 1000:
+            base += 5
+        if result_len < 50:
+            base -= 20
+        if rep.error:
+            base -= 15
+
+        # Determine box from base score
+        box = 3
+        if base >= 85:
+            box = 5
+        elif base >= 75:
+            box = 4
+        elif base >= 60:
+            box = 3
+        elif base >= 40:
+            box = 2
+        else:
+            box = 1
+
+        base = max(0.0, min(100.0, base))
+
+        # Map caption to judge type, or use general_effect
+        caption = coord.caption or ""
+        caption_map = {
+            "brass": JudgeType.BRASS,
+            "percussion": JudgeType.PERCUSSION,
+            "guard": JudgeType.GUARD,
+            "visual": JudgeType.VISUAL,
+        }
+        judge_type = caption_map.get(caption, JudgeType.GENERAL_EFFECT)
+
+        record_score(
+            db, corps_id=corps_id, judge_type=judge_type,
+            value=base, box=box, rep_id=rep.id,
+            coordinate_id=rep.coordinate_id,
+            feedback=f"Auto-scored: {result_len} chars, box {box}",
+        )
+    except Exception:
+        logger.exception("Auto-scoring failed for rep %s", rep.id)
+
+
+def _find_corps_id(db: Session, coord) -> str | None:
+    """Walk up the coordinate tree to find the show, then get corps_id."""
+    from backend.models.coordinate import Coordinate
+    from backend.models.show import Show
+    current = coord
+    visited = set()
+    while current and current.id not in visited:
+        visited.add(current.id)
+        # Check if any show has this as root
+        show = db.query(Show).filter(Show.coordinate_root_id == current.id).first()
+        if show:
+            return show.corps_id
+        if current.parent_id:
+            current = db.get(Coordinate, current.parent_id)
+        else:
+            break
+    return None
 
 
 def _sync_coordinate_from_reps(db: Session, coordinate_id: str) -> None:

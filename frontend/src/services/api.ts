@@ -1,6 +1,6 @@
 // API client for DCI Swarm backend
 
-import type { Show, AgentSession, CoordinateNode, WorkLogEntry, ChatMessage } from "../types";
+import type { Show, AgentSession, CoordinateNode, WorkLogEntry, ChatMessage, Scoresheet } from "../types";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -67,6 +67,10 @@ export const pollMessages = (corpsId: string, role?: string) => {
 // Session activity
 export const getSessionActivity = (sessionId: string) =>
   request(`/api/sessions/${sessionId}/activity`);
+
+// Scoresheet
+export const getScoresheet = (corpsId: string) =>
+  request<Scoresheet>(`/api/corps/${corpsId}/scoresheet`);
 
 // Metronome
 export const metronomeTick = (corpsId: string) =>

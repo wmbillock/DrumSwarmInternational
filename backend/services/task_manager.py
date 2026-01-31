@@ -303,6 +303,10 @@ class TaskManager:
                 db, definition_id=old.definition_id,
                 corps_id=corps_id, parent_session_id=old.parent_session_id,
             )
+            # Carry over context snapshot from the old session
+            if old.context_snapshot:
+                new_session.context_snapshot = old.context_snapshot
+                db.commit()
             logger.info("Respawned session for role %s: %s -> %s", role, old.id, new_session.id)
             return new_session.id
 

@@ -441,6 +441,152 @@ def api_get_composite(rep_id: str, db: Session = Depends(get_db)):
     }
 
 
+@app.get("/api/corps/{corps_id}/scoresheet")
+def api_get_scoresheet(corps_id: str, db: Session = Depends(get_db)):
+    """Competition-style scoresheet for a corps — caption scores, penalties, operational metrics."""
+    from backend.models.corps import Corps
+    from backend.models.score import Score, JudgeType
+    from backend.models.penalty import Penalty
+    from backend.models.rep import Rep, RepStatus
+    from backend.models.coordinate import Coordinate
+    from backend.models.agent_session import AgentSession, SessionStatus
+    from backend.models.agent_definition import AgentDefinition
+    from backend.models.work_log import WorkLog
+    from backend.services.scoring_service import DEFAULT_WEIGHTS
+
+    corps = db.get(Corps, corps_id)
+    if not corps:
+        raise HTTPException(404, "Corps not found")
+
+    # --- Caption scores (per judge type) ---
+    scores = db.query(Score).filter(Score.corps_id == corps_id).all()
+    caption_data: dict[str, dict] = {}
+    for jt in JudgeType:
+        jt_scores = [s for s in scores if s.judge_type == jt]
+        if jt_scores:
+            values = [s.value for s in jt_scores]
+            boxes = [s.box for s in jt_scores]
+            caption_data[jt.value] = {
+                "count": len(jt_scores),
+                "average": round(sum(values) / len(values), 2),
+                "min": min(values),
+                "max": max(values),
+                "avg_box": round(sum(boxes) / len(boxes), 2),
+                "weight": DEFAULT_WEIGHTS.get(jt, 0.0),
+                "latest_feedback": jt_scores[-1].feedback,
+            }
+        else:
+            caption_data[jt.value] = {
+                "count": 0, "average": 0, "min": 0, "max": 0,
+                "avg_box": 0, "weight": DEFAULT_WEIGHTS.get(jt, 0.0),
+                "latest_feedback": None,
+            }
+
+    # --- Composite score ---
+    weighted_sum = 0.0
+    total_weight = 0.0
+    for jt in JudgeType:
+        cd = caption_data[jt.value]
+        if cd["count"] > 0:
+            w = cd["weight"]
+            weighted_sum += cd["average"] * w
+            total_weight += w
+    raw_total = round(weighted_sum / total_weight, 2) if total_weight > 0 else 0.0
+
+    # --- Penalties ---
+    penalties = db.query(Penalty).filter(Penalty.corps_id == corps_id).all()
+    penalties_total = sum(p.amount for p in penalties)
+    penalty_breakdown = {}
+    for p in penalties:
+        pt = p.type.value
+        penalty_breakdown.setdefault(pt, {"count": 0, "total": 0.0, "reasons": []})
+        penalty_breakdown[pt]["count"] += 1
+        penalty_breakdown[pt]["total"] += p.amount
+        if p.reason and len(penalty_breakdown[pt]["reasons"]) < 5:
+            penalty_breakdown[pt]["reasons"].append(p.reason)
+
+    final_score = round(max(0.0, raw_total - penalties_total), 2)
+
+    # --- Rep metrics ---
+    # Get coordinates belonging to this corps' show
+    from backend.models.show import Show
+    show = db.query(Show).filter(Show.corps_id == corps_id).first()
+    reps_total = 0
+    reps_completed = 0
+    reps_failed = 0
+    reps_in_progress = 0
+    coordinates_total = 0
+    if show and show.coordinate_root_id:
+        coords = db.query(Coordinate).all()  # TODO: filter by tree
+        coord_ids = {c.id for c in coords}
+        coordinates_total = len(coord_ids)
+        reps = db.query(Rep).filter(Rep.coordinate_id.in_(coord_ids)).all() if coord_ids else []
+        reps_total = len(reps)
+        reps_completed = sum(1 for r in reps if r.status == RepStatus.COMPLETED)
+        reps_failed = sum(1 for r in reps if r.status == RepStatus.FAILED)
+        reps_in_progress = sum(1 for r in reps if r.status == RepStatus.IN_PROGRESS)
+
+    completion_rate = round(reps_completed / reps_total * 100, 1) if reps_total > 0 else 0.0
+    failure_rate = round(reps_failed / reps_total * 100, 1) if reps_total > 0 else 0.0
+
+    # --- Agent metrics (per role) ---
+    sessions = db.query(AgentSession).filter(AgentSession.corps_id == corps_id).all()
+    role_metrics: dict[str, dict] = {}
+    for s in sessions:
+        defn = db.get(AgentDefinition, s.definition_id)
+        if not defn:
+            continue
+        role = defn.role
+        role_metrics.setdefault(role, {
+            "nickname": defn.nickname,
+            "model_tier": defn.model_tier.value,
+            "status": s.status.value,
+            "session_id": s.id,
+        })
+
+    # --- Work log stats ---
+    log_count = db.query(WorkLog).filter(WorkLog.corps_id == corps_id).count()
+    tool_calls = db.query(WorkLog).filter(
+        WorkLog.corps_id == corps_id, WorkLog.event_type == "tool_call"
+    ).count()
+    handoffs = db.query(WorkLog).filter(
+        WorkLog.corps_id == corps_id, WorkLog.event_type == "handoff"
+    ).count()
+    failures = db.query(WorkLog).filter(
+        WorkLog.corps_id == corps_id, WorkLog.event_type == "failure"
+    ).count()
+
+    return {
+        "corps_id": corps_id,
+        "corps_name": corps.name,
+        "caption_scores": caption_data,
+        "composite": {
+            "raw_total": raw_total,
+            "penalties_total": round(penalties_total, 2),
+            "final_score": final_score,
+            "needs_rework": final_score < 60.0,
+            "needs_escalation": final_score < 40.0,
+        },
+        "penalties": penalty_breakdown,
+        "execution": {
+            "reps_total": reps_total,
+            "reps_completed": reps_completed,
+            "reps_failed": reps_failed,
+            "reps_in_progress": reps_in_progress,
+            "completion_rate": completion_rate,
+            "failure_rate": failure_rate,
+            "coordinates_total": coordinates_total,
+        },
+        "roster": role_metrics,
+        "activity": {
+            "total_events": log_count,
+            "tool_calls": tool_calls,
+            "handoffs": handoffs,
+            "failures": failures,
+        },
+    }
+
+
 # --- Message endpoints ---
 
 @app.post("/api/corps/{corps_id}/messages")
@@ -469,6 +615,69 @@ def api_poll_messages(corps_id: str, role: Optional[str] = None, db: Session = D
              } for m in msgs]
 
 
+# --- Chat context builder ---
+
+def _build_chat_agent_context(
+    db: Session, corps_id: str, to_role: str, content: str, session_id: str
+) -> tuple[str, Optional[str]]:
+    """Build task_description with chat history and load context snapshot for an agent.
+
+    Returns (task_description, context_snapshot).
+    """
+    from backend.models.show import Show as ShowModel
+    from backend.models.message import Message
+    from backend.models.agent_session import AgentSession
+
+    # Load recent chat history (last 20 messages)
+    recent_msgs = (
+        db.query(Message)
+        .filter(Message.corps_id == corps_id)
+        .order_by(Message.created_at.desc())
+        .limit(20)
+        .all()
+    )
+    recent_msgs.reverse()  # chronological order
+
+    # Build conversation context
+    context_parts = []
+
+    # Show context
+    show = db.query(ShowModel).filter(ShowModel.corps_id == corps_id).first()
+    if show:
+        context_parts.append(f"Show: '{show.title}', Corps ID: {corps_id}")
+        if show.coordinate_root_id:
+            context_parts.append(f"Root coordinate ID: {show.coordinate_root_id}")
+        if show.description:
+            context_parts.append(f"Show description: {show.description}")
+
+    # Chat history
+    if len(recent_msgs) > 1:  # more than just the current message
+        context_parts.append("\n--- Recent conversation ---")
+        for m in recent_msgs[:-1]:  # exclude current message (already the latest)
+            sender = "User" if m.from_role == "user" else m.from_role
+            msg_text = m.body or m.subject
+            if len(msg_text) > 300:
+                msg_text = msg_text[:300] + "..."
+            context_parts.append(f"{sender}: {msg_text}")
+        context_parts.append("--- End conversation ---\n")
+
+    # Current message
+    context_parts.append(f"User message to {to_role}: {content}")
+    context_parts.append(
+        "Respond to the user's message. You have the conversation history above for context. "
+        "Continue the conversation naturally. Use your tools to take action when requested. "
+        "If the user is asking you to do work, create coordinates and reps under the root coordinate."
+    )
+
+    # Load context snapshot from session
+    snapshot = None
+    session = db.get(AgentSession, session_id)
+    if session and session.context_snapshot:
+        snapshot = session.context_snapshot
+
+    return "\n".join(context_parts), snapshot
+
+
 # --- Chat endpoints ---
 
 @app.post("/api/corps/{corps_id}/chat")
@@ -494,30 +703,19 @@ async def api_send_chat(corps_id: str, data: ChatSend, db: Session = Depends(get
         "message_id": msg.id,
     })
 
-    # Wake target agent via task_manager — include show context so agent knows what to do
+    # Wake target agent via task_manager — include chat history so agent has context
     tm = get_task_manager()
     if tm:
         session_id = tm.get_session_for_role(db, corps_id, data.to_role)
         if session_id and not tm.is_active(session_id):
-            # Build rich context for the agent
-            from backend.models.show import Show as ShowModel
-            show = db.query(ShowModel).filter(ShowModel.corps_id == corps_id).first()
-            context_parts = [f"User message to {data.to_role}: {data.content}"]
-            if show:
-                context_parts.append(f"Show: '{show.title}'")
-                if show.coordinate_root_id:
-                    context_parts.append(f"Root coordinate ID: {show.coordinate_root_id}")
-                context_parts.append(f"Corps ID: {corps_id}")
-            if show and show.description:
-                context_parts.append(f"Show description: {show.description}")
-            context_parts.append(
-                "Respond to the user's message. Use your tools to take action. "
-                "If the user is asking you to do work, create coordinates and reps under the root coordinate."
+            task_desc, snapshot = _build_chat_agent_context(
+                db, corps_id, data.to_role, data.content, session_id
             )
             tm.start_agent(
                 session_id=session_id,
-                task_description="\n".join(context_parts),
+                task_description=task_desc,
                 corps_id=corps_id,
+                context_snapshot=snapshot,
             )
 
     return {"id": msg.id, "status": "sent"}
@@ -717,10 +915,18 @@ def api_shows_overview(db: Session = Depends(get_db)):
                 Rep.status == RepStatus.FAILED,
             ).count() if show.coordinate_root_id else 0
         corps_name = None
+        final_score = None
         if show.corps_id:
             corps = db.get(Corps, show.corps_id)
             if corps:
                 corps_name = corps.name
+            # Quick composite score
+            from backend.models.score import Score
+            score_count = db.query(Score).filter(Score.corps_id == show.corps_id).count()
+            if score_count > 0:
+                from sqlalchemy import func as sqlfunc
+                avg = db.query(sqlfunc.avg(Score.value)).filter(Score.corps_id == show.corps_id).scalar()
+                final_score = round(float(avg), 1) if avg else None
         results.append({
             "id": show.id,
             "title": show.title,
@@ -728,6 +934,7 @@ def api_shows_overview(db: Session = Depends(get_db)):
             "status": show.status.value,
             "corps_id": show.corps_id,
             "corps_name": corps_name,
+            "final_score": final_score,
             "coordinate_root_id": show.coordinate_root_id,
             "created_at": show.created_at.isoformat() if show.created_at else None,
             **stats,
@@ -865,21 +1072,19 @@ async def websocket_endpoint(websocket: WebSocket, corps_id: str):
                             "message_id": record.id,
                         })
 
-                        # Wake agent with full context
+                        # Wake agent with full context including chat history
                         tm = get_task_manager()
                         if tm:
                             session_id = tm.get_session_for_role(db, corps_id, to_role)
                             if session_id and not tm.is_active(session_id):
-                                from backend.models.show import Show as ShowModel
-                                show = db.query(ShowModel).filter(ShowModel.corps_id == corps_id).first()
-                                ctx = [f"User message to {to_role}: {content}"]
-                                if show:
-                                    ctx.append(f"Show: '{show.title}', Root coordinate: {show.coordinate_root_id}, Corps: {corps_id}")
-                                ctx.append("Respond to the user. Use tools to take action if requested.")
+                                task_desc, snapshot = _build_chat_agent_context(
+                                    db, corps_id, to_role, content, session_id
+                                )
                                 tm.start_agent(
                                     session_id=session_id,
-                                    task_description="\n".join(ctx),
+                                    task_description=task_desc,
                                     corps_id=corps_id,
+                                    context_snapshot=snapshot,
                                 )
                     finally:
                         db.close()
