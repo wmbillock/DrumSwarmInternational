@@ -7,6 +7,11 @@ export interface Show {
   status: "draft" | "active" | "completed" | "archived";
   corps_id?: string;
   coordinate_root_id?: string;
+  created_at?: string;
+  agents_active?: number;
+  reps_total?: number;
+  reps_completed?: number;
+  reps_failed?: number;
 }
 
 export interface Corps {
@@ -20,55 +25,43 @@ export interface Corps {
 export interface AgentSession {
   id: string;
   role: string;
+  nickname?: string;
+  model_tier?: string;
   status: "active" | "completed" | "failed" | "timed_out";
+  corps_id?: string;
   parent_session_id?: string;
   started_at?: string;
   ended_at?: string;
 }
 
-export interface Coordinate {
+export interface CoordinateNode {
   id: string;
   type: "show" | "movement" | "set" | "coordinate";
   title: string;
   description?: string;
   status: "pending" | "in_progress" | "review" | "completed" | "failed" | "blocked";
-  parent_id?: string;
   caption?: string;
+  reps: RepInfo[];
+  children: CoordinateNode[];
 }
 
-export interface Rep {
+export interface RepInfo {
   id: string;
-  status: "pending" | "assigned" | "in_progress" | "review" | "completed" | "failed";
-  coordinate_id: string;
-  assigned_to?: string;
+  status: string;
   result?: string;
   error?: string;
+  assigned_to?: string;
 }
 
-export interface Score {
+export interface WorkLogEntry {
   id: string;
-  judge_type: "brass" | "percussion" | "guard" | "visual" | "general_effect" | "timing";
-  value: number;
-  box: number;
-  feedback?: string;
-}
-
-export interface CompositeScore {
-  raw_total: number;
-  penalties_total: number;
-  final_score: number;
-  needs_rework: boolean;
-  needs_escalation: boolean;
-}
-
-export interface Message {
-  id: string;
-  type: "handoff" | "escalation" | "flag" | "status" | "directive" | "feedback";
-  from_role: string;
-  to_role?: string;
-  subject: string;
-  priority: "critical" | "high" | "normal" | "low";
-  acknowledged_at?: string;
+  session_id: string;
+  corps_id?: string;
+  role: string;
+  event_type: string;
+  phase?: string;
+  details?: string;
+  timestamp?: string;
 }
 
 export interface ChatMessage {
@@ -80,7 +73,6 @@ export interface ChatMessage {
   body?: string;
   priority?: string;
   created_at?: string;
-  acknowledged_at?: string;
 }
 
 export interface WebSocketEvent {
@@ -93,94 +85,15 @@ export interface WebSocketEvent {
   from_role?: string;
   to_role?: string;
   error?: string;
-  [key: string]: unknown;
-}
-
-export interface AgentActivityEvent {
-  type: "tool_call" | "agent_response" | "agent_status";
-  corps_id: string;
-  session_id: string;
-  role: string;
   tool?: string;
   args?: Record<string, unknown>;
   result?: Record<string, unknown>;
-  content?: string;
-  status?: string;
-}
-
-export interface SessionActivity {
-  session_id: string;
-  role: string;
-  status: string;
-  started_at?: string;
-  ended_at?: string;
-  tool_calls: Array<{
-    tool: string;
-    arguments: Record<string, unknown>;
-    result?: { success: boolean; output?: unknown; error?: string };
-  }>;
-  final_response: string;
-  iterations: number;
-  messages: Array<{
-    id: string;
-    type: string;
-    from_role: string;
-    to_role?: string;
-    subject: string;
-    body?: string;
-    created_at?: string;
-  }>;
-}
-
-export interface BasicsResult {
-  caption: string;
-  definitions_reviewed: number;
-  improvements_suggested: number;
-  suggestions: string[];
-}
-
-export interface CritiqueFeedback {
-  judge_type: string;
-  score: number;
-  strengths: string[];
-  weaknesses: string[];
-  action_items: string[];
-}
-
-export interface CritiqueResult {
-  rep_id: string;
-  overall_assessment: string;
-  needs_rework: boolean;
-  feedbacks: CritiqueFeedback[];
-}
-
-export interface BanquetReport {
-  corps_id: string;
-  total_reps: number;
-  completed_reps: number;
-  failed_reps: number;
-  average_score: number;
-  top_caption?: string;
-  what_worked: string[];
-  what_failed: string[];
-  improvements: string[];
-}
-
-export interface MetronomeResult {
-  checked: number;
-  reclaimed: number;
-  reclaimed_rep_ids: string[];
-}
-
-export interface MergeResult {
-  checked: number;
-  merged: number;
-  conflicts: number;
-  merged_coordinate_ids: string[];
-  conflict_coordinate_ids: string[];
+  phase?: string;
+  [key: string]: unknown;
 }
 
 export type WebSocketMessage = {
   type: string;
-  data: unknown;
+  data?: unknown;
+  [key: string]: unknown;
 };

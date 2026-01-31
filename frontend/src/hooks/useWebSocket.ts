@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import type { WebSocketMessage } from "../types";
+import type { WebSocketEvent } from "../types";
 
 const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8000";
 const RECONNECT_DELAYS = [1000, 2000, 4000, 8000, 16000];
-const HEARTBEAT_INTERVAL = 25000; // 25s
+const HEARTBEAT_INTERVAL = 25000;
 const MAX_RECONNECT_ATTEMPTS = 20;
 
 export function useWebSocket(corpsId: string | null) {
   const wsRef = useRef<WebSocket | null>(null);
   const [connected, setConnected] = useState(false);
-  const [lastMessage, setLastMessage] = useState<WebSocketMessage | null>(null);
+  const [lastMessage, setLastMessage] = useState<WebSocketEvent | null>(null);
+  const [events, setEvents] = useState<WebSocketEvent[]>([]);
   const reconnectAttempt = useRef(0);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout>>();
   const heartbeatTimer = useRef<ReturnType<typeof setInterval>>();
@@ -57,17 +58,15 @@ export function useWebSocket(corpsId: string | null) {
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        // Ignore pong responses
         if (data.type === "pong" || data.type === "ack") return;
         setLastMessage(data);
+        setEvents(prev => [...prev.slice(-200), data]);
       } catch {
-        setLastMessage({ type: "raw", data: event.data });
+        // ignore unparseable messages
       }
     };
 
-    ws.onerror = () => {
-      // Will trigger onclose for reconnect
-    };
+    ws.onerror = () => {};
   }, [corpsId, startHeartbeat, stopHeartbeat]);
 
   useEffect(() => {
@@ -86,5 +85,7 @@ export function useWebSocket(corpsId: string | null) {
     }
   }, []);
 
-  return { connected, lastMessage, send };
+  const clearEvents = useCallback(() => setEvents([]), []);
+
+  return { connected, lastMessage, events, send, clearEvents };
 }

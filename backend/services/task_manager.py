@@ -240,11 +240,13 @@ class TaskManager:
         return task is not None and not task.done()
 
     def get_session_for_role(self, db, corps_id: str, role: str) -> Optional[str]:
-        """Find the active session_id for a given role in a corps."""
+        """Find the session_id for a given role in a corps. Respawns completed sessions."""
         from backend.models.agent_session import AgentSession, SessionStatus
         from backend.models.agent_definition import AgentDefinition
+        from backend.services.agent_lifecycle import spawn_session
 
-        sessions = (
+        # Try active first
+        active = (
             db.query(AgentSession)
             .join(AgentDefinition, AgentSession.definition_id == AgentDefinition.id)
             .filter(
@@ -252,6 +254,28 @@ class TaskManager:
                 AgentDefinition.role == role,
                 AgentSession.status == SessionStatus.ACTIVE,
             )
-            .all()
+            .first()
         )
-        return sessions[0].id if sessions else None
+        if active:
+            return active.id
+
+        # Find most recent completed/failed session and respawn
+        old = (
+            db.query(AgentSession)
+            .join(AgentDefinition, AgentSession.definition_id == AgentDefinition.id)
+            .filter(
+                AgentSession.corps_id == corps_id,
+                AgentDefinition.role == role,
+            )
+            .order_by(AgentSession.started_at.desc())
+            .first()
+        )
+        if old:
+            new_session = spawn_session(
+                db, definition_id=old.definition_id,
+                corps_id=corps_id, parent_session_id=old.parent_session_id,
+            )
+            logger.info("Respawned session for role %s: %s -> %s", role, old.id, new_session.id)
+            return new_session.id
+
+        return None

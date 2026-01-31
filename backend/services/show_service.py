@@ -1,5 +1,6 @@
 """Show management — CRUD, corps lifecycle, judge pool."""
 
+import random
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -8,6 +9,48 @@ from backend.models.show import Show, ShowStatus
 from backend.models.coordinate import CoordinateType
 from backend.services.coordinate_service import create_coordinate
 from backend.services.corps_service import create_corps, initialize_corps, start_tour, stop_tour
+
+# Whimsical DCI-inspired corps names
+CORPS_NAMES = [
+    "Phantom Regiment",
+    "Blue Devils",
+    "Carolina Crown",
+    "The Cadets",
+    "Santa Clara Vanguard",
+    "Bluecoats",
+    "Blue Stars",
+    "Boston Crusaders",
+    "The Cavaliers",
+    "Crossmen",
+    "Madison Scouts",
+    "Colts",
+    "Spirit of Atlanta",
+    "Troopers",
+    "Mandarins",
+    "Pacific Crest",
+    "Blue Knights",
+    "Glassmen",
+    "Pioneer",
+    "Velvet Knights",
+    "Star of Indiana",
+    "Sky Ryders",
+    "Freelancers",
+    "Bridgemen",
+    "27th Lancers",
+    "Suncoast Sound",
+    "Phantom Thunder",
+    "Iron Guard",
+    "Crimson Cascade",
+    "Midnight Suns",
+    "Golden Sabres",
+    "Emerald Knights",
+    "Silver Stallions",
+    "Copper Fury",
+    "Obsidian Regiment",
+    "Azure Falcons",
+    "Scarlet Horizon",
+    "Titanium Vanguard",
+]
 
 
 class ShowError(Exception):
@@ -58,7 +101,8 @@ def activate_show(db: Session, show_id: str) -> Show:
     if show.status != ShowStatus.DRAFT:
         raise ShowError(f"Can only activate draft shows, got {show.status.value}")
 
-    corps = create_corps(db, name=f"Corps for {show.title}", show_id=show.id)
+    corps_name = random.choice(CORPS_NAMES)
+    corps = create_corps(db, name=corps_name, show_id=show.id)
     initialize_corps(db, corps.id)
     show.corps_id = corps.id
     show.status = ShowStatus.ACTIVE

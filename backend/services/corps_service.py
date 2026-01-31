@@ -19,6 +19,7 @@ from backend.services.message_service import (
     MessagePriority,
     InvalidMessagePath,
 )
+from backend.services.nickname_generator import generate_nickname
 from backend.services.prompt_arranger import assemble_prompt, get_available_roles
 
 
@@ -255,17 +256,21 @@ def initialize_corps(db: Session, corps_id: str) -> dict[str, AgentSession]:
         raise CorpsError(f"Corps {corps_id} not found")
 
     sessions: dict[str, AgentSession] = {}
+    used_nicknames: set[str] = set()
 
     for role, tier, parent_role in CORPS_HIERARCHY:
         # Try PromptArranger first, fall back to hardcoded prompts
         prompt = assemble_prompt(role) or ROLE_PROMPTS.get(role, f"You are the {role} for this corps.")
         tools = ROLE_TOOLS.get(role, [])
+        nickname = generate_nickname(role, used_nicknames)
+        used_nicknames.add(nickname)
         defn = create_definition(
             db, role=role,
             system_prompt=prompt,
             model_tier=tier,
             tools_allowed=tools,
             corps_id=corps_id,
+            nickname=nickname,
         )
         parent_session_id = sessions[parent_role].id if parent_role else None
         session = spawn_session(

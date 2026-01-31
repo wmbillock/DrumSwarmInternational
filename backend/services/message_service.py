@@ -18,6 +18,14 @@ ROLE_HIERARCHY = {
     # Administrative
     "executive_director": {
         "program_coordinator",
+        "drill_writer",
+        "music_writer",
+        "choreographer",
+        "brass_caption_head",
+        "percussion_caption_head",
+        "guard_caption_head",
+        "visual_caption_head",
+        "drum_major",
     },
     # Design staff
     "program_coordinator": {

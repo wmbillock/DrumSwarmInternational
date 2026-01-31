@@ -33,6 +33,7 @@ def create_definition(
     model_tier: ModelTier = ModelTier.SONNET,
     tools_allowed: Optional[list[str]] = None,
     corps_id: Optional[str] = None,
+    nickname: Optional[str] = None,
 ) -> AgentDefinition:
     defn = AgentDefinition(
         role=role,
@@ -40,6 +41,7 @@ def create_definition(
         model_tier=model_tier,
         tools_allowed=",".join(tools_allowed) if tools_allowed else "",
         corps_id=corps_id,
+        nickname=nickname,
     )
     db.add(defn)
     db.commit()

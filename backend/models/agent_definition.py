@@ -41,6 +41,7 @@ class AgentDefinition(Base):
     tools_allowed: Mapped[str] = mapped_column(Text, default="")
     version: Mapped[int] = mapped_column(Integer, default=1)
     modified_by: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    nickname: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     corps_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

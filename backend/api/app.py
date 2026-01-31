@@ -295,6 +295,8 @@ def api_get_roster(corps_id: str, db: Session = Depends(get_db)):
         result.append({
             "id": s.id,
             "role": defn.role if defn else "unknown",
+            "nickname": defn.nickname if defn else None,
+            "model_tier": defn.model_tier.value if defn else "unknown",
             "status": s.status.value,
             "parent_session_id": s.parent_session_id,
             "started_at": s.started_at.isoformat() if s.started_at else None,
@@ -602,6 +604,26 @@ def api_run_banquet(corps_id: str, db: Session = Depends(get_db)):
 
 # --- Work Log endpoint ---
 
+@app.get("/api/work-log")
+def api_get_global_work_log(limit: int = 100, event_type: Optional[str] = None, db: Session = Depends(get_db)):
+    """Get work log across all corps."""
+    from backend.models.work_log import WorkLog
+    query = db.query(WorkLog)
+    if event_type:
+        query = query.filter(WorkLog.event_type == event_type)
+    logs = query.order_by(WorkLog.timestamp.desc()).limit(limit).all()
+    return [{
+        "id": log.id,
+        "session_id": log.session_id,
+        "corps_id": log.corps_id,
+        "role": log.role,
+        "event_type": log.event_type,
+        "phase": log.phase,
+        "details": log.details,
+        "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+    } for log in logs]
+
+
 @app.get("/api/corps/{corps_id}/work-log")
 def api_get_work_log(corps_id: str, limit: int = 100, event_type: Optional[str] = None, db: Session = Depends(get_db)):
     """Get structured work log for a corps."""
@@ -619,6 +641,113 @@ def api_get_work_log(corps_id: str, limit: int = 100, event_type: Optional[str] 
         "details": log.details,
         "timestamp": log.timestamp.isoformat() if log.timestamp else None,
     } for log in logs]
+
+
+@app.get("/api/shows-overview")
+def api_shows_overview(db: Session = Depends(get_db)):
+    """Get all shows with summary stats for the dashboard."""
+    from backend.models.show import Show
+    from backend.models.corps import Corps
+    from backend.models.agent_session import AgentSession
+    from backend.models.rep import Rep, RepStatus
+    from backend.models.coordinate import Coordinate
+
+    shows = db.query(Show).order_by(Show.created_at.desc()).all()
+    results = []
+    for show in shows:
+        stats = {"agents_active": 0, "reps_total": 0, "reps_completed": 0, "reps_failed": 0, "coordinates_total": 0}
+        if show.corps_id:
+            stats["agents_active"] = db.query(AgentSession).filter(
+                AgentSession.corps_id == show.corps_id,
+                AgentSession.status == "active",
+            ).count()
+            stats["reps_total"] = db.query(Rep).join(Coordinate).filter(
+                Coordinate.id == Rep.coordinate_id,
+            ).count() if show.coordinate_root_id else 0
+            stats["reps_completed"] = db.query(Rep).join(Coordinate).filter(
+                Rep.status == RepStatus.COMPLETED,
+            ).count() if show.coordinate_root_id else 0
+            stats["reps_failed"] = db.query(Rep).join(Coordinate).filter(
+                Rep.status == RepStatus.FAILED,
+            ).count() if show.coordinate_root_id else 0
+        results.append({
+            "id": show.id,
+            "title": show.title,
+            "description": show.description,
+            "status": show.status.value,
+            "corps_id": show.corps_id,
+            "coordinate_root_id": show.coordinate_root_id,
+            "created_at": show.created_at.isoformat() if show.created_at else None,
+            **stats,
+        })
+    return results
+
+
+@app.delete("/api/shows/{show_id}")
+def api_delete_show(show_id: str, db: Session = Depends(get_db)):
+    """Delete a show and optionally its corps."""
+    from backend.models.show import Show
+    show = db.get(Show, show_id)
+    if not show:
+        raise HTTPException(404, "Show not found")
+    db.delete(show)
+    db.commit()
+    return {"deleted": show_id}
+
+
+@app.get("/api/agents-overview")
+def api_agents_overview(db: Session = Depends(get_db)):
+    """Get all active agent sessions across all corps with their definitions."""
+    from backend.models.agent_session import AgentSession, SessionStatus
+    from backend.models.agent_definition import AgentDefinition
+    sessions = (
+        db.query(AgentSession)
+        .join(AgentDefinition, AgentSession.definition_id == AgentDefinition.id)
+        .filter(AgentSession.status == SessionStatus.ACTIVE)
+        .all()
+    )
+    results = []
+    for s in sessions:
+        defn = db.get(AgentDefinition, s.definition_id)
+        results.append({
+            "id": s.id,
+            "role": defn.role if defn else "unknown",
+            "nickname": defn.nickname if defn else None,
+            "model_tier": defn.model_tier.value if defn else "unknown",
+            "status": s.status.value,
+            "corps_id": s.corps_id,
+            "started_at": s.started_at.isoformat() if s.started_at else None,
+        })
+    return results
+
+
+@app.get("/api/coordinates/{coord_id}/tree")
+def api_get_coordinate_tree(coord_id: str, db: Session = Depends(get_db)):
+    """Get full coordinate tree with reps for a given root."""
+    from backend.services.coordinate_service import get_coordinate, get_children
+    from backend.services.rep_service import get_reps_for_coordinate
+
+    def _build(cid):
+        coord = get_coordinate(db, cid)
+        if not coord:
+            return None
+        reps = get_reps_for_coordinate(db, cid)
+        children = get_children(db, cid)
+        return {
+            "id": coord.id,
+            "type": coord.type.value,
+            "title": coord.title,
+            "description": coord.description,
+            "status": coord.status.value,
+            "caption": coord.caption,
+            "reps": [{"id": r.id, "status": r.status.value, "result": r.result, "error": r.error, "assigned_to": r.assigned_to} for r in reps],
+            "children": [_build(c.id) for c in children],
+        }
+
+    tree = _build(coord_id)
+    if not tree:
+        raise HTTPException(404, "Coordinate not found")
+    return tree
 
 
 # --- Metronome endpoint ---
