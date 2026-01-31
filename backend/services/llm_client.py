@@ -231,15 +231,16 @@ Available tools:
             "--dangerously-skip-permissions",
         ]
 
+        is_new_session = False
         if session_id and session_id in self._active_sessions:
             # Resume existing session — CLI preserves full conversation history
             cmd.extend(["--resume", session_id])
         elif session_id:
-            # First call for this session (this process) — try --session-id first
+            # First call for this session in this process — try --session-id
             # but we'll retry with --resume if the CLI says it already exists
             cmd.extend(["--session-id", session_id])
             self._active_sessions.add(session_id)
-            self._is_new_session = True  # flag for retry logic below
+            is_new_session = True
             if tools:
                 system_prompt += "\n" + self.TOOL_PROTOCOL + self._format_tools_for_prompt(tools)
             if system_prompt.strip():
@@ -267,9 +268,9 @@ Available tools:
 
             if proc.returncode != 0:
                 error_msg = proc.stderr.strip() or f"claude CLI exited with code {proc.returncode}"
-                # If --session-id failed because it already exists, retry with --resume
-                if "already in use" in error_msg and getattr(self, '_is_new_session', False):
-                    self._is_new_session = False
+                # If --session-id failed because it already exists (server restarted
+                # but CLI still has the session), retry with --resume
+                if "already in use" in error_msg and is_new_session and session_id:
                     resume_cmd = [
                         "claude",
                         "--print",
@@ -293,7 +294,6 @@ Available tools:
                         return LLMResponse(content=f"Error: {error_msg}", stop_reason="error")
                 else:
                     return LLMResponse(content=f"Error: {error_msg}", stop_reason="error")
-            self._is_new_session = False
 
             # Parse JSON output from claude CLI
             raw_content = proc.stdout.strip()
