@@ -219,7 +219,7 @@ def analyze_corps_health(db: Session, corps_id: str, stale_threshold_hours: int 
     stuck_messages = db.query(Message).filter(
         Message.corps_id == corps_id,
         Message.type == MessageType.HANDOFF,
-        Message.acknowledged == False,
+        Message.acknowledged_at.is_(None),
     ).all()
     if stuck_messages:
         warnings.append(f"{len(stuck_messages)} unacknowledged handoff message(s)")
