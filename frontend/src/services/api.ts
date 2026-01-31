@@ -35,6 +35,9 @@ export const toggleTour = (id: string, enable: boolean) =>
 export const listShows = () => request<Show[]>("/api/shows");
 export const getShow = (id: string) => request<Show>(`/api/shows/${id}`);
 
+// Admin corps ("the bar")
+export const getAdminCorps = () => request<{ id: string; name: string; status: string; roster: AgentSession[] }>("/api/admin-corps");
+
 // Corps
 export const getCorps = (id: string) => request(`/api/corps/${id}`);
 export const getRoster = (corpsId: string) => request<AgentSession[]>(`/api/corps/${corpsId}/roster`);

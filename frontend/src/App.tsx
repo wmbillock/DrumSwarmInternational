@@ -519,8 +519,115 @@ function CoordTree({ node, depth }: { node: CoordinateNode; depth: number }) {
 }
 
 // --- Main App ---
+// --- Admin Chat ("The Bar") ---
+function AdminChat({
+  corpsId, roster, chatHistory, wsEvents, connected, onSendChat, onBack,
+}: {
+  corpsId: string;
+  roster: AgentSession[];
+  chatHistory: ChatMessage[];
+  wsEvents: WebSocketEvent[];
+  connected: boolean;
+  onSendChat: (msg: string, toRole: string) => void;
+  onBack: () => void;
+}) {
+  const [chatInput, setChatInput] = useState("");
+  const [chatTarget, setChatTarget] = useState("executive_director");
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const nicknameByRole: Record<string, string> = {};
+  for (const a of roster) { if (a.nickname) nicknameByRole[a.role] = a.nickname; }
+
+  const seenIds = new Set<string>();
+  const allChat: { id?: string; from: string; nickname?: string; content: string; time?: string }[] = [];
+  for (const m of chatHistory) {
+    if (!seenIds.has(m.id)) {
+      seenIds.add(m.id);
+      allChat.push({ id: m.id, from: m.from_role, nickname: nicknameByRole[m.from_role], content: m.body || m.subject, time: m.created_at });
+    }
+  }
+  for (const e of wsEvents) {
+    if (e.type === "chat" || e.type === "agent_response") {
+      const id = (e as Record<string, unknown>).message_id as string | undefined;
+      const contentKey = id || `ws:${e.from_role || e.role}:${(e.content || "").slice(0, 100)}`;
+      if (seenIds.has(contentKey)) continue;
+      seenIds.add(contentKey);
+      allChat.push({ from: e.from_role || e.role || "agent", nickname: e.nickname, content: e.content || "", time: undefined });
+    }
+  }
+
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [allChat.length]);
+
+  const handleSend = () => {
+    if (!chatInput.trim()) return;
+    onSendChat(chatInput.trim(), chatTarget);
+    setChatInput("");
+  };
+
+  const uniqueRoles = [...new Set(roster.map(r => r.role))].sort();
+
+  return (
+    <div className="admin-chat-view">
+      <div className="admin-chat-header">
+        <button className="back-btn" onClick={onBack}>&larr;</button>
+        <h2>Critique</h2>
+        <span className="corps-badge">Post-Run Review</span>
+        <span className={`ws-dot ${connected ? "connected" : "disconnected"}`}
+              title={connected ? "Connected" : "Disconnected"} />
+        <div style={{ flex: 1 }} />
+        <div className="admin-roster">
+          {roster.map(a => (
+            <span key={a.id} className={`admin-agent-chip ${a.status}`} title={`${a.nickname || formatRole(a.role)} (${a.status})`}>
+              <TierBadge tier={a.model_tier} />
+              <span>{a.nickname || formatRole(a.role)}</span>
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="chat-panel">
+        <div className="chat-messages">
+          {allChat.length === 0 && (
+            <div className="chat-empty">
+              <p>Welcome to Critique.</p>
+              <p className="hint">This is where the staff gathers after the run to review, discuss, and plan. Give feedback, get status updates, or coordinate across shows.</p>
+            </div>
+          )}
+          {allChat.map((m, i) => (
+            <div key={m.id || i} className={`chat-msg ${m.from === "user" ? "user" : "agent"}`}>
+              <div className="chat-msg-header">
+                <span className="chat-sender">{m.from === "user" ? "You" : (m.nickname || formatRole(m.from))}</span>
+                {m.time && <span className="chat-time">{timeAgo(m.time)}</span>}
+              </div>
+              <div className="chat-msg-body">{m.content}</div>
+            </div>
+          ))}
+          <div ref={chatEndRef} />
+        </div>
+        <div className="chat-input-row">
+          <select value={chatTarget} onChange={e => setChatTarget(e.target.value)}>
+            {uniqueRoles.length > 0 ? uniqueRoles.map(r => (
+              <option key={r} value={r}>{nicknameByRole[r] ? `${nicknameByRole[r]} (${formatRole(r)})` : formatRole(r)}</option>
+            )) : (
+              <option value="executive_director">Executive Director</option>
+            )}
+          </select>
+          <input
+            value={chatInput}
+            onChange={e => setChatInput(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleSend()}
+            placeholder="Give your critique..."
+          />
+          <button className="primary" onClick={handleSend} disabled={!chatInput.trim()}>Send</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 export default function App() {
-  const [view, setView] = useState<"dashboard" | "show">("dashboard");
+  const [view, setView] = useState<"dashboard" | "show" | "admin">("dashboard");
   const [selectedShow, setSelectedShow] = useState<Show | null>(null);
   const [shows, setShows] = useState<Show[]>([]);
   const [agents, setAgents] = useState<AgentSession[]>([]);
@@ -529,12 +636,16 @@ export default function App() {
   const [tree, setTree] = useState<CoordinateNode | null>(null);
   const [showLog, setShowLog] = useState<WorkLogEntry[]>([]);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [adminCorpsId, setAdminCorpsId] = useState<string | null>(null);
+  const [adminRoster, setAdminRoster] = useState<AgentSession[]>([]);
+  const [adminChatHistory, setAdminChatHistory] = useState<ChatMessage[]>([]);
   const [theme, setTheme] = useState<"dark" | "light">(() =>
     (localStorage.getItem("dci-theme") as "dark" | "light") || "dark"
   );
 
-  const corpsId = selectedShow?.corps_id ?? null;
-  const { connected, events, clearEvents } = useWebSocket(corpsId);
+  // WebSocket connects to whichever corps is active
+  const activeCorpsId = view === "admin" ? adminCorpsId : (selectedShow?.corps_id ?? null);
+  const { connected, events, clearEvents } = useWebSocket(activeCorpsId);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -622,8 +733,26 @@ export default function App() {
   };
 
   const handleSendChat = async (content: string, toRole: string) => {
-    if (!corpsId) return;
-    await api.sendChat(corpsId, content, toRole);
+    const cid = view === "admin" ? adminCorpsId : selectedShow?.corps_id;
+    if (!cid) return;
+    await api.sendChat(cid, content, toRole);
+  };
+
+  const handleOpenAdmin = async () => {
+    try {
+      const data = await api.getAdminCorps();
+      setAdminCorpsId(data.id);
+      setAdminRoster(data.roster);
+      clearEvents();
+      // Load chat history
+      try {
+        const history = await api.getChatHistory(data.id);
+        setAdminChatHistory(history);
+      } catch { setAdminChatHistory([]); }
+      setView("admin");
+    } catch (e) {
+      alert("Failed to load admin corps: " + (e instanceof Error ? e.message : "unknown error"));
+    }
   };
 
   const handleBack = () => {
@@ -647,6 +776,7 @@ export default function App() {
       <header className="app-header">
         <h1 className="app-title" onClick={handleBack} style={{ cursor: "pointer" }}>DCI Swarm</h1>
         <div className="header-controls">
+          <button className={view === "admin" ? "primary small" : "small"} onClick={handleOpenAdmin}>Critique</button>
           <button className="theme-toggle" onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}>
             {theme === "dark" ? "\u2600 Light" : "\u263D Dark"}
           </button>
@@ -660,6 +790,13 @@ export default function App() {
             onSelectShow={handleSelectShow} onCreateShow={handleCreateShow}
             onDeleteShow={handleDeleteShow} onActivateShow={handleActivateShow}
             onBulkCleanup={handleBulkCleanup}
+          />
+        )}
+        {view === "admin" && adminCorpsId && (
+          <AdminChat
+            corpsId={adminCorpsId} roster={adminRoster}
+            chatHistory={adminChatHistory} wsEvents={events} connected={connected}
+            onSendChat={handleSendChat} onBack={handleBack}
           />
         )}
         {view === "show" && selectedShow && (

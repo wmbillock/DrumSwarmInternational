@@ -359,6 +359,24 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 /* Rep assignee */
 .rep-assignee { font-family: monospace; font-size: 11px; color: var(--text-muted); }
 
+/* Critique (Admin Chat) */
+.admin-chat-view {
+  display: flex; flex-direction: column; height: calc(100vh - 53px);
+}
+.admin-chat-header {
+  display: flex; align-items: center; gap: 8px; padding: 8px 16px;
+  background: var(--bg-secondary); border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.admin-chat-header h2 { font-size: 15px; }
+.admin-roster { display: flex; gap: 6px; flex-wrap: wrap; }
+.admin-agent-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; font-size: 11px; border-radius: 12px;
+  background: var(--bg-card); border: 1px solid var(--border);
+}
+.admin-agent-chip.active { border-color: var(--success); }
+.admin-agent-chip.completed, .admin-agent-chip.failed { opacity: 0.5; }
+
 /* Responsive */
 @media (max-width: 900px) {
   .two-pane { flex-direction: column; }

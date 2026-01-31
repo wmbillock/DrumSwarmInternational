@@ -254,6 +254,36 @@ def api_toggle_tour(show_id: str, data: TourToggle, db: Session = Depends(get_db
         raise HTTPException(400, str(e))
 
 
+# --- Admin corps ("the bar") ---
+
+@app.get("/api/admin-corps")
+def api_get_admin_corps(db: Session = Depends(get_db)):
+    """Get or create the singleton admin corps for DCI HQ chat."""
+    from backend.services.corps_service import get_or_create_admin_corps
+    from backend.models.agent_session import AgentSession, SessionStatus
+    from backend.models.agent_definition import AgentDefinition
+    corps = get_or_create_admin_corps(db)
+    agents = (
+        db.query(AgentSession)
+        .join(AgentDefinition, AgentSession.definition_id == AgentDefinition.id)
+        .filter(AgentSession.corps_id == corps.id)
+        .all()
+    )
+    roster = []
+    for a in agents:
+        defn = db.get(AgentDefinition, a.definition_id)
+        roster.append({
+            "id": a.id, "role": defn.role if defn else "unknown",
+            "nickname": defn.nickname if defn else None,
+            "model_tier": defn.model_tier.value if defn else "unknown",
+            "status": a.status.value,
+        })
+    return {
+        "id": corps.id, "name": corps.name, "status": corps.status.value,
+        "roster": roster,
+    }
+
+
 # --- Corps endpoints ---
 
 @app.get("/api/corps/{corps_id}")

@@ -284,6 +284,74 @@ def initialize_corps(db: Session, corps_id: str) -> dict[str, AgentSession]:
     return sessions
 
 
+ADMIN_CORPS_NAME = "Critique"
+
+ADMIN_HIERARCHY = [
+    ("executive_director", ModelTier.OPUS, None),
+    ("program_coordinator", ModelTier.SONNET, "executive_director"),
+    ("timing_judge", ModelTier.HAIKU, None),
+]
+
+ADMIN_PROMPTS = {
+    "executive_director": (
+        "You are the DCI Executive Director in Critique — the post-run review and planning session.\n\n"
+        "Critique is where staff and judges gather to review performances, discuss what went well,\n"
+        "identify issues, and plan next steps. You're NOT tied to any specific show — you oversee all of them.\n\n"
+        "CAPABILITIES:\n"
+        "- Receive and discuss feedback about show performances and agent behavior\n"
+        "- Answer questions about the DCI Swarm system, its architecture, and its agents\n"
+        "- Help users understand the corps hierarchy and troubleshoot issues\n"
+        "- Provide status updates on all active shows\n"
+        "- Relay critique to individual show EDs when needed\n\n"
+        "AVAILABLE TOOLS: send_message\n\n"
+        "Be constructive, honest, and authoritative. This is critique — be direct but supportive.\n"
+    ),
+    "program_coordinator": (
+        "You are the Program Coordinator in Critique — the post-run review session.\n\n"
+        "You assist the Executive Director in reviewing performances and coordinating improvements.\n\n"
+        "AVAILABLE TOOLS: send_message\n\n"
+        "Help organize feedback and track action items. Be efficient and detail-oriented.\n"
+    ),
+    "timing_judge": (
+        "You are the Timing & Penalties Judge in Critique.\n\n"
+        "You review system health, timing issues, and flag rule violations during critique.\n\n"
+        "AVAILABLE TOOLS: send_message\n\n"
+        "Report on system status and timing issues. Be factual and precise.\n"
+    ),
+}
+
+
+def get_or_create_admin_corps(db: Session) -> Corps:
+    """Get the singleton admin corps, creating it if it doesn't exist."""
+    admin = db.query(Corps).filter(Corps.name == ADMIN_CORPS_NAME, Corps.show_id.is_(None)).first()
+    if admin:
+        return admin
+
+    admin = create_corps(db, name=ADMIN_CORPS_NAME, show_id=None)
+    sessions: dict[str, AgentSession] = {}
+    used_nicknames: set[str] = set()
+
+    for role, tier, parent_role in ADMIN_HIERARCHY:
+        prompt = ADMIN_PROMPTS.get(role, f"You are the admin {role}.")
+        tools = ["send_message"]
+        nickname = generate_nickname(role, used_nicknames)
+        used_nicknames.add(nickname)
+        defn = create_definition(
+            db, role=role, system_prompt=prompt, model_tier=tier,
+            tools_allowed=tools, corps_id=admin.id, nickname=nickname,
+        )
+        parent_session_id = sessions[parent_role].id if parent_role else None
+        session = spawn_session(
+            db, definition_id=defn.id, corps_id=admin.id,
+            parent_session_id=parent_session_id,
+        )
+        sessions[role] = session
+
+    admin.status = CorpsStatus.TOUR
+    db.commit()
+    return admin
+
+
 def start_tour(db: Session, corps_id: str) -> Corps:
     """Enable tour mode — remove human approval gates."""
     corps = db.get(Corps, corps_id)
