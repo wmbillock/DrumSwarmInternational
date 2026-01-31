@@ -465,15 +465,7 @@ class TaskManager:
                     failed_count = sum(1 for s in sessions if s.status == SessionStatus.FAILED)
 
                     # Count reps by status
-                    from backend.models.segment import Segment
-                    reps = (
-                        db.query(Rep)
-                        .join(Segment, Rep.segment_id == Segment.id)
-                        .filter(Segment.show_id.isnot(None))  # rough filter
-                        .all()
-                    )
-                    # Actually just get reps for this corps via segments
-                    # Simpler: count all reps that belong to segments in shows tied to this corps
+                    # Get reps for this corps via segments
                     from backend.models.show import Show
                     show = db.query(Show).filter(Show.corps_id == corps.id).first()
                     rep_summary = ""

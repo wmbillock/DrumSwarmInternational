@@ -232,6 +232,7 @@ Available tools:
         ]
 
         is_new_session = False
+        should_add_to_active = False
         if session_id and session_id in self._active_sessions:
             # Resume existing session — CLI preserves full conversation history
             cmd.extend(["--resume", session_id])
@@ -239,8 +240,8 @@ Available tools:
             # First call for this session in this process — try --session-id
             # but we'll retry with --resume if the CLI says it already exists
             cmd.extend(["--session-id", session_id])
-            self._active_sessions.add(session_id)
             is_new_session = True
+            should_add_to_active = True
             if tools:
                 system_prompt += "\n" + self.TOOL_PROTOCOL + self._format_tools_for_prompt(tools)
             if system_prompt.strip():
@@ -292,8 +293,14 @@ Available tools:
                     if proc.returncode != 0:
                         error_msg = proc.stderr.strip() or f"claude CLI exited with code {proc.returncode}"
                         return LLMResponse(content=f"Error: {error_msg}", stop_reason="error")
+                    # Resume succeeded, mark this session as active for future calls
+                    should_add_to_active = True
                 else:
                     return LLMResponse(content=f"Error: {error_msg}", stop_reason="error")
+
+            # Only add to active sessions after successful execution
+            if should_add_to_active and session_id:
+                self._active_sessions.add(session_id)
 
             # Parse JSON output from claude CLI
             raw_content = proc.stdout.strip()
