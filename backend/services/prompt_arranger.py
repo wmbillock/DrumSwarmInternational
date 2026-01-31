@@ -91,7 +91,33 @@ def assemble_prompt(role: str, context: Optional[dict] = None) -> str:
         rendered = _render_template(manifest["inline"], ctx)
         sections.append(rendered)
 
+    # Inject performance feedback if available
+    if ctx.get("inject_feedback", True):
+        feedback = _get_performance_feedback(role)
+        if feedback:
+            sections.append(feedback)
+
     return "\n\n".join(sections)
+
+
+def _get_performance_feedback(role: str) -> str:
+    """Generate performance feedback section from metrics."""
+    try:
+        from backend.services.memory_bank import get_memory_bank
+        mb = get_memory_bank()
+        if not mb.available:
+            return ""
+        memories = mb.recall(role, "recent performance feedback", k=2)
+        if not memories:
+            return ""
+        lines = ["## Performance Notes from Previous Sessions:"]
+        for mem in memories:
+            text = mem.get("text", mem.get("document", ""))
+            if text:
+                lines.append(f"- {text[:200]}")
+        return "\n".join(lines)
+    except Exception:
+        return ""
 
 
 def get_available_roles() -> list[str]:

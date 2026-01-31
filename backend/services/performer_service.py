@@ -125,6 +125,20 @@ def update_trust(
         performer.name, old_trust, performer.trust_score, delta, reason,
     )
 
+    # Record in capability ledger
+    try:
+        from backend.models.capability_ledger import LedgerEntryType
+        from backend.services.capability_ledger_service import record_entry
+        record_entry(
+            db, role_type=performer.role_type,
+            entry_type=LedgerEntryType.TRUST_CHANGE,
+            performer_id=performer.id, performer_name=performer.name,
+            trust_before=old_trust, trust_after=performer.trust_score,
+            details=reason,
+        )
+    except Exception:
+        pass  # Ledger recording is best-effort
+
     # Check thresholds
     if performer.trust_score <= TRUST_RETIREMENT_THRESHOLD and performer.status != PerformerStatus.RETIRED:
         retire_performer(db, performer_id, reason=f"Trust dropped to {performer.trust_score:.1f}: {reason}")

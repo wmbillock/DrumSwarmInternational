@@ -144,6 +144,21 @@ def run_agent(
     def _emit(event: dict) -> None:
         if on_event:
             on_event(event)
+        # Persist to WorkLog
+        try:
+            from backend.models.work_log import WorkLog
+            log = WorkLog(
+                session_id=session_id,
+                corps_id=event.get("corps_id", ""),
+                role=event.get("role", ""),
+                event_type=event.get("type", "unknown"),
+                phase=event.get("phase"),
+                details=str(event.get("detail", event.get("content", "")))[:2000] or None,
+            )
+            db.add(log)
+            db.commit()
+        except Exception:
+            pass  # Work log writing is best-effort
 
     agent_session = db.get(AgentSession, session_id)
     if agent_session is None:

@@ -89,12 +89,15 @@ class TaskManager:
                             "checked": met_result.checked,
                             "reclaimed": met_result.reclaimed,
                             "reclaimed_rep_ids": met_result.reclaimed_rep_ids,
+                            "idle_kicked": met_result.idle_kicked,
+                            "idle_kicked_rep_ids": met_result.idle_kicked_rep_ids,
                         },
                         "merge": {
                             "checked": merge_result.checked,
                             "merged": merge_result.merged,
                             "conflicts": merge_result.conflicts,
                         },
+                        "watchdog_respawned": met_result.watchdog_respawned,
                     })
                 return results
             finally:
@@ -118,12 +121,29 @@ class TaskManager:
                             "corps_id": corps_id,
                             **merge,
                         })
+            # Respawn dead watchdog chain roles
+            for r in results:
+                corps_id = r["corps_id"]
+                for dead_role in r.get("watchdog_respawned", []):
+                    db = self._session_factory()
+                    try:
+                        new_session = self.get_session_for_role(db, corps_id, dead_role)
+                        if new_session and not self.is_active(new_session):
+                            self.start_agent(
+                                session_id=new_session,
+                                task_description=f"You are being respawned by the watchdog chain. Resume monitoring duties for role {dead_role}.",
+                                corps_id=corps_id,
+                            )
+                            logger.info("Watchdog respawned %s in corps %s", dead_role, corps_id)
+                    finally:
+                        db.close()
+
             # Feed health summary to timing_judge if issues detected
             for r in results:
                 corps_id = r["corps_id"]
                 met = r["metronome"]
                 merge = r["merge"]
-                if met["reclaimed"] > 0 or merge["conflicts"] > 0:
+                if met["reclaimed"] > 0 or merge["conflicts"] > 0 or met.get("idle_kicked", 0) > 0:
                     judge_session = self.get_session_for_role(
                         self._session_factory(), corps_id, "timing_judge"
                     )
@@ -131,6 +151,7 @@ class TaskManager:
                         health_summary = (
                             f"Metronome tick results for corps {corps_id}:\n"
                             f"- Reps checked: {met['checked']}, reclaimed: {met['reclaimed']}\n"
+                            f"- GUPP idle kicked: {met.get('idle_kicked', 0)}\n"
                             f"- Merge checked: {merge['checked']}, merged: {merge['merged']}, conflicts: {merge['conflicts']}\n"
                             f"Review and escalate any issues."
                         )

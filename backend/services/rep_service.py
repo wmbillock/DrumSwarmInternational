@@ -39,6 +39,8 @@ def transition_rep(
             f"Cannot transition rep from {rep.status.value} to {new_status.value}"
         )
 
+    old_status = rep.status
+
     # Run verification gates before allowing COMPLETED transition
     if new_status == RepStatus.COMPLETED:
         _run_verification(db, rep, result)
@@ -61,6 +63,19 @@ def transition_rep(
 
     # Update the coordinate's status based on its reps
     _sync_coordinate_from_reps(db, rep.coordinate_id)
+
+    # Publish event
+    try:
+        from backend.services.event_bus import get_event_bus
+        bus = get_event_bus()
+        bus.publish("rep.status_changed", {
+            "rep_id": rep.id,
+            "coordinate_id": rep.coordinate_id,
+            "old_status": old_status.value,
+            "new_status": new_status.value,
+        })
+    except Exception:
+        pass
 
     return rep
 

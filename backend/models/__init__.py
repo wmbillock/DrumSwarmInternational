@@ -13,6 +13,7 @@ from backend.models.corps import Corps, CorpsStatus, RehearsalMode
 from backend.models.show import Show, ShowStatus
 from backend.models.work_log import WorkLog
 from backend.models.performer import Performer, PerformerStatus
+from backend.models.capability_ledger import CapabilityLedgerEntry, LedgerEntryType
 
 __all__ = [
     "Coordinate", "CoordinateType", "CoordinateStatus",
@@ -28,4 +29,5 @@ __all__ = [
     "Show", "ShowStatus",
     "WorkLog",
     "Performer", "PerformerStatus",
+    "CapabilityLedgerEntry", "LedgerEntryType",
 ]

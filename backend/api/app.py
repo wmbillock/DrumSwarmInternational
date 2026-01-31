@@ -1360,6 +1360,52 @@ def api_instantiate_template(req: CreateFromTemplateRequest, db: Session = Depen
         raise HTTPException(404, f"Template '{req.template}' not found")
 
 
+# --- Seance ---
+
+class SeanceRequest(BaseModel):
+    query: str
+    role: Optional[str] = None
+    k: int = 5
+
+
+@app.post("/api/seance")
+def api_seance(req: SeanceRequest):
+    """Query previous sessions for context (seance)."""
+    from backend.services.seance import query_previous_sessions
+    import dataclasses
+    result = query_previous_sessions(req.query, role=req.role, k=req.k)
+    return dataclasses.asdict(result)
+
+
+# --- Capability Ledger ---
+
+@app.get("/api/performers/{performer_id}/ledger")
+def api_performer_ledger(performer_id: str, db: Session = Depends(get_db)):
+    """Get capability ledger entries for a performer."""
+    from backend.services.capability_ledger_service import get_entries_for_performer
+    entries = get_entries_for_performer(db, performer_id)
+    return [
+        {
+            "id": e.id,
+            "entry_type": e.entry_type.value,
+            "role_type": e.role_type,
+            "score": e.score,
+            "trust_before": e.trust_before,
+            "trust_after": e.trust_after,
+            "details": e.details,
+            "created_at": e.created_at.isoformat() if e.created_at else None,
+        }
+        for e in entries
+    ]
+
+
+@app.get("/api/performers/{performer_id}/stats")
+def api_performer_stats(performer_id: str, db: Session = Depends(get_db)):
+    """Get aggregate stats from the capability ledger."""
+    from backend.services.capability_ledger_service import get_performer_stats
+    return get_performer_stats(db, performer_id)
+
+
 # --- Evaluation ---
 
 @app.post("/api/corps/{corps_id}/evaluate")
