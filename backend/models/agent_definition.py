@@ -35,7 +35,7 @@ class AgentDefinition(Base):
     role: Mapped[str] = mapped_column(String(50))
     system_prompt: Mapped[str] = mapped_column(Text)
     model_tier: Mapped[ModelTier] = mapped_column(
-        Enum(ModelTier), default=ModelTier.SONNET
+        Enum(ModelTier, values_callable=lambda x: [e.value for e in x]), default=ModelTier.SONNET
     )
     # Comma-separated list of allowed tool names
     tools_allowed: Mapped[str] = mapped_column(Text, default="")

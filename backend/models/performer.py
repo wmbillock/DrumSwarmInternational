@@ -34,7 +34,7 @@ class Performer(Base):
     successful_sessions: Mapped[int] = mapped_column(Integer, default=0)
     failed_sessions: Mapped[int] = mapped_column(Integer, default=0)
     status: Mapped[PerformerStatus] = mapped_column(
-        Enum(PerformerStatus), default=PerformerStatus.ACTIVE
+        Enum(PerformerStatus, values_callable=lambda x: [e.value for e in x]), default=PerformerStatus.ACTIVE
     )
     specialties: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     retirement_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

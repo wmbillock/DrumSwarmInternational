@@ -27,7 +27,7 @@ class Show(Base):
     title: Mapped[str] = mapped_column(String(255))
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     status: Mapped[ShowStatus] = mapped_column(
-        Enum(ShowStatus), default=ShowStatus.DRAFT
+        Enum(ShowStatus, values_callable=lambda x: [e.value for e in x]), default=ShowStatus.DRAFT
     )
     corps_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     segment_root_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)

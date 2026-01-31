@@ -37,7 +37,7 @@ class Subscription(Base):
         String(36), nullable=True
     )
     corps_id: Mapped[str] = mapped_column(String(36))
-    event_type: Mapped[EventType] = mapped_column(Enum(EventType))
+    event_type: Mapped[EventType] = mapped_column(Enum(EventType, values_callable=lambda x: [e.value for e in x]))
     active: Mapped[bool] = mapped_column(default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

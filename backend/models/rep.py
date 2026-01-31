@@ -41,7 +41,8 @@ class Rep(Base):
     segment_id: Mapped[str] = mapped_column(ForeignKey("segments.id"))
     assigned_to: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     status: Mapped[RepStatus] = mapped_column(
-        Enum(RepStatus), default=RepStatus.PENDING
+        Enum(RepStatus, values_callable=lambda x: [e.value for e in x]),
+        default=RepStatus.PENDING
     )
     result: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

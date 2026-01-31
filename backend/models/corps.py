@@ -40,10 +40,10 @@ class Corps(Base):
     show_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     name: Mapped[str] = mapped_column(String(255))
     status: Mapped[CorpsStatus] = mapped_column(
-        Enum(CorpsStatus), default=CorpsStatus.INITIALIZING
+        Enum(CorpsStatus, values_callable=lambda x: [e.value for e in x]), default=CorpsStatus.INITIALIZING
     )
     rehearsal_mode: Mapped[Optional[RehearsalMode]] = mapped_column(
-        Enum(RehearsalMode), nullable=True
+        Enum(RehearsalMode, values_callable=lambda x: [e.value for e in x]), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

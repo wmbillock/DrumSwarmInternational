@@ -42,10 +42,10 @@ class Problem(Base):
         String(36), nullable=True
     )
     severity: Mapped[ProblemSeverity] = mapped_column(
-        Enum(ProblemSeverity), default=ProblemSeverity.MEDIUM
+        Enum(ProblemSeverity, values_callable=lambda x: [e.value for e in x]), default=ProblemSeverity.MEDIUM
     )
     status: Mapped[ProblemStatus] = mapped_column(
-        Enum(ProblemStatus), default=ProblemStatus.OPEN
+        Enum(ProblemStatus, values_callable=lambda x: [e.value for e in x]), default=ProblemStatus.OPEN
     )
     title: Mapped[str] = mapped_column(String(255))
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

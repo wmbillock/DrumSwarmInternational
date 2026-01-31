@@ -36,7 +36,7 @@ class CapabilityLedgerEntry(Base):
     performer_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     performer_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     role_type: Mapped[str] = mapped_column(String(50))
-    entry_type: Mapped[LedgerEntryType] = mapped_column(Enum(LedgerEntryType))
+    entry_type: Mapped[LedgerEntryType] = mapped_column(Enum(LedgerEntryType, values_callable=lambda x: [e.value for e in x]))
     corps_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     session_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     rep_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)

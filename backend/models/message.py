@@ -47,9 +47,9 @@ class Message(Base):
     from_session_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     to_role: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     to_session_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
-    type: Mapped[MessageType] = mapped_column(Enum(MessageType))
+    type: Mapped[MessageType] = mapped_column(Enum(MessageType, values_callable=lambda x: [e.value for e in x]))
     priority: Mapped[MessagePriority] = mapped_column(
-        Enum(MessagePriority), default=MessagePriority.NORMAL
+        Enum(MessagePriority, values_callable=lambda x: [e.value for e in x]), default=MessagePriority.NORMAL
     )
     subject: Mapped[str] = mapped_column(String(255))
     body: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

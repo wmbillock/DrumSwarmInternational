@@ -37,7 +37,7 @@ class Score(Base):
         ForeignKey("segments.id"), nullable=True
     )
     corps_id: Mapped[str] = mapped_column(String(36))
-    judge_type: Mapped[JudgeType] = mapped_column(Enum(JudgeType))
+    judge_type: Mapped[JudgeType] = mapped_column(Enum(JudgeType, values_callable=lambda x: [e.value for e in x]))
     value: Mapped[float] = mapped_column(Float)  # 0-100
     box: Mapped[int] = mapped_column(Integer)  # 1-5 quick triage
     feedback: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

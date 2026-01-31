@@ -33,7 +33,7 @@ class Penalty(Base):
     segment_id: Mapped[Optional[str]] = mapped_column(
         ForeignKey("segments.id"), nullable=True
     )
-    type: Mapped[PenaltyType] = mapped_column(Enum(PenaltyType))
+    type: Mapped[PenaltyType] = mapped_column(Enum(PenaltyType, values_callable=lambda x: [e.value for e in x]))
     amount: Mapped[float] = mapped_column(Float)  # Points deducted
     reason: Mapped[str] = mapped_column(Text)
     issued_by: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)

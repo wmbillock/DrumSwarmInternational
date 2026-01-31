@@ -39,7 +39,7 @@ class AgentSession(Base):
         ForeignKey("agent_sessions.id"), nullable=True
     )
     status: Mapped[SessionStatus] = mapped_column(
-        Enum(SessionStatus), default=SessionStatus.ACTIVE
+        Enum(SessionStatus, values_callable=lambda x: [e.value for e in x]), default=SessionStatus.ACTIVE
     )
     context_snapshot: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     performer_id: Mapped[Optional[str]] = mapped_column(

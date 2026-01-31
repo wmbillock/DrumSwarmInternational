@@ -34,11 +34,14 @@ class Segment(Base):
     parent_id: Mapped[Optional[str]] = mapped_column(
         ForeignKey("segments.id"), nullable=True
     )
-    type: Mapped[SegmentType] = mapped_column(Enum(SegmentType))
+    type: Mapped[SegmentType] = mapped_column(
+        Enum(SegmentType, values_callable=lambda x: [e.value for e in x])
+    )
     title: Mapped[str] = mapped_column(String(255))
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     status: Mapped[SegmentStatus] = mapped_column(
-        Enum(SegmentStatus), default=SegmentStatus.PENDING
+        Enum(SegmentStatus, values_callable=lambda x: [e.value for e in x]),
+        default=SegmentStatus.PENDING
     )
     caption: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
