@@ -72,6 +72,14 @@ export const getSessionActivity = (sessionId: string) =>
 export const getScoresheet = (corpsId: string) =>
   request<Scoresheet>(`/api/corps/${corpsId}/scoresheet`);
 
+// Corps commands
+export const getCorpsCommands = () =>
+  request<Record<string, { label: string; description: string; category: string }>>("/api/corps-commands");
+export const executeCorpsCommand = (corpsId: string, command: string) =>
+  request<{ command: string; corps_id: string; status: string; detail: string }>(
+    `/api/corps/${corpsId}/command`, { method: "POST", body: JSON.stringify({ command }) }
+  );
+
 // Metronome
 export const metronomeTick = (corpsId: string) =>
   request(`/api/corps/${corpsId}/metronome/tick`, { method: "POST" });

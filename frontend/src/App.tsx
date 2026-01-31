@@ -149,21 +149,21 @@ function Dashboard({
             }
             return Object.entries(byCorps).map(([corpsId, corpsAgents]) => {
               const show = shows.find(s => s.corps_id === corpsId);
+              const corpsName = show?.corps_name || show?.title || corpsId.slice(0, 8);
               return (
                 <div key={corpsId} className="agent-corps-group">
                   <div className="agent-corps-header clickable" onClick={() => show && onSelectShow(show)}>
-                    <span className="corps-name">{show?.title || corpsId.slice(0, 8)}</span>
+                    <span className="corps-name">{corpsName}</span>
                     <span className="agent-count">{corpsAgents.length} agents</span>
                   </div>
                   <div className="agent-list">
-                    {corpsAgents.slice(0, 10).map(a => (
+                    {corpsAgents.map(a => (
                       <div key={a.id} className="agent-row clickable" onClick={() => show && onSelectShow(show)}>
                         <span className="agent-nickname">{a.nickname || formatRole(a.role)}</span>
                         <span className="agent-role-small">{formatRole(a.role)}</span>
                         <TierBadge tier={a.model_tier} />
                       </div>
                     ))}
-                    {corpsAgents.length > 10 && <p className="empty">...and {corpsAgents.length - 10} more</p>}
                   </div>
                 </div>
               );
@@ -193,14 +193,15 @@ function Dashboard({
 function ShowCard({ show, onSelect, onDelete, onActivate }: {
   show: Show; onSelect: (s: Show) => void; onDelete: (id: string) => void; onActivate: (id: string) => void;
 }) {
+  const displayTitle = show.title.length > 40 ? show.title.slice(0, 40) + "..." : show.title;
   return (
     <div className={`show-card status-${show.status}`} onClick={() => onSelect(show)}>
       <div className="show-card-header">
-        <h3 title={show.title}>{show.title.length > 60 ? show.title.slice(0, 60) + "..." : show.title}</h3>
+        <h3 title={show.title}>{displayTitle}</h3>
         <StatusBadge status={show.status} />
       </div>
       {show.corps_name && <p className="show-corps-name">{show.corps_name}</p>}
-      {show.description && <p className="show-desc">{show.description.slice(0, 120)}</p>}
+      {show.description && <p className="show-desc">{show.description.length > 80 ? show.description.slice(0, 80) + "..." : show.description}</p>}
       <div className="show-stats">
         <span>{show.agents_active ?? 0} agents</span>
         <span>{(show.reps_completed ?? 0)}/{(show.reps_total ?? 0)} tasks done</span>
@@ -301,6 +302,10 @@ function ShowDetail({
           )}
         </div>
       </div>
+
+      {show.corps_id && (
+        <SwarmControlPanel corpsId={show.corps_id} onCommand={() => onRefresh()} />
+      )}
 
       <div className="two-pane">
         {/* ===== LEFT PANE: CHAT ===== */}
@@ -423,7 +428,7 @@ function ShowDetail({
                       {workLog.slice(0, 30).map(w => (
                         <div key={w.id} className="activity-row">
                           <span className="activity-type">{w.event_type}</span>
-                          <span className="activity-role">{formatRole(w.role)}</span>
+                          <span className="activity-role">{nicknameByRole[w.role] || formatRole(w.role)}</span>
                           <span className="activity-detail">{w.details?.slice(0, 80)}</span>
                           <span className="activity-time">{timeAgo(w.timestamp)}</span>
                         </div>
@@ -607,6 +612,83 @@ function CoordTree({ node, depth }: { node: CoordinateNode; depth: number }) {
           {node.children.map(c => <CoordTree key={c.id} node={c} depth={depth + 1} />)}
         </div>
       )}
+    </div>
+  );
+}
+
+// --- Swarm Control Panel ---
+const COMMAND_GROUPS: Record<string, { label: string; commands: { cmd: string; label: string; desc: string; style?: string }[] }> = {
+  control: {
+    label: "Field Commands",
+    commands: [
+      { cmd: "resume_hut", label: "Resume, Hut!", desc: "Wake all agents, begin work", style: "primary" },
+      { cmd: "attention", label: "Attention!", desc: "All agents report status", style: "" },
+      { cmd: "at_ease", label: "At Ease", desc: "Finish tasks then idle", style: "" },
+      { cmd: "dismissed", label: "Dismissed", desc: "Disband the corps", style: "danger" },
+    ],
+  },
+  rehearsal: {
+    label: "Rehearsal Mode",
+    commands: [
+      { cmd: "basics", label: "Basics", desc: "Fundamentals rehearsal" },
+      { cmd: "sectionals", label: "Sectionals", desc: "Section-level rehearsal" },
+      { cmd: "full_ensemble", label: "Full Ensemble", desc: "All sections together" },
+      { cmd: "run_through", label: "Run Through", desc: "Full performance run" },
+    ],
+  },
+  tour: {
+    label: "Tour",
+    commands: [
+      { cmd: "tour_start", label: "Start Tour", desc: "Autonomous execution", style: "primary" },
+      { cmd: "tour_stop", label: "Stop Tour", desc: "Return to rehearsal" },
+    ],
+  },
+  system: {
+    label: "System",
+    commands: [
+      { cmd: "metronome_tick", label: "Tick", desc: "Reclaim stale work" },
+      { cmd: "merge_check", label: "Merge", desc: "Check completed work" },
+    ],
+  },
+};
+
+function SwarmControlPanel({ corpsId, onCommand }: {
+  corpsId: string;
+  onCommand: (corpsId: string, cmd: string) => void;
+}) {
+  const [lastResult, setLastResult] = useState<string | null>(null);
+
+  const handleCommand = async (cmd: string) => {
+    try {
+      const result = await api.executeCorpsCommand(corpsId, cmd);
+      setLastResult(`${result.command}: ${result.detail}`);
+      onCommand(corpsId, cmd);
+    } catch (e) {
+      setLastResult(`Error: ${e instanceof Error ? e.message : "unknown"}`);
+    }
+    setTimeout(() => setLastResult(null), 4000);
+  };
+
+  return (
+    <div className="control-panel">
+      {Object.entries(COMMAND_GROUPS).map(([, group]) => (
+        <div key={group.label} className="control-group">
+          <span className="control-group-label">{group.label}</span>
+          <div className="control-buttons">
+            {group.commands.map(c => (
+              <button
+                key={c.cmd}
+                className={`control-btn ${c.style || ""}`}
+                title={c.desc}
+                onClick={() => handleCommand(c.cmd)}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+      {lastResult && <div className="control-result">{lastResult}</div>}
     </div>
   );
 }

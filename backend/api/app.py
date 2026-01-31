@@ -1037,6 +1037,180 @@ def api_merge_check(corps_id: str, db: Session = Depends(get_db)):
     }
 
 
+# --- Swarm Control Panel: Corps Commands ---
+
+class CorpsCommand(BaseModel):
+    command: str  # resume_hut, attention, at_ease, dismissed, run_through, basics, sectionals, tour_start, tour_stop, metronome_tick, merge_check
+
+CORPS_COMMANDS = {
+    "resume_hut": {"label": "Resume, Hut!", "description": "Wake all agents and begin/resume work", "category": "control"},
+    "attention": {"label": "Attention!", "description": "All agents pause and report current status", "category": "control"},
+    "at_ease": {"label": "At Ease", "description": "Finish current tasks then idle", "category": "control"},
+    "dismissed": {"label": "Dismissed", "description": "Stop all agents, disband the corps", "category": "control"},
+    "basics": {"label": "Basics", "description": "Switch to basics rehearsal mode", "category": "rehearsal"},
+    "sectionals": {"label": "Sectionals", "description": "Switch to sectionals rehearsal mode", "category": "rehearsal"},
+    "full_ensemble": {"label": "Full Ensemble", "description": "Switch to full ensemble rehearsal", "category": "rehearsal"},
+    "run_through": {"label": "Run Through", "description": "Full run-through rehearsal mode", "category": "rehearsal"},
+    "tour_start": {"label": "Start Tour", "description": "Enable tour mode — autonomous execution", "category": "tour"},
+    "tour_stop": {"label": "Stop Tour", "description": "Disable tour mode — return to rehearsal", "category": "tour"},
+    "metronome_tick": {"label": "Metronome Tick", "description": "Manual metronome tick — reclaim stale work", "category": "system"},
+    "merge_check": {"label": "Merge Check", "description": "Check and merge completed work", "category": "system"},
+}
+
+
+@app.get("/api/corps-commands")
+def api_list_corps_commands():
+    """List all available corps commands."""
+    return CORPS_COMMANDS
+
+
+@app.post("/api/corps/{corps_id}/command")
+async def api_execute_corps_command(corps_id: str, data: CorpsCommand, db: Session = Depends(get_db)):
+    """Execute a corps command."""
+    from backend.models.corps import Corps, CorpsStatus, RehearsalMode
+    from backend.services.corps_service import (
+        start_tour, stop_tour, set_rehearsal_mode, disband_corps, merge_monitor_check, CorpsError,
+    )
+    from backend.tools.metronome import tick
+
+    corps = db.get(Corps, corps_id)
+    if not corps:
+        raise HTTPException(404, "Corps not found")
+
+    cmd = data.command
+    if cmd not in CORPS_COMMANDS:
+        raise HTTPException(400, f"Unknown command: {cmd}")
+
+    result = {"command": cmd, "corps_id": corps_id, "status": "ok", "detail": ""}
+    tm = get_task_manager()
+
+    if cmd == "resume_hut":
+        # Wake all agents — find the ED and start them with a resume directive
+        if tm:
+            from backend.models.agent_session import AgentSession, SessionStatus
+            from backend.models.agent_definition import AgentDefinition
+            sessions = (
+                db.query(AgentSession)
+                .join(AgentDefinition)
+                .filter(AgentSession.corps_id == corps_id)
+                .all()
+            )
+            woken = 0
+            for s in sessions:
+                defn = db.get(AgentDefinition, s.definition_id)
+                if defn and not tm.is_active(s.id):
+                    sid = tm.get_session_for_role(db, corps_id, defn.role)
+                    if sid:
+                        tm.start_agent(
+                            session_id=sid,
+                            task_description=(
+                                f"RESUME HUT! The corps has been called to attention and work is resuming. "
+                                f"Check your current assignments and continue working. Corps ID: {corps_id}"
+                            ),
+                            corps_id=corps_id,
+                        )
+                        woken += 1
+            result["detail"] = f"Woke {woken} agents"
+        await manager.broadcast(corps_id, {
+            "type": "command", "command": "resume_hut",
+            "content": "Resume, Hut! All agents resuming work.",
+        })
+
+    elif cmd == "attention":
+        # Broadcast attention — agents report status
+        if tm:
+            ed_session = tm.get_session_for_role(db, corps_id, "executive_director")
+            if ed_session and not tm.is_active(ed_session):
+                tm.start_agent(
+                    session_id=ed_session,
+                    task_description=(
+                        f"ATTENTION! The director has called the corps to attention. "
+                        f"Report the current status of all work in progress. Corps ID: {corps_id}. "
+                        f"Check all coordinates and reps, then provide a full status report."
+                    ),
+                    corps_id=corps_id,
+                )
+        await manager.broadcast(corps_id, {
+            "type": "command", "command": "attention",
+            "content": "Attention! Status report requested.",
+        })
+        result["detail"] = "Status report requested from ED"
+
+    elif cmd == "at_ease":
+        # Soft pause — let current work finish, don't start new
+        corps.status = CorpsStatus.REHEARSAL
+        corps.tour_mode = False
+        db.commit()
+        await manager.broadcast(corps_id, {
+            "type": "command", "command": "at_ease",
+            "content": "At ease. Finishing current tasks, then standing by.",
+        })
+        result["detail"] = "Corps set to rehearsal mode, tour disabled"
+
+    elif cmd == "dismissed":
+        try:
+            disband_corps(db, corps_id)
+            await manager.broadcast(corps_id, {
+                "type": "command", "command": "dismissed",
+                "content": "Corps dismissed. All agents standing down.",
+            })
+            result["detail"] = "Corps disbanded"
+        except CorpsError as e:
+            raise HTTPException(400, str(e))
+
+    elif cmd in ("basics", "sectionals", "full_ensemble", "run_through"):
+        try:
+            mode = RehearsalMode(cmd)
+            set_rehearsal_mode(db, corps_id, mode)
+            await manager.broadcast(corps_id, {
+                "type": "command", "command": cmd,
+                "content": f"Rehearsal mode set to: {cmd.replace('_', ' ')}",
+            })
+            result["detail"] = f"Rehearsal mode: {cmd}"
+        except (ValueError, CorpsError) as e:
+            raise HTTPException(400, str(e))
+
+    elif cmd == "tour_start":
+        try:
+            start_tour(db, corps_id)
+            await manager.broadcast(corps_id, {
+                "type": "command", "command": "tour_start",
+                "content": "Tour mode enabled — autonomous execution active.",
+            })
+            result["detail"] = "Tour mode enabled"
+        except CorpsError as e:
+            raise HTTPException(400, str(e))
+
+    elif cmd == "tour_stop":
+        try:
+            stop_tour(db, corps_id)
+            await manager.broadcast(corps_id, {
+                "type": "command", "command": "tour_stop",
+                "content": "Tour mode disabled — returning to rehearsal.",
+            })
+            result["detail"] = "Tour mode disabled"
+        except CorpsError as e:
+            raise HTTPException(400, str(e))
+
+    elif cmd == "metronome_tick":
+        tick_result = tick(db, corps_id)
+        await manager.broadcast(corps_id, {
+            "type": "metronome_tick", "corps_id": corps_id,
+            "checked": tick_result.checked, "reclaimed": tick_result.reclaimed,
+        })
+        result["detail"] = f"Checked {tick_result.checked}, reclaimed {tick_result.reclaimed}"
+
+    elif cmd == "merge_check":
+        merge_result = merge_monitor_check(db, corps_id)
+        await manager.broadcast(corps_id, {
+            "type": "merge_check", "corps_id": corps_id,
+            "merged": merge_result.merged, "conflicts": merge_result.conflicts,
+        })
+        result["detail"] = f"Merged {merge_result.merged}, conflicts {merge_result.conflicts}"
+
+    return result
+
+
 # --- WebSocket for real-time updates ---
 
 @app.websocket("/ws/{corps_id}")

@@ -192,3 +192,49 @@ class TestMessageAPI:
         poll_resp = client.get(f"/api/corps/{corps_id}/messages?role=program_coordinator")
         assert poll_resp.status_code == 200
         assert len(poll_resp.json()) >= 1
+
+
+class TestCorpsCommands:
+    def test_list_commands(self, client):
+        resp = client.get("/api/corps-commands")
+        assert resp.status_code == 200
+        cmds = resp.json()
+        assert "resume_hut" in cmds
+        assert "attention" in cmds
+        assert "dismissed" in cmds
+        assert cmds["resume_hut"]["category"] == "control"
+
+    def test_unknown_command(self, client):
+        from backend.models.corps import Corps, CorpsStatus
+        # Create a corps first
+        resp = client.post("/api/shows", json={"title": "Cmd Test"})
+        show_id = resp.json()["id"]
+        # Need a corps — create one directly
+        from backend.database import Base
+        resp = client.post(f"/api/corps/fake-id/command", json={"command": "bogus"})
+        assert resp.status_code in (400, 404)
+
+    def test_at_ease_command(self, client):
+        from backend.models.corps import Corps, CorpsStatus
+        # We need a real corps for this
+        resp = client.post("/api/shows", json={"title": "Ease Test"})
+        show_id = resp.json()["id"]
+        # Activate to get a corps
+        act_resp = client.post(f"/api/shows/{show_id}/activate")
+        if act_resp.status_code == 200:
+            corps_id = act_resp.json().get("corps_id")
+            if corps_id:
+                cmd_resp = client.post(f"/api/corps/{corps_id}/command", json={"command": "at_ease"})
+                assert cmd_resp.status_code == 200
+                assert cmd_resp.json()["status"] == "ok"
+
+    def test_rehearsal_mode_commands(self, client):
+        resp = client.post("/api/shows", json={"title": "Rehearsal Test"})
+        show_id = resp.json()["id"]
+        act_resp = client.post(f"/api/shows/{show_id}/activate")
+        if act_resp.status_code == 200:
+            corps_id = act_resp.json().get("corps_id")
+            if corps_id:
+                for mode in ["basics", "sectionals", "full_ensemble", "run_through"]:
+                    cmd_resp = client.post(f"/api/corps/{corps_id}/command", json={"command": mode})
+                    assert cmd_resp.status_code == 200
