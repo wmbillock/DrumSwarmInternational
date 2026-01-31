@@ -10,7 +10,9 @@ from typing import TYPE_CHECKING, Optional
 
 from backend.database import create_db_engine, create_session_factory
 from backend.services.agent_runtime import run_agent
+from backend.services.autoscaler import AutoScaler
 from backend.services.llm_client import LLMClient
+from backend.services.message_bus import get_message_bus
 from backend.services.tool_executor import ToolExecutor
 
 if TYPE_CHECKING:
@@ -33,6 +35,8 @@ class TaskManager:
         self._session_factory = create_session_factory(self._engine)
         self._metronome_task: Optional[asyncio.Task] = None
         self._stopped = False
+        self.autoscaler = AutoScaler()
+        self.message_bus = get_message_bus()
 
     def start_metronome(self) -> None:
         """Start the automatic metronome tick loop."""
@@ -51,6 +55,7 @@ class TaskManager:
         while not self._stopped:
             try:
                 await asyncio.sleep(METRONOME_INTERVAL_SECONDS)
+                self.autoscaler.adjust_limits()
                 await self._tick_all_corps()
             except asyncio.CancelledError:
                 break

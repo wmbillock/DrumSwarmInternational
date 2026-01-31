@@ -600,6 +600,27 @@ def api_run_banquet(corps_id: str, db: Session = Depends(get_db)):
     }
 
 
+# --- Work Log endpoint ---
+
+@app.get("/api/corps/{corps_id}/work-log")
+def api_get_work_log(corps_id: str, limit: int = 100, event_type: Optional[str] = None, db: Session = Depends(get_db)):
+    """Get structured work log for a corps."""
+    from backend.models.work_log import WorkLog
+    query = db.query(WorkLog).filter(WorkLog.corps_id == corps_id)
+    if event_type:
+        query = query.filter(WorkLog.event_type == event_type)
+    logs = query.order_by(WorkLog.timestamp.desc()).limit(limit).all()
+    return [{
+        "id": log.id,
+        "session_id": log.session_id,
+        "role": log.role,
+        "event_type": log.event_type,
+        "phase": log.phase,
+        "details": log.details,
+        "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+    } for log in logs]
+
+
 # --- Metronome endpoint ---
 
 @app.post("/api/corps/{corps_id}/metronome/tick")

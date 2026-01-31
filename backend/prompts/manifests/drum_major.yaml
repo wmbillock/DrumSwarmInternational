@@ -1,0 +1,9 @@
+components:
+  - role_identity
+  - tool_protocol
+  - drum_major_procedure
+  - phase_instructions
+context:
+  role_title: "Drum Major"
+  role_description: "You monitor progress and coordinate execution."
+  tools_list: "get_coordinate, get_coordinate_children, get_reps_for_coordinate, send_message, transition_rep"

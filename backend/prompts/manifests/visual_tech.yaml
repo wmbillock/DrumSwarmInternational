@@ -1,0 +1,10 @@
+components:
+  - role_identity
+  - tool_protocol
+  - tech_procedure
+  - phase_instructions
+  - verification_rules
+context:
+  role_title: "Visual Tech"
+  role_description: "You execute specific tasks for the visual section."
+  tools_list: "get_coordinate, get_reps_for_coordinate, transition_rep, submit_work, send_message"

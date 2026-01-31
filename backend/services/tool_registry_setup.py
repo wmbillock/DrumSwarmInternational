@@ -97,6 +97,21 @@ def register_service_tools(registry: ToolRegistry) -> None:
         rep = _transition(db, rep_id=rep_id, new_status=RepStatus.REVIEW, result=result)
         return {"id": rep.id, "status": rep.status.value}
 
+    def verify_work(db, rep_id: str, coordinate_id: str = ""):
+        """Run verification gates on a rep's result before completion."""
+        from backend.models.rep import Rep
+        from backend.services.verification import VerificationEngine
+        rep = db.get(Rep, rep_id)
+        if not rep:
+            return {"error": "Rep not found"}
+        if not rep.result:
+            return {"passed": False, "summary": "Rep has no result to verify."}
+        engine = VerificationEngine()
+        result = engine.verify(rep_id=rep_id, result=rep.result, coordinate_id=coordinate_id or rep.coordinate_id)
+        return {"passed": result.passed, "summary": result.summary, "gates": [
+            {"gate": g.gate_name, "passed": g.passed, "message": g.message} for g in result.gates
+        ]}
+
     # --- Register all tools ---
 
     registry.register("create_coordinate", create_coordinate, {
@@ -145,37 +160,33 @@ def register_service_tools(registry: ToolRegistry) -> None:
 
     registry.register("send_message", send_message, {
         "name": "send_message",
-        "description": "Send a message to another role in the corps hierarchy.",
+        "description": "Send a message to another role in the corps hierarchy. corps_id and from_role are auto-injected.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "corps_id": {"type": "string"},
-                "from_role": {"type": "string"},
-                "to_role": {"type": "string"},
+                "to_role": {"type": "string", "description": "Target role to send the message to"},
                 "type": {"type": "string", "enum": ["handoff", "escalation", "flag", "status", "directive", "feedback"]},
                 "subject": {"type": "string"},
                 "body": {"type": "string"},
                 "priority": {"type": "string", "enum": ["critical", "high", "normal", "low"]},
                 "coordinate_id": {"type": "string"},
             },
-            "required": ["corps_id", "from_role", "to_role", "type", "subject"],
+            "required": ["to_role", "type", "subject"],
         },
     })
 
     registry.register("handoff", handoff, {
         "name": "handoff",
-        "description": "Hand off work to a downstream role. Must follow the handoff chain.",
+        "description": "Hand off work to a downstream role. Must follow the handoff chain. corps_id and from_role are auto-injected.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "corps_id": {"type": "string"},
-                "from_role": {"type": "string"},
-                "to_role": {"type": "string"},
-                "subject": {"type": "string"},
-                "body": {"type": "string", "description": "Detailed instructions for the handoff"},
-                "coordinate_id": {"type": "string"},
+                "to_role": {"type": "string", "description": "Role to hand off to (e.g. program_coordinator, brass_caption_head)"},
+                "subject": {"type": "string", "description": "Brief description of the handoff"},
+                "body": {"type": "string", "description": "Detailed instructions for the receiving role"},
+                "coordinate_id": {"type": "string", "description": "Coordinate ID related to this handoff"},
             },
-            "required": ["corps_id", "from_role", "to_role", "subject"],
+            "required": ["to_role", "subject"],
         },
     })
 
@@ -225,5 +236,18 @@ def register_service_tools(registry: ToolRegistry) -> None:
                 "result": {"type": "string", "description": "The completed work output"},
             },
             "required": ["rep_id", "result"],
+        },
+    })
+
+    registry.register("verify_work", verify_work, {
+        "name": "verify_work",
+        "description": "Run verification gates on a rep's result. Returns pass/fail with gate details.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "rep_id": {"type": "string", "description": "The rep to verify"},
+                "coordinate_id": {"type": "string", "description": "Optional coordinate ID for custom gates"},
+            },
+            "required": ["rep_id"],
         },
     })

@@ -11,6 +11,7 @@ from backend.models.score import Score, JudgeType
 from backend.models.penalty import Penalty, PenaltyType
 from backend.models.corps import Corps, CorpsStatus, RehearsalMode
 from backend.models.show import Show, ShowStatus
+from backend.models.work_log import WorkLog
 
 __all__ = [
     "Coordinate", "CoordinateType", "CoordinateStatus",
@@ -24,4 +25,5 @@ __all__ = [
     "Penalty", "PenaltyType",
     "Corps", "CorpsStatus", "RehearsalMode",
     "Show", "ShowStatus",
+    "WorkLog",
 ]

@@ -96,6 +96,20 @@ class ToolExecutor:
             # Inject db if the tool function accepts it
             sig = inspect.signature(tool_func)
             params = list(sig.parameters.keys())
+
+            # Auto-inject session context for tools that need it
+            if "corps_id" in params or "from_role" in params:
+                from backend.models.agent_session import AgentSession
+                from backend.models.agent_definition import AgentDefinition
+                session = db.get(AgentSession, session_id)
+                if session:
+                    if "corps_id" in params:
+                        arguments["corps_id"] = session.corps_id
+                    if "from_role" in params:
+                        defn = db.get(AgentDefinition, session.definition_id)
+                        if defn:
+                            arguments["from_role"] = defn.role
+
             if params and params[0] == "db":
                 output = tool_func(db, **arguments)
             else:

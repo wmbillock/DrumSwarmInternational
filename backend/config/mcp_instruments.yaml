@@ -1,0 +1,43 @@
+# MCP Instrument Configuration
+# Maps external MCP servers and their tools to DCI Swarm roles.
+#
+# Each instrument defines:
+#   name: Namespace prefix for tool names (e.g. github.create_issue)
+#   config: Connection config for the MCP server
+#   roles: Which DCI roles can use these tools
+#   tools: List of tool definitions with name, description, and input_schema
+
+instruments: []
+  # Example:
+  # - name: github
+  #   config:
+  #     server_command: "npx @modelcontextprotocol/server-github"
+  #     env:
+  #       GITHUB_TOKEN: "${GITHUB_TOKEN}"
+  #   roles:
+  #     - executive_director
+  #     - program_coordinator
+  #   tools:
+  #     - name: create_issue
+  #       description: "Create a GitHub issue"
+  #       input_schema:
+  #         type: object
+  #         properties:
+  #           repo: {type: string, description: "Repository (owner/name)"}
+  #           title: {type: string, description: "Issue title"}
+  #           body: {type: string, description: "Issue body"}
+  #         required: [repo, title]
+  #
+  # - name: sentry
+  #   config:
+  #     server_command: "npx @modelcontextprotocol/server-sentry"
+  #   roles:
+  #     - timing_judge
+  #   tools:
+  #     - name: list_errors
+  #       description: "List recent Sentry errors"
+  #       input_schema:
+  #         type: object
+  #         properties:
+  #           project: {type: string}
+  #         required: [project]

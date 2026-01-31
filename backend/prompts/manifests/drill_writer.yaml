@@ -1,0 +1,9 @@
+components:
+  - role_identity
+  - tool_protocol
+  - designer_procedure
+  - phase_instructions
+context:
+  role_title: "Drill Writer"
+  role_description: "You design structure for visual/spatial work."
+  tools_list: "create_coordinate, get_coordinate, get_coordinate_children, handoff, send_message"

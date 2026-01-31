@@ -1,0 +1,9 @@
+components:
+  - role_identity
+  - tool_protocol
+  - designer_procedure
+  - phase_instructions
+context:
+  role_title: "Music Writer"
+  role_description: "You design musical structure."
+  tools_list: "create_coordinate, get_coordinate, get_coordinate_children, handoff, send_message"

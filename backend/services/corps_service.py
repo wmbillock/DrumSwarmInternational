@@ -19,6 +19,7 @@ from backend.services.message_service import (
     MessagePriority,
     InvalidMessagePath,
 )
+from backend.services.prompt_arranger import assemble_prompt, get_available_roles
 
 
 class CorpsError(Exception):
@@ -41,9 +42,10 @@ ROLE_PROMPTS = {
         "PROCEDURE — follow these steps exactly:\n"
         "1. Analyze the task and decide how many movements are needed.\n"
         "2. Call create_coordinate for EACH movement with type='movement', the given parent_id, a clear title, and a description.\n"
-        "3. Call handoff with from_role='executive_director', to_role='program_coordinator', and a body containing:\n"
+        "3. Call handoff with to_role='program_coordinator', and a body containing:\n"
         "   - The movement coordinate IDs you just created\n"
         "   - Clear instructions for how to break each movement into sets and tasks\n"
+        "   NOTE: corps_id and from_role are auto-injected — do NOT include them.\n"
         "4. Return a brief summary of what you created.\n\n"
         "RULES:\n"
         "- You MUST call tools. Do NOT describe what you would do — execute the tool calls.\n"
@@ -55,7 +57,7 @@ ROLE_PROMPTS = {
         "AVAILABLE TOOLS: create_coordinate, create_rep, get_coordinate, get_coordinate_children, "
         "get_reps_for_coordinate, handoff, send_message, transition_rep\n\n"
         "PROCEDURE:\n"
-        "1. Call get_coordinate_children on the root to see the movements created by the ED.\n"
+        "1. Call get_coordinate_children using the root coordinate ID provided in your task.\n"
         "2. For each movement, create SET coordinates underneath it (type='set').\n"
         "3. For each set, create leaf COORDINATE nodes (type='coordinate') for specific tasks.\n"
         "4. For each leaf coordinate, call create_rep to create a work unit.\n"
@@ -70,7 +72,7 @@ ROLE_PROMPTS = {
         "You are the Drum Major. You monitor progress and coordinate execution.\n\n"
         "AVAILABLE TOOLS: get_coordinate, get_coordinate_children, get_reps_for_coordinate, send_message, transition_rep\n\n"
         "PROCEDURE:\n"
-        "1. Call get_coordinate_children on the root to see overall structure.\n"
+        "1. Call get_coordinate_children using the root coordinate ID provided in your task.\n"
         "2. For each coordinate, call get_reps_for_coordinate to check rep statuses.\n"
         "3. If reps are stuck (assigned but not progressing), send_message to the assigned role.\n"
         "4. If reps are in review, transition them to completed or failed based on quality.\n"
@@ -167,10 +169,10 @@ ROLE_TOOLS = {
     "drill_writer": ["create_coordinate", "get_coordinate", "get_coordinate_children", "handoff", "send_message"],
     "music_writer": ["create_coordinate", "get_coordinate", "get_coordinate_children", "handoff", "send_message"],
     "choreographer": ["create_coordinate", "get_coordinate", "get_coordinate_children", "handoff", "send_message"],
-    "brass_caption_head": ["create_coordinate", "create_rep", "get_coordinate", "get_coordinate_children", "get_reps_for_coordinate", "handoff", "send_message", "transition_rep", "submit_work"],
-    "percussion_caption_head": ["create_coordinate", "create_rep", "get_coordinate", "get_coordinate_children", "get_reps_for_coordinate", "handoff", "send_message", "transition_rep", "submit_work"],
-    "guard_caption_head": ["create_coordinate", "create_rep", "get_coordinate", "get_coordinate_children", "get_reps_for_coordinate", "handoff", "send_message", "transition_rep", "submit_work"],
-    "visual_caption_head": ["create_coordinate", "create_rep", "get_coordinate", "get_coordinate_children", "get_reps_for_coordinate", "handoff", "send_message", "transition_rep", "submit_work"],
+    "brass_caption_head": ["create_coordinate", "create_rep", "get_coordinate", "get_coordinate_children", "get_reps_for_coordinate", "handoff", "send_message", "transition_rep", "submit_work", "verify_work"],
+    "percussion_caption_head": ["create_coordinate", "create_rep", "get_coordinate", "get_coordinate_children", "get_reps_for_coordinate", "handoff", "send_message", "transition_rep", "submit_work", "verify_work"],
+    "guard_caption_head": ["create_coordinate", "create_rep", "get_coordinate", "get_coordinate_children", "get_reps_for_coordinate", "handoff", "send_message", "transition_rep", "submit_work", "verify_work"],
+    "visual_caption_head": ["create_coordinate", "create_rep", "get_coordinate", "get_coordinate_children", "get_reps_for_coordinate", "handoff", "send_message", "transition_rep", "submit_work", "verify_work"],
     "brass_tech": ["get_coordinate", "get_reps_for_coordinate", "transition_rep", "submit_work", "send_message"],
     "percussion_tech": ["get_coordinate", "get_reps_for_coordinate", "transition_rep", "submit_work", "send_message"],
     "front_ensemble_tech": ["get_coordinate", "get_reps_for_coordinate", "transition_rep", "submit_work", "send_message"],
@@ -202,6 +204,7 @@ CORPS_HIERARCHY = [
 # Handoff chain: design → caption head → tech → performer
 # Maps who can hand off work to whom
 HANDOFF_CHAIN = {
+    "executive_director": {"program_coordinator"},
     "program_coordinator": {"drill_writer", "music_writer", "choreographer",
                             "brass_caption_head", "percussion_caption_head",
                             "guard_caption_head", "visual_caption_head"},
@@ -254,7 +257,8 @@ def initialize_corps(db: Session, corps_id: str) -> dict[str, AgentSession]:
     sessions: dict[str, AgentSession] = {}
 
     for role, tier, parent_role in CORPS_HIERARCHY:
-        prompt = ROLE_PROMPTS.get(role, f"You are the {role} for this corps.")
+        # Try PromptArranger first, fall back to hardcoded prompts
+        prompt = assemble_prompt(role) or ROLE_PROMPTS.get(role, f"You are the {role} for this corps.")
         tools = ROLE_TOOLS.get(role, [])
         defn = create_definition(
             db, role=role,
