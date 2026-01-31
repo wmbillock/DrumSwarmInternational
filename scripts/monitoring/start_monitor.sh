@@ -117,7 +117,7 @@ create_session() {
     tmux bind-key -T prefix 0 select-pane -t "$SESSION_NAME:0.0"
     tmux bind-key -T prefix d select-pane -t "$SESSION_NAME:0.1"
     tmux bind-key -T prefix l select-pane -t "$SESSION_NAME:0.2"
-    tmux bind-key -T prefix \; select-pane -t "$SESSION_NAME:0.3"
+    tmux bind-key -T prefix '\;' select-pane -t "$SESSION_NAME:0.3"
 
     # ─── Swarm menu (prefix+s) — display-menu popup ─────────────────
     tmux bind-key -T prefix s display-menu -T "#[bold]DCI Swarm" \
