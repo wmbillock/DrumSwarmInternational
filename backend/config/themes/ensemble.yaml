@@ -1,0 +1,60 @@
+name: ensemble
+display_name: "Ensemble"
+
+org_unit: ensemble
+org_unit_plural: ensembles
+project: project
+project_plural: projects
+work_item: task
+work_item_plural: tasks
+
+work_levels:
+  - milestone
+  - task
+  - unit
+
+tier_labels:
+  opus: "Full Firepower"
+  sonnet: "Balanced"
+  haiku: "Economical"
+
+org_states:
+  - planning
+  - execution
+  - review
+  - completed
+  - archived
+
+execution_modes:
+  - requirements
+  - architecture
+  - implementation
+  - testing
+
+admin_name: Green Room
+
+commands:
+  resume:
+    label: "Resume"
+    description: "Wake all agents and resume work"
+    category: control
+  status:
+    label: "Status"
+    description: "Request status report from Director"
+    category: control
+  pause:
+    label: "Pause"
+    description: "Pause non-essential agent activity"
+    category: control
+  disband:
+    label: "Disband"
+    description: "Disband the ensemble"
+    category: control
+
+color_palette:
+  engineering_director: "#ff7b72"
+  development_manager: "#79c0ff"
+  system_architect: "#d2a8ff"
+  backend_coordinator: "#7ee787"
+  frontend_coordinator: "#ffa657"
+  test_coordinator: "#ff9bce"

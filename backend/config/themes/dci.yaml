@@ -1,0 +1,110 @@
+name: dci
+display_name: "DCI Swarm"
+
+# Organizational units
+org_unit: corps
+org_unit_plural: corps
+project: show
+project_plural: shows
+work_item: rep
+work_item_plural: reps
+
+# Work hierarchy levels (below project)
+work_levels:
+  - movement
+  - set
+  - coordinate
+
+# Model tier labels
+tier_labels:
+  opus: "Strategic"
+  sonnet: "Coordination"
+  haiku: "Execution"
+
+# Lifecycle states for the org unit
+org_states:
+  - initializing
+  - rehearsal
+  - tour
+  - completed
+  - disbanded
+
+# Execution modes (rehearsal modes in DCI)
+execution_modes:
+  - basics
+  - sectionals
+  - full_ensemble
+  - run_through
+
+# Admin section
+admin_name: Critique
+
+# Commands vocabulary
+commands:
+  resume_hut:
+    label: "Resume, Hut!"
+    description: "Wake all agents and resume work"
+    category: control
+  attention:
+    label: "Attention!"
+    description: "Request status report from ED"
+    category: control
+  at_ease:
+    label: "At Ease"
+    description: "Pause non-essential agent activity"
+    category: control
+  dismissed:
+    label: "Dismissed"
+    description: "Disband the corps"
+    category: control
+  basics:
+    label: "Basics"
+    description: "Internal caption self-improvement"
+    category: rehearsal
+  sectionals:
+    label: "Sectionals"
+    description: "Per-caption rehearsal"
+    category: rehearsal
+  full_ensemble:
+    label: "Full Ensemble"
+    description: "All captions together"
+    category: rehearsal
+  run_through:
+    label: "Run Through"
+    description: "Full show execution"
+    category: rehearsal
+  tour_start:
+    label: "Start Tour"
+    description: "Enable autonomous execution"
+    category: tour
+  tour_stop:
+    label: "Stop Tour"
+    description: "Return to supervised mode"
+    category: tour
+  metronome_tick:
+    label: "Metronome Tick"
+    description: "Manual liveness check"
+    category: system
+  merge_check:
+    label: "Merge Check"
+    description: "Check for completed work to integrate"
+    category: system
+
+# Color palette for roles
+color_palette:
+  executive_director: "#ff7b72"
+  program_coordinator: "#79c0ff"
+  drum_major: "#d2a8ff"
+  drill_writer: "#7ee787"
+  music_writer: "#ffa657"
+  choreographer: "#ff9bce"
+  brass_caption_head: "#f78166"
+  percussion_caption_head: "#d29922"
+  guard_caption_head: "#bc8cff"
+  visual_caption_head: "#7ee787"
+  brass_tech: "#ffa198"
+  percussion_tech: "#e3b341"
+  front_ensemble_tech: "#d29922"
+  guard_tech: "#d2a8ff"
+  visual_tech: "#56d364"
+  timing_judge: "#8b949e"

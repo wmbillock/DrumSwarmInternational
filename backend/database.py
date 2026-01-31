@@ -36,3 +36,31 @@ def init_db(engine) -> None:
     except Exception as e:
         logger.warning("Alembic migration failed (%s), falling back to create_all", e)
         Base.metadata.create_all(engine)
+
+    # Add missing columns to existing tables (handles schema drift without migrations)
+    _apply_schema_patches(engine)
+
+
+def _apply_schema_patches(engine) -> None:
+    """Add columns that may be missing from existing databases."""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    patches = [
+        ("agent_sessions", "performer_id", "VARCHAR(36)"),
+    ]
+
+    with engine.connect() as conn:
+        for table_name, column_name, column_type in patches:
+            if table_name not in inspector.get_table_names():
+                continue
+            existing_columns = {c["name"] for c in inspector.get_columns(table_name)}
+            if column_name not in existing_columns:
+                try:
+                    conn.execute(text(
+                        f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"
+                    ))
+                    conn.commit()
+                    logger.info("Added column %s.%s", table_name, column_name)
+                except Exception as e:
+                    logger.warning("Failed to add column %s.%s: %s", table_name, column_name, e)

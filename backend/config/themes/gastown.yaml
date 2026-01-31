@@ -1,0 +1,59 @@
+name: gastown
+display_name: "Gas Town"
+
+org_unit: rig
+org_unit_plural: rigs
+project: convoy
+project_plural: convoys
+work_item: bead
+work_item_plural: beads
+
+work_levels:
+  - epic
+  - molecule
+  - bead
+
+tier_labels:
+  opus: "Mayor"
+  sonnet: "Crew"
+  haiku: "Polecat"
+
+org_states:
+  - created
+  - active
+  - suspended
+  - completed
+  - archived
+
+execution_modes:
+  - patrol
+  - sprint
+  - formula
+  - shutdown
+
+admin_name: Town Hall
+
+commands:
+  prime:
+    label: "Prime"
+    description: "Context recovery for agents"
+    category: control
+  nudge:
+    label: "Nudge"
+    description: "Send real-time message to agent"
+    category: control
+  sling:
+    label: "Sling"
+    description: "Assign work to agent"
+    category: control
+  hook:
+    label: "Hook"
+    description: "Check agent work queue"
+    category: system
+
+color_palette:
+  mayor: "#ff7b72"
+  deacon: "#79c0ff"
+  witness: "#d2a8ff"
+  polecat: "#7ee787"
+  refinery: "#ffa657"

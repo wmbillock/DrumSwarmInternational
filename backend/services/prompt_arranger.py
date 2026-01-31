@@ -57,6 +57,20 @@ def assemble_prompt(role: str, context: Optional[dict] = None) -> str:
     ctx = context or {}
     ctx.setdefault("role", role)
 
+    # Inject theme variables
+    try:
+        from backend.config.theme import get_theme
+        theme = get_theme()
+        ctx.setdefault("org_unit", theme.org_unit)
+        ctx.setdefault("project", theme.project)
+        ctx.setdefault("work_item", theme.work_item)
+        ctx.setdefault("admin_name", theme.admin_name)
+        ctx.setdefault("display_name", theme.display_name)
+        for i, level in enumerate(theme.work_levels):
+            ctx.setdefault(f"work_level_{i}", level)
+    except Exception:
+        pass  # Theme not available — continue without
+
     manifest = load_manifest(role)
     if manifest is None:
         return ""

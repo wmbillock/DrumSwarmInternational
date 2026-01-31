@@ -115,7 +115,14 @@ app = FastAPI(title="DCI Swarm", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+        "http://127.0.0.1:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -1209,6 +1216,38 @@ async def api_execute_corps_command(corps_id: str, data: CorpsCommand, db: Sessi
         result["detail"] = f"Merged {merge_result.merged}, conflicts {merge_result.conflicts}"
 
     return result
+
+
+# --- Theme API ---
+
+@app.get("/api/theme")
+def api_get_theme():
+    from backend.config.theme import get_theme
+    theme = get_theme()
+    return {
+        "name": theme.name,
+        "display_name": theme.display_name,
+        "org_unit": theme.org_unit,
+        "org_unit_plural": theme.org_unit_plural,
+        "project": theme.project,
+        "project_plural": theme.project_plural,
+        "work_levels": theme.work_levels,
+        "work_item": theme.work_item,
+        "work_item_plural": theme.work_item_plural,
+        "execution_modes": theme.execution_modes,
+        "admin_name": theme.admin_name,
+        "color_palette": theme.color_palette,
+        "commands": {
+            k: {"label": v.label, "description": v.description, "category": v.category}
+            for k, v in theme.commands.items()
+        },
+    }
+
+
+@app.get("/api/themes")
+def api_list_themes():
+    from backend.config.theme import list_themes
+    return list_themes()
 
 
 # --- Performers API ---
