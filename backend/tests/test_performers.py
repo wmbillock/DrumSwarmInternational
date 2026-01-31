@@ -8,7 +8,7 @@ from sqlalchemy.pool import StaticPool
 from backend.database import Base
 
 # Import all models to populate metadata
-import backend.models.coordinate  # noqa: F401
+import backend.models.segment  # noqa: F401
 import backend.models.rep  # noqa: F401
 import backend.models.message  # noqa: F401
 import backend.models.problem  # noqa: F401

@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useShow } from "../contexts/ShowContext";
 import { useWebSocket } from "../hooks/useWebSocket";
-import { getRoster, getCoordinateChildren, getCoordinate } from "../services/api";
-import type { AgentSession, Coordinate } from "../types";
+import { getRoster, getSegmentChildren, getSegment } from "../services/api";
+import type { AgentSession, Segment } from "../types";
 
 const STATUS_ICONS: Record<string, string> = {
   pending: "\u25cb",      // ○
@@ -36,7 +36,7 @@ function formatRole(role: string): string {
 }
 
 interface CoordNode {
-  coord: Coordinate;
+  coord: Segment;
   children: CoordNode[];
 }
 
@@ -53,7 +53,7 @@ export function ProjectState({ onSelectItem }: { onSelectItem?: (type: string, i
     getRoster(corpsId).then((data) => setRoster(data as AgentSession[])).catch(() => {});
   }, [corpsId]);
 
-  // Load coordinate tree
+  // Load segment tree
   useEffect(() => {
     if (!rootCoordId) { setCoordTree(null); return; }
     loadCoordTree(rootCoordId).then(setCoordTree).catch(() => {});
@@ -63,15 +63,15 @@ export function ProjectState({ onSelectItem }: { onSelectItem?: (type: string, i
   useEffect(() => {
     if (!lastMessage) return;
     const event = lastMessage as Record<string, unknown>;
-    if (event.type === "coordinate_created" || event.type === "agent_status" || event.type === "rep_update") {
+    if (event.type === "segment_created" || event.type === "agent_status" || event.type === "rep_update") {
       if (corpsId) getRoster(corpsId).then((d) => setRoster(d as AgentSession[])).catch(() => {});
       if (rootCoordId) loadCoordTree(rootCoordId).then(setCoordTree).catch(() => {});
     }
   }, [lastMessage, corpsId, rootCoordId]);
 
   async function loadCoordTree(coordId: string): Promise<CoordNode> {
-    const coord = (await getCoordinate(coordId)) as Coordinate;
-    const children = (await getCoordinateChildren(coordId)) as Coordinate[];
+    const coord = (await getSegment(coordId)) as Segment;
+    const children = (await getSegmentChildren(coordId)) as Segment[];
     const childNodes = await Promise.all(children.map((c) => loadCoordTree(c.id)));
     return { coord, children: childNodes };
   }
@@ -93,7 +93,7 @@ export function ProjectState({ onSelectItem }: { onSelectItem?: (type: string, i
         <div
           onClick={() => {
             if (hasChildren) toggleExpand(node.coord.id);
-            onSelectItem?.("coordinate", node.coord.id);
+            onSelectItem?.("segment", node.coord.id);
           }}
           style={{
             display: "flex", alignItems: "center", gap: 6, padding: "3px 6px",
@@ -142,10 +142,10 @@ export function ProjectState({ onSelectItem }: { onSelectItem?: (type: string, i
         ))}
       </div>
 
-      {/* Coordinate Tree */}
+      {/* Segment Tree */}
       {coordTree && (
         <div>
-          <h4 style={{ fontSize: 11, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 6, letterSpacing: 1 }}>Coordinates</h4>
+          <h4 style={{ fontSize: 11, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 6, letterSpacing: 1 }}>Segments</h4>
           {renderCoordNode(coordTree)}
         </div>
       )}

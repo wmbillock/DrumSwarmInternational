@@ -9,7 +9,7 @@ from sqlalchemy.pool import StaticPool
 from backend.database import Base
 
 # Import all models BEFORE app to ensure Base.metadata is populated
-import backend.models.coordinate  # noqa: F401
+import backend.models.segment  # noqa: F401
 import backend.models.rep  # noqa: F401
 import backend.models.message  # noqa: F401
 import backend.models.problem  # noqa: F401
@@ -123,37 +123,37 @@ class TestCorpsAPI:
         assert resp.json()["rehearsal_mode"] == "basics"
 
 
-class TestCoordinateAPI:
-    def test_create_and_get_coordinate(self, client):
-        resp = client.post("/api/coordinates", json={
+class TestSegmentAPI:
+    def test_create_and_get_segment(self, client):
+        resp = client.post("/api/segments", json={
             "type": "show", "title": "Test Show"
         })
         assert resp.status_code == 200
         coord_id = resp.json()["id"]
-        get_resp = client.get(f"/api/coordinates/{coord_id}")
+        get_resp = client.get(f"/api/segments/{coord_id}")
         assert get_resp.status_code == 200
         assert get_resp.json()["title"] == "Test Show"
 
-    def test_coordinate_children(self, client):
-        show_resp = client.post("/api/coordinates", json={
+    def test_segment_children(self, client):
+        show_resp = client.post("/api/segments", json={
             "type": "show", "title": "Show"
         })
         show_id = show_resp.json()["id"]
-        client.post("/api/coordinates", json={
+        client.post("/api/segments", json={
             "type": "movement", "title": "M1", "parent_id": show_id
         })
-        resp = client.get(f"/api/coordinates/{show_id}/children")
+        resp = client.get(f"/api/segments/{show_id}/children")
         assert resp.status_code == 200
         assert len(resp.json()) == 1
 
 
 class TestRepAPI:
     def test_create_and_transition_rep(self, client):
-        show_resp = client.post("/api/coordinates", json={
+        show_resp = client.post("/api/segments", json={
             "type": "show", "title": "Show"
         })
         coord_id = show_resp.json()["id"]
-        rep_resp = client.post("/api/reps", json={"coordinate_id": coord_id})
+        rep_resp = client.post("/api/reps", json={"segment_id": coord_id})
         assert rep_resp.status_code == 200
         rep_id = rep_resp.json()["id"]
 
@@ -163,13 +163,13 @@ class TestRepAPI:
         assert trans_resp.status_code == 200
         assert trans_resp.json()["status"] == "assigned"
 
-    def test_get_reps_for_coordinate(self, client):
-        show_resp = client.post("/api/coordinates", json={
+    def test_get_reps_for_segment(self, client):
+        show_resp = client.post("/api/segments", json={
             "type": "show", "title": "Show"
         })
         coord_id = show_resp.json()["id"]
-        client.post("/api/reps", json={"coordinate_id": coord_id})
-        resp = client.get(f"/api/coordinates/{coord_id}/reps")
+        client.post("/api/reps", json={"segment_id": coord_id})
+        resp = client.get(f"/api/segments/{coord_id}/reps")
         assert resp.status_code == 200
         assert len(resp.json()) == 1
 

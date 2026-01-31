@@ -19,7 +19,7 @@ from backend.services.show_service import (
 )
 
 # Import all models
-import backend.models.coordinate  # noqa: F401
+import backend.models.segment  # noqa: F401
 import backend.models.rep  # noqa: F401
 import backend.models.message  # noqa: F401
 import backend.models.problem  # noqa: F401
@@ -49,7 +49,7 @@ class TestShowCRUD:
         assert show.id is not None
         assert show.title == "My Show"
         assert show.status == ShowStatus.DRAFT
-        assert show.coordinate_root_id is not None
+        assert show.segment_root_id is not None
 
     def test_get_show(self, db):
         show = create_show(db, title="Get Test")
@@ -122,10 +122,10 @@ class TestTourToggle:
 
 
 class TestEndToEnd:
-    def test_create_activate_coordinate_rep(self, db):
-        """Integration test: show → corps → coordinate → rep."""
-        from backend.models.coordinate import CoordinateType
-        from backend.services.coordinate_service import create_coordinate
+    def test_create_activate_segment_rep(self, db):
+        """Integration test: show → corps → segment → rep."""
+        from backend.models.segment import SegmentType
+        from backend.services.segment_service import create_segment
         from backend.services.rep_service import create_rep, transition_rep
         from backend.models.rep import RepStatus
         from backend.services.scoring_service import record_score
@@ -136,18 +136,18 @@ class TestEndToEnd:
         show = activate_show(db, show.id)
         assert show.corps_id is not None
 
-        # Create coordinate tree
-        movement = create_coordinate(
-            db, type=CoordinateType.MOVEMENT, title="Movement 1",
-            parent_id=show.coordinate_root_id
+        # Create segment tree
+        movement = create_segment(
+            db, type=SegmentType.MOVEMENT, title="Movement 1",
+            parent_id=show.segment_root_id
         )
-        set_coord = create_coordinate(
-            db, type=CoordinateType.SET, title="Set 1",
+        set_coord = create_segment(
+            db, type=SegmentType.SET, title="Set 1",
             parent_id=movement.id, caption="brass"
         )
 
         # Create and run a rep
-        rep = create_rep(db, coordinate_id=set_coord.id)
+        rep = create_rep(db, segment_id=set_coord.id)
         transition_rep(db, rep.id, RepStatus.ASSIGNED, assigned_to="agent-1")
         transition_rep(db, rep.id, RepStatus.IN_PROGRESS)
         transition_rep(db, rep.id, RepStatus.REVIEW, result="Completed brass work output")

@@ -33,8 +33,8 @@ def create_tool_registry() -> ToolRegistry:
         "description": "Validation tool — types, tests, schema checks",
         "input_schema": {
             "type": "object",
-            "properties": {"coordinate_id": {"type": "string"}},
-            "required": ["coordinate_id"],
+            "properties": {"segment_id": {"type": "string"}},
+            "required": ["segment_id"],
         },
     })
 
@@ -44,8 +44,8 @@ def create_tool_registry() -> ToolRegistry:
         "description": "Isolated timing/performance check",
         "input_schema": {
             "type": "object",
-            "properties": {"coordinate_id": {"type": "string"}},
-            "required": ["coordinate_id"],
+            "properties": {"segment_id": {"type": "string"}},
+            "required": ["segment_id"],
         },
     })
 
@@ -55,8 +55,8 @@ def create_tool_registry() -> ToolRegistry:
         "description": "Alignment check with adjacent/related work",
         "input_schema": {
             "type": "object",
-            "properties": {"coordinate_id": {"type": "string"}},
-            "required": ["coordinate_id"],
+            "properties": {"segment_id": {"type": "string"}},
+            "required": ["segment_id"],
         },
     })
 
@@ -66,12 +66,12 @@ def create_tool_registry() -> ToolRegistry:
         "description": "Quality sweep on completed artifacts",
         "input_schema": {
             "type": "object",
-            "properties": {"coordinate_id": {"type": "string"}},
-            "required": ["coordinate_id"],
+            "properties": {"segment_id": {"type": "string"}},
+            "required": ["segment_id"],
         },
     })
 
-    # Service-layer tools (create_coordinate, create_rep, handoff, etc.)
+    # Service-layer tools (create_segment, create_rep, handoff, etc.)
     register_service_tools(registry)
 
     return registry

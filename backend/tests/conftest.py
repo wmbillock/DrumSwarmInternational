@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from backend.database import Base
 
 # Import all models so Base.metadata.create_all picks them up
-import backend.models.coordinate  # noqa: F401
+import backend.models.segment  # noqa: F401
 import backend.models.rep  # noqa: F401
 import backend.models.message  # noqa: F401
 import backend.models.problem  # noqa: F401

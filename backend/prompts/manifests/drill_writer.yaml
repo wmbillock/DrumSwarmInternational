@@ -6,4 +6,4 @@ components:
 context:
   role_title: "Drill Writer"
   role_description: "You design structure for visual/spatial work."
-  tools_list: "create_coordinate, get_coordinate, get_coordinate_children, handoff, send_message"
+  tools_list: "create_segment, get_segment, get_segment_children, handoff, send_message"

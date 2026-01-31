@@ -17,9 +17,9 @@ Individual agent sessions. Performers spawn per rep, die when done. Staff agents
 |---|---|
 | **Show** | A project — the complete deliverable |
 | **Movement** | A major feature or milestone within a show |
-| **Set** | A group of related coordinates that form a coherent unit (e.g., a module, a component) |
-| **Coordinate** | A specific task or feature to be implemented |
-| **Rep** | A single work attempt against a coordinate or set. The atomic work unit. Multiple reps may be needed to "learn" (complete) a coordinate. |
+| **Set** | A group of related segments that form a coherent unit (e.g., a module, a component) |
+| **Segment** | A specific task or feature to be implemented |
+| **Rep** | A single work attempt against a segment or set. The atomic work unit. Multiple reps may be needed to "learn" (complete) a segment. |
 | **Corps** | The agent swarm instantiated for a show |
 | **Rehearsal** | An execution cycle — basics, sectionals, full ensemble, or run-through |
 | **Score** | Multi-dimensional quality evaluation of a rep or show |
@@ -38,17 +38,17 @@ Individual agent sessions. Performers spawn per rep, die when done. Staff agents
 - **Corps** — the swarm for a show. Owns all agents, reps, and messages.
 - **AgentDefinition** — role template. Mutable by techs (tiered: prompt tweaks free, tool permission or model tier changes require caption head approval). Versioned.
 - **AgentSession** — a running instance of a definition. Parent/child spawn tree. Context snapshot on completion for warm-up of successors.
-- **Coordinate** — a specific task/feature to be completed. Tree structure: show → movement → set → coordinate. Status rolls up from children.
-- **Rep** — a work attempt against a coordinate. State machine: pending → assigned → in_progress → review → completed/failed. A coordinate may require multiple reps.
+- **Segment** — a specific task/feature to be completed. Tree structure: show → movement → set → segment. Status rolls up from children.
+- **Rep** — a work attempt against a segment. State machine: pending → assigned → in_progress → review → completed/failed. A segment may require multiple reps.
 - **Message** — priority-queued, hierarchy-enforced communication. Types: handoff, escalation, flag, status, directive, feedback. Delivery: direct, role-addressed, or broadcast.
-- **Score** — evaluation of a rep or coordinate. Judge type, 0-100, box 1-5, feedback.
+- **Score** — evaluation of a rep or segment. Judge type, 0-100, box 1-5, feedback.
 - **Penalty** — rule violation deduction against a corps.
 
 ### Key Design Decisions
-- Reps and coordinates are persistent and survive agent death
+- Reps and segments are persistent and survive agent death
 - Messages are hierarchy-enforced — a performer cannot send a directive, a designer cannot message a performer directly
 - AgentDefinitions are versioned with tiered modification permissions
-- Performers get context via coordinate description + parent snapshot, not full conversation replay
+- Performers get context via segment description + parent snapshot, not full conversation replay
 
 ## Communication
 - Priority queue per corps (polling-based with SQLite for v1)
@@ -58,8 +58,8 @@ Individual agent sessions. Performers spawn per rep, die when done. Staff agents
 ### Asynchronous Coordination
 Performers are ephemeral — they can't wait for a response from another agent. Three mechanisms handle this:
 
-- **Problem Queue** — when a performer hits an issue it can't resolve, it posts to a persistent queue linked to the coordinate, then dies. The problem survives the agent. The tech or caption head monitoring that caption reads the queue and acts on it.
-- **Subscriptions** — agents subscribe to events on coordinates or sets they care about. Notifications fire on rep completion, rep failure, problem queue posts, or set completion. No polling required.
+- **Problem Queue** — when a performer hits an issue it can't resolve, it posts to a persistent queue linked to the segment, then dies. The problem survives the agent. The tech or caption head monitoring that caption reads the queue and acts on it.
+- **Subscriptions** — agents subscribe to events on segments or sets they care about. Notifications fire on rep completion, rep failure, problem queue posts, or set completion. No polling required.
 - **Merge Monitor** — a persistent corps-level process that manages the queue of completed reps waiting to be integrated. Orders changes correctly, manages branches, handles merge conflicts.
 
 ## Rehearsal Tools

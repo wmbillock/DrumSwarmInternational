@@ -2,9 +2,9 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from backend.models.coordinate import CoordinateStatus
+from backend.models.segment import SegmentStatus
 from backend.models.rep import Rep, RepStatus, VALID_TRANSITIONS
-from backend.services.coordinate_service import update_status_from_children
+from backend.services.segment_service import update_status_from_children
 
 
 class InvalidRepTransition(Exception):
@@ -13,9 +13,9 @@ class InvalidRepTransition(Exception):
 
 def create_rep(
     db: Session,
-    coordinate_id: str,
+    segment_id: str,
 ) -> Rep:
-    rep = Rep(coordinate_id=coordinate_id)
+    rep = Rep(segment_id=segment_id)
     db.add(rep)
     db.commit()
     db.refresh(rep)
@@ -61,8 +61,8 @@ def transition_rep(
     if new_status == RepStatus.COMPLETED:
         _auto_score_rep(db, rep)
 
-    # Update the coordinate's status based on its reps
-    _sync_coordinate_from_reps(db, rep.coordinate_id)
+    # Update the segment's status based on its reps
+    _sync_segment_from_reps(db, rep.segment_id)
 
     # Publish event
     try:
@@ -70,7 +70,7 @@ def transition_rep(
         bus = get_event_bus()
         bus.publish("rep.status_changed", {
             "rep_id": rep.id,
-            "coordinate_id": rep.coordinate_id,
+            "segment_id": rep.segment_id,
             "old_status": old_status.value,
             "new_status": new_status.value,
         })
@@ -85,21 +85,21 @@ def _run_verification(db: Session, rep: Rep, result: Optional[str]) -> None:
     import logging
     logger = logging.getLogger(__name__)
     try:
-        from backend.models.coordinate import Coordinate
+        from backend.models.segment import Segment
         from backend.services.verification import get_verification_engine, VerificationError
 
         engine = get_verification_engine()
         check_result = result if result is not None else (rep.result or "")
 
-        coord = db.get(Coordinate, rep.coordinate_id)
-        coord_type = coord.type.value if coord and coord.type else None
+        coord = db.get(Segment, rep.segment_id)
+        segment_type = coord.type.value if coord and coord.type else None
         canary = ""
 
         vr = engine.verify(
             rep_id=rep.id,
             result=check_result,
-            coordinate_id=rep.coordinate_id,
-            coordinate_type=coord_type,
+            segment_id=rep.segment_id,
+            segment_type=segment_type,
             canary_phrase=canary or "",
         )
         if not vr.passed:
@@ -118,15 +118,15 @@ def _auto_score_rep(db: Session, rep: "Rep") -> None:
     import logging
     logger = logging.getLogger(__name__)
     try:
-        from backend.models.coordinate import Coordinate
+        from backend.models.segment import Segment
         from backend.models.score import JudgeType
         from backend.services.scoring_service import record_score
 
-        coord = db.get(Coordinate, rep.coordinate_id)
+        coord = db.get(Segment, rep.segment_id)
         if not coord:
             return
 
-        # Find corps_id from coordinate tree
+        # Find corps_id from segment tree
         corps_id = _find_corps_id(db, coord)
         if not corps_id:
             return
@@ -173,7 +173,7 @@ def _auto_score_rep(db: Session, rep: "Rep") -> None:
         record_score(
             db, corps_id=corps_id, judge_type=judge_type,
             value=base, box=box, rep_id=rep.id,
-            coordinate_id=rep.coordinate_id,
+            segment_id=rep.segment_id,
             feedback=f"Auto-scored: {result_len} chars, box {box}",
         )
     except Exception:
@@ -181,43 +181,43 @@ def _auto_score_rep(db: Session, rep: "Rep") -> None:
 
 
 def _find_corps_id(db: Session, coord) -> str | None:
-    """Walk up the coordinate tree to find the show, then get corps_id."""
-    from backend.models.coordinate import Coordinate
+    """Walk up the segment tree to find the show, then get corps_id."""
+    from backend.models.segment import Segment
     from backend.models.show import Show
     current = coord
     visited = set()
     while current and current.id not in visited:
         visited.add(current.id)
         # Check if any show has this as root
-        show = db.query(Show).filter(Show.coordinate_root_id == current.id).first()
+        show = db.query(Show).filter(Show.segment_root_id == current.id).first()
         if show:
             return show.corps_id
         if current.parent_id:
-            current = db.get(Coordinate, current.parent_id)
+            current = db.get(Segment, current.parent_id)
         else:
             break
     return None
 
 
-def _sync_coordinate_from_reps(db: Session, coordinate_id: str) -> None:
-    """Update a coordinate's status based on its reps' statuses.
+def _sync_segment_from_reps(db: Session, segment_id: str) -> None:
+    """Update a segment's status based on its reps' statuses.
 
     Rules:
-    - If any rep is completed → coordinate is completed
-    - If any rep is in_progress or assigned → coordinate is in_progress
-    - If any rep is in review → coordinate is in review
-    - If all reps are failed → coordinate is failed
-    - Otherwise → coordinate is pending
+    - If any rep is completed → segment is completed
+    - If any rep is in_progress or assigned → segment is in_progress
+    - If any rep is in review → segment is in review
+    - If all reps are failed → segment is failed
+    - Otherwise → segment is pending
     """
-    from backend.models.coordinate import Coordinate
+    from backend.models.segment import Segment
 
-    coord = db.get(Coordinate, coordinate_id)
+    coord = db.get(Segment, segment_id)
     if coord is None:
         return
 
     reps = (
         db.query(Rep)
-        .filter(Rep.coordinate_id == coordinate_id)
+        .filter(Rep.segment_id == segment_id)
         .all()
     )
 
@@ -227,15 +227,15 @@ def _sync_coordinate_from_reps(db: Session, coordinate_id: str) -> None:
     rep_statuses = {r.status for r in reps}
 
     if RepStatus.COMPLETED in rep_statuses:
-        coord.status = CoordinateStatus.COMPLETED
+        coord.status = SegmentStatus.COMPLETED
     elif RepStatus.REVIEW in rep_statuses:
-        coord.status = CoordinateStatus.REVIEW
+        coord.status = SegmentStatus.REVIEW
     elif RepStatus.IN_PROGRESS in rep_statuses or RepStatus.ASSIGNED in rep_statuses:
-        coord.status = CoordinateStatus.IN_PROGRESS
+        coord.status = SegmentStatus.IN_PROGRESS
     elif rep_statuses == {RepStatus.FAILED}:
-        coord.status = CoordinateStatus.FAILED
+        coord.status = SegmentStatus.FAILED
     elif RepStatus.PENDING in rep_statuses:
-        coord.status = CoordinateStatus.PENDING
+        coord.status = SegmentStatus.PENDING
 
     db.commit()
 
@@ -244,9 +244,9 @@ def _sync_coordinate_from_reps(db: Session, coordinate_id: str) -> None:
         update_status_from_children(db, coord.parent_id)
 
 
-def get_reps_for_coordinate(db: Session, coordinate_id: str) -> list[Rep]:
+def get_reps_for_segment(db: Session, segment_id: str) -> list[Rep]:
     return (
         db.query(Rep)
-        .filter(Rep.coordinate_id == coordinate_id)
+        .filter(Rep.segment_id == segment_id)
         .all()
     )

@@ -34,7 +34,7 @@ PHASE_GUIDANCE = {
     ),
     AgentPhase.GATHER_CONTEXT: (
         "PHASE: GATHER_CONTEXT — Gather all information needed to do your work. "
-        "Use get_coordinate, get_coordinate_children, get_reps_for_coordinate to understand the current state. "
+        "Use get_segment, get_segment_children, get_reps_for_segment to understand the current state. "
         "Do not start executing yet."
     ),
     AgentPhase.PLAN: (
@@ -42,12 +42,12 @@ PHASE_GUIDANCE = {
         "Decide which tools to call, in what order, and what the expected outcomes are."
     ),
     AgentPhase.EXECUTE: (
-        "PHASE: EXECUTE — Execute your plan. Call tools to create coordinates, reps, transitions, or handoffs. "
+        "PHASE: EXECUTE — Execute your plan. Call tools to create segments, reps, transitions, or handoffs. "
         "Stay focused on the current task."
     ),
     AgentPhase.REVIEW: (
         "PHASE: REVIEW — Review the work done so far. Check that outputs match expectations. "
-        "Verify coordinates and reps are in the correct state."
+        "Verify segments and reps are in the correct state."
     ),
     AgentPhase.VERIFY: (
         "PHASE: VERIFY — Run verification checks. Ensure quality gates pass and results are valid."
@@ -67,10 +67,10 @@ PHASE_GUIDANCE = {
 
 # Tool-to-phase heuristic mapping
 TOOL_PHASE_HINTS: dict[str, AgentPhase] = {
-    "get_coordinate": AgentPhase.GATHER_CONTEXT,
-    "get_coordinate_children": AgentPhase.GATHER_CONTEXT,
-    "get_reps_for_coordinate": AgentPhase.GATHER_CONTEXT,
-    "create_coordinate": AgentPhase.EXECUTE,
+    "get_segment": AgentPhase.GATHER_CONTEXT,
+    "get_segment_children": AgentPhase.GATHER_CONTEXT,
+    "get_reps_for_segment": AgentPhase.GATHER_CONTEXT,
+    "create_segment": AgentPhase.EXECUTE,
     "create_rep": AgentPhase.EXECUTE,
     "transition_rep": AgentPhase.EXECUTE,
     "submit_work": AgentPhase.SUBMIT,

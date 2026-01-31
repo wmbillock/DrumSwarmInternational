@@ -9,7 +9,7 @@ from sqlalchemy.pool import StaticPool
 
 from backend.database import Base
 
-import backend.models.coordinate  # noqa: F401
+import backend.models.segment  # noqa: F401
 import backend.models.rep  # noqa: F401
 import backend.models.message  # noqa: F401
 import backend.models.problem  # noqa: F401
@@ -117,7 +117,7 @@ class TestSnapshotOnFailure:
             session_id=session_id,
             llm_client=client,
             tool_executor=MockToolExecutor(),
-            task_description="Coordinate work",
+            task_description="Segment work",
         )
 
         failed_session = db.get(AgentSession, session_id)

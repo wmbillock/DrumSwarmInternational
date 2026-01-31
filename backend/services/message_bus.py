@@ -18,13 +18,13 @@ class RepStatusChanged:
     rep_id: str
     old_status: str
     new_status: str
-    coordinate_id: str
+    segment_id: str
     session_id: Optional[str] = None
 
 
 @dataclass
-class CoordinateCompleted:
-    coordinate_id: str
+class SegmentCompleted:
+    segment_id: str
     parent_id: Optional[str] = None
     corps_id: Optional[str] = None
 
@@ -49,7 +49,7 @@ class AgentCompleted:
 @dataclass
 class VerificationFailed:
     rep_id: str
-    coordinate_id: str
+    segment_id: str
     failed_gates: list[str] = field(default_factory=list)
     corps_id: Optional[str] = None
 
@@ -57,7 +57,7 @@ class VerificationFailed:
 # Topic names
 TOPICS = {
     "rep.status_changed": RepStatusChanged,
-    "coordinate.completed": CoordinateCompleted,
+    "segment.completed": SegmentCompleted,
     "agent.phase_changed": AgentPhaseChanged,
     "agent.completed": AgentCompleted,
     "verification.failed": VerificationFailed,

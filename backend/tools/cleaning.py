@@ -51,14 +51,14 @@ class Cleaning:
         """
         self._rules.append(CleaningRule(name, check_fn))
 
-    def sweep(self, db: Session, coordinate_id: str) -> CleaningResult:
-        """Sweep all completed reps for a coordinate, applying registered rules."""
+    def sweep(self, db: Session, segment_id: str) -> CleaningResult:
+        """Sweep all completed reps for a segment, applying registered rules."""
         result = CleaningResult()
 
         completed_reps = (
             db.query(Rep)
             .filter(
-                Rep.coordinate_id == coordinate_id,
+                Rep.segment_id == segment_id,
                 Rep.status == RepStatus.COMPLETED,
             )
             .all()

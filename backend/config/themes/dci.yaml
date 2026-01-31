@@ -13,7 +13,7 @@ work_item_plural: reps
 work_levels:
   - movement
   - set
-  - coordinate
+  - segment
 
 # Model tier labels
 tier_labels:

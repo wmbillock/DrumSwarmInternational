@@ -9,7 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.database import Base
 
 if TYPE_CHECKING:
-    from backend.models.coordinate import Coordinate
+    from backend.models.segment import Segment
 
 
 class RepStatus(str, enum.Enum):
@@ -38,7 +38,7 @@ class Rep(Base):
     id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
-    coordinate_id: Mapped[str] = mapped_column(ForeignKey("coordinates.id"))
+    segment_id: Mapped[str] = mapped_column(ForeignKey("segments.id"))
     assigned_to: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     status: Mapped[RepStatus] = mapped_column(
         Enum(RepStatus), default=RepStatus.PENDING
@@ -52,9 +52,9 @@ class Rep(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    coordinate: Mapped["Coordinate"] = relationship(
-        "Coordinate", back_populates="reps"
+    segment: Mapped["Segment"] = relationship(
+        "Segment", back_populates="reps"
     )
 
     def __repr__(self) -> str:
-        return f"<Rep({self.status.value} for {self.coordinate_id})>"
+        return f"<Rep({self.status.value} for {self.segment_id})>"

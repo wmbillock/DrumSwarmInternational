@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from backend.database import Base
-from backend.models.coordinate import Coordinate, CoordinateType, CoordinateStatus
+from backend.models.segment import Segment, SegmentType, SegmentStatus
 from backend.models.rep import Rep, RepStatus
 from backend.models.score import JudgeType, Score
 from backend.models.penalty import Penalty, PenaltyType
@@ -13,7 +13,7 @@ from backend.services.scoring_service import (
     record_score,
     record_penalty,
     get_scores_for_rep,
-    get_scores_for_coordinate,
+    get_scores_for_segment,
     get_penalties_for_corps,
     compute_composite,
     check_timing,
@@ -25,7 +25,7 @@ from backend.services.scoring_service import (
 )
 
 # Import all models for table creation
-import backend.models.coordinate  # noqa: F401
+import backend.models.segment  # noqa: F401
 import backend.models.rep  # noqa: F401
 import backend.models.message  # noqa: F401
 import backend.models.problem  # noqa: F401
@@ -54,7 +54,7 @@ def corps_id():
 
 @pytest.fixture
 def show_coord(db):
-    coord = Coordinate(type=CoordinateType.SHOW, title="Test Show")
+    coord = Segment(type=SegmentType.SHOW, title="Test Show")
     db.add(coord)
     db.commit()
     db.refresh(coord)
@@ -63,7 +63,7 @@ def show_coord(db):
 
 @pytest.fixture
 def rep(db, show_coord):
-    r = Rep(coordinate_id=show_coord.id)
+    r = Rep(segment_id=show_coord.id)
     db.add(r)
     db.commit()
     db.refresh(r)
@@ -103,16 +103,16 @@ class TestScoreModel:
                          value=50.0, box=6, rep_id=rep.id)
 
     def test_score_requires_target(self, db, corps_id):
-        with pytest.raises(InvalidScore, match="rep or coordinate"):
+        with pytest.raises(InvalidScore, match="rep or segment"):
             record_score(db, corps_id=corps_id, judge_type=JudgeType.BRASS,
                          value=50.0, box=3)
 
-    def test_score_on_coordinate(self, db, corps_id, show_coord):
+    def test_score_on_segment(self, db, corps_id, show_coord):
         score = record_score(
             db, corps_id=corps_id, judge_type=JudgeType.VISUAL,
-            value=70.0, box=3, coordinate_id=show_coord.id
+            value=70.0, box=3, segment_id=show_coord.id
         )
-        assert score.coordinate_id == show_coord.id
+        assert score.segment_id == show_coord.id
         assert score.rep_id is None
 
 
@@ -262,10 +262,10 @@ class TestScoreQueries:
         scores = get_scores_for_rep(db, rep.id)
         assert len(scores) == 2
 
-    def test_get_scores_for_coordinate(self, db, corps_id, show_coord):
+    def test_get_scores_for_segment(self, db, corps_id, show_coord):
         record_score(db, corps_id=corps_id, judge_type=JudgeType.VISUAL,
-                     value=90.0, box=5, coordinate_id=show_coord.id)
-        scores = get_scores_for_coordinate(db, show_coord.id)
+                     value=90.0, box=5, segment_id=show_coord.id)
+        scores = get_scores_for_segment(db, show_coord.id)
         assert len(scores) == 1
 
     def test_get_penalties_for_corps(self, db, corps_id):

@@ -329,10 +329,10 @@ def render_changes():
     print(f"  {BOLD}COMPLETED REPS{RESET}")
     found = False
     for show in active[:3]:
-        coord_root = show.get("coordinate_root_id")
+        coord_root = show.get("segment_root_id")
         if not coord_root:
             continue
-        reps = fetch(f"/api/coordinates/{coord_root}/reps") or []
+        reps = fetch(f"/api/segments/{coord_root}/reps") or []
         if reps:
             found = True
             completed = sum(1 for r in reps if r.get("status") == "completed")

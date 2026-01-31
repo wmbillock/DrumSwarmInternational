@@ -48,12 +48,12 @@ class DryRunToolExecutor:
         """Generate a synthetic result based on tool name."""
         fake_id = f"dry-run-{self._counter:04d}"
 
-        if tool_name == "create_coordinate":
-            return {"id": fake_id, "type": args.get("type", "coordinate"),
+        if tool_name == "create_segment":
+            return {"id": fake_id, "type": args.get("type", "segment"),
                     "title": args.get("title", ""), "status": "pending"}
         elif tool_name == "create_rep":
             return {"id": fake_id, "status": "pending",
-                    "coordinate_id": args.get("coordinate_id", "")}
+                    "segment_id": args.get("segment_id", "")}
         elif tool_name == "transition_rep":
             return {"id": args.get("rep_id", fake_id),
                     "status": args.get("new_status", "pending")}
@@ -67,7 +67,7 @@ class DryRunToolExecutor:
             return {"id": fake_id, "type": args.get("type", "status"),
                     "subject": args.get("subject", "")}
         elif tool_name.startswith("get_"):
-            return {"id": args.get("coordinate_id", fake_id),
+            return {"id": args.get("segment_id", fake_id),
                     "status": "pending", "title": "Simulated"}
         else:
             return {"status": "ok", "dry_run": True}

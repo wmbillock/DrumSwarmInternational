@@ -77,7 +77,7 @@ class TestShowTemplates:
             params={"project_name": "TestApp"},
         )
         assert result["root_id"]
-        assert result["coordinates"] > 1
+        assert result["segments"] > 1
         assert result["reps"] > 0
 
     def test_create_show_from_code_review_template(self, db):
@@ -86,7 +86,7 @@ class TestShowTemplates:
             db, "code_review",
             params={"target": "auth module"},
         )
-        assert result["coordinates"] > 1
+        assert result["segments"] > 1
 
     def test_interpolation(self):
         from backend.services.show_templates import _interpolate
@@ -209,11 +209,11 @@ class TestDryRun:
     def test_dry_run_tool_executor(self):
         from backend.services.dry_run import DryRunToolExecutor
         executor = DryRunToolExecutor()
-        r1 = executor.execute("create_coordinate", {"type": "movement", "title": "M1"})
+        r1 = executor.execute("create_segment", {"type": "movement", "title": "M1"})
         assert r1["status"] == "pending"
         assert r1["id"].startswith("dry-run-")
 
-        r2 = executor.execute("create_rep", {"coordinate_id": "c1"})
+        r2 = executor.execute("create_rep", {"segment_id": "c1"})
         assert r2["status"] == "pending"
 
         assert len(executor.calls) == 2

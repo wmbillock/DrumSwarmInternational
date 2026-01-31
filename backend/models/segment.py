@@ -9,14 +9,14 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.database import Base
 
 
-class CoordinateType(str, enum.Enum):
+class SegmentType(str, enum.Enum):
     SHOW = "show"
     MOVEMENT = "movement"
     SET = "set"
-    COORDINATE = "coordinate"
+    SEGMENT = "segment"
 
 
-class CoordinateStatus(str, enum.Enum):
+class SegmentStatus(str, enum.Enum):
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     REVIEW = "review"
@@ -25,20 +25,20 @@ class CoordinateStatus(str, enum.Enum):
     BLOCKED = "blocked"
 
 
-class Coordinate(Base):
-    __tablename__ = "coordinates"
+class Segment(Base):
+    __tablename__ = "segments"
 
     id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
     parent_id: Mapped[Optional[str]] = mapped_column(
-        ForeignKey("coordinates.id"), nullable=True
+        ForeignKey("segments.id"), nullable=True
     )
-    type: Mapped[CoordinateType] = mapped_column(Enum(CoordinateType))
+    type: Mapped[SegmentType] = mapped_column(Enum(SegmentType))
     title: Mapped[str] = mapped_column(String(255))
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    status: Mapped[CoordinateStatus] = mapped_column(
-        Enum(CoordinateStatus), default=CoordinateStatus.PENDING
+    status: Mapped[SegmentStatus] = mapped_column(
+        Enum(SegmentStatus), default=SegmentStatus.PENDING
     )
     caption: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -48,16 +48,16 @@ class Coordinate(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
-    parent: Mapped[Optional["Coordinate"]] = relationship(
-        "Coordinate", remote_side=[id], back_populates="children"
+    parent: Mapped[Optional["Segment"]] = relationship(
+        "Segment", remote_side=[id], back_populates="children"
     )
-    children: Mapped[list["Coordinate"]] = relationship(
-        "Coordinate", back_populates="parent"
+    children: Mapped[list["Segment"]] = relationship(
+        "Segment", back_populates="parent"
     )
-    reps: Mapped[list["Rep"]] = relationship("Rep", back_populates="coordinate")
+    reps: Mapped[list["Rep"]] = relationship("Rep", back_populates="segment")
 
     def __repr__(self) -> str:
-        return f"<Coordinate({self.type.value}: {self.title})>"
+        return f"<Segment({self.type.value}: {self.title})>"
 
 
 # Import here to avoid circular imports but make relationship work

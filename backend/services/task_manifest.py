@@ -12,7 +12,7 @@ from typing import Optional
 @dataclass
 class TaskManifest:
     """Context bundle that propagates through the agent hierarchy."""
-    coordinate_id: str
+    segment_id: str
     parent_decisions: list[str] = field(default_factory=list)
     sibling_context: list[dict] = field(default_factory=list)
     constraints: list[str] = field(default_factory=list)
@@ -26,9 +26,9 @@ class TaskManifest:
         self.parent_decisions.append(decision)
 
     def add_sibling(self, sibling_id: str, title: str, status: str) -> None:
-        """Add context about a sibling coordinate."""
+        """Add context about a sibling segment."""
         self.sibling_context.append({
-            "coordinate_id": sibling_id,
+            "segment_id": sibling_id,
             "title": title,
             "status": status,
         })
@@ -47,7 +47,7 @@ class TaskManifest:
         if self.sibling_context:
             lines = []
             for s in self.sibling_context:
-                lines.append(f"- {s['title']} [{s['status']}] (id={s['coordinate_id']})")
+                lines.append(f"- {s['title']} [{s['status']}] (id={s['segment_id']})")
             sections.append("SIBLING CONTEXT:\n" + "\n".join(lines))
 
         if self.constraints:
@@ -64,7 +64,7 @@ class TaskManifest:
     def to_dict(self) -> dict:
         """Serialize for storage/transmission."""
         return {
-            "coordinate_id": self.coordinate_id,
+            "segment_id": self.segment_id,
             "parent_decisions": self.parent_decisions,
             "sibling_context": self.sibling_context,
             "constraints": self.constraints,
@@ -78,7 +78,7 @@ class TaskManifest:
     def from_dict(cls, data: dict) -> "TaskManifest":
         """Deserialize from storage."""
         return cls(
-            coordinate_id=data.get("coordinate_id", ""),
+            segment_id=data.get("segment_id", ""),
             parent_decisions=data.get("parent_decisions", []),
             sibling_context=data.get("sibling_context", []),
             constraints=data.get("constraints", []),

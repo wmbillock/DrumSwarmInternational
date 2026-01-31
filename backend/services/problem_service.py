@@ -12,7 +12,7 @@ class InvalidProblemTransition(Exception):
 
 def report_problem(
     db: Session,
-    coordinate_id: str,
+    segment_id: str,
     corps_id: str,
     reported_by_role: str,
     title: str,
@@ -21,7 +21,7 @@ def report_problem(
     reported_by_session_id: Optional[str] = None,
 ) -> Problem:
     problem = Problem(
-        coordinate_id=coordinate_id,
+        segment_id=segment_id,
         corps_id=corps_id,
         reported_by_role=reported_by_role,
         reported_by_session_id=reported_by_session_id,
@@ -71,12 +71,12 @@ def resolve_problem(
 
 def get_open_problems(
     db: Session,
-    coordinate_id: Optional[str] = None,
+    segment_id: Optional[str] = None,
     corps_id: Optional[str] = None,
 ) -> list[Problem]:
     query = db.query(Problem).filter(Problem.status != ProblemStatus.RESOLVED)
-    if coordinate_id is not None:
-        query = query.filter(Problem.coordinate_id == coordinate_id)
+    if segment_id is not None:
+        query = query.filter(Problem.segment_id == segment_id)
     if corps_id is not None:
         query = query.filter(Problem.corps_id == corps_id)
     return query.order_by(Problem.created_at).all()

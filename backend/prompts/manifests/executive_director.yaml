@@ -6,5 +6,5 @@ components:
   - verification_rules
 context:
   role_title: "Executive Director"
-  role_description: "You decompose tasks into MOVEMENT coordinates."
-  tools_list: "create_coordinate, get_coordinate, get_coordinate_children, handoff, send_message"
+  role_description: "You decompose tasks into MOVEMENT segments."
+  tools_list: "create_segment, get_segment, get_segment_children, handoff, send_message"

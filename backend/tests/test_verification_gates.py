@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from backend.database import Base
-from backend.models.coordinate import Coordinate, CoordinateType, CoordinateStatus
+from backend.models.segment import Segment, SegmentType, SegmentStatus
 from backend.models.rep import Rep, RepStatus
 from backend.services.rep_service import create_rep, transition_rep, InvalidRepTransition
 from backend.services.verification import (
@@ -32,8 +32,8 @@ def db():
 
 
 @pytest.fixture
-def coordinate(db):
-    coord = Coordinate(type=CoordinateType.COORDINATE, title="Test task", status=CoordinateStatus.PENDING)
+def segment(db):
+    coord = Segment(type=SegmentType.SEGMENT, title="Test task", status=SegmentStatus.PENDING)
     db.add(coord)
     db.commit()
     db.refresh(coord)
@@ -109,17 +109,17 @@ class TestVerificationEngine:
         vr = engine.verify(rep_id="r1", result="A result without the secret", canary_phrase="canary123")
         assert not vr.passed
 
-    def test_custom_gate_per_coordinate(self):
+    def test_custom_gate_per_segment(self):
         engine = VerificationEngine()
 
         def custom_gate(result: str, **kwargs) -> GateResult:
             return GateResult(gate_name="custom", passed="REQUIRED" in result)
 
         engine.add_custom_gate("coord-1", custom_gate)
-        vr = engine.verify(rep_id="r1", result="Has REQUIRED word", coordinate_id="coord-1")
+        vr = engine.verify(rep_id="r1", result="Has REQUIRED word", segment_id="coord-1")
         assert vr.passed
 
-        vr2 = engine.verify(rep_id="r2", result="Missing the word", coordinate_id="coord-1")
+        vr2 = engine.verify(rep_id="r2", result="Missing the word", segment_id="coord-1")
         assert not vr2.passed
 
     def test_type_gate(self):
@@ -129,19 +129,19 @@ class TestVerificationEngine:
             return GateResult(gate_name="type_check", passed=len(result) > 100)
 
         engine.add_type_gate("show", type_gate)
-        vr = engine.verify(rep_id="r1", result="short", coordinate_type="show")
+        vr = engine.verify(rep_id="r1", result="short", segment_type="show")
         assert not vr.passed
 
     def test_type_kwargs_override_min_length(self):
         engine = VerificationEngine()
         engine.set_type_kwargs("show", min_length=50)
-        vr = engine.verify(rep_id="r1", result="a" * 30, coordinate_type="show")
+        vr = engine.verify(rep_id="r1", result="a" * 30, segment_type="show")
         assert not vr.passed  # 30 < 50
 
-        vr2 = engine.verify(rep_id="r2", result="a" * 60, coordinate_type="show")
+        vr2 = engine.verify(rep_id="r2", result="a" * 60, segment_type="show")
         assert vr2.passed
 
-    def test_coordinate_type_gates_config(self):
+    def test_segment_type_gates_config(self):
         assert "show" in COORDINATE_TYPE_GATES
         assert COORDINATE_TYPE_GATES["show"]["min_length"] == 50
 
@@ -152,8 +152,8 @@ class TestVerificationEngine:
 
 
 class TestVerificationInRepTransition:
-    def test_completion_blocked_by_empty_result(self, db, coordinate):
-        rep = create_rep(db, coordinate.id)
+    def test_completion_blocked_by_empty_result(self, db, segment):
+        rep = create_rep(db, segment.id)
         transition_rep(db, rep.id, RepStatus.ASSIGNED)
         transition_rep(db, rep.id, RepStatus.IN_PROGRESS)
         transition_rep(db, rep.id, RepStatus.REVIEW, result="")
@@ -161,16 +161,16 @@ class TestVerificationInRepTransition:
         with pytest.raises(VerificationError):
             transition_rep(db, rep.id, RepStatus.COMPLETED)
 
-    def test_completion_succeeds_with_good_result(self, db, coordinate):
-        rep = create_rep(db, coordinate.id)
+    def test_completion_succeeds_with_good_result(self, db, segment):
+        rep = create_rep(db, segment.id)
         transition_rep(db, rep.id, RepStatus.ASSIGNED)
         transition_rep(db, rep.id, RepStatus.IN_PROGRESS)
         transition_rep(db, rep.id, RepStatus.REVIEW, result="A sufficiently long result for verification gates")
         rep = transition_rep(db, rep.id, RepStatus.COMPLETED)
         assert rep.status == RepStatus.COMPLETED
 
-    def test_completion_blocked_by_short_result(self, db, coordinate):
-        rep = create_rep(db, coordinate.id)
+    def test_completion_blocked_by_short_result(self, db, segment):
+        rep = create_rep(db, segment.id)
         transition_rep(db, rep.id, RepStatus.ASSIGNED)
         transition_rep(db, rep.id, RepStatus.IN_PROGRESS)
         transition_rep(db, rep.id, RepStatus.REVIEW, result="tiny")

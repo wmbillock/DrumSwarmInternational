@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from backend.models.agent_definition import AgentDefinition, ModelTier
 from backend.models.agent_session import AgentSession, SessionStatus
 from backend.models.corps import Corps, CorpsStatus, RehearsalMode
-from backend.models.coordinate import Coordinate, CoordinateStatus, CoordinateType
+from backend.models.segment import Segment, SegmentStatus, SegmentType
 from backend.models.rep import Rep, RepStatus
 from backend.services.agent_lifecycle import create_definition, spawn_session
 from backend.services.message_service import (
@@ -38,43 +38,43 @@ class EscalationRequired(Exception):
 # Role-specific system prompts
 ROLE_PROMPTS = {
     "executive_director": (
-        "You are the Executive Director. You decompose tasks into MOVEMENT coordinates.\n\n"
-        "AVAILABLE TOOLS: create_coordinate, get_coordinate, get_coordinate_children, handoff, send_message\n\n"
+        "You are the Executive Director. You decompose tasks into MOVEMENT segments.\n\n"
+        "AVAILABLE TOOLS: create_segment, get_segment, get_segment_children, handoff, send_message\n\n"
         "PROCEDURE — follow these steps exactly:\n"
         "1. Analyze the task and decide how many movements are needed.\n"
-        "2. Call create_coordinate for EACH movement with type='movement', the given parent_id, a clear title, and a description.\n"
+        "2. Call create_segment for EACH movement with type='movement', the given parent_id, a clear title, and a description.\n"
         "3. Call handoff with to_role='program_coordinator', and a body containing:\n"
-        "   - The movement coordinate IDs you just created\n"
+        "   - The movement segment IDs you just created\n"
         "   - Clear instructions for how to break each movement into sets and tasks\n"
         "   NOTE: corps_id and from_role are auto-injected — do NOT include them.\n"
         "4. Return a brief summary of what you created.\n\n"
         "RULES:\n"
         "- You MUST call tools. Do NOT describe what you would do — execute the tool calls.\n"
-        "- Every movement needs a parent_id (the root coordinate ID given in your task).\n"
+        "- Every movement needs a parent_id (the root segment ID given in your task).\n"
         "- Keep movements focused: one logical unit of work per movement.\n"
     ),
     "program_coordinator": (
         "You are the Program Coordinator. You break movements into executable work.\n\n"
-        "AVAILABLE TOOLS: create_coordinate, create_rep, get_coordinate, get_coordinate_children, "
-        "get_reps_for_coordinate, handoff, send_message, transition_rep\n\n"
+        "AVAILABLE TOOLS: create_segment, create_rep, get_segment, get_segment_children, "
+        "get_reps_for_segment, handoff, send_message, transition_rep\n\n"
         "PROCEDURE:\n"
-        "1. Call get_coordinate_children using the root coordinate ID provided in your task.\n"
-        "2. For each movement, create SET coordinates underneath it (type='set').\n"
-        "3. For each set, create leaf COORDINATE nodes (type='coordinate') for specific tasks.\n"
-        "4. For each leaf coordinate, call create_rep to create a work unit.\n"
-        "5. Call handoff to the appropriate caption head or designer with the coordinate IDs and instructions.\n"
+        "1. Call get_segment_children using the root segment ID provided in your task.\n"
+        "2. For each movement, create SET segments underneath it (type='set').\n"
+        "3. For each set, create leaf COORDINATE nodes (type='segment') for specific tasks.\n"
+        "4. For each leaf segment, call create_rep to create a work unit.\n"
+        "5. Call handoff to the appropriate caption head or designer with the segment IDs and instructions.\n"
         "6. Return a summary of the work breakdown.\n\n"
         "RULES:\n"
         "- You MUST call tools. Execute, don't describe.\n"
-        "- Create reps for every leaf coordinate — reps are the actual work units.\n"
-        "- Be specific in handoff instructions: include coordinate IDs and expected deliverables.\n"
+        "- Create reps for every leaf segment — reps are the actual work units.\n"
+        "- Be specific in handoff instructions: include segment IDs and expected deliverables.\n"
     ),
     "drum_major": (
-        "You are the Drum Major. You monitor progress and coordinate execution.\n\n"
-        "AVAILABLE TOOLS: get_coordinate, get_coordinate_children, get_reps_for_coordinate, send_message, transition_rep\n\n"
+        "You are the Drum Major. You monitor progress and segment execution.\n\n"
+        "AVAILABLE TOOLS: get_segment, get_segment_children, get_reps_for_segment, send_message, transition_rep\n\n"
         "PROCEDURE:\n"
-        "1. Call get_coordinate_children using the root coordinate ID provided in your task.\n"
-        "2. For each coordinate, call get_reps_for_coordinate to check rep statuses.\n"
+        "1. Call get_segment_children using the root segment ID provided in your task.\n"
+        "2. For each segment, call get_reps_for_segment to check rep statuses.\n"
         "3. If reps are stuck (assigned but not progressing), send_message to the assigned role.\n"
         "4. If reps are in review, transition them to completed or failed based on quality.\n"
         "5. Report status summary.\n\n"
@@ -84,42 +84,42 @@ ROLE_PROMPTS = {
     ),
     "drill_writer": (
         "You are the Drill Writer. You design structure for visual/spatial work.\n\n"
-        "AVAILABLE TOOLS: create_coordinate, get_coordinate, get_coordinate_children, handoff, send_message\n\n"
+        "AVAILABLE TOOLS: create_segment, get_segment, get_segment_children, handoff, send_message\n\n"
         "PROCEDURE:\n"
-        "1. Review the coordinate you've been given (call get_coordinate).\n"
-        "2. Create sub-coordinates for visual design elements.\n"
+        "1. Review the segment you've been given (call get_segment).\n"
+        "2. Create sub-segments for visual design elements.\n"
         "3. Handoff to visual_caption_head with specific instructions.\n\n"
-        "RULES: Execute tools directly. Include coordinate IDs in all handoffs.\n"
+        "RULES: Execute tools directly. Include segment IDs in all handoffs.\n"
     ),
     "music_writer": (
         "You are the Music Writer. You design musical structure.\n\n"
-        "AVAILABLE TOOLS: create_coordinate, get_coordinate, get_coordinate_children, handoff, send_message\n\n"
+        "AVAILABLE TOOLS: create_segment, get_segment, get_segment_children, handoff, send_message\n\n"
         "PROCEDURE:\n"
-        "1. Review the coordinate you've been given (call get_coordinate).\n"
-        "2. Create sub-coordinates for musical elements.\n"
+        "1. Review the segment you've been given (call get_segment).\n"
+        "2. Create sub-segments for musical elements.\n"
         "3. Handoff to brass_caption_head and percussion_caption_head.\n\n"
-        "RULES: Execute tools directly. Include coordinate IDs in all handoffs.\n"
+        "RULES: Execute tools directly. Include segment IDs in all handoffs.\n"
     ),
     "choreographer": (
         "You are the Choreographer. You design movement and dance.\n\n"
-        "AVAILABLE TOOLS: create_coordinate, get_coordinate, get_coordinate_children, handoff, send_message\n\n"
+        "AVAILABLE TOOLS: create_segment, get_segment, get_segment_children, handoff, send_message\n\n"
         "PROCEDURE:\n"
-        "1. Review the coordinate you've been given (call get_coordinate).\n"
-        "2. Create sub-coordinates for choreographic elements.\n"
+        "1. Review the segment you've been given (call get_segment).\n"
+        "2. Create sub-segments for choreographic elements.\n"
         "3. Handoff to guard_caption_head.\n\n"
-        "RULES: Execute tools directly. Include coordinate IDs in all handoffs.\n"
+        "RULES: Execute tools directly. Include segment IDs in all handoffs.\n"
     ),
 }
 
 # Caption heads: receive work, create reps, hand to techs
 _CAPTION_HEAD_PROMPT = (
     "You are a Caption Head. You receive work and delegate execution.\n\n"
-    "AVAILABLE TOOLS: create_coordinate, create_rep, get_coordinate, get_coordinate_children, "
-    "get_reps_for_coordinate, handoff, send_message, transition_rep, submit_work\n\n"
+    "AVAILABLE TOOLS: create_segment, create_rep, get_segment, get_segment_children, "
+    "get_reps_for_segment, handoff, send_message, transition_rep, submit_work\n\n"
     "PROCEDURE:\n"
-    "1. Call get_coordinate on the coordinate ID from your task to understand the work.\n"
-    "2. Create leaf coordinates if needed (type='coordinate').\n"
-    "3. Call create_rep for each leaf coordinate to create work units.\n"
+    "1. Call get_segment on the segment ID from your task to understand the work.\n"
+    "2. Create leaf segments if needed (type='segment').\n"
+    "3. Call create_rep for each leaf segment to create work units.\n"
     "4. Call handoff to your tech(s) with rep IDs and specific instructions.\n"
     "5. When work comes back for review, call transition_rep to approve (completed) or reject (failed).\n\n"
     "RULES: Execute tools directly. Never describe — DO.\n"
@@ -128,9 +128,9 @@ _CAPTION_HEAD_PROMPT = (
 # Techs: pick up reps, do the work, submit results
 _TECH_PROMPT = (
     "You are a Tech. You execute specific tasks.\n\n"
-    "AVAILABLE TOOLS: get_coordinate, get_reps_for_coordinate, transition_rep, submit_work, send_message\n\n"
+    "AVAILABLE TOOLS: get_segment, get_reps_for_segment, transition_rep, submit_work, send_message\n\n"
     "PROCEDURE:\n"
-    "1. Call get_reps_for_coordinate on your assigned coordinate to find pending reps.\n"
+    "1. Call get_reps_for_segment on your assigned segment to find pending reps.\n"
     "2. Call transition_rep with new_status='assigned' then new_status='in_progress' on the rep.\n"
     "3. Do the work: analyze the task, compute the answer, produce the deliverable.\n"
     "4. Call submit_work with the rep_id and your result as a string.\n"
@@ -150,10 +150,10 @@ for role in ["brass_tech", "percussion_tech", "front_ensemble_tech", "guard_tech
 # Timing judge: watches system health
 ROLE_PROMPTS["timing_judge"] = (
     "You are the Timing & Penalties Judge. You monitor system health.\n\n"
-    "AVAILABLE TOOLS: get_coordinate, get_coordinate_children, get_reps_for_coordinate, send_message\n\n"
+    "AVAILABLE TOOLS: get_segment, get_segment_children, get_reps_for_segment, send_message\n\n"
     "PROCEDURE:\n"
     "1. Review the health data provided in your task.\n"
-    "2. Call get_reps_for_coordinate on coordinates with issues to get details.\n"
+    "2. Call get_reps_for_segment on segments with issues to get details.\n"
     "3. If you find problems (failed reps, stale work, errors), call send_message to escalate:\n"
     "   - Critical issues: send to executive_director with priority='critical'\n"
     "   - Stuck work: send to drum_major with priority='high'\n"
@@ -164,22 +164,22 @@ ROLE_PROMPTS["timing_judge"] = (
 
 # Tools allowed per role
 ROLE_TOOLS = {
-    "executive_director": ["create_coordinate", "get_coordinate", "get_coordinate_children", "handoff", "send_message"],
-    "program_coordinator": ["create_coordinate", "create_rep", "get_coordinate", "get_coordinate_children", "get_reps_for_coordinate", "handoff", "send_message", "transition_rep"],
-    "drum_major": ["get_coordinate", "get_coordinate_children", "get_reps_for_coordinate", "send_message", "transition_rep"],
-    "drill_writer": ["create_coordinate", "get_coordinate", "get_coordinate_children", "handoff", "send_message"],
-    "music_writer": ["create_coordinate", "get_coordinate", "get_coordinate_children", "handoff", "send_message"],
-    "choreographer": ["create_coordinate", "get_coordinate", "get_coordinate_children", "handoff", "send_message"],
-    "brass_caption_head": ["create_coordinate", "create_rep", "get_coordinate", "get_coordinate_children", "get_reps_for_coordinate", "handoff", "send_message", "transition_rep", "submit_work", "verify_work"],
-    "percussion_caption_head": ["create_coordinate", "create_rep", "get_coordinate", "get_coordinate_children", "get_reps_for_coordinate", "handoff", "send_message", "transition_rep", "submit_work", "verify_work"],
-    "guard_caption_head": ["create_coordinate", "create_rep", "get_coordinate", "get_coordinate_children", "get_reps_for_coordinate", "handoff", "send_message", "transition_rep", "submit_work", "verify_work"],
-    "visual_caption_head": ["create_coordinate", "create_rep", "get_coordinate", "get_coordinate_children", "get_reps_for_coordinate", "handoff", "send_message", "transition_rep", "submit_work", "verify_work"],
-    "brass_tech": ["get_coordinate", "get_reps_for_coordinate", "transition_rep", "submit_work", "send_message"],
-    "percussion_tech": ["get_coordinate", "get_reps_for_coordinate", "transition_rep", "submit_work", "send_message"],
-    "front_ensemble_tech": ["get_coordinate", "get_reps_for_coordinate", "transition_rep", "submit_work", "send_message"],
-    "guard_tech": ["get_coordinate", "get_reps_for_coordinate", "transition_rep", "submit_work", "send_message"],
-    "visual_tech": ["get_coordinate", "get_reps_for_coordinate", "transition_rep", "submit_work", "send_message"],
-    "timing_judge": ["get_coordinate", "get_coordinate_children", "get_reps_for_coordinate", "send_message"],
+    "executive_director": ["create_segment", "get_segment", "get_segment_children", "handoff", "send_message"],
+    "program_coordinator": ["create_segment", "create_rep", "get_segment", "get_segment_children", "get_reps_for_segment", "handoff", "send_message", "transition_rep"],
+    "drum_major": ["get_segment", "get_segment_children", "get_reps_for_segment", "send_message", "transition_rep"],
+    "drill_writer": ["create_segment", "get_segment", "get_segment_children", "handoff", "send_message"],
+    "music_writer": ["create_segment", "get_segment", "get_segment_children", "handoff", "send_message"],
+    "choreographer": ["create_segment", "get_segment", "get_segment_children", "handoff", "send_message"],
+    "brass_caption_head": ["create_segment", "create_rep", "get_segment", "get_segment_children", "get_reps_for_segment", "handoff", "send_message", "transition_rep", "submit_work", "verify_work"],
+    "percussion_caption_head": ["create_segment", "create_rep", "get_segment", "get_segment_children", "get_reps_for_segment", "handoff", "send_message", "transition_rep", "submit_work", "verify_work"],
+    "guard_caption_head": ["create_segment", "create_rep", "get_segment", "get_segment_children", "get_reps_for_segment", "handoff", "send_message", "transition_rep", "submit_work", "verify_work"],
+    "visual_caption_head": ["create_segment", "create_rep", "get_segment", "get_segment_children", "get_reps_for_segment", "handoff", "send_message", "transition_rep", "submit_work", "verify_work"],
+    "brass_tech": ["get_segment", "get_reps_for_segment", "transition_rep", "submit_work", "send_message"],
+    "percussion_tech": ["get_segment", "get_reps_for_segment", "transition_rep", "submit_work", "send_message"],
+    "front_ensemble_tech": ["get_segment", "get_reps_for_segment", "transition_rep", "submit_work", "send_message"],
+    "guard_tech": ["get_segment", "get_reps_for_segment", "transition_rep", "submit_work", "send_message"],
+    "visual_tech": ["get_segment", "get_reps_for_segment", "transition_rep", "submit_work", "send_message"],
+    "timing_judge": ["get_segment", "get_segment_children", "get_reps_for_segment", "send_message"],
 }
 
 # Full hierarchy of roles to spawn when initializing a corps
@@ -310,17 +310,20 @@ ADMIN_HIERARCHY = [
 
 ADMIN_PROMPTS = {
     "executive_director": (
-        "You are the DCI Executive Director in Critique — the post-run review and planning session.\n\n"
-        "Critique is where staff and judges gather to review performances, discuss what went well,\n"
-        "identify issues, and plan next steps. You're NOT tied to any specific show — you oversee all of them.\n\n"
-        "CAPABILITIES:\n"
-        "- Receive and discuss feedback about show performances and agent behavior\n"
-        "- Answer questions about the DCI Swarm system, its architecture, and its agents\n"
-        "- Help users understand the corps hierarchy and troubleshoot issues\n"
-        "- Provide status updates on all active shows\n"
-        "- Relay critique to individual show EDs when needed\n\n"
+        "You are the DCI Executive Director — the swarm-wide overseer.\n\n"
+        "You stay awake and receive periodic METRONOME STATUS PINGs with a summary of all\n"
+        "active corps, their sessions, rep progress, and any issues detected.\n\n"
+        "ON EACH PING:\n"
+        "1. Review the swarm status summary provided.\n"
+        "2. If any corps has stuck work (many pending reps, failed agents, GUPP kicks),\n"
+        "   send a message to that corps's executive_director requesting a status update\n"
+        "   or corrective action.\n"
+        "3. If a corps has completed all work, note it.\n"
+        "4. If everything is healthy, respond briefly acknowledging the status.\n\n"
+        "You are NOT tied to any specific show — you oversee ALL of them.\n"
+        "You can also receive user questions about the swarm and relay feedback.\n\n"
         "AVAILABLE TOOLS: send_message\n\n"
-        "Be constructive, honest, and authoritative. This is critique — be direct but supportive.\n"
+        "Be concise, authoritative, and action-oriented. Flag real problems, don't repeat healthy status.\n"
     ),
     "program_coordinator": (
         "You are the Program Coordinator in Critique — the post-run review session.\n\n"
@@ -418,7 +421,7 @@ def handoff(
     to_role: str,
     subject: str,
     body: Optional[str] = None,
-    coordinate_id: Optional[str] = None,
+    segment_id: Optional[str] = None,
 ) -> None:
     """Perform a handoff between roles in the chain."""
     if not validate_handoff(from_role, to_role):
@@ -426,7 +429,7 @@ def handoff(
     send_message(
         db, corps_id=corps_id, from_role=from_role, to_role=to_role,
         type=MessageType.HANDOFF, subject=subject, body=body,
-        coordinate_id=coordinate_id,
+        segment_id=segment_id,
     )
 
 
@@ -436,7 +439,7 @@ def escalate(
     from_role: str,
     subject: str,
     body: Optional[str] = None,
-    coordinate_id: Optional[str] = None,
+    segment_id: Optional[str] = None,
 ) -> str:
     """Escalate an issue up the chain. Returns the role it escalated to."""
     target = ESCALATION_CHAIN.get(from_role)
@@ -448,7 +451,7 @@ def escalate(
     send_message(
         db, corps_id=corps_id, from_role=from_role, to_role=target,
         type=MessageType.ESCALATION, subject=subject, body=body,
-        priority=MessagePriority.HIGH, coordinate_id=coordinate_id,
+        priority=MessagePriority.HIGH, segment_id=segment_id,
     )
     return target
 
@@ -459,22 +462,22 @@ class MergeResult:
     checked: int = 0
     merged: int = 0
     conflicts: int = 0
-    merged_coordinate_ids: list[str] = field(default_factory=list)
-    conflict_coordinate_ids: list[str] = field(default_factory=list)
+    merged_segment_ids: list[str] = field(default_factory=list)
+    conflict_segment_ids: list[str] = field(default_factory=list)
 
 
 def merge_monitor_check(db: Session, corps_id: str) -> MergeResult:
     """Corps-level process managing integration of completed reps.
 
-    Checks coordinates with completed reps. If all sibling sets under a segment
+    Checks segments with completed reps. If all sibling sets under a segment
     are completed, marks the parent as completed too.
     """
     result = MergeResult()
 
-    # Find all coordinates that are completed (leaf sets with completed reps)
+    # Find all segments that are completed (leaf sets with completed reps)
     completed_coords = (
-        db.query(Coordinate)
-        .filter(Coordinate.status == CoordinateStatus.COMPLETED)
+        db.query(Segment)
+        .filter(Segment.status == SegmentStatus.COMPLETED)
         .all()
     )
 
@@ -484,26 +487,26 @@ def merge_monitor_check(db: Session, corps_id: str) -> MergeResult:
         result.checked += 1
         if coord.parent_id and coord.parent_id not in parents_checked:
             parents_checked.add(coord.parent_id)
-            parent = db.get(Coordinate, coord.parent_id)
+            parent = db.get(Segment, coord.parent_id)
             if parent is None:
                 continue
 
             siblings = (
-                db.query(Coordinate)
-                .filter(Coordinate.parent_id == parent.id)
+                db.query(Segment)
+                .filter(Segment.parent_id == parent.id)
                 .all()
             )
-            all_done = all(s.status == CoordinateStatus.COMPLETED for s in siblings)
-            any_failed = any(s.status == CoordinateStatus.FAILED for s in siblings)
+            all_done = all(s.status == SegmentStatus.COMPLETED for s in siblings)
+            any_failed = any(s.status == SegmentStatus.FAILED for s in siblings)
 
             if all_done:
-                parent.status = CoordinateStatus.COMPLETED
+                parent.status = SegmentStatus.COMPLETED
                 db.commit()
                 result.merged += 1
-                result.merged_coordinate_ids.append(parent.id)
+                result.merged_segment_ids.append(parent.id)
             elif any_failed:
                 result.conflicts += 1
-                result.conflict_coordinate_ids.append(parent.id)
+                result.conflict_segment_ids.append(parent.id)
 
     return result
 

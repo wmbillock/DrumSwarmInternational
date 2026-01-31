@@ -123,14 +123,14 @@ def collect_corps_metrics(db: Session, corps_id: str) -> CorpsMetrics:
         metrics.role_metrics.append(rm)
 
     # Rep metrics
-    from backend.models.coordinate import Coordinate
+    from backend.models.segment import Segment
     reps = (
         db.query(Rep)
-        .join(Coordinate)
+        .join(Segment)
         .join(AgentSession, AgentSession.corps_id == corps_id)
         .all()
     ) if sessions else []
-    # Simpler: just get all reps (will refine when corps→coordinate link is clearer)
+    # Simpler: just get all reps (will refine when corps→segment link is clearer)
     all_reps = db.query(Rep).all()
     metrics.total_reps = len(all_reps)
     metrics.completed_reps = sum(1 for r in all_reps if r.status == RepStatus.COMPLETED)

@@ -46,15 +46,15 @@ def _get_db():
 
 # --- Tool implementations ---
 
-if "create_coordinate" in _allowed_tools:
+if "create_segment" in _allowed_tools:
     @mcp.tool()
-    def create_coordinate(type: str, title: str, description: str = "", parent_id: str = "", caption: str = "") -> str:
-        """Create a new coordinate (work unit). Types: show, movement, set, coordinate. Must specify parent_id for non-show types."""
-        from backend.models.coordinate import CoordinateType
-        from backend.services.coordinate_service import create_coordinate as _create
+    def create_segment(type: str, title: str, description: str = "", parent_id: str = "", caption: str = "") -> str:
+        """Create a new segment (work unit). Types: show, movement, set, segment. Must specify parent_id for non-show types."""
+        from backend.models.segment import SegmentType
+        from backend.services.segment_service import create_segment as _create
         db = _get_db()
         try:
-            coord = _create(db, type=CoordinateType(type), title=title,
+            coord = _create(db, type=SegmentType(type), title=title,
                           description=description or None, parent_id=parent_id or None,
                           caption=caption or None)
             return json.dumps({"id": coord.id, "type": coord.type.value, "title": coord.title, "status": coord.status.value})
@@ -64,13 +64,13 @@ if "create_coordinate" in _allowed_tools:
 
 if "create_rep" in _allowed_tools:
     @mcp.tool()
-    def create_rep(coordinate_id: str) -> str:
-        """Create a new rep (work attempt) for a coordinate. Starts in PENDING status."""
+    def create_rep(segment_id: str) -> str:
+        """Create a new rep (work attempt) for a segment. Starts in PENDING status."""
         from backend.services.rep_service import create_rep as _create
         db = _get_db()
         try:
-            rep = _create(db, coordinate_id=coordinate_id)
-            return json.dumps({"id": rep.id, "status": rep.status.value, "coordinate_id": rep.coordinate_id})
+            rep = _create(db, segment_id=segment_id)
+            return json.dumps({"id": rep.id, "status": rep.status.value, "segment_id": rep.segment_id})
         finally:
             db.close()
 
@@ -92,7 +92,7 @@ if "transition_rep" in _allowed_tools:
 
 if "send_message" in _allowed_tools:
     @mcp.tool()
-    def send_message(from_role: str, to_role: str, type: str, subject: str, body: str = "", priority: str = "normal", coordinate_id: str = "") -> str:
+    def send_message(from_role: str, to_role: str, type: str, subject: str, body: str = "", priority: str = "normal", segment_id: str = "") -> str:
         """Send a message to another role. Types: handoff, escalation, flag, status, directive, feedback."""
         from backend.models.message import MessageType, MessagePriority
         from backend.services.message_service import send_message as _send
@@ -100,7 +100,7 @@ if "send_message" in _allowed_tools:
         try:
             msg = _send(db, corps_id=_corps_id, from_role=from_role, to_role=to_role,
                        type=MessageType(type), subject=subject, body=body or None,
-                       priority=MessagePriority(priority), coordinate_id=coordinate_id or None)
+                       priority=MessagePriority(priority), segment_id=segment_id or None)
             return json.dumps({"id": msg.id, "type": msg.type.value, "subject": msg.subject})
         finally:
             db.close()
@@ -108,26 +108,26 @@ if "send_message" in _allowed_tools:
 
 if "handoff" in _allowed_tools:
     @mcp.tool()
-    def handoff(from_role: str, to_role: str, subject: str, body: str = "", coordinate_id: str = "") -> str:
+    def handoff(from_role: str, to_role: str, subject: str, body: str = "", segment_id: str = "") -> str:
         """Hand off work to a downstream role with instructions."""
         from backend.services.corps_service import handoff as _handoff
         db = _get_db()
         try:
             _handoff(db, corps_id=_corps_id, from_role=from_role, to_role=to_role,
-                    subject=subject, body=body or None, coordinate_id=coordinate_id or None)
+                    subject=subject, body=body or None, segment_id=segment_id or None)
             return json.dumps({"status": "handed_off", "from": from_role, "to": to_role})
         finally:
             db.close()
 
 
-if "get_coordinate" in _allowed_tools:
+if "get_segment" in _allowed_tools:
     @mcp.tool()
-    def get_coordinate(coordinate_id: str) -> str:
-        """Get details about a specific coordinate."""
-        from backend.services.coordinate_service import get_coordinate as _get
+    def get_segment(segment_id: str) -> str:
+        """Get details about a specific segment."""
+        from backend.services.segment_service import get_segment as _get
         db = _get_db()
         try:
-            coord = _get(db, coordinate_id)
+            coord = _get(db, segment_id)
             if not coord:
                 return json.dumps({"error": "not found"})
             return json.dumps({"id": coord.id, "type": coord.type.value, "title": coord.title,
@@ -136,27 +136,27 @@ if "get_coordinate" in _allowed_tools:
             db.close()
 
 
-if "get_coordinate_children" in _allowed_tools:
+if "get_segment_children" in _allowed_tools:
     @mcp.tool()
-    def get_coordinate_children(coordinate_id: str) -> str:
-        """Get the child coordinates of a parent coordinate."""
-        from backend.services.coordinate_service import get_children
+    def get_segment_children(segment_id: str) -> str:
+        """Get the child segments of a parent segment."""
+        from backend.services.segment_service import get_children
         db = _get_db()
         try:
-            children = get_children(db, coordinate_id)
+            children = get_children(db, segment_id)
             return json.dumps([{"id": c.id, "type": c.type.value, "title": c.title, "status": c.status.value} for c in children])
         finally:
             db.close()
 
 
-if "get_reps_for_coordinate" in _allowed_tools:
+if "get_reps_for_segment" in _allowed_tools:
     @mcp.tool()
-    def get_reps_for_coordinate(coordinate_id: str) -> str:
-        """Get all reps for a coordinate."""
-        from backend.services.rep_service import get_reps_for_coordinate as _get
+    def get_reps_for_segment(segment_id: str) -> str:
+        """Get all reps for a segment."""
+        from backend.services.rep_service import get_reps_for_segment as _get
         db = _get_db()
         try:
-            reps = _get(db, coordinate_id)
+            reps = _get(db, segment_id)
             return json.dumps([{"id": r.id, "status": r.status.value, "assigned_to": r.assigned_to, "result": r.result} for r in reps])
         finally:
             db.close()

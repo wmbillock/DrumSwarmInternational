@@ -151,7 +151,7 @@ def send_message(
     to_session_id: Optional[str] = None,
     from_session_id: Optional[str] = None,
     priority: MessagePriority = MessagePriority.NORMAL,
-    coordinate_id: Optional[str] = None,
+    segment_id: Optional[str] = None,
 ) -> Message:
     # Validate the sender role exists in hierarchy
     if from_role not in ROLE_HIERARCHY:
@@ -181,7 +181,7 @@ def send_message(
         priority=priority,
         subject=subject,
         body=body,
-        coordinate_id=coordinate_id,
+        segment_id=segment_id,
     )
     db.add(msg)
     db.commit()

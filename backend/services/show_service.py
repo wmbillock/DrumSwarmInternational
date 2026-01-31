@@ -5,8 +5,8 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from backend.models.show import Show, ShowStatus
-from backend.models.coordinate import CoordinateType
-from backend.services.coordinate_service import create_coordinate
+from backend.models.segment import SegmentType
+from backend.services.segment_service import create_segment
 from backend.services.corps_service import create_corps, initialize_corps, start_tour, stop_tour
 from backend.services.nickname_generator import generate_corps_name
 
@@ -23,9 +23,9 @@ def create_show(
     db.commit()
     db.refresh(show)
 
-    # Create root coordinate
-    root = create_coordinate(db, type=CoordinateType.SHOW, title=title, description=description)
-    show.coordinate_root_id = root.id
+    # Create root segment
+    root = create_segment(db, type=SegmentType.SHOW, title=title, description=description)
+    show.segment_root_id = root.id
     db.commit()
     db.refresh(show)
     return show

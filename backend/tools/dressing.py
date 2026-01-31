@@ -1,7 +1,7 @@
 """Dressing — alignment check with adjacent work.
 
 When a performer completes a rep, dressing checks that the output
-aligns with related coordinates and sets. Like dressing the form
+aligns with related segments and sets. Like dressing the form
 in a drill — making sure your work lines up with your neighbors.
 """
 

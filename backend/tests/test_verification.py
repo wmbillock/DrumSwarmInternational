@@ -79,10 +79,10 @@ class TestVerificationEngine:
         def custom(result, **kw):
             return GateResult(gate_name="custom", passed="ANSWER" in result)
         engine.add_custom_gate("coord-1", custom)
-        result = engine.verify("rep-1", "a" * 20, coordinate_id="coord-1")
+        result = engine.verify("rep-1", "a" * 20, segment_id="coord-1")
         assert not result.passed
 
-        result = engine.verify("rep-1", "ANSWER" + "a" * 20, coordinate_id="coord-1")
+        result = engine.verify("rep-1", "ANSWER" + "a" * 20, segment_id="coord-1")
         assert result.passed
 
     def test_summary(self):

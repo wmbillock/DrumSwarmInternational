@@ -23,10 +23,10 @@ class ProblemSeverity(str, enum.Enum):
 
 
 class Problem(Base):
-    """A persistent issue logged against a coordinate that survives agent death.
+    """A persistent issue logged against a segment that survives agent death.
 
     When an ephemeral performer hits an issue it can't resolve, it posts a Problem
-    linked to the coordinate, then dies. The problem persists for the next agent
+    linked to the segment, then dies. The problem persists for the next agent
     or supervising staff to act on.
     """
 
@@ -35,7 +35,7 @@ class Problem(Base):
     id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
-    coordinate_id: Mapped[str] = mapped_column(ForeignKey("coordinates.id"))
+    segment_id: Mapped[str] = mapped_column(ForeignKey("segments.id"))
     corps_id: Mapped[str] = mapped_column(String(36))
     reported_by_role: Mapped[str] = mapped_column(String(50))
     reported_by_session_id: Mapped[Optional[str]] = mapped_column(

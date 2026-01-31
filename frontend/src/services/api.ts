@@ -1,6 +1,6 @@
 // API client for DCI Swarm backend
 
-import type { Show, AgentSession, CoordinateNode, WorkLogEntry, ChatMessage, Scoresheet } from "../types";
+import type { Show, AgentSession, SegmentNode, WorkLogEntry, ChatMessage, Scoresheet } from "../types";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -42,9 +42,9 @@ export const getAdminCorps = () => request<{ id: string; name: string; status: s
 export const getCorps = (id: string) => request(`/api/corps/${id}`);
 export const getRoster = (corpsId: string) => request<AgentSession[]>(`/api/corps/${corpsId}/roster`);
 
-// Coordinate tree
-export const getCoordinateTree = (coordId: string) =>
-  request<CoordinateNode>(`/api/coordinates/${coordId}/tree`);
+// Segment tree
+export const getSegmentTree = (coordId: string) =>
+  request<SegmentNode>(`/api/segments/${coordId}/tree`);
 
 // Work log
 export const getWorkLog = (corpsId: string, limit = 100) =>

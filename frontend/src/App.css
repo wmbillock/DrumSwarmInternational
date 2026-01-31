@@ -267,7 +267,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .agent-row-compact .agent-nickname { font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agent-row-compact .agent-role-small { color: var(--text-muted); font-size: 10px; flex-shrink: 0; }
 
-/* Work Panel (coordinate tree) */
+/* Work Panel (segment tree) */
 .work-panel { padding: 8px; }
 
 .coord-node { margin-left: 0; }

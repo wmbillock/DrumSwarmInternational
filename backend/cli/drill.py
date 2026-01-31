@@ -213,8 +213,8 @@ def run_orchestration_loop(db, corps_id, root_coord_id, llm_client, tool_executo
     from backend.services.message_service import poll_messages, acknowledge_message
     from backend.models.message import MessageType
     from backend.models.rep import RepStatus
-    from backend.services.rep_service import get_reps_for_coordinate
-    from backend.services.coordinate_service import get_children
+    from backend.services.rep_service import get_reps_for_segment
+    from backend.services.segment_service import get_children
 
     print(f"\n{BOLD}{'='*60}{NC}")
     log(MAGENTA, "orchestrator", "Starting orchestration loop")
@@ -239,17 +239,17 @@ def run_orchestration_loop(db, corps_id, root_coord_id, llm_client, tool_executo
                 if all_pending:
                     handoffs = all_pending
                 else:
-                    # Auto-dispatch program_coordinator to break down pending coordinates
+                    # Auto-dispatch program_coordinator to break down pending segments
                     pc_session = find_session_for_role(db, corps_id, "program_coordinator")
                     if pc_session:
-                        log(YELLOW, "orchestrator", "Auto-dispatching program_coordinator for pending coordinates")
+                        log(YELLOW, "orchestrator", "Auto-dispatching program_coordinator for pending segments")
                         tree = _build_tree_summary(db, root_coord_id)
                         task_desc = (
-                            f"Root coordinate ID: {root_coord_id}\n\n"
+                            f"Root segment ID: {root_coord_id}\n\n"
                             f"CURRENT TREE STATE:\n{tree}\n\n"
                             f"There are {pending_work} pending items that need reps. "
-                            f"DO NOT create new sets or coordinates that already exist. "
-                            f"For each leaf coordinate that has NO reps, call create_rep with its coordinate_id. "
+                            f"DO NOT create new sets or segments that already exist. "
+                            f"For each leaf segment that has NO reps, call create_rep with its segment_id. "
                             f"Then hand off to appropriate caption heads.\n"
                             f"NOTE: corps_id and from_role are auto-injected — do NOT include them in tool calls."
                         )
@@ -277,13 +277,13 @@ def run_orchestration_loop(db, corps_id, root_coord_id, llm_client, tool_executo
 
             tree = _build_tree_summary(db, root_coord_id)
             task_desc = (
-                f"Root coordinate ID: {root_coord_id}\n"
+                f"Root segment ID: {root_coord_id}\n"
                 f"Message from {msg.from_role}: {msg.subject}\n"
             )
             if msg.body:
                 task_desc += f"\nDetails:\n{msg.body}\n"
-            if msg.coordinate_id:
-                task_desc += f"\nCoordinate ID: {msg.coordinate_id}\n"
+            if msg.segment_id:
+                task_desc += f"\nSegment ID: {msg.segment_id}\n"
             task_desc += (
                 f"\nCURRENT TREE STATE:\n{tree}\n"
                 f"\nNOTE: corps_id and from_role are auto-injected in tool calls — do NOT include them."
@@ -306,19 +306,19 @@ def run_orchestration_loop(db, corps_id, root_coord_id, llm_client, tool_executo
 
 
 def _build_tree_summary(db, root_coord_id) -> str:
-    """Build a text summary of the coordinate tree with IDs."""
-    from backend.services.coordinate_service import get_children, get_coordinate
-    from backend.services.rep_service import get_reps_for_coordinate
+    """Build a text summary of the segment tree with IDs."""
+    from backend.services.segment_service import get_children, get_segment
+    from backend.services.rep_service import get_reps_for_segment
 
     lines = []
 
     def _walk(cid, indent=0):
-        coord = get_coordinate(db, cid)
+        coord = get_segment(db, cid)
         if not coord:
             return
         prefix = "  " * indent
         lines.append(f"{prefix}{coord.type.value}: {coord.title} [id={coord.id}, status={coord.status.value}]")
-        reps = get_reps_for_coordinate(db, cid)
+        reps = get_reps_for_segment(db, cid)
         for rep in reps:
             lines.append(f"{prefix}  rep [id={rep.id}, status={rep.status.value}]")
         for child in get_children(db, cid):
@@ -329,11 +329,11 @@ def _build_tree_summary(db, root_coord_id) -> str:
 
 
 def _check_pending_work(db, root_coord_id) -> int:
-    """Count pending work: reps not in terminal state + leaf coordinates with no reps."""
+    """Count pending work: reps not in terminal state + leaf segments with no reps."""
     from backend.models.rep import RepStatus
-    from backend.models.coordinate import CoordinateType
-    from backend.services.coordinate_service import get_children, get_coordinate
-    from backend.services.rep_service import get_reps_for_coordinate
+    from backend.models.segment import SegmentType
+    from backend.services.segment_service import get_children, get_segment
+    from backend.services.rep_service import get_reps_for_segment
 
     pending_count = 0
     coords_to_check = [root_coord_id]
@@ -349,32 +349,32 @@ def _check_pending_work(db, root_coord_id) -> int:
         for child in children:
             coords_to_check.append(child.id)
 
-        coord = get_coordinate(db, cid)
-        reps = get_reps_for_coordinate(db, cid)
+        coord = get_segment(db, cid)
+        reps = get_reps_for_segment(db, cid)
 
         if reps:
             for rep in reps:
                 if rep.status not in (RepStatus.COMPLETED, RepStatus.FAILED):
                     pending_count += 1
         elif coord and coord.status.value == "pending" and not children:
-            # Leaf coordinate with no reps — needs work
+            # Leaf segment with no reps — needs work
             pending_count += 1
 
     return pending_count
 
 
 def print_final_summary(db, root_coord_id):
-    """Print the final coordinate tree and rep results."""
-    from backend.services.coordinate_service import get_children
-    from backend.services.rep_service import get_reps_for_coordinate
+    """Print the final segment tree and rep results."""
+    from backend.services.segment_service import get_children
+    from backend.services.rep_service import get_reps_for_segment
 
     print(f"\n{BOLD}{'='*60}{NC}")
     print(f"{BOLD}  FINAL STATE{NC}")
     print(f"{'='*60}")
 
     def print_tree(coord_id, indent=0):
-        from backend.services.coordinate_service import get_coordinate
-        coord = get_coordinate(db, coord_id)
+        from backend.services.segment_service import get_segment
+        coord = get_segment(db, coord_id)
         if not coord:
             return
 
@@ -382,7 +382,7 @@ def print_final_summary(db, root_coord_id):
         prefix = "  " * indent
         print(f"{prefix}{status_color}{coord.type.value}: {coord.title} [{coord.status.value}]{NC}")
 
-        reps = get_reps_for_coordinate(db, coord_id)
+        reps = get_reps_for_segment(db, coord_id)
         for rep in reps:
             rep_color = GREEN if rep.status.value == "completed" else RED if rep.status.value == "failed" else YELLOW
             print(f"{prefix}  {rep_color}rep [{rep.status.value}]{NC}")
@@ -428,7 +428,7 @@ def run_drill(task_description: str, max_rounds: int = 50):
         log(GREEN, "drill", f"Show created: {show.id}")
 
         show = activate_show(db, show.id)
-        log(GREEN, "drill", f"Show activated. Corps: {show.corps_id}, Root coord: {show.coordinate_root_id}")
+        log(GREEN, "drill", f"Show activated. Corps: {show.corps_id}, Root coord: {show.segment_root_id}")
 
         # Phase 1: Run Executive Director
         ed_session = find_session_for_role(db, show.corps_id, "executive_director")
@@ -446,9 +446,9 @@ def run_drill(task_description: str, max_rounds: int = 50):
             llm_client=llm_client,
             tool_executor=tool_executor,
             task_description=(
-                f"The show has been activated. The root coordinate ID is {show.coordinate_root_id}. "
+                f"The show has been activated. The root segment ID is {show.segment_root_id}. "
                 f"Task: {task_description}\n\n"
-                f"Design the show structure: create MOVEMENT coordinates under the root, "
+                f"Design the show structure: create MOVEMENT segments under the root, "
                 f"then hand off to the program_coordinator. "
                 f"Do NOT include corps_id or from_role in tool calls — they are auto-injected."
             ),
@@ -463,21 +463,21 @@ def run_drill(task_description: str, max_rounds: int = 50):
 
         if ed_result.status == "failed":
             log(RED, "drill", f"ED failed: {ed_result.error}")
-            print_final_summary(db, show.coordinate_root_id)
+            print_final_summary(db, show.segment_root_id)
             return ed_result
 
         # Phase 2: Orchestration loop — dispatch downstream agents
         log(GREEN, "drill", "Phase 2: Orchestration loop")
         total_start = time.time()
         agents_run = run_orchestration_loop(
-            db, show.corps_id, show.coordinate_root_id, llm_client, tool_executor, max_rounds
+            db, show.corps_id, show.segment_root_id, llm_client, tool_executor, max_rounds
         )
         total_elapsed = time.time() - total_start
 
         log(BOLD, "drill", f"Total: {agents_run + 1} agents | {total_elapsed:.1f}s total")
 
         # Final summary
-        print_final_summary(db, show.coordinate_root_id)
+        print_final_summary(db, show.segment_root_id)
 
         # Print dry-run summary if applicable
         if os.environ.get("DCI_DRY_RUN") and hasattr(tool_executor, 'get_summary'):

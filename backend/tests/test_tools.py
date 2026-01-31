@@ -4,7 +4,7 @@ import pytest
 
 from backend.models.agent_definition import ModelTier
 from backend.models.agent_session import AgentSession, SessionStatus
-from backend.models.coordinate import Coordinate, CoordinateStatus, CoordinateType
+from backend.models.segment import Segment, SegmentStatus, SegmentType
 from backend.models.rep import Rep, RepStatus
 from backend.services.agent_lifecycle import create_definition, spawn_session
 from backend.tools.cleaning import Cleaning
@@ -138,24 +138,24 @@ class TestDressing:
 
 
 class TestCleaning:
-    def _create_completed_rep(self, db, coordinate_id, result_text):
-        rep = Rep(coordinate_id=coordinate_id, status=RepStatus.COMPLETED, result=result_text)
+    def _create_completed_rep(self, db, segment_id, result_text):
+        rep = Rep(segment_id=segment_id, status=RepStatus.COMPLETED, result=result_text)
         db.add(rep)
         db.commit()
         return rep
 
-    def _create_coordinate(self, db):
-        coord = Coordinate(
-            type=CoordinateType.COORDINATE,
+    def _create_segment(self, db):
+        coord = Segment(
+            type=SegmentType.SEGMENT,
             title="Test coord",
-            status=CoordinateStatus.COMPLETED,
+            status=SegmentStatus.COMPLETED,
         )
         db.add(coord)
         db.commit()
         return coord
 
     def test_clean_sweep(self, db):
-        coord = self._create_coordinate(db)
+        coord = self._create_segment(db)
         self._create_completed_rep(db, coord.id, "good code")
         cleaning = Cleaning()
         cleaning.add_rule("not_empty", lambda a: None if a else "empty")
@@ -164,7 +164,7 @@ class TestCleaning:
         assert result.issues_found == 0
 
     def test_issue_found(self, db):
-        coord = self._create_coordinate(db)
+        coord = self._create_segment(db)
         self._create_completed_rep(db, coord.id, "")
         cleaning = Cleaning()
         cleaning.add_rule("not_empty", lambda a: None if a else "empty artifact")
@@ -175,8 +175,8 @@ class TestCleaning:
         assert result.issues[0].description == "empty artifact"
 
     def test_skips_non_completed_reps(self, db):
-        coord = self._create_coordinate(db)
-        rep = Rep(coordinate_id=coord.id, status=RepStatus.IN_PROGRESS, result="wip")
+        coord = self._create_segment(db)
+        rep = Rep(segment_id=coord.id, status=RepStatus.IN_PROGRESS, result="wip")
         db.add(rep)
         db.commit()
         cleaning = Cleaning()
@@ -185,7 +185,7 @@ class TestCleaning:
         assert result.swept == 0
 
     def test_multiple_reps_multiple_rules(self, db):
-        coord = self._create_coordinate(db)
+        coord = self._create_segment(db)
         self._create_completed_rep(db, coord.id, "short")
         self._create_completed_rep(db, coord.id, "this is a longer artifact with content")
         cleaning = Cleaning()
@@ -195,7 +195,7 @@ class TestCleaning:
         assert result.issues_found == 1  # "short" fails
 
     def test_rule_exception(self, db):
-        coord = self._create_coordinate(db)
+        coord = self._create_segment(db)
         self._create_completed_rep(db, coord.id, "test")
         cleaning = Cleaning()
         cleaning.add_rule("bad_rule", lambda a: 1 / 0)
@@ -209,11 +209,11 @@ class TestCleaning:
 
 class TestMetronome:
     def _setup_corps(self, db):
-        """Create a coordinate with an assigned rep owned by an active session."""
-        coord = Coordinate(
-            type=CoordinateType.COORDINATE,
+        """Create a segment with an assigned rep owned by an active session."""
+        coord = Segment(
+            type=SegmentType.SEGMENT,
             title="Login page",
-            status=CoordinateStatus.IN_PROGRESS,
+            status=SegmentStatus.IN_PROGRESS,
         )
         db.add(coord)
         db.commit()
@@ -222,7 +222,7 @@ class TestMetronome:
         session = spawn_session(db, defn.id, CORPS_ID)
 
         rep = Rep(
-            coordinate_id=coord.id,
+            segment_id=coord.id,
             status=RepStatus.IN_PROGRESS,
             assigned_to=session.id,
         )
@@ -254,16 +254,16 @@ class TestMetronome:
         assert rep.assigned_to is None
 
     def test_reclaim_missing_session(self, db):
-        coord = Coordinate(
-            type=CoordinateType.COORDINATE,
+        coord = Segment(
+            type=SegmentType.SEGMENT,
             title="Orphan rep",
-            status=CoordinateStatus.IN_PROGRESS,
+            status=SegmentStatus.IN_PROGRESS,
         )
         db.add(coord)
         db.commit()
 
         rep = Rep(
-            coordinate_id=coord.id,
+            segment_id=coord.id,
             status=RepStatus.ASSIGNED,
             assigned_to="nonexistent-session-id",
         )
@@ -282,14 +282,14 @@ class TestMetronome:
         assert result.reclaimed == 0
 
     def test_completed_reps_ignored(self, db):
-        coord = Coordinate(
-            type=CoordinateType.COORDINATE,
+        coord = Segment(
+            type=SegmentType.SEGMENT,
             title="Done",
-            status=CoordinateStatus.COMPLETED,
+            status=SegmentStatus.COMPLETED,
         )
         db.add(coord)
         db.commit()
-        rep = Rep(coordinate_id=coord.id, status=RepStatus.COMPLETED)
+        rep = Rep(segment_id=coord.id, status=RepStatus.COMPLETED)
         db.add(rep)
         db.commit()
 

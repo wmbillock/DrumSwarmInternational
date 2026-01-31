@@ -7,7 +7,7 @@ export interface Show {
   status: "draft" | "active" | "completed" | "archived";
   corps_id?: string;
   corps_name?: string;
-  coordinate_root_id?: string;
+  segment_root_id?: string;
   created_at?: string;
   agents_active?: number;
   reps_total?: number;
@@ -36,15 +36,15 @@ export interface AgentSession {
   ended_at?: string;
 }
 
-export interface CoordinateNode {
+export interface SegmentNode {
   id: string;
-  type: "show" | "movement" | "set" | "coordinate";
+  type: "show" | "movement" | "set" | "segment";
   title: string;
   description?: string;
   status: "pending" | "in_progress" | "review" | "completed" | "failed" | "blocked";
   caption?: string;
   reps: RepInfo[];
-  children: CoordinateNode[];
+  children: SegmentNode[];
 }
 
 export interface RepInfo {
@@ -124,7 +124,7 @@ export interface Scoresheet {
     reps_in_progress: number;
     completion_rate: number;
     failure_rate: number;
-    coordinates_total: number;
+    segments_total: number;
   };
   roster: Record<string, { nickname?: string; model_tier: string; status: string; session_id: string }>;
   activity: {

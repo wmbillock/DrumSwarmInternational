@@ -88,12 +88,12 @@ def gate_brown_m_and_m(result: str, canary_phrase: str = "", **kwargs) -> GateRe
 # Default gate chain
 DEFAULT_GATES = [gate_non_empty, gate_minimum_length, gate_json_valid]
 
-# Gate configurations per coordinate type — maps type name to gate overrides
+# Gate configurations per segment type — maps type name to gate overrides
 COORDINATE_TYPE_GATES: dict[str, dict] = {
     "show": {"min_length": 50},
     "movement": {"min_length": 20},
     "set": {"min_length": 10},
-    "coordinate": {"min_length": 10},
+    "segment": {"min_length": 10},
 }
 
 
@@ -102,40 +102,40 @@ class VerificationEngine:
 
     def __init__(self):
         self._gates: list[Callable] = list(DEFAULT_GATES)
-        self._custom_gates: dict[str, list[Callable]] = {}  # coordinate_id -> custom gates
-        self._type_gates: dict[str, list[Callable]] = {}  # coordinate_type -> extra gates
+        self._custom_gates: dict[str, list[Callable]] = {}  # segment_id -> custom gates
+        self._type_gates: dict[str, list[Callable]] = {}  # segment_type -> extra gates
         self._type_kwargs: dict[str, dict] = dict(COORDINATE_TYPE_GATES)
 
     def add_gate(self, gate_func: Callable) -> None:
         """Add a global verification gate."""
         self._gates.append(gate_func)
 
-    def add_custom_gate(self, coordinate_id: str, gate_func: Callable) -> None:
-        """Add a custom gate for a specific coordinate."""
-        self._custom_gates.setdefault(coordinate_id, []).append(gate_func)
+    def add_custom_gate(self, segment_id: str, gate_func: Callable) -> None:
+        """Add a custom gate for a specific segment."""
+        self._custom_gates.setdefault(segment_id, []).append(gate_func)
 
-    def add_type_gate(self, coordinate_type: str, gate_func: Callable) -> None:
-        """Add a gate for all coordinates of a given type."""
-        self._type_gates.setdefault(coordinate_type, []).append(gate_func)
+    def add_type_gate(self, segment_type: str, gate_func: Callable) -> None:
+        """Add a gate for all segments of a given type."""
+        self._type_gates.setdefault(segment_type, []).append(gate_func)
 
-    def set_type_kwargs(self, coordinate_type: str, **kwargs) -> None:
-        """Set gate keyword overrides for a coordinate type."""
-        self._type_kwargs.setdefault(coordinate_type, {}).update(kwargs)
+    def set_type_kwargs(self, segment_type: str, **kwargs) -> None:
+        """Set gate keyword overrides for a segment type."""
+        self._type_kwargs.setdefault(segment_type, {}).update(kwargs)
 
     def verify(
         self,
         rep_id: str,
         result: str,
-        coordinate_id: Optional[str] = None,
-        coordinate_type: Optional[str] = None,
+        segment_id: Optional[str] = None,
+        segment_type: Optional[str] = None,
         canary_phrase: str = "",
     ) -> VerificationResult:
         """Run all applicable gates on a result."""
         gate_results = []
         # Merge type-specific kwargs
         kwargs = {"canary_phrase": canary_phrase}
-        if coordinate_type and coordinate_type in self._type_kwargs:
-            kwargs.update(self._type_kwargs[coordinate_type])
+        if segment_type and segment_type in self._type_kwargs:
+            kwargs.update(self._type_kwargs[segment_type])
 
         # Run global gates
         for gate in self._gates:
@@ -146,13 +146,13 @@ class VerificationEngine:
             gate_results.append(gate_brown_m_and_m(result, **kwargs))
 
         # Run type-specific gates
-        if coordinate_type and coordinate_type in self._type_gates:
-            for gate in self._type_gates[coordinate_type]:
+        if segment_type and segment_type in self._type_gates:
+            for gate in self._type_gates[segment_type]:
                 gate_results.append(gate(result, **kwargs))
 
-        # Run custom gates for coordinate
-        if coordinate_id and coordinate_id in self._custom_gates:
-            for gate in self._custom_gates[coordinate_id]:
+        # Run custom gates for segment
+        if segment_id and segment_id in self._custom_gates:
+            for gate in self._custom_gates[segment_id]:
                 gate_results.append(gate(result, **kwargs))
 
         all_passed = all(g.passed for g in gate_results)

@@ -9,7 +9,7 @@ from backend.services.message_service import send_message
 
 def subscribe(
     db: Session,
-    coordinate_id: str,
+    segment_id: str,
     subscriber_role: str,
     corps_id: str,
     event_type: EventType,
@@ -19,7 +19,7 @@ def subscribe(
     existing = (
         db.query(Subscription)
         .filter(
-            Subscription.coordinate_id == coordinate_id,
+            Subscription.segment_id == segment_id,
             Subscription.subscriber_role == subscriber_role,
             Subscription.corps_id == corps_id,
             Subscription.event_type == event_type,
@@ -31,7 +31,7 @@ def subscribe(
         return existing
 
     sub = Subscription(
-        coordinate_id=coordinate_id,
+        segment_id=segment_id,
         subscriber_role=subscriber_role,
         subscriber_session_id=subscriber_session_id,
         corps_id=corps_id,
@@ -55,13 +55,13 @@ def unsubscribe(db: Session, subscription_id: str) -> Subscription:
 
 def get_subscribers(
     db: Session,
-    coordinate_id: str,
+    segment_id: str,
     event_type: EventType,
 ) -> list[Subscription]:
     return (
         db.query(Subscription)
         .filter(
-            Subscription.coordinate_id == coordinate_id,
+            Subscription.segment_id == segment_id,
             Subscription.event_type == event_type,
             Subscription.active.is_(True),
         )
@@ -71,15 +71,15 @@ def get_subscribers(
 
 def notify_subscribers(
     db: Session,
-    coordinate_id: str,
+    segment_id: str,
     corps_id: str,
     event_type: EventType,
     subject: str,
     body: Optional[str] = None,
     source_role: str = "system",
 ) -> list:
-    """Fire notifications for all active subscribers to an event on a coordinate."""
-    subscribers = get_subscribers(db, coordinate_id, event_type)
+    """Fire notifications for all active subscribers to an event on a segment."""
+    subscribers = get_subscribers(db, segment_id, event_type)
     messages = []
     for sub in subscribers:
         msg = send_message(
@@ -92,7 +92,7 @@ def notify_subscribers(
             to_role=sub.subscriber_role,
             to_session_id=sub.subscriber_session_id,
             priority=MessagePriority.NORMAL,
-            coordinate_id=coordinate_id,
+            segment_id=segment_id,
         )
         messages.append(msg)
     return messages

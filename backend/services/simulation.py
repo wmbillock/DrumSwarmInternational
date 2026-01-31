@@ -36,14 +36,14 @@ class DryRunToolExecutor(ToolExecutor):
         }
 
         # Produce tool-specific synthetic results
-        if tool_name == "create_coordinate":
+        if tool_name == "create_segment":
             synthetic.update({
-                "type": arguments.get("type", "coordinate"),
+                "type": arguments.get("type", "segment"),
                 "title": arguments.get("title", "simulated"),
             })
         elif tool_name == "create_rep":
             synthetic.update({
-                "coordinate_id": arguments.get("coordinate_id", ""),
+                "segment_id": arguments.get("segment_id", ""),
                 "status": "pending",
             })
         elif tool_name in ("transition_rep", "submit_work"):

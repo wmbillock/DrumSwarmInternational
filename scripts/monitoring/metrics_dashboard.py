@@ -116,10 +116,10 @@ def render():
             total_agents = len(roster)
             print(f"  Agents: {GREEN}{active_agents}{RESET}/{total_agents}")
 
-        # Rep counts from coordinate tree
-        coord_root = show.get("coordinate_root_id")
+        # Rep counts from segment tree
+        coord_root = show.get("segment_root_id")
         if coord_root:
-            reps = fetch(f"/api/coordinates/{coord_root}/reps") or []
+            reps = fetch(f"/api/segments/{coord_root}/reps") or []
             if reps:
                 completed = sum(1 for r in reps if r.get("status") == "completed")
                 failed = sum(1 for r in reps if r.get("status") == "failed")

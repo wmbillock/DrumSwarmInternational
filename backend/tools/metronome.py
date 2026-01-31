@@ -62,7 +62,7 @@ def tick(db: Session, corps_id: str) -> MetronomeResult:
     # Find all active reps (assigned or in_progress) for this corps
     active_reps = (
         db.query(Rep)
-        .join(Rep.coordinate)
+        .join(Rep.segment)
         .filter(
             Rep.status.in_([RepStatus.ASSIGNED, RepStatus.IN_PROGRESS]),
             Rep.assigned_to.isnot(None),

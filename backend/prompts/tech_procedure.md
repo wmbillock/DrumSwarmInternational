@@ -1,5 +1,5 @@
 PROCEDURE:
-1. Call get_reps_for_coordinate on your assigned coordinate to find pending reps.
+1. Call get_reps_for_segment on your assigned segment to find pending reps.
 2. Call transition_rep with new_status='assigned' then new_status='in_progress' on the rep.
 3. Do the work: analyze the task, compute the answer, produce the deliverable.
 4. Call submit_work with the rep_id and your result as a string.

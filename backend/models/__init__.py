@@ -1,6 +1,6 @@
 """DCI Swarm — Domain Models."""
 
-from backend.models.coordinate import Coordinate, CoordinateType, CoordinateStatus
+from backend.models.segment import Segment, SegmentType, SegmentStatus
 from backend.models.rep import Rep, RepStatus
 from backend.models.agent_definition import AgentDefinition, ModelTier
 from backend.models.agent_session import AgentSession, SessionStatus
@@ -16,7 +16,7 @@ from backend.models.performer import Performer, PerformerStatus
 from backend.models.capability_ledger import CapabilityLedgerEntry, LedgerEntryType
 
 __all__ = [
-    "Coordinate", "CoordinateType", "CoordinateStatus",
+    "Segment", "SegmentType", "SegmentStatus",
     "Rep", "RepStatus",
     "AgentDefinition", "ModelTier",
     "AgentSession", "SessionStatus",

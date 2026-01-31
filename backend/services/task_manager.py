@@ -138,6 +138,10 @@ class TaskManager:
                     finally:
                         db.close()
 
+            # Process orphaned handoff messages for all active corps
+            for r in results:
+                await self._process_pending_handoffs(r["corps_id"])
+
             # Feed health summary to timing_judge if issues detected
             for r in results:
                 corps_id = r["corps_id"]
@@ -160,6 +164,9 @@ class TaskManager:
                             task_description=health_summary,
                             corps_id=corps_id,
                         )
+            # Ping the DCI admin ED with swarm-wide status
+            await self._ping_admin_ed(results)
+
         except Exception:
             logger.exception("Metronome broadcast error")
 
@@ -169,14 +176,44 @@ class TaskManager:
         task_description: str,
         corps_id: str,
         context_snapshot: Optional[str] = None,
+        keep_alive: bool = False,
     ) -> None:
-        """Start an agent session as a background asyncio task."""
+        """Start an agent session as a background asyncio task.
+
+        For singleton roles (executive_director), prevents spawning a duplicate
+        if one is already running for this corps.
+
+        If keep_alive is True, the agent session stays ACTIVE after completing
+        so it can be re-dispatched (e.g. on the next metronome ping).
+        """
         if session_id in self.active_tasks and not self.active_tasks[session_id].done():
             logger.warning("Session %s already has an active task", session_id)
             return
 
+        # Singleton guard: check if this role already has a running task in this corps
+        role, nickname = self._get_agent_identity(session_id)
+        if role in self.SINGLETON_ROLES:
+            for other_sid, other_task in self.active_tasks.items():
+                if other_sid == session_id or other_task.done():
+                    continue
+                other_role, _ = self._get_agent_identity(other_sid)
+                if other_role == role:
+                    # Check if same corps
+                    db = self._session_factory()
+                    try:
+                        from backend.models.agent_session import AgentSession
+                        other_session = db.get(AgentSession, other_sid)
+                        if other_session and other_session.corps_id == corps_id:
+                            logger.warning(
+                                "Singleton role %s already running in corps %s (session %s), skipping %s",
+                                role, corps_id, other_sid, session_id,
+                            )
+                            return
+                    finally:
+                        db.close()
+
         task = asyncio.create_task(
-            self._run_agent_task(session_id, task_description, corps_id, context_snapshot)
+            self._run_agent_task(session_id, task_description, corps_id, context_snapshot, keep_alive)
         )
         self.active_tasks[session_id] = task
         task.add_done_callback(lambda t: self._on_task_done(session_id, t))
@@ -202,6 +239,7 @@ class TaskManager:
         task_description: str,
         corps_id: str,
         context_snapshot: Optional[str] = None,
+        keep_alive: bool = False,
     ) -> None:
         """Run an agent in a thread and broadcast status events."""
         role, nickname = self._get_agent_identity(session_id)
@@ -236,6 +274,7 @@ class TaskManager:
                     task_description=task_description,
                     context_snapshot=context_snapshot,
                     on_event=on_event,
+                    keep_alive=keep_alive,
                 )
                 return result
             finally:
@@ -269,6 +308,9 @@ class TaskManager:
                     "from_role": role,
                     "content": result.final_response,
                 })
+
+            # Process pending handoff messages: dispatch receiving agents
+            await self._process_pending_handoffs(corps_id)
 
             # Auto-retry critical roles on failure
             if result.status == "failed" and role in AUTO_RETRY_ROLES:
@@ -326,8 +368,192 @@ class TaskManager:
         task = self.active_tasks.get(session_id)
         return task is not None and not task.done()
 
+    async def _ping_admin_ed(self, tick_results: list[dict]) -> None:
+        """Ping the DCI admin ED with swarm-wide status after each metronome cycle.
+
+        The admin ED stays alive and receives periodic status pings. It then
+        issues status requests to each corps ED to understand what needs attention.
+        """
+        def _build_status_and_dispatch():
+            from backend.services.corps_service import get_or_create_admin_corps, ADMIN_CORPS_NAME
+            from backend.models.corps import Corps, CorpsStatus
+            from backend.models.agent_session import AgentSession, SessionStatus
+            from backend.models.agent_definition import AgentDefinition
+            from backend.models.rep import Rep, RepStatus
+
+            db = self._session_factory()
+            try:
+                admin_corps = get_or_create_admin_corps(db)
+
+                # Gather swarm-wide status
+                active_corps = (
+                    db.query(Corps)
+                    .filter(
+                        Corps.status.in_([CorpsStatus.REHEARSAL, CorpsStatus.TOUR]),
+                        Corps.name != ADMIN_CORPS_NAME,
+                    )
+                    .all()
+                )
+
+                if not active_corps and not tick_results:
+                    return None  # Nothing to report
+
+                lines = ["METRONOME STATUS PING — Swarm-wide summary:\n"]
+
+                for corps in active_corps:
+                    # Count sessions by status
+                    sessions = (
+                        db.query(AgentSession)
+                        .filter(AgentSession.corps_id == corps.id)
+                        .all()
+                    )
+                    active_count = sum(1 for s in sessions if s.status == SessionStatus.ACTIVE)
+                    completed_count = sum(1 for s in sessions if s.status == SessionStatus.COMPLETED)
+                    failed_count = sum(1 for s in sessions if s.status == SessionStatus.FAILED)
+
+                    # Count reps by status
+                    from backend.models.segment import Segment
+                    reps = (
+                        db.query(Rep)
+                        .join(Segment, Rep.segment_id == Segment.id)
+                        .filter(Segment.show_id.isnot(None))  # rough filter
+                        .all()
+                    )
+                    # Actually just get reps for this corps via segments
+                    # Simpler: count all reps that belong to segments in shows tied to this corps
+                    from backend.models.show import Show
+                    show = db.query(Show).filter(Show.corps_id == corps.id).first()
+                    rep_summary = ""
+                    if show and show.segment_root_id:
+                        all_reps = db.query(Rep).all()
+                        corps_reps = [r for r in all_reps if r.segment_id]
+                        pending_reps = sum(1 for r in corps_reps if r.status == RepStatus.PENDING)
+                        in_progress_reps = sum(1 for r in corps_reps if r.status == RepStatus.IN_PROGRESS)
+                        completed_reps = sum(1 for r in corps_reps if r.status == RepStatus.COMPLETED)
+                        failed_reps = sum(1 for r in corps_reps if r.status == RepStatus.FAILED)
+                        rep_summary = (
+                            f"    Reps: {pending_reps} pending, {in_progress_reps} in-progress, "
+                            f"{completed_reps} completed, {failed_reps} failed"
+                        )
+
+                    lines.append(
+                        f"  Corps '{corps.name}' ({corps.id[:8]}...) [{corps.status.value}]:\n"
+                        f"    Sessions: {active_count} active, {completed_count} completed, {failed_count} failed"
+                    )
+                    if rep_summary:
+                        lines.append(rep_summary)
+
+                    # Include tick results for this corps
+                    for tr in tick_results:
+                        if tr["corps_id"] == corps.id:
+                            met = tr["metronome"]
+                            if met["reclaimed"] > 0 or met.get("idle_kicked", 0) > 0:
+                                lines.append(
+                                    f"    Metronome: reclaimed {met['reclaimed']}, "
+                                    f"GUPP kicked {met.get('idle_kicked', 0)}"
+                                )
+
+                if not active_corps:
+                    lines.append("  No active corps currently running.")
+
+                lines.append(
+                    "\nReview this status. If any corps needs attention (stuck work, failures, "
+                    "idle agents), send a message to the appropriate corps executive_director "
+                    "requesting a status update or corrective action. If all corps are healthy, "
+                    "acknowledge the status ping briefly."
+                )
+
+                status_text = "\n".join(lines)
+
+                # Find or get the admin ED session
+                ed_session_id = self.get_session_for_role(db, admin_corps.id, "executive_director")
+                if not ed_session_id:
+                    return None
+
+                return (ed_session_id, admin_corps.id, status_text)
+            finally:
+                db.close()
+
+        try:
+            result = await asyncio.to_thread(_build_status_and_dispatch)
+            if result is None:
+                return
+
+            session_id, admin_corps_id, status_text = result
+
+            # Don't ping if the admin ED is already running
+            if self.is_active(session_id):
+                logger.debug("Admin ED already active, skipping status ping")
+                return
+
+            self.start_agent(
+                session_id=session_id,
+                task_description=status_text,
+                corps_id=admin_corps_id,
+                keep_alive=True,
+            )
+            logger.info("Pinged admin ED with swarm status")
+
+        except Exception:
+            logger.exception("Error pinging admin ED")
+
+    async def _process_pending_handoffs(self, corps_id: str) -> None:
+        """Check for unacknowledged handoff messages and dispatch receiving agents."""
+        def _find_and_dispatch():
+            from backend.services.message_service import poll_messages, acknowledge_message, MessageType
+            db = self._session_factory()
+            try:
+                # Get all unacknowledged messages for this corps
+                pending = poll_messages(db, corps_id, unacknowledged_only=True)
+                dispatches = []
+                for msg in pending:
+                    if msg.type != MessageType.HANDOFF or not msg.to_role:
+                        continue
+                    target_role = msg.to_role
+                    session_id = self.get_session_for_role(db, corps_id, target_role)
+                    if session_id and not self.is_active(session_id):
+                        # Build task description from handoff message
+                        task_desc = (
+                            f"You have received a handoff from {msg.from_role}.\n\n"
+                            f"Subject: {msg.subject}\n"
+                        )
+                        if msg.body:
+                            task_desc += f"\n{msg.body}\n"
+                        if msg.segment_id:
+                            task_desc += f"\nSegment ID: {msg.segment_id}\n"
+                        task_desc += (
+                            "\nProcess this handoff by executing the required work. "
+                            "Use your tools to inspect the segments and create/complete reps as needed."
+                        )
+                        acknowledge_message(db, msg.id)
+                        dispatches.append((session_id, task_desc, target_role))
+                return dispatches
+            finally:
+                db.close()
+
+        try:
+            dispatches = await asyncio.to_thread(_find_and_dispatch)
+            for session_id, task_desc, target_role in dispatches:
+                logger.info("Dispatching %s for handoff in corps %s", target_role, corps_id)
+                self.start_agent(
+                    session_id=session_id,
+                    task_description=task_desc,
+                    corps_id=corps_id,
+                )
+        except Exception:
+            logger.exception("Error processing handoff messages for corps %s", corps_id)
+
+    # Singleton roles: only one active session per corps at a time.
+    # New sessions for these roles require the old one to be completed/failed first.
+    SINGLETON_ROLES = {"executive_director"}
+
     def get_session_for_role(self, db, corps_id: str, role: str) -> Optional[str]:
-        """Find the session_id for a given role in a corps. Respawns completed sessions."""
+        """Find the session_id for a given role in a corps. Respawns completed sessions.
+
+        For singleton roles (e.g. executive_director), only one active session
+        is allowed per corps. Returns the existing active session rather than
+        spawning a duplicate.
+        """
         from backend.models.agent_session import AgentSession, SessionStatus
         from backend.models.agent_definition import AgentDefinition
         from backend.services.agent_lifecycle import spawn_session
@@ -344,6 +570,9 @@ class TaskManager:
             .first()
         )
         if active:
+            # For singleton roles, also check if it's already running as a task
+            if role in self.SINGLETON_ROLES and self.is_active(active.id):
+                logger.debug("Singleton role %s already active in corps %s", role, corps_id)
             return active.id
 
         # Find most recent completed/failed session and respawn

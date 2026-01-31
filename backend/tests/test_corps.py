@@ -7,7 +7,7 @@ from sqlalchemy.orm import sessionmaker
 
 from backend.database import Base
 from backend.models.corps import Corps, CorpsStatus, RehearsalMode
-from backend.models.coordinate import Coordinate, CoordinateType, CoordinateStatus
+from backend.models.segment import Segment, SegmentType, SegmentStatus
 from backend.models.rep import Rep, RepStatus
 from backend.services.corps_service import (
     create_corps,
@@ -29,7 +29,7 @@ from backend.services.corps_service import (
 )
 
 # Import all models
-import backend.models.coordinate  # noqa: F401
+import backend.models.segment  # noqa: F401
 import backend.models.rep  # noqa: F401
 import backend.models.message  # noqa: F401
 import backend.models.problem  # noqa: F401
@@ -228,54 +228,54 @@ class TestRehearsalModes:
 
 class TestMergeMonitor:
     def test_merge_completed_siblings(self, db):
-        show = Coordinate(type=CoordinateType.SHOW, title="Show",
-                          status=CoordinateStatus.IN_PROGRESS)
+        show = Segment(type=SegmentType.SHOW, title="Show",
+                          status=SegmentStatus.IN_PROGRESS)
         db.add(show)
         db.commit()
         db.refresh(show)
 
-        m1 = Coordinate(type=CoordinateType.MOVEMENT, title="M1",
-                         parent_id=show.id, status=CoordinateStatus.COMPLETED)
-        m2 = Coordinate(type=CoordinateType.MOVEMENT, title="M2",
-                         parent_id=show.id, status=CoordinateStatus.COMPLETED)
+        m1 = Segment(type=SegmentType.MOVEMENT, title="M1",
+                         parent_id=show.id, status=SegmentStatus.COMPLETED)
+        m2 = Segment(type=SegmentType.MOVEMENT, title="M2",
+                         parent_id=show.id, status=SegmentStatus.COMPLETED)
         db.add_all([m1, m2])
         db.commit()
 
         result = merge_monitor_check(db, "corps-1")
         assert result.merged >= 1
         db.refresh(show)
-        assert show.status == CoordinateStatus.COMPLETED
+        assert show.status == SegmentStatus.COMPLETED
 
     def test_merge_with_incomplete_siblings(self, db):
-        show = Coordinate(type=CoordinateType.SHOW, title="Show",
-                          status=CoordinateStatus.IN_PROGRESS)
+        show = Segment(type=SegmentType.SHOW, title="Show",
+                          status=SegmentStatus.IN_PROGRESS)
         db.add(show)
         db.commit()
         db.refresh(show)
 
-        m1 = Coordinate(type=CoordinateType.MOVEMENT, title="M1",
-                         parent_id=show.id, status=CoordinateStatus.COMPLETED)
-        m2 = Coordinate(type=CoordinateType.MOVEMENT, title="M2",
-                         parent_id=show.id, status=CoordinateStatus.IN_PROGRESS)
+        m1 = Segment(type=SegmentType.MOVEMENT, title="M1",
+                         parent_id=show.id, status=SegmentStatus.COMPLETED)
+        m2 = Segment(type=SegmentType.MOVEMENT, title="M2",
+                         parent_id=show.id, status=SegmentStatus.IN_PROGRESS)
         db.add_all([m1, m2])
         db.commit()
 
         result = merge_monitor_check(db, "corps-1")
         assert result.merged == 0
         db.refresh(show)
-        assert show.status == CoordinateStatus.IN_PROGRESS  # unchanged
+        assert show.status == SegmentStatus.IN_PROGRESS  # unchanged
 
     def test_merge_detects_conflicts(self, db):
-        show = Coordinate(type=CoordinateType.SHOW, title="Show",
-                          status=CoordinateStatus.IN_PROGRESS)
+        show = Segment(type=SegmentType.SHOW, title="Show",
+                          status=SegmentStatus.IN_PROGRESS)
         db.add(show)
         db.commit()
         db.refresh(show)
 
-        m1 = Coordinate(type=CoordinateType.MOVEMENT, title="M1",
-                         parent_id=show.id, status=CoordinateStatus.COMPLETED)
-        m2 = Coordinate(type=CoordinateType.MOVEMENT, title="M2",
-                         parent_id=show.id, status=CoordinateStatus.FAILED)
+        m1 = Segment(type=SegmentType.MOVEMENT, title="M1",
+                         parent_id=show.id, status=SegmentStatus.COMPLETED)
+        m2 = Segment(type=SegmentType.MOVEMENT, title="M2",
+                         parent_id=show.id, status=SegmentStatus.FAILED)
         db.add_all([m1, m2])
         db.commit()
 

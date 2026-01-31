@@ -15,7 +15,7 @@ from backend.tools import create_tool_registry
 
 class TestIntegrationAgentLoop:
     def test_ed_creates_movements_and_handoffs(self, db):
-        """Test that ED can create coordinates and hand off to PC."""
+        """Test that ED can create segments and hand off to PC."""
         corps = create_corps(db, "test-corps")
         sessions = initialize_corps(db, corps.id)
 
@@ -23,10 +23,10 @@ class TestIntegrationAgentLoop:
         registry = create_tool_registry()
         executor = ToolExecutor(registry)
 
-        # Create a root coordinate for the show
-        from backend.services.coordinate_service import create_coordinate
-        from backend.models.coordinate import CoordinateType
-        root = create_coordinate(db, type=CoordinateType.SHOW, title="Test Show")
+        # Create a root segment for the show
+        from backend.services.segment_service import create_segment
+        from backend.models.segment import SegmentType
+        root = create_segment(db, type=SegmentType.SHOW, title="Test Show")
 
         ed_session = sessions["executive_director"]
 
@@ -34,7 +34,7 @@ class TestIntegrationAgentLoop:
         llm.queue_response(LLMResponse(
             content="",
             tool_calls=[ToolCall(
-                tool_name="create_coordinate",
+                tool_name="create_segment",
                 arguments={"type": "movement", "title": "Movement 1", "parent_id": root.id},
             )],
             stop_reason="tool_use",
@@ -55,14 +55,14 @@ class TestIntegrationAgentLoop:
         events = []
         result = run_agent(
             db, ed_session.id, llm, executor,
-            f"Root coordinate ID: {root.id}. Create movements.",
+            f"Root segment ID: {root.id}. Create movements.",
             on_event=events.append,
             keep_alive=True,
         )
 
         assert result.status == "completed"
         assert len(result.tool_calls_made) == 2
-        assert result.tool_calls_made[0]["tool"] == "create_coordinate"
+        assert result.tool_calls_made[0]["tool"] == "create_segment"
         assert result.tool_calls_made[1]["tool"] == "handoff"
         # Check phase state was recorded
         assert result.phase_state is not None
@@ -76,14 +76,14 @@ class TestIntegrationAgentLoop:
         registry = create_tool_registry()
         executor = ToolExecutor(registry)
 
-        # Create coordinate + rep
-        from backend.services.coordinate_service import create_coordinate
+        # Create segment + rep
+        from backend.services.segment_service import create_segment
         from backend.services.rep_service import create_rep
-        from backend.models.coordinate import CoordinateType
-        root = create_coordinate(db, type=CoordinateType.SHOW, title="Test")
-        mvmt = create_coordinate(db, type=CoordinateType.MOVEMENT, title="Movement 1", parent_id=root.id)
-        sset = create_coordinate(db, type=CoordinateType.SET, title="Set 1", parent_id=mvmt.id)
-        coord = create_coordinate(db, type=CoordinateType.COORDINATE, title="Task 1", parent_id=sset.id)
+        from backend.models.segment import SegmentType
+        root = create_segment(db, type=SegmentType.SHOW, title="Test")
+        mvmt = create_segment(db, type=SegmentType.MOVEMENT, title="Movement 1", parent_id=root.id)
+        sset = create_segment(db, type=SegmentType.SET, title="Set 1", parent_id=mvmt.id)
+        coord = create_segment(db, type=SegmentType.SEGMENT, title="Task 1", parent_id=sset.id)
         rep = create_rep(db, coord.id)
 
         tech_session = sessions["brass_tech"]
@@ -120,7 +120,7 @@ class TestIntegrationAgentLoop:
 
         result = run_agent(
             db, tech_session.id, llm, executor,
-            f"Coordinate ID: {coord.id}. Do the work.",
+            f"Segment ID: {coord.id}. Do the work.",
             keep_alive=True,
         )
 

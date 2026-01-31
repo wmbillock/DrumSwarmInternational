@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useWebSocket } from "./hooks/useWebSocket";
-import type { Show, AgentSession, WorkLogEntry, CoordinateNode, ChatMessage, WebSocketEvent, Scoresheet } from "./types";
+import type { Show, AgentSession, WorkLogEntry, SegmentNode, ChatMessage, WebSocketEvent, Scoresheet } from "./types";
 import * as api from "./services/api";
 import "./App.css";
 
@@ -225,7 +225,7 @@ function ShowDetail({
 }: {
   show: Show;
   roster: AgentSession[];
-  tree: CoordinateNode | null;
+  tree: SegmentNode | null;
   workLog: WorkLogEntry[];
   chatHistory: ChatMessage[];
   wsEvents: WebSocketEvent[];
@@ -315,7 +315,7 @@ function ShowDetail({
               {allChat.length === 0 && (
                 <div className="chat-empty">
                   <p>Send a message to start talking to the swarm.</p>
-                  <p className="hint">Choose a role, or talk to the ED to coordinate the whole team.</p>
+                  <p className="hint">Choose a role, or talk to the ED to segment the whole team.</p>
                   {deadAgents.length > 0 && activeAgents.length === 0 && (
                     <p className="hint warning">All agents stopped. Sending a message will revive the target.</p>
                   )}
@@ -512,8 +512,8 @@ function ShowDetail({
                         <span className={scoresheet.execution.failure_rate > 20 ? "health-error" : ""}>{scoresheet.execution.reps_failed} ({scoresheet.execution.failure_rate}%)</span>
                       </div>
                       <div className="metric-row">
-                        <span>Coordinates</span>
-                        <span>{scoresheet.execution.coordinates_total}</span>
+                        <span>Segments</span>
+                        <span>{scoresheet.execution.segments_total}</span>
                       </div>
                     </div>
 
@@ -579,8 +579,8 @@ function AgentCard({ agent }: { agent: AgentSession }) {
   );
 }
 
-// --- Coordinate Tree ---
-function CoordTree({ node, depth }: { node: CoordinateNode; depth: number }) {
+// --- Segment Tree ---
+function CoordTree({ node, depth }: { node: SegmentNode; depth: number }) {
   const [expanded, setExpanded] = useState(depth < 2);
   const hasChildren = node.children && node.children.length > 0;
   const completedReps = node.reps?.filter(r => r.status === "completed").length ?? 0;
@@ -765,7 +765,7 @@ function AdminChat({
           {allChat.length === 0 && (
             <div className="chat-empty">
               <p>Welcome to Critique.</p>
-              <p className="hint">This is where the staff gathers after the run to review, discuss, and plan. Give feedback, get status updates, or coordinate across shows.</p>
+              <p className="hint">This is where the staff gathers after the run to review, discuss, and plan. Give feedback, get status updates, or segment across shows.</p>
             </div>
           )}
           {allChat.map((m, i) => (
@@ -808,7 +808,7 @@ export default function App() {
   const [agents, setAgents] = useState<AgentSession[]>([]);
   const [globalLog, setGlobalLog] = useState<WorkLogEntry[]>([]);
   const [roster, setRoster] = useState<AgentSession[]>([]);
-  const [tree, setTree] = useState<CoordinateNode | null>(null);
+  const [tree, setTree] = useState<SegmentNode | null>(null);
   const [showLog, setShowLog] = useState<WorkLogEntry[]>([]);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [scoresheet, setScoresheet] = useState<Scoresheet | null>(null);
@@ -866,8 +866,8 @@ export default function App() {
       if (c.status === "fulfilled") setChatHistory(c.value);
       if (sc.status === "fulfilled") setScoresheet(sc.value);
     }
-    if (show.coordinate_root_id) {
-      try { setTree(await api.getCoordinateTree(show.coordinate_root_id)); } catch {}
+    if (show.segment_root_id) {
+      try { setTree(await api.getSegmentTree(show.segment_root_id)); } catch {}
     }
   }, [clearEvents]);
 

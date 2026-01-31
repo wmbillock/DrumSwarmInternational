@@ -1,7 +1,7 @@
 """Tests for message bus pub/sub."""
 
 from backend.services.message_bus import (
-    MessageBus, RepStatusChanged, CoordinateCompleted,
+    MessageBus, RepStatusChanged, SegmentCompleted,
     AgentPhaseChanged, AgentCompleted, VerificationFailed,
 )
 
@@ -11,7 +11,7 @@ class TestMessageBus:
         bus = MessageBus()
         received = []
         bus.subscribe("rep.status_changed", received.append)
-        msg = RepStatusChanged(rep_id="r1", old_status="pending", new_status="assigned", coordinate_id="c1")
+        msg = RepStatusChanged(rep_id="r1", old_status="pending", new_status="assigned", segment_id="c1")
         bus.publish("rep.status_changed", msg)
         assert len(received) == 1
         assert received[0].rep_id == "r1"
@@ -60,10 +60,10 @@ class TestMessageBus:
     def test_typed_messages(self):
         bus = MessageBus()
         received = []
-        bus.subscribe("coordinate.completed", received.append)
-        msg = CoordinateCompleted(coordinate_id="c1", parent_id="p1", corps_id="corp1")
-        bus.publish("coordinate.completed", msg)
-        assert received[0].coordinate_id == "c1"
+        bus.subscribe("segment.completed", received.append)
+        msg = SegmentCompleted(segment_id="c1", parent_id="p1", corps_id="corp1")
+        bus.publish("segment.completed", msg)
+        assert received[0].segment_id == "c1"
 
     def test_topics_property(self):
         bus = MessageBus()

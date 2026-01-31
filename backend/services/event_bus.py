@@ -1,6 +1,6 @@
 """Event bus — simple pub/sub for internal domain events.
 
-Topics: rep.status_changed, coordinate.completed, agent.phase_changed,
+Topics: rep.status_changed, segment.completed, agent.phase_changed,
 performer.trust_changed, show.completed, etc.
 
 Subscribers are plain callables; they receive (topic, payload) args.

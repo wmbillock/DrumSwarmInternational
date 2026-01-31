@@ -1,9 +1,9 @@
 """DCI Swarm — Service Layer."""
 
-from backend.services.coordinate_service import (
-    create_coordinate, get_coordinate, get_children, rollup_status,
+from backend.services.segment_service import (
+    create_segment, get_segment, get_children, rollup_status,
 )
-from backend.services.rep_service import create_rep, transition_rep, get_reps_for_coordinate
+from backend.services.rep_service import create_rep, transition_rep, get_reps_for_segment
 from backend.services.agent_lifecycle import (
     create_definition, modify_definition, spawn_session,
     complete_session, fail_session, timeout_session, check_tool_permission,
@@ -24,8 +24,8 @@ from backend.services.improvement import run_basics, run_critique, run_banquet
 from backend.services.support_staff import create_support_staff_definitions, spawn_support_staff
 
 __all__ = [
-    "create_coordinate", "get_coordinate", "get_children", "rollup_status",
-    "create_rep", "transition_rep", "get_reps_for_coordinate",
+    "create_segment", "get_segment", "get_children", "rollup_status",
+    "create_rep", "transition_rep", "get_reps_for_segment",
     "create_definition", "modify_definition", "spawn_session",
     "complete_session", "fail_session", "timeout_session", "check_tool_permission",
     "send_message", "poll_messages", "acknowledge_message",

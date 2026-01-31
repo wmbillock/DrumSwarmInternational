@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from backend.database import Base
 
 # Import all models for table creation
-import backend.models.coordinate  # noqa: F401
+import backend.models.segment  # noqa: F401
 import backend.models.rep  # noqa: F401
 import backend.models.message  # noqa: F401
 import backend.models.problem  # noqa: F401
@@ -23,7 +23,7 @@ import backend.models.corps  # noqa: F401
 import backend.models.show  # noqa: F401
 import backend.models.work_log  # noqa: F401
 
-from backend.models.coordinate import Coordinate, CoordinateType
+from backend.models.segment import Segment, SegmentType
 from backend.models.rep import Rep, RepStatus
 from backend.models.score import JudgeType, Score
 from backend.models.penalty import Penalty, PenaltyType
@@ -49,21 +49,21 @@ def db():
 
 @pytest.fixture
 def show_with_corps(db):
-    """Create a show with a corps and coordinate tree."""
+    """Create a show with a corps and segment tree."""
     corps = Corps(name="Test Corps", status=CorpsStatus.REHEARSAL)
     db.add(corps)
     db.flush()
 
-    root = Coordinate(type=CoordinateType.SHOW, title="Test Show Root")
+    root = Segment(type=SegmentType.SHOW, title="Test Show Root")
     db.add(root)
     db.flush()
 
     show = Show(title="Test Show", status=ShowStatus.ACTIVE,
-                corps_id=corps.id, coordinate_root_id=root.id)
+                corps_id=corps.id, segment_root_id=root.id)
     db.add(show)
     db.flush()
 
-    child = Coordinate(type=CoordinateType.COORDINATE, title="Task 1",
+    child = Segment(type=SegmentType.SEGMENT, title="Task 1",
                        parent_id=root.id, caption="brass")
     db.add(child)
     db.commit()
@@ -82,7 +82,7 @@ class TestAutoScoring:
         child = show_with_corps["child"]
         corps = show_with_corps["corps"]
 
-        rep = create_rep(db, coordinate_id=child.id)
+        rep = create_rep(db, segment_id=child.id)
         transition_rep(db, rep.id, RepStatus.ASSIGNED, assigned_to="agent-1")
         transition_rep(db, rep.id, RepStatus.IN_PROGRESS)
         transition_rep(db, rep.id, RepStatus.REVIEW, result="This is a solid implementation with detailed output " * 20)
@@ -98,17 +98,17 @@ class TestAutoScoring:
         assert "Auto-scored" in score.feedback
 
     def test_auto_score_maps_caption_to_judge(self, db, show_with_corps):
-        """Caption on coordinate maps to the correct judge type."""
+        """Caption on segment maps to the correct judge type."""
         root = show_with_corps["root"]
         corps = show_with_corps["corps"]
 
         # Create coord with guard caption
-        guard_coord = Coordinate(type=CoordinateType.COORDINATE, title="Guard Task",
+        guard_coord = Segment(type=SegmentType.SEGMENT, title="Guard Task",
                                  parent_id=root.id, caption="guard")
         db.add(guard_coord)
         db.commit()
 
-        rep = create_rep(db, coordinate_id=guard_coord.id)
+        rep = create_rep(db, segment_id=guard_coord.id)
         transition_rep(db, rep.id, RepStatus.ASSIGNED, assigned_to="agent-1")
         transition_rep(db, rep.id, RepStatus.IN_PROGRESS)
         transition_rep(db, rep.id, RepStatus.REVIEW, result="Guard work done")
@@ -119,15 +119,15 @@ class TestAutoScoring:
         assert scores[0].judge_type == JudgeType.GUARD
 
     def test_auto_score_general_effect_for_unknown_caption(self, db, show_with_corps):
-        """Coordinates without a recognized caption get scored as GENERAL_EFFECT."""
+        """Segments without a recognized caption get scored as GENERAL_EFFECT."""
         root = show_with_corps["root"]
 
-        coord = Coordinate(type=CoordinateType.COORDINATE, title="Generic Task",
+        coord = Segment(type=SegmentType.SEGMENT, title="Generic Task",
                            parent_id=root.id, caption=None)
         db.add(coord)
         db.commit()
 
-        rep = create_rep(db, coordinate_id=coord.id)
+        rep = create_rep(db, segment_id=coord.id)
         transition_rep(db, rep.id, RepStatus.ASSIGNED, assigned_to="agent-1")
         transition_rep(db, rep.id, RepStatus.IN_PROGRESS)
         transition_rep(db, rep.id, RepStatus.REVIEW, result="Completed generic task output")
@@ -142,14 +142,14 @@ class TestAutoScoring:
         child = show_with_corps["child"]
 
         # Short result
-        rep1 = create_rep(db, coordinate_id=child.id)
+        rep1 = create_rep(db, segment_id=child.id)
         transition_rep(db, rep1.id, RepStatus.ASSIGNED, assigned_to="a1")
         transition_rep(db, rep1.id, RepStatus.IN_PROGRESS)
         transition_rep(db, rep1.id, RepStatus.REVIEW, result="Short result text")
         transition_rep(db, rep1.id, RepStatus.COMPLETED)
 
         # Long result
-        rep2 = create_rep(db, coordinate_id=child.id)
+        rep2 = create_rep(db, segment_id=child.id)
         transition_rep(db, rep2.id, RepStatus.ASSIGNED, assigned_to="a2")
         transition_rep(db, rep2.id, RepStatus.IN_PROGRESS)
         transition_rep(db, rep2.id, RepStatus.REVIEW, result="Detailed output " * 100)
@@ -163,7 +163,7 @@ class TestAutoScoring:
         """Failed reps should not be auto-scored."""
         child = show_with_corps["child"]
 
-        rep = create_rep(db, coordinate_id=child.id)
+        rep = create_rep(db, segment_id=child.id)
         transition_rep(db, rep.id, RepStatus.ASSIGNED, assigned_to="agent-1")
         transition_rep(db, rep.id, RepStatus.IN_PROGRESS)
         transition_rep(db, rep.id, RepStatus.FAILED, error="Something broke")
@@ -227,16 +227,16 @@ class TestScoresheetAPI:
         db.add(corps)
         db.flush()
 
-        root = Coordinate(type=CoordinateType.SHOW, title="Root")
+        root = Segment(type=SegmentType.SHOW, title="Root")
         db.add(root)
         db.flush()
 
         show = Show(title="Scored Show", status=ShowStatus.ACTIVE,
-                    corps_id=corps.id, coordinate_root_id=root.id)
+                    corps_id=corps.id, segment_root_id=root.id)
         db.add(show)
         db.flush()
 
-        rep = Rep(coordinate_id=root.id)
+        rep = Rep(segment_id=root.id)
         db.add(rep)
         db.flush()
 
@@ -267,19 +267,19 @@ class TestScoresheetAPI:
         db.add(corps)
         db.flush()
 
-        root = Coordinate(type=CoordinateType.SHOW, title="Root")
+        root = Segment(type=SegmentType.SHOW, title="Root")
         db.add(root)
         db.flush()
 
         show = Show(title="Exec Show", status=ShowStatus.ACTIVE,
-                    corps_id=corps.id, coordinate_root_id=root.id)
+                    corps_id=corps.id, segment_root_id=root.id)
         db.add(show)
         db.flush()
 
         # Add some reps
-        rep1 = Rep(coordinate_id=root.id, status=RepStatus.COMPLETED)
-        rep2 = Rep(coordinate_id=root.id, status=RepStatus.FAILED)
-        rep3 = Rep(coordinate_id=root.id, status=RepStatus.IN_PROGRESS)
+        rep1 = Rep(segment_id=root.id, status=RepStatus.COMPLETED)
+        rep2 = Rep(segment_id=root.id, status=RepStatus.FAILED)
+        rep3 = Rep(segment_id=root.id, status=RepStatus.IN_PROGRESS)
         db.add_all([rep1, rep2, rep3])
         db.commit()
         corps_id = corps.id
@@ -302,12 +302,12 @@ class TestChatContextBuilder:
         db.add(corps)
         db.flush()
 
-        root = Coordinate(type=CoordinateType.SHOW, title="Chat Show Root")
+        root = Segment(type=SegmentType.SHOW, title="Chat Show Root")
         db.add(root)
         db.flush()
 
         show = Show(title="Chat Show", status=ShowStatus.ACTIVE,
-                    corps_id=corps.id, coordinate_root_id=root.id,
+                    corps_id=corps.id, segment_root_id=root.id,
                     description="A test show for chat")
         db.add(show)
         db.flush()
@@ -335,7 +335,7 @@ class TestChatContextBuilder:
             ("user", "Hello, how are you?"),
             ("executive_director", "I'm doing great! Ready to help."),
             ("user", "Let's plan the show structure"),
-            ("executive_director", "Sure, I'll create coordinates for the movements."),
+            ("executive_director", "Sure, I'll create segments for the movements."),
             ("user", "What's the current status?"),  # current message
         ]):
             msg = Message(
@@ -411,7 +411,7 @@ class TestChatContextBuilder:
         )
         assert "A test show for chat" in task_desc
 
-    def test_context_includes_root_coordinate(self, db, db_with_chat):
+    def test_context_includes_root_segment(self, db, db_with_chat):
         from backend.api.app import _build_chat_agent_context
         corps = db_with_chat["corps"]
         session = db_with_chat["session"]
@@ -461,10 +461,10 @@ class TestDashboardFinalScore:
         db.add(show)
         db.flush()
 
-        root = Coordinate(type=CoordinateType.SHOW, title="Root")
+        root = Segment(type=SegmentType.SHOW, title="Root")
         db.add(root)
         db.flush()
-        rep = Rep(coordinate_id=root.id)
+        rep = Rep(segment_id=root.id)
         db.add(rep)
         db.flush()
 

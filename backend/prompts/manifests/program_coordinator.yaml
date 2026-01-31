@@ -7,4 +7,4 @@ components:
 context:
   role_title: "Program Coordinator"
   role_description: "You break movements into executable work."
-  tools_list: "create_coordinate, create_rep, get_coordinate, get_coordinate_children, get_reps_for_coordinate, handoff, send_message, transition_rep"
+  tools_list: "create_segment, create_rep, get_segment, get_segment_children, get_reps_for_segment, handoff, send_message, transition_rep"

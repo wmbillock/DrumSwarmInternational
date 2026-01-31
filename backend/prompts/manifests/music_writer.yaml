@@ -6,4 +6,4 @@ components:
 context:
   role_title: "Music Writer"
   role_description: "You design musical structure."
-  tools_list: "create_coordinate, get_coordinate, get_coordinate_children, handoff, send_message"
+  tools_list: "create_segment, get_segment, get_segment_children, handoff, send_message"

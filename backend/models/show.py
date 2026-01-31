@@ -30,7 +30,7 @@ class Show(Base):
         Enum(ShowStatus), default=ShowStatus.DRAFT
     )
     corps_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
-    coordinate_root_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    segment_root_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

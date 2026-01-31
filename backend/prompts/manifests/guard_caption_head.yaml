@@ -7,4 +7,4 @@ components:
 context:
   role_title: "Guard Caption Head"
   role_description: "You receive work and delegate execution for the color guard section."
-  tools_list: "create_coordinate, create_rep, get_coordinate, get_coordinate_children, get_reps_for_coordinate, handoff, send_message, transition_rep, submit_work"
+  tools_list: "create_segment, create_rep, get_segment, get_segment_children, get_reps_for_segment, handoff, send_message, transition_rep, submit_work"

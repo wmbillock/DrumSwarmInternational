@@ -1,6 +1,6 @@
 """Register service-layer tools that agents can call.
 
-These wrap the actual service functions (create_coordinate, create_rep, etc.)
+These wrap the actual service functions (create_segment, create_rep, etc.)
 so agents can manipulate the domain model through tool use.
 """
 
@@ -13,12 +13,12 @@ def register_service_tools(registry: ToolRegistry) -> None:
     Tools receive a `db` argument injected by the tool executor.
     """
 
-    def create_coordinate(db, type: str, title: str, description: str = "", parent_id: str = "", caption: str = ""):
-        from backend.models.coordinate import CoordinateType
-        from backend.services.coordinate_service import create_coordinate as _create
+    def create_segment(db, type: str, title: str, description: str = "", parent_id: str = "", caption: str = ""):
+        from backend.models.segment import SegmentType
+        from backend.services.segment_service import create_segment as _create
         coord = _create(
             db,
-            type=CoordinateType(type),
+            type=SegmentType(type),
             title=title,
             description=description or None,
             parent_id=parent_id or None,
@@ -26,10 +26,10 @@ def register_service_tools(registry: ToolRegistry) -> None:
         )
         return {"id": coord.id, "type": coord.type.value, "title": coord.title, "status": coord.status.value}
 
-    def create_rep(db, coordinate_id: str):
+    def create_rep(db, segment_id: str):
         from backend.services.rep_service import create_rep as _create
-        rep = _create(db, coordinate_id=coordinate_id)
-        return {"id": rep.id, "status": rep.status.value, "coordinate_id": rep.coordinate_id}
+        rep = _create(db, segment_id=segment_id)
+        return {"id": rep.id, "status": rep.status.value, "segment_id": rep.segment_id}
 
     def transition_rep(db, rep_id: str, new_status: str, assigned_to: str = "", result: str = "", error: str = ""):
         from backend.models.rep import RepStatus
@@ -44,7 +44,7 @@ def register_service_tools(registry: ToolRegistry) -> None:
         )
         return {"id": rep.id, "status": rep.status.value}
 
-    def send_message(db, corps_id: str, from_role: str, to_role: str, type: str, subject: str, body: str = "", priority: str = "normal", coordinate_id: str = ""):
+    def send_message(db, corps_id: str, from_role: str, to_role: str, type: str, subject: str, body: str = "", priority: str = "normal", segment_id: str = ""):
         from backend.models.message import MessageType, MessagePriority
         from backend.services.message_service import send_message as _send
         msg = _send(
@@ -56,11 +56,11 @@ def register_service_tools(registry: ToolRegistry) -> None:
             subject=subject,
             body=body or None,
             priority=MessagePriority(priority),
-            coordinate_id=coordinate_id or None,
+            segment_id=segment_id or None,
         )
         return {"id": msg.id, "type": msg.type.value, "subject": msg.subject}
 
-    def handoff(db, corps_id: str, from_role: str, to_role: str, subject: str, body: str = "", coordinate_id: str = ""):
+    def handoff(db, corps_id: str, from_role: str, to_role: str, subject: str, body: str = "", segment_id: str = ""):
         from backend.services.corps_service import handoff as _handoff
         _handoff(
             db,
@@ -69,25 +69,25 @@ def register_service_tools(registry: ToolRegistry) -> None:
             to_role=to_role,
             subject=subject,
             body=body or None,
-            coordinate_id=coordinate_id or None,
+            segment_id=segment_id or None,
         )
         return {"status": "handed_off", "from": from_role, "to": to_role}
 
-    def get_coordinate_children(db, coordinate_id: str):
-        from backend.services.coordinate_service import get_children
-        children = get_children(db, coordinate_id)
+    def get_segment_children(db, segment_id: str):
+        from backend.services.segment_service import get_children
+        children = get_children(db, segment_id)
         return [{"id": c.id, "type": c.type.value, "title": c.title, "status": c.status.value} for c in children]
 
-    def get_coordinate(db, coordinate_id: str):
-        from backend.services.coordinate_service import get_coordinate as _get
-        coord = _get(db, coordinate_id)
+    def get_segment(db, segment_id: str):
+        from backend.services.segment_service import get_segment as _get
+        coord = _get(db, segment_id)
         if not coord:
             return {"error": "not found"}
         return {"id": coord.id, "type": coord.type.value, "title": coord.title, "status": coord.status.value, "description": coord.description}
 
-    def get_reps_for_coordinate(db, coordinate_id: str):
-        from backend.services.rep_service import get_reps_for_coordinate as _get
-        reps = _get(db, coordinate_id)
+    def get_reps_for_segment(db, segment_id: str):
+        from backend.services.rep_service import get_reps_for_segment as _get
+        reps = _get(db, segment_id)
         return [{"id": r.id, "status": r.status.value, "assigned_to": r.assigned_to, "result": r.result} for r in reps]
 
     def submit_work(db, rep_id: str, result: str):
@@ -97,10 +97,10 @@ def register_service_tools(registry: ToolRegistry) -> None:
         rep = _transition(db, rep_id=rep_id, new_status=RepStatus.REVIEW, result=result)
         return {"id": rep.id, "status": rep.status.value}
 
-    def verify_work(db, rep_id: str, coordinate_id: str = ""):
+    def verify_work(db, rep_id: str, segment_id: str = ""):
         """Run verification gates on a rep's result before completion."""
         from backend.models.rep import Rep
-        from backend.models.coordinate import Coordinate
+        from backend.models.segment import Segment
         from backend.services.verification import get_verification_engine
         rep = db.get(Rep, rep_id)
         if not rep:
@@ -108,26 +108,26 @@ def register_service_tools(registry: ToolRegistry) -> None:
         if not rep.result:
             return {"passed": False, "summary": "Rep has no result to verify."}
         engine = get_verification_engine()
-        cid = coordinate_id or rep.coordinate_id
-        coord = db.get(Coordinate, cid) if cid else None
-        coord_type = coord.type.value if coord and coord.type else None
-        vr = engine.verify(rep_id=rep_id, result=rep.result, coordinate_id=cid, coordinate_type=coord_type)
+        cid = segment_id or rep.segment_id
+        coord = db.get(Segment, cid) if cid else None
+        segment_type = coord.type.value if coord and coord.type else None
+        vr = engine.verify(rep_id=rep_id, result=rep.result, segment_id=cid, segment_type=segment_type)
         return {"passed": vr.passed, "summary": vr.summary, "gates": [
             {"gate": g.gate_name, "passed": g.passed, "message": g.message} for g in vr.gates
         ]}
 
     # --- Register all tools ---
 
-    registry.register("create_coordinate", create_coordinate, {
-        "name": "create_coordinate",
-        "description": "Create a new coordinate (work unit) in the hierarchy. Types: show, movement, set, coordinate. Must specify parent_id for non-show types.",
+    registry.register("create_segment", create_segment, {
+        "name": "create_segment",
+        "description": "Create a new segment (work unit) in the hierarchy. Types: show, movement, set, segment. Must specify parent_id for non-show types.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "type": {"type": "string", "enum": ["show", "movement", "set", "coordinate"], "description": "Coordinate type"},
-                "title": {"type": "string", "description": "Title of the coordinate"},
-                "description": {"type": "string", "description": "Description of what this coordinate covers"},
-                "parent_id": {"type": "string", "description": "Parent coordinate ID (required for non-show types)"},
+                "type": {"type": "string", "enum": ["show", "movement", "set", "segment"], "description": "Segment type"},
+                "title": {"type": "string", "description": "Title of the segment"},
+                "description": {"type": "string", "description": "Description of what this segment covers"},
+                "parent_id": {"type": "string", "description": "Parent segment ID (required for non-show types)"},
                 "caption": {"type": "string", "description": "Caption/section (e.g. brass, percussion, guard, visual)"},
             },
             "required": ["type", "title"],
@@ -136,13 +136,13 @@ def register_service_tools(registry: ToolRegistry) -> None:
 
     registry.register("create_rep", create_rep, {
         "name": "create_rep",
-        "description": "Create a new rep (rehearsal attempt) for a coordinate. The rep starts in PENDING status.",
+        "description": "Create a new rep (rehearsal attempt) for a segment. The rep starts in PENDING status.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "coordinate_id": {"type": "string", "description": "The coordinate to create a rep for"},
+                "segment_id": {"type": "string", "description": "The segment to create a rep for"},
             },
-            "required": ["coordinate_id"],
+            "required": ["segment_id"],
         },
     })
 
@@ -173,7 +173,7 @@ def register_service_tools(registry: ToolRegistry) -> None:
                 "subject": {"type": "string"},
                 "body": {"type": "string"},
                 "priority": {"type": "string", "enum": ["critical", "high", "normal", "low"]},
-                "coordinate_id": {"type": "string"},
+                "segment_id": {"type": "string"},
             },
             "required": ["to_role", "type", "subject"],
         },
@@ -188,45 +188,45 @@ def register_service_tools(registry: ToolRegistry) -> None:
                 "to_role": {"type": "string", "description": "Role to hand off to (e.g. program_coordinator, brass_caption_head)"},
                 "subject": {"type": "string", "description": "Brief description of the handoff"},
                 "body": {"type": "string", "description": "Detailed instructions for the receiving role"},
-                "coordinate_id": {"type": "string", "description": "Coordinate ID related to this handoff"},
+                "segment_id": {"type": "string", "description": "Segment ID related to this handoff"},
             },
             "required": ["to_role", "subject"],
         },
     })
 
-    registry.register("get_coordinate", get_coordinate, {
-        "name": "get_coordinate",
-        "description": "Get details about a specific coordinate.",
+    registry.register("get_segment", get_segment, {
+        "name": "get_segment",
+        "description": "Get details about a specific segment.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "coordinate_id": {"type": "string"},
+                "segment_id": {"type": "string"},
             },
-            "required": ["coordinate_id"],
+            "required": ["segment_id"],
         },
     })
 
-    registry.register("get_coordinate_children", get_coordinate_children, {
-        "name": "get_coordinate_children",
-        "description": "Get the child coordinates of a parent coordinate.",
+    registry.register("get_segment_children", get_segment_children, {
+        "name": "get_segment_children",
+        "description": "Get the child segments of a parent segment.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "coordinate_id": {"type": "string"},
+                "segment_id": {"type": "string"},
             },
-            "required": ["coordinate_id"],
+            "required": ["segment_id"],
         },
     })
 
-    registry.register("get_reps_for_coordinate", get_reps_for_coordinate, {
-        "name": "get_reps_for_coordinate",
-        "description": "Get all reps for a coordinate.",
+    registry.register("get_reps_for_segment", get_reps_for_segment, {
+        "name": "get_reps_for_segment",
+        "description": "Get all reps for a segment.",
         "input_schema": {
             "type": "object",
             "properties": {
-                "coordinate_id": {"type": "string"},
+                "segment_id": {"type": "string"},
             },
-            "required": ["coordinate_id"],
+            "required": ["segment_id"],
         },
     })
 
@@ -250,7 +250,7 @@ def register_service_tools(registry: ToolRegistry) -> None:
             "type": "object",
             "properties": {
                 "rep_id": {"type": "string", "description": "The rep to verify"},
-                "coordinate_id": {"type": "string", "description": "Optional coordinate ID for custom gates"},
+                "segment_id": {"type": "string", "description": "Optional segment ID for custom gates"},
             },
             "required": ["rep_id"],
         },

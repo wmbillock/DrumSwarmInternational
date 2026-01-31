@@ -19,7 +19,7 @@ class JudgeType(str, enum.Enum):
 
 
 class Score(Base):
-    """Evaluation of a rep or coordinate by a judge.
+    """Evaluation of a rep or segment by a judge.
 
     Scores are 0-100 with a box rating (1-5) for quick triage.
     Judges live at the DCI layer, external to any corps.
@@ -33,8 +33,8 @@ class Score(Base):
     rep_id: Mapped[Optional[str]] = mapped_column(
         ForeignKey("reps.id"), nullable=True
     )
-    coordinate_id: Mapped[Optional[str]] = mapped_column(
-        ForeignKey("coordinates.id"), nullable=True
+    segment_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("segments.id"), nullable=True
     )
     corps_id: Mapped[str] = mapped_column(String(36))
     judge_type: Mapped[JudgeType] = mapped_column(Enum(JudgeType))

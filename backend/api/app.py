@@ -145,7 +145,7 @@ class TourToggle(BaseModel):
 class RehearsalModeSet(BaseModel):
     mode: str  # basics, sectionals, full_ensemble, run_through
 
-class CoordinateCreate(BaseModel):
+class SegmentCreate(BaseModel):
     type: str
     title: str
     description: Optional[str] = None
@@ -153,7 +153,7 @@ class CoordinateCreate(BaseModel):
     caption: Optional[str] = None
 
 class RepCreate(BaseModel):
-    coordinate_id: str
+    segment_id: str
 
 class RepTransition(BaseModel):
     new_status: str
@@ -166,7 +166,7 @@ class ScoreCreate(BaseModel):
     value: float
     box: int
     rep_id: Optional[str] = None
-    coordinate_id: Optional[str] = None
+    segment_id: Optional[str] = None
     feedback: Optional[str] = None
 
 class MessageCreate(BaseModel):
@@ -176,7 +176,7 @@ class MessageCreate(BaseModel):
     body: Optional[str] = None
     to_role: Optional[str] = None
     priority: str = "normal"
-    coordinate_id: Optional[str] = None
+    segment_id: Optional[str] = None
 
 class ChatSend(BaseModel):
     content: str
@@ -207,7 +207,7 @@ def api_get_show(show_id: str, db: Session = Depends(get_db)):
     if not show:
         raise HTTPException(404, "Show not found")
     return {"id": show.id, "title": show.title, "status": show.status.value,
-            "corps_id": show.corps_id, "coordinate_root_id": show.coordinate_root_id,
+            "corps_id": show.corps_id, "segment_root_id": show.segment_root_id,
             "description": show.description}
 
 
@@ -221,16 +221,16 @@ async def api_activate_show(show_id: str, db: Session = Depends(get_db)):
 
     # Auto-generate work: queue ED to design the show structure
     tm = get_task_manager()
-    if tm and show.corps_id and show.coordinate_root_id:
+    if tm and show.corps_id and show.segment_root_id:
         # Find the ED session
         ed_session_id = tm.get_session_for_role(db, show.corps_id, "executive_director")
         if ed_session_id:
             tm.start_agent(
                 session_id=ed_session_id,
                 task_description=(
-                    f"The show '{show.title}' has been activated. The root coordinate ID is {show.coordinate_root_id}. "
+                    f"The show '{show.title}' has been activated. The root segment ID is {show.segment_root_id}. "
                     f"The corps ID is {show.corps_id}. "
-                    f"Design the show structure: create MOVEMENT coordinates under the root coordinate, "
+                    f"Design the show structure: create MOVEMENT segments under the root segment, "
                     f"then hand off to the program_coordinator to break down further."
                 ),
                 corps_id=show.corps_id,
@@ -343,37 +343,37 @@ def api_get_roster(corps_id: str, db: Session = Depends(get_db)):
     return result
 
 
-# --- Coordinate endpoints ---
+# --- Segment endpoints ---
 
-@app.post("/api/coordinates")
-def api_create_coordinate(data: CoordinateCreate, db: Session = Depends(get_db)):
-    from backend.models.coordinate import CoordinateType
-    from backend.services.coordinate_service import create_coordinate, InvalidCoordinateStructure
+@app.post("/api/segments")
+def api_create_segment(data: SegmentCreate, db: Session = Depends(get_db)):
+    from backend.models.segment import SegmentType
+    from backend.services.segment_service import create_segment, InvalidSegmentStructure
     try:
-        coord = create_coordinate(
-            db, type=CoordinateType(data.type), title=data.title,
+        coord = create_segment(
+            db, type=SegmentType(data.type), title=data.title,
             description=data.description, parent_id=data.parent_id, caption=data.caption,
         )
         return {"id": coord.id, "type": coord.type.value, "title": coord.title,
                 "status": coord.status.value}
-    except (ValueError, InvalidCoordinateStructure) as e:
+    except (ValueError, InvalidSegmentStructure) as e:
         raise HTTPException(400, str(e))
 
 
-@app.get("/api/coordinates/{coord_id}")
-def api_get_coordinate(coord_id: str, db: Session = Depends(get_db)):
-    from backend.services.coordinate_service import get_coordinate
-    coord = get_coordinate(db, coord_id)
+@app.get("/api/segments/{coord_id}")
+def api_get_segment(coord_id: str, db: Session = Depends(get_db)):
+    from backend.services.segment_service import get_segment
+    coord = get_segment(db, coord_id)
     if not coord:
-        raise HTTPException(404, "Coordinate not found")
+        raise HTTPException(404, "Segment not found")
     return {"id": coord.id, "type": coord.type.value, "title": coord.title,
             "status": coord.status.value, "parent_id": coord.parent_id,
             "caption": coord.caption, "description": coord.description}
 
 
-@app.get("/api/coordinates/{coord_id}/children")
-def api_get_coordinate_children(coord_id: str, db: Session = Depends(get_db)):
-    from backend.services.coordinate_service import get_children
+@app.get("/api/segments/{coord_id}/children")
+def api_get_segment_children(coord_id: str, db: Session = Depends(get_db)):
+    from backend.services.segment_service import get_children
     children = get_children(db, coord_id)
     return [{"id": c.id, "type": c.type.value, "title": c.title,
              "status": c.status.value} for c in children]
@@ -384,8 +384,8 @@ def api_get_coordinate_children(coord_id: str, db: Session = Depends(get_db)):
 @app.post("/api/reps")
 def api_create_rep(data: RepCreate, db: Session = Depends(get_db)):
     from backend.services.rep_service import create_rep
-    rep = create_rep(db, coordinate_id=data.coordinate_id)
-    return {"id": rep.id, "status": rep.status.value, "coordinate_id": rep.coordinate_id}
+    rep = create_rep(db, segment_id=data.segment_id)
+    return {"id": rep.id, "status": rep.status.value, "segment_id": rep.segment_id}
 
 
 @app.post("/api/reps/{rep_id}/transition")
@@ -402,10 +402,10 @@ def api_transition_rep(rep_id: str, data: RepTransition, db: Session = Depends(g
         raise HTTPException(400, str(e))
 
 
-@app.get("/api/coordinates/{coord_id}/reps")
-def api_get_reps_for_coordinate(coord_id: str, db: Session = Depends(get_db)):
-    from backend.services.rep_service import get_reps_for_coordinate
-    reps = get_reps_for_coordinate(db, coord_id)
+@app.get("/api/segments/{coord_id}/reps")
+def api_get_reps_for_segment(coord_id: str, db: Session = Depends(get_db)):
+    from backend.services.rep_service import get_reps_for_segment
+    reps = get_reps_for_segment(db, coord_id)
     return [{"id": r.id, "status": r.status.value, "assigned_to": r.assigned_to,
              "result": r.result, "error": r.error} for r in reps]
 
@@ -420,7 +420,7 @@ def api_create_score(data: ScoreCreate, db: Session = Depends(get_db)):
         score = record_score(
             db, corps_id="default", judge_type=JudgeType(data.judge_type),
             value=data.value, box=data.box, rep_id=data.rep_id,
-            coordinate_id=data.coordinate_id, feedback=data.feedback,
+            segment_id=data.segment_id, feedback=data.feedback,
         )
         return {"id": score.id, "value": score.value, "box": score.box}
     except (ValueError, InvalidScore) as e:
@@ -455,7 +455,7 @@ def api_get_scoresheet(corps_id: str, db: Session = Depends(get_db)):
     from backend.models.score import Score, JudgeType
     from backend.models.penalty import Penalty
     from backend.models.rep import Rep, RepStatus
-    from backend.models.coordinate import Coordinate
+    from backend.models.segment import Segment
     from backend.models.agent_session import AgentSession, SessionStatus
     from backend.models.agent_definition import AgentDefinition
     from backend.models.work_log import WorkLog
@@ -515,19 +515,19 @@ def api_get_scoresheet(corps_id: str, db: Session = Depends(get_db)):
     final_score = round(max(0.0, raw_total - penalties_total), 2)
 
     # --- Rep metrics ---
-    # Get coordinates belonging to this corps' show
+    # Get segments belonging to this corps' show
     from backend.models.show import Show
     show = db.query(Show).filter(Show.corps_id == corps_id).first()
     reps_total = 0
     reps_completed = 0
     reps_failed = 0
     reps_in_progress = 0
-    coordinates_total = 0
-    if show and show.coordinate_root_id:
-        coords = db.query(Coordinate).all()  # TODO: filter by tree
+    segments_total = 0
+    if show and show.segment_root_id:
+        coords = db.query(Segment).all()  # TODO: filter by tree
         coord_ids = {c.id for c in coords}
-        coordinates_total = len(coord_ids)
-        reps = db.query(Rep).filter(Rep.coordinate_id.in_(coord_ids)).all() if coord_ids else []
+        segments_total = len(coord_ids)
+        reps = db.query(Rep).filter(Rep.segment_id.in_(coord_ids)).all() if coord_ids else []
         reps_total = len(reps)
         reps_completed = sum(1 for r in reps if r.status == RepStatus.COMPLETED)
         reps_failed = sum(1 for r in reps if r.status == RepStatus.FAILED)
@@ -582,7 +582,7 @@ def api_get_scoresheet(corps_id: str, db: Session = Depends(get_db)):
             "reps_in_progress": reps_in_progress,
             "completion_rate": completion_rate,
             "failure_rate": failure_rate,
-            "coordinates_total": coordinates_total,
+            "segments_total": segments_total,
         },
         "roster": role_metrics,
         "activity": {
@@ -605,7 +605,7 @@ def api_send_message(corps_id: str, data: MessageCreate, db: Session = Depends(g
             db, corps_id=corps_id, from_role=data.from_role,
             type=MessageType(data.type), subject=data.subject, body=data.body,
             to_role=data.to_role, priority=MessagePriority(data.priority),
-            coordinate_id=data.coordinate_id,
+            segment_id=data.segment_id,
         )
         return {"id": msg.id, "type": msg.type.value, "subject": msg.subject}
     except (ValueError, InvalidMessagePath, InvalidMessageType) as e:
@@ -652,8 +652,8 @@ def _build_chat_agent_context(
     show = db.query(ShowModel).filter(ShowModel.corps_id == corps_id).first()
     if show:
         context_parts.append(f"Show: '{show.title}', Corps ID: {corps_id}")
-        if show.coordinate_root_id:
-            context_parts.append(f"Root coordinate ID: {show.coordinate_root_id}")
+        if show.segment_root_id:
+            context_parts.append(f"Root segment ID: {show.segment_root_id}")
         if show.description:
             context_parts.append(f"Show description: {show.description}")
 
@@ -673,7 +673,7 @@ def _build_chat_agent_context(
     context_parts.append(
         "Respond to the user's message. You have the conversation history above for context. "
         "Continue the conversation naturally. Use your tools to take action when requested. "
-        "If the user is asking you to do work, create coordinates and reps under the root coordinate."
+        "If the user is asking you to do work, create segments and reps under the root segment."
     )
 
     # Load context snapshot from session
@@ -901,26 +901,26 @@ def api_shows_overview(db: Session = Depends(get_db)):
     from backend.models.corps import Corps
     from backend.models.agent_session import AgentSession
     from backend.models.rep import Rep, RepStatus
-    from backend.models.coordinate import Coordinate
+    from backend.models.segment import Segment
 
     shows = db.query(Show).order_by(Show.created_at.desc()).all()
     results = []
     for show in shows:
-        stats = {"agents_active": 0, "reps_total": 0, "reps_completed": 0, "reps_failed": 0, "coordinates_total": 0}
+        stats = {"agents_active": 0, "reps_total": 0, "reps_completed": 0, "reps_failed": 0, "segments_total": 0}
         if show.corps_id:
             stats["agents_active"] = db.query(AgentSession).filter(
                 AgentSession.corps_id == show.corps_id,
                 AgentSession.status == "active",
             ).count()
-            stats["reps_total"] = db.query(Rep).join(Coordinate).filter(
-                Coordinate.id == Rep.coordinate_id,
-            ).count() if show.coordinate_root_id else 0
-            stats["reps_completed"] = db.query(Rep).join(Coordinate).filter(
+            stats["reps_total"] = db.query(Rep).join(Segment).filter(
+                Segment.id == Rep.segment_id,
+            ).count() if show.segment_root_id else 0
+            stats["reps_completed"] = db.query(Rep).join(Segment).filter(
                 Rep.status == RepStatus.COMPLETED,
-            ).count() if show.coordinate_root_id else 0
-            stats["reps_failed"] = db.query(Rep).join(Coordinate).filter(
+            ).count() if show.segment_root_id else 0
+            stats["reps_failed"] = db.query(Rep).join(Segment).filter(
                 Rep.status == RepStatus.FAILED,
-            ).count() if show.coordinate_root_id else 0
+            ).count() if show.segment_root_id else 0
         corps_name = None
         final_score = None
         if show.corps_id:
@@ -942,7 +942,7 @@ def api_shows_overview(db: Session = Depends(get_db)):
             "corps_id": show.corps_id,
             "corps_name": corps_name,
             "final_score": final_score,
-            "coordinate_root_id": show.coordinate_root_id,
+            "segment_root_id": show.segment_root_id,
             "created_at": show.created_at.isoformat() if show.created_at else None,
             **stats,
         })
@@ -987,17 +987,17 @@ def api_agents_overview(db: Session = Depends(get_db)):
     return results
 
 
-@app.get("/api/coordinates/{coord_id}/tree")
-def api_get_coordinate_tree(coord_id: str, db: Session = Depends(get_db)):
-    """Get full coordinate tree with reps for a given root."""
-    from backend.services.coordinate_service import get_coordinate, get_children
-    from backend.services.rep_service import get_reps_for_coordinate
+@app.get("/api/segments/{coord_id}/tree")
+def api_get_segment_tree(coord_id: str, db: Session = Depends(get_db)):
+    """Get full segment tree with reps for a given root."""
+    from backend.services.segment_service import get_segment, get_children
+    from backend.services.rep_service import get_reps_for_segment
 
     def _build(cid):
-        coord = get_coordinate(db, cid)
+        coord = get_segment(db, cid)
         if not coord:
             return None
-        reps = get_reps_for_coordinate(db, cid)
+        reps = get_reps_for_segment(db, cid)
         children = get_children(db, cid)
         return {
             "id": coord.id,
@@ -1012,7 +1012,7 @@ def api_get_coordinate_tree(coord_id: str, db: Session = Depends(get_db)):
 
     tree = _build(coord_id)
     if not tree:
-        raise HTTPException(404, "Coordinate not found")
+        raise HTTPException(404, "Segment not found")
     return tree
 
 
@@ -1039,8 +1039,8 @@ def api_merge_check(corps_id: str, db: Session = Depends(get_db)):
         "checked": result.checked,
         "merged": result.merged,
         "conflicts": result.conflicts,
-        "merged_coordinate_ids": result.merged_coordinate_ids,
-        "conflict_coordinate_ids": result.conflict_coordinate_ids,
+        "merged_segment_ids": result.merged_segment_ids,
+        "conflict_segment_ids": result.conflict_segment_ids,
     }
 
 
@@ -1133,7 +1133,7 @@ async def api_execute_corps_command(corps_id: str, data: CorpsCommand, db: Sessi
                     task_description=(
                         f"ATTENTION! The director has called the corps to attention. "
                         f"Report the current status of all work in progress. Corps ID: {corps_id}. "
-                        f"Check all coordinates and reps, then provide a full status report."
+                        f"Check all segments and reps, then provide a full status report."
                     ),
                     corps_id=corps_id,
                 )

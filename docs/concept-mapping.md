@@ -8,7 +8,7 @@ A comparative analysis for building the DCI Swarm orchestration engine.
 
 | DCI Role | Gas Town Role | Fit | Notes |
 |---|---|---|---|
-| DCI (governing org) | Town (~/.gt/) | Strong | Both are the top-level container that sets rules and coordinates multiple independent units. |
+| DCI (governing org) | Town (~/.gt/) | Strong | Both are the top-level container that sets rules and segments multiple independent units. |
 | Named Corps | Rig | Strong | Each is an independent orchestration with its own identity and work. |
 | Executive Director | Mayor | Moderate | Both are the top coordinator who escalates to the human. Key difference: Mayor is infrastructure; ED is a decision-maker with creative authority. |
 | Program Coordinator | *No analog* | — | Gas Town has no role between Mayor and workers that owns creative delivery. This is the most important role DCI adds. |
@@ -34,12 +34,12 @@ A comparative analysis for building the DCI Swarm orchestration engine.
 |---|---|---|---|
 | Show | Convoy | Moderate | Both represent the complete deliverable. But a Show has artistic coherence; a Convoy is a batch tracker. |
 | Movement | Molecule | Moderate | Both are durable multi-step units that survive interruptions. |
-| Set/Form/Coordinate | Bead | Strong | Both are atomic, persistent work units. A coordinate tells a performer exactly where to be; a bead is an atomic work item. Both survive agent/performer death. |
+| Set/Form/Segment | Bead | Strong | Both are atomic, persistent work units. A segment tells a performer exactly where to be; a bead is an atomic work item. Both survive agent/performer death. |
 | Drill (all sets) | Beads (collection) | Moderate | The complete set of beads for a rig is structurally equivalent. |
-| Hook | Coordinate (inverted) | Moderate | Both bind a unit of work to a specific agent/performer. |
+| Hook | Segment (inverted) | Moderate | Both bind a unit of work to a specific agent/performer. |
 | Tour (80-day refinement) | *No analog* | — | Gas Town has no bounded refinement cycle. Work is complete-and-move-on. Worth importing. |
 | GUPP | Rehearsal discipline | Strong | "If work is on your hook, YOU RUN IT" = performer discipline after material handoff. Cultural alignment. |
-| MEOW | Sets/Coordinates | Strong | Both decompose goals into trackable atomic units. |
+| MEOW | Sets/Segments | Strong | Both decompose goals into trackable atomic units. |
 | NDI | Correction Escalation | Moderate | Both ensure completion despite unreliability, but different failure modes. |
 | Mail/Nudge | Communication patterns | Moderate | Gas Town's is asynchronous and prioritized; DCI's is hierarchical and direct. |
 | Escalation (severity) | Correction Escalation | Strong | Both are graduated routing. Gas Town escalates by channel; DCI escalates by authority. Merge both. |
@@ -226,7 +226,7 @@ Gas Town creates agent roles for capabilities that should be **tools, not agents
 | **Metronome** | Continuous (background) | Shared clock / coordination heartbeat | Always running during rehearsal. All agents can reference it for synchronization. The "dual tempo source" — authoritative state that keeps everyone aligned. |
 | **Tuner** | On-demand (callable) | Validation / lint check | Agents invoke when they need to verify their output is "in tune" — correct, well-formed, meeting standards. |
 | **Gock Block** | On-demand (callable) | Isolated timing check | Used to check timing/rhythm of a specific passage in isolation. Agents invoke to verify a specific unit of work meets timing/sequencing requirements. |
-| **Dressing the Form** | On-demand (callable) | Alignment / formatting check | Verifying that the output is properly aligned with adjacent work — are the coordinates right relative to neighbors? Agents invoke to check integration with surrounding context. |
+| **Dressing the Form** | On-demand (callable) | Alignment / formatting check | Verifying that the output is properly aligned with adjacent work — are the segments right relative to neighbors? Agents invoke to check integration with surrounding context. |
 | **Cleaning the Drill** | Continuous (background) | Continuous integration / quality sweep | Ongoing process of identifying and correcting small errors across the whole drill. Runs in the background, surfaces issues to the appropriate caption head or tech. |
 
 **Key distinction**: Some tools are continuous (metronome, cleaning) and some are on-demand (tuner, gock block, dressing). This maps to:

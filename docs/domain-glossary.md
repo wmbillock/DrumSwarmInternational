@@ -32,9 +32,9 @@ This document defines the domain model for the DCI Swarm agent orchestration eng
 
 **Set**: A specific formation at a point in time. Each set defines where every performer must be at that moment.
 
-**Form**: The shape created by all performers' coordinates for a single set.
+**Form**: The shape created by all performers' segments for a single set.
 
-**Coordinate**: A performer's exact position for a given set. Every performer has the same number of coordinates (one per set). Their complete list of coordinates defines their path through the show.
+**Segment**: A performer's exact position for a given set. Every performer has the same number of segments (one per set). Their complete list of segments defines their path through the show.
 
 ---
 

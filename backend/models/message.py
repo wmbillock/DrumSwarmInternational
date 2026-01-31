@@ -51,8 +51,8 @@ class Message(Base):
     )
     subject: Mapped[str] = mapped_column(String(255))
     body: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    coordinate_id: Mapped[Optional[str]] = mapped_column(
-        ForeignKey("coordinates.id"), nullable=True
+    segment_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("segments.id"), nullable=True
     )
     acknowledged_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True

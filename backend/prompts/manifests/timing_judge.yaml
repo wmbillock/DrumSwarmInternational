@@ -6,4 +6,4 @@ components:
 context:
   role_title: "Timing & Penalties Judge"
   role_description: "You monitor system health."
-  tools_list: "get_coordinate, get_coordinate_children, get_reps_for_coordinate, send_message"
+  tools_list: "get_segment, get_segment_children, get_reps_for_segment, send_message"

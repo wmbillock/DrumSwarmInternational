@@ -154,10 +154,10 @@ def render():
         print(f"  {BOLD}COMPLETED REPS{RESET}")
         found = False
         for show in active[:2]:
-            coord_root = show.get("coordinate_root_id")
+            coord_root = show.get("segment_root_id")
             if not coord_root:
                 continue
-            reps = fetch(f"/api/coordinates/{coord_root}/reps") or []
+            reps = fetch(f"/api/segments/{coord_root}/reps") or []
             completed = [r for r in reps if r.get("status") == "completed"]
             failed = [r for r in reps if r.get("status") == "failed"]
             pending = [r for r in reps if r.get("status") in ("pending", "assigned", "in_progress")]

@@ -29,7 +29,7 @@ class SwarmTheme:
     org_unit_plural: str                   # "corps", "ensembles", "rigs"
     project: str                           # "show", "project", "convoy"
     project_plural: str                    # "shows", "projects", "convoys"
-    work_levels: list[str] = field(default_factory=list)  # ["movement","set","coordinate"]
+    work_levels: list[str] = field(default_factory=list)  # ["movement","set","segment"]
     work_item: str = "rep"                 # "rep", "task", "bead"
     work_item_plural: str = "reps"
     # Role tier names
@@ -78,7 +78,7 @@ def load_theme(name: str) -> SwarmTheme:
         org_unit_plural=data.get("org_unit_plural", data.get("org_unit", "corps")),
         project=data.get("project", "show"),
         project_plural=data.get("project_plural", data.get("project", "show") + "s"),
-        work_levels=data.get("work_levels", ["movement", "set", "coordinate"]),
+        work_levels=data.get("work_levels", ["movement", "set", "segment"]),
         work_item=data.get("work_item", "rep"),
         work_item_plural=data.get("work_item_plural", "reps"),
         tier_labels=data.get("tier_labels", {}),
@@ -106,7 +106,7 @@ def get_theme() -> SwarmTheme:
                 org_unit_plural="corps",
                 project="show",
                 project_plural="shows",
-                work_levels=["movement", "set", "coordinate"],
+                work_levels=["movement", "set", "segment"],
                 work_item="rep",
                 work_item_plural="reps",
                 admin_name="Critique",

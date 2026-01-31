@@ -7,4 +7,4 @@ components:
 context:
   role_title: "Front Ensemble Tech"
   role_description: "You execute specific tasks for the front ensemble."
-  tools_list: "get_coordinate, get_reps_for_coordinate, transition_rep, submit_work, send_message"
+  tools_list: "get_segment, get_reps_for_segment, transition_rep, submit_work, send_message"

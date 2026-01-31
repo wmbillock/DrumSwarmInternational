@@ -23,7 +23,7 @@ def db():
 class TestMetronomeGUPP:
     def _setup_corps(self, db):
         from backend.models.corps import Corps, CorpsStatus
-        from backend.models.coordinate import Coordinate, CoordinateType
+        from backend.models.segment import Segment, SegmentType
         from backend.models.rep import Rep, RepStatus
         from backend.models.agent_definition import AgentDefinition, ModelTier
         from backend.models.agent_session import AgentSession, SessionStatus
@@ -32,7 +32,7 @@ class TestMetronomeGUPP:
         db.add(corps)
         db.commit()
 
-        coord = Coordinate(type=CoordinateType.COORDINATE, title="Task")
+        coord = Segment(type=SegmentType.SEGMENT, title="Task")
         db.add(coord)
         db.commit()
 
@@ -56,7 +56,7 @@ class TestMetronomeGUPP:
         from backend.tools.metronome import tick
         corps, coord, session = self._setup_corps(db)
         from backend.models.rep import Rep, RepStatus
-        rep = Rep(coordinate_id=coord.id, status=RepStatus.IN_PROGRESS, assigned_to=session.id)
+        rep = Rep(segment_id=coord.id, status=RepStatus.IN_PROGRESS, assigned_to=session.id)
         db.add(rep)
         db.commit()
 
@@ -73,7 +73,7 @@ class TestMetronomeGUPP:
         db.commit()
 
         from backend.models.rep import Rep, RepStatus
-        rep = Rep(coordinate_id=coord.id, status=RepStatus.ASSIGNED, assigned_to=session.id)
+        rep = Rep(segment_id=coord.id, status=RepStatus.ASSIGNED, assigned_to=session.id)
         db.add(rep)
         db.commit()
 
@@ -196,7 +196,7 @@ class TestCapabilityLedger:
 
 class TestEventBusWiring:
     def test_rep_transition_publishes_event(self, db):
-        from backend.models.coordinate import Coordinate, CoordinateType
+        from backend.models.segment import Segment, SegmentType
         from backend.services.rep_service import create_rep, transition_rep
         from backend.models.rep import RepStatus
         from backend.services.event_bus import get_event_bus
@@ -205,7 +205,7 @@ class TestEventBusWiring:
         received = []
         bus.subscribe("rep.status_changed", lambda t, p: received.append(p))
 
-        coord = Coordinate(type=CoordinateType.COORDINATE, title="Test")
+        coord = Segment(type=SegmentType.SEGMENT, title="Test")
         db.add(coord)
         db.commit()
 

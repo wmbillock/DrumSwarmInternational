@@ -69,7 +69,7 @@ export function ShowProvider({ children }: { children: ReactNode }) {
         activeShow,
         setActiveShow,
         corpsId: activeShow?.corps_id ?? null,
-        rootCoordId: activeShow?.coordinate_root_id ?? null,
+        rootCoordId: activeShow?.segment_root_id ?? null,
         shows,
         refreshShows,
         loading,

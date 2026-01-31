@@ -11,7 +11,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from backend.models.agent_definition import AgentDefinition
-from backend.models.coordinate import Coordinate, CoordinateStatus
+from backend.models.segment import Segment, SegmentStatus
 from backend.models.rep import Rep, RepStatus
 from backend.models.score import JudgeType, Score
 from backend.services.scoring_service import get_scores_for_rep, compute_composite
@@ -84,8 +84,8 @@ def run_basics(
     # Find recent failed reps to learn from
     failed_reps = (
         db.query(Rep)
-        .join(Coordinate)
-        .filter(Coordinate.caption == caption)
+        .join(Segment)
+        .filter(Segment.caption == caption)
         .filter(Rep.status == RepStatus.FAILED)
         .all()
     )
@@ -99,8 +99,8 @@ def run_basics(
     # Check for low-scoring completed reps
     completed_reps = (
         db.query(Rep)
-        .join(Coordinate)
-        .filter(Coordinate.caption == caption)
+        .join(Segment)
+        .filter(Segment.caption == caption)
         .filter(Rep.status == RepStatus.COMPLETED)
         .all()
     )
@@ -166,7 +166,7 @@ def run_banquet(db: Session, corps_id: str) -> BanquetReport:
         generated_at=datetime.now(timezone.utc),
     )
 
-    # Get all reps for this corps (via coordinates with matching definitions)
+    # Get all reps for this corps (via segments with matching definitions)
     all_definitions = (
         db.query(AgentDefinition)
         .filter(AgentDefinition.corps_id == corps_id)

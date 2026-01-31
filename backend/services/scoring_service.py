@@ -54,15 +54,15 @@ def record_score(
     value: float,
     box: int,
     rep_id: Optional[str] = None,
-    coordinate_id: Optional[str] = None,
+    segment_id: Optional[str] = None,
     feedback: Optional[str] = None,
 ) -> Score:
     if value < 0 or value > 100:
         raise InvalidScore(f"Score value must be 0-100, got {value}")
     if box < 1 or box > 5:
         raise InvalidScore(f"Box must be 1-5, got {box}")
-    if rep_id is None and coordinate_id is None:
-        raise InvalidScore("Score must reference a rep or coordinate")
+    if rep_id is None and segment_id is None:
+        raise InvalidScore("Score must reference a rep or segment")
 
     score = Score(
         corps_id=corps_id,
@@ -70,7 +70,7 @@ def record_score(
         value=value,
         box=box,
         rep_id=rep_id,
-        coordinate_id=coordinate_id,
+        segment_id=segment_id,
         feedback=feedback,
     )
     db.add(score)
@@ -86,7 +86,7 @@ def record_penalty(
     amount: float,
     reason: str,
     rep_id: Optional[str] = None,
-    coordinate_id: Optional[str] = None,
+    segment_id: Optional[str] = None,
     issued_by: Optional[str] = None,
 ) -> Penalty:
     if amount <= 0:
@@ -98,7 +98,7 @@ def record_penalty(
         amount=amount,
         reason=reason,
         rep_id=rep_id,
-        coordinate_id=coordinate_id,
+        segment_id=segment_id,
         issued_by=issued_by,
     )
     db.add(penalty)
@@ -111,8 +111,8 @@ def get_scores_for_rep(db: Session, rep_id: str) -> list[Score]:
     return db.query(Score).filter(Score.rep_id == rep_id).all()
 
 
-def get_scores_for_coordinate(db: Session, coordinate_id: str) -> list[Score]:
-    return db.query(Score).filter(Score.coordinate_id == coordinate_id).all()
+def get_scores_for_segment(db: Session, segment_id: str) -> list[Score]:
+    return db.query(Score).filter(Score.segment_id == segment_id).all()
 
 
 def get_penalties_for_corps(db: Session, corps_id: str) -> list[Penalty]:
@@ -123,12 +123,12 @@ def compute_composite(
     db: Session,
     corps_id: str,
     rep_id: Optional[str] = None,
-    coordinate_id: Optional[str] = None,
+    segment_id: Optional[str] = None,
     weights: Optional[dict[JudgeType, float]] = None,
 ) -> CompositeScore:
     """Compute weighted composite score with penalty deductions.
 
-    Uses the latest score per judge type for the given rep or coordinate.
+    Uses the latest score per judge type for the given rep or segment.
     """
     if weights is None:
         weights = DEFAULT_WEIGHTS
@@ -136,8 +136,8 @@ def compute_composite(
     # Get scores
     if rep_id:
         scores = get_scores_for_rep(db, rep_id)
-    elif coordinate_id:
-        scores = get_scores_for_coordinate(db, coordinate_id)
+    elif segment_id:
+        scores = get_scores_for_segment(db, segment_id)
     else:
         scores = []
 
@@ -165,8 +165,8 @@ def compute_composite(
     penalty_query = db.query(Penalty).filter(Penalty.corps_id == corps_id)
     if rep_id:
         penalty_query = penalty_query.filter(Penalty.rep_id == rep_id)
-    elif coordinate_id:
-        penalty_query = penalty_query.filter(Penalty.coordinate_id == coordinate_id)
+    elif segment_id:
+        penalty_query = penalty_query.filter(Penalty.segment_id == segment_id)
     penalties = penalty_query.all()
     penalties_total = sum(p.amount for p in penalties)
 
@@ -186,7 +186,7 @@ def check_timing(
     db: Session,
     corps_id: str,
     rep_id: Optional[str] = None,
-    coordinate_id: Optional[str] = None,
+    segment_id: Optional[str] = None,
     budget_spent: float = 0.0,
     budget_limit: float = 0.0,
     deadline_exceeded: bool = False,
@@ -200,7 +200,7 @@ def check_timing(
             amount=5.0,
             reason="Deadline exceeded",
             rep_id=rep_id,
-            coordinate_id=coordinate_id,
+            segment_id=segment_id,
             issued_by="timing_official",
         )
 
@@ -213,7 +213,7 @@ def check_timing(
             amount=min(overage_pct * 0.1, 10.0),  # Cap at 10 points
             reason=f"Budget exceeded by {overage_pct:.1f}%",
             rep_id=rep_id,
-            coordinate_id=coordinate_id,
+            segment_id=segment_id,
             issued_by="timing_official",
         )
 

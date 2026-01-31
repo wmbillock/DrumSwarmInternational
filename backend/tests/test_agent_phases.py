@@ -32,14 +32,14 @@ class TestPhaseController:
 
     def test_detect_phase_from_tool(self):
         pc = PhaseController()
-        pc.detect_phase_from_tool("get_coordinate")
+        pc.detect_phase_from_tool("get_segment")
         assert pc.current_phase == AgentPhase.GATHER_CONTEXT
 
     def test_detect_phase_only_advances(self):
         pc = PhaseController()
         pc.set_phase(AgentPhase.EXECUTE)
         # Should not go backward to GATHER_CONTEXT
-        pc.detect_phase_from_tool("get_coordinate")
+        pc.detect_phase_from_tool("get_segment")
         assert pc.current_phase == AgentPhase.EXECUTE
 
     def test_detect_phase_submit(self):
@@ -49,8 +49,8 @@ class TestPhaseController:
 
     def test_tool_calls_tracked(self):
         pc = PhaseController()
-        pc.detect_phase_from_tool("get_coordinate")
-        pc.detect_phase_from_tool("get_coordinate_children")
+        pc.detect_phase_from_tool("get_segment")
+        pc.detect_phase_from_tool("get_segment_children")
         assert pc.tool_calls_per_phase.get("gather_context", 0) == 2
 
     def test_guidance(self):
@@ -62,7 +62,7 @@ class TestPhaseController:
         pc = PhaseController()
         pc.advance()
         pc.advance()
-        pc.detect_phase_from_tool("create_coordinate")
+        pc.detect_phase_from_tool("create_segment")
         state = pc.get_state()
 
         pc2 = PhaseController.from_state(state)

@@ -6,7 +6,7 @@ from sqlalchemy.orm import sessionmaker
 
 from backend.database import Base
 from backend.models.agent_definition import AgentDefinition, ModelTier
-from backend.models.coordinate import Coordinate, CoordinateType, CoordinateStatus
+from backend.models.segment import Segment, SegmentType, SegmentStatus
 from backend.models.rep import Rep, RepStatus
 from backend.models.score import JudgeType, Score
 from backend.services.support_staff import (
@@ -25,7 +25,7 @@ from backend.services.improvement import (
 from backend.services.scoring_service import record_score
 
 # Import all models
-import backend.models.coordinate  # noqa: F401
+import backend.models.segment  # noqa: F401
 import backend.models.rep  # noqa: F401
 import backend.models.message  # noqa: F401
 import backend.models.problem  # noqa: F401
@@ -100,12 +100,12 @@ class TestBasicsEngine:
         assert result.definitions_reviewed == 1
 
     def test_basics_suggests_from_failures(self, db):
-        coord = Coordinate(
-            type=CoordinateType.SET, title="Set 1", caption="brass",
-            status=CoordinateStatus.FAILED,
+        coord = Segment(
+            type=SegmentType.SET, title="Set 1", caption="brass",
+            status=SegmentStatus.FAILED,
         )
-        # Need a show parent for the coordinate to be valid in isolation
-        show = Coordinate(type=CoordinateType.SHOW, title="Show")
+        # Need a show parent for the segment to be valid in isolation
+        show = Segment(type=SegmentType.SHOW, title="Show")
         db.add(show)
         db.commit()
         db.refresh(show)
@@ -114,7 +114,7 @@ class TestBasicsEngine:
         db.commit()
         db.refresh(coord)
 
-        rep = Rep(coordinate_id=coord.id, status=RepStatus.FAILED, error="Bad")
+        rep = Rep(segment_id=coord.id, status=RepStatus.FAILED, error="Bad")
         db.add(rep)
         db.commit()
 
@@ -123,20 +123,20 @@ class TestBasicsEngine:
         assert any("failed" in s.lower() for s in result.suggestions)
 
     def test_basics_flags_low_scores(self, db):
-        show = Coordinate(type=CoordinateType.SHOW, title="Show")
+        show = Segment(type=SegmentType.SHOW, title="Show")
         db.add(show)
         db.commit()
         db.refresh(show)
 
-        coord = Coordinate(
-            type=CoordinateType.SET, title="Set", caption="brass",
-            parent_id=show.id, status=CoordinateStatus.COMPLETED,
+        coord = Segment(
+            type=SegmentType.SET, title="Set", caption="brass",
+            parent_id=show.id, status=SegmentStatus.COMPLETED,
         )
         db.add(coord)
         db.commit()
         db.refresh(coord)
 
-        rep = Rep(coordinate_id=coord.id, status=RepStatus.COMPLETED)
+        rep = Rep(segment_id=coord.id, status=RepStatus.COMPLETED)
         db.add(rep)
         db.commit()
         db.refresh(rep)
@@ -150,16 +150,16 @@ class TestBasicsEngine:
 
 class TestCritiqueEngine:
     def _make_scored_rep(self, db):
-        show = Coordinate(type=CoordinateType.SHOW, title="Show")
+        show = Segment(type=SegmentType.SHOW, title="Show")
         db.add(show)
         db.commit()
         db.refresh(show)
-        coord = Coordinate(type=CoordinateType.SET, title="S1",
-                          parent_id=show.id, status=CoordinateStatus.COMPLETED)
+        coord = Segment(type=SegmentType.SET, title="S1",
+                          parent_id=show.id, status=SegmentStatus.COMPLETED)
         db.add(coord)
         db.commit()
         db.refresh(coord)
-        rep = Rep(coordinate_id=coord.id, status=RepStatus.COMPLETED)
+        rep = Rep(segment_id=coord.id, status=RepStatus.COMPLETED)
         db.add(rep)
         db.commit()
         db.refresh(rep)
@@ -207,12 +207,12 @@ class TestBanquetEngine:
         assert report.generated_at is not None
 
     def test_banquet_with_data(self, db):
-        show = Coordinate(type=CoordinateType.SHOW, title="Show")
+        show = Segment(type=SegmentType.SHOW, title="Show")
         db.add(show)
         db.commit()
         db.refresh(show)
 
-        coord = Coordinate(type=CoordinateType.SET, title="S1",
+        coord = Segment(type=SegmentType.SET, title="S1",
                           parent_id=show.id)
         db.add(coord)
         db.commit()
@@ -220,7 +220,7 @@ class TestBanquetEngine:
 
         # Create some reps
         for status in [RepStatus.COMPLETED, RepStatus.COMPLETED, RepStatus.FAILED]:
-            r = Rep(coordinate_id=coord.id, status=status)
+            r = Rep(segment_id=coord.id, status=status)
             db.add(r)
         db.commit()
 
@@ -236,15 +236,15 @@ class TestBanquetEngine:
         assert any("failed" in w.lower() for w in report.what_failed)
 
     def test_banquet_with_scores(self, db):
-        show = Coordinate(type=CoordinateType.SHOW, title="Show")
+        show = Segment(type=SegmentType.SHOW, title="Show")
         db.add(show)
         db.commit()
         db.refresh(show)
-        coord = Coordinate(type=CoordinateType.SET, title="S1", parent_id=show.id)
+        coord = Segment(type=SegmentType.SET, title="S1", parent_id=show.id)
         db.add(coord)
         db.commit()
         db.refresh(coord)
-        rep = Rep(coordinate_id=coord.id, status=RepStatus.COMPLETED)
+        rep = Rep(segment_id=coord.id, status=RepStatus.COMPLETED)
         db.add(rep)
         db.commit()
         db.refresh(rep)
@@ -258,18 +258,18 @@ class TestBanquetEngine:
         assert any("Strong" in w for w in report.what_worked)
 
     def test_banquet_low_completion(self, db):
-        show = Coordinate(type=CoordinateType.SHOW, title="Show")
+        show = Segment(type=SegmentType.SHOW, title="Show")
         db.add(show)
         db.commit()
         db.refresh(show)
-        coord = Coordinate(type=CoordinateType.SET, title="S1", parent_id=show.id)
+        coord = Segment(type=SegmentType.SET, title="S1", parent_id=show.id)
         db.add(coord)
         db.commit()
         db.refresh(coord)
 
         for _ in range(5):
-            db.add(Rep(coordinate_id=coord.id, status=RepStatus.FAILED))
-        db.add(Rep(coordinate_id=coord.id, status=RepStatus.COMPLETED))
+            db.add(Rep(segment_id=coord.id, status=RepStatus.FAILED))
+        db.add(Rep(segment_id=coord.id, status=RepStatus.COMPLETED))
         db.commit()
 
         report = run_banquet(db, CORPS_ID)

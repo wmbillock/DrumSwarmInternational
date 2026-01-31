@@ -30,8 +30,8 @@ class Penalty(Base):
     rep_id: Mapped[Optional[str]] = mapped_column(
         ForeignKey("reps.id"), nullable=True
     )
-    coordinate_id: Mapped[Optional[str]] = mapped_column(
-        ForeignKey("coordinates.id"), nullable=True
+    segment_id: Mapped[Optional[str]] = mapped_column(
+        ForeignKey("segments.id"), nullable=True
     )
     type: Mapped[PenaltyType] = mapped_column(Enum(PenaltyType))
     amount: Mapped[float] = mapped_column(Float)  # Points deducted

@@ -13,14 +13,14 @@ class EventType(str, enum.Enum):
     REP_COMPLETED = "rep_completed"
     REP_FAILED = "rep_failed"
     REP_ASSIGNED = "rep_assigned"
-    COORDINATE_COMPLETED = "coordinate_completed"
-    COORDINATE_FAILED = "coordinate_failed"
+    COORDINATE_COMPLETED = "segment_completed"
+    COORDINATE_FAILED = "segment_failed"
     PROBLEM_POSTED = "problem_posted"
     PROBLEM_RESOLVED = "problem_resolved"
 
 
 class Subscription(Base):
-    """An agent's subscription to events on a coordinate or set.
+    """An agent's subscription to events on a segment or set.
 
     When a subscribed event fires, a notification Message is created
     and delivered to the subscriber.
@@ -31,7 +31,7 @@ class Subscription(Base):
     id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
-    coordinate_id: Mapped[str] = mapped_column(ForeignKey("coordinates.id"))
+    segment_id: Mapped[str] = mapped_column(ForeignKey("segments.id"))
     subscriber_role: Mapped[str] = mapped_column(String(50))
     subscriber_session_id: Mapped[Optional[str]] = mapped_column(
         String(36), nullable=True

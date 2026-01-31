@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import * as api from "../services/api";
-import type { Coordinate } from "../types";
+import type { Segment } from "../types";
 
 interface Props {
-  rootCoordinateId: string | null;
+  rootSegmentId: string | null;
 }
 
 const STATUS_ICONS: Record<string, string> = {
@@ -15,15 +15,15 @@ const STATUS_ICONS: Record<string, string> = {
   blocked: "⊘",
 };
 
-export function TheField({ rootCoordinateId }: Props) {
-  const [tree, setTree] = useState<Map<string, Coordinate[]>>(new Map());
-  const [root, setRoot] = useState<Coordinate | null>(null);
+export function TheField({ rootSegmentId }: Props) {
+  const [tree, setTree] = useState<Map<string, Segment[]>>(new Map());
+  const [root, setRoot] = useState<Segment | null>(null);
 
   const loadTree = useCallback(async (coordId: string) => {
-    const coord = (await api.getCoordinate(coordId)) as Coordinate;
+    const coord = (await api.getSegment(coordId)) as Segment;
     setRoot(coord);
     const loadChildren = async (parentId: string) => {
-      const children = (await api.getCoordinateChildren(parentId)) as Coordinate[];
+      const children = (await api.getSegmentChildren(parentId)) as Segment[];
       setTree((prev) => new Map(prev).set(parentId, children));
       await Promise.all(children.map((c) => loadChildren(c.id)));
     };
@@ -31,19 +31,19 @@ export function TheField({ rootCoordinateId }: Props) {
   }, []);
 
   useEffect(() => {
-    if (rootCoordinateId) loadTree(rootCoordinateId);
-  }, [rootCoordinateId, loadTree]);
+    if (rootSegmentId) loadTree(rootSegmentId);
+  }, [rootSegmentId, loadTree]);
 
-  if (!rootCoordinateId) {
+  if (!rootSegmentId) {
     return (
       <div className="screen">
         <h2>The Field</h2>
-        <p className="empty">Select an active show to view its coordinate tree.</p>
+        <p className="empty">Select an active show to view its segment tree.</p>
       </div>
     );
   }
 
-  const renderCoord = (coord: Coordinate, depth: number = 0): React.ReactElement => {
+  const renderCoord = (coord: Segment, depth: number = 0): React.ReactElement => {
     const children = tree.get(coord.id) || [];
     return (
       <div key={coord.id} className="coord-node" style={{ marginLeft: depth * 20 }}>

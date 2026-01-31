@@ -5,13 +5,13 @@ from backend.services.failure_fingerprint import FailureFingerprint, FailureRegi
 
 class TestFailureFingerprint:
     def test_hash_stability(self):
-        fp1 = FailureFingerprint(tool_name="create_coordinate", args={"type": "movement"}, error="not found")
-        fp2 = FailureFingerprint(tool_name="create_coordinate", args={"type": "movement"}, error="not found")
+        fp1 = FailureFingerprint(tool_name="create_segment", args={"type": "movement"}, error="not found")
+        fp2 = FailureFingerprint(tool_name="create_segment", args={"type": "movement"}, error="not found")
         assert fp1.key == fp2.key
 
     def test_different_args_different_hash(self):
-        fp1 = FailureFingerprint(tool_name="create_coordinate", args={"type": "movement"}, error="not found")
-        fp2 = FailureFingerprint(tool_name="create_coordinate", args={"type": "set"}, error="not found")
+        fp1 = FailureFingerprint(tool_name="create_segment", args={"type": "movement"}, error="not found")
+        fp2 = FailureFingerprint(tool_name="create_segment", args={"type": "set"}, error="not found")
         assert fp1.key != fp2.key
 
     def test_different_errors_different_hash(self):

@@ -1,6 +1,6 @@
 """Show templates — YAML-defined show structures (formulas).
 
-Templates define coordinate tree skeletons, role requirements, verification
+Templates define segment tree skeletons, role requirements, verification
 settings, and scoring weights. Instantiate a full show from a template.
 """
 
@@ -11,8 +11,8 @@ from typing import Optional
 import yaml
 from sqlalchemy.orm import Session
 
-from backend.models.coordinate import CoordinateType
-from backend.services.coordinate_service import create_coordinate
+from backend.models.segment import SegmentType
+from backend.services.segment_service import create_segment
 from backend.services.rep_service import create_rep
 
 logger = logging.getLogger(__name__)
@@ -42,9 +42,9 @@ def create_show_from_template(
     title: Optional[str] = None,
     params: Optional[dict] = None,
 ) -> dict:
-    """Instantiate a full coordinate tree from a template.
+    """Instantiate a full segment tree from a template.
 
-    Returns dict with root coordinate and created structure summary.
+    Returns dict with root segment and created structure summary.
     """
     template = load_template(template_name)
     params = params or {}
@@ -52,49 +52,49 @@ def create_show_from_template(
     show_title = title or template.get("title", template_name)
     description = template.get("description", "")
 
-    # Create root show coordinate
-    root = create_coordinate(
+    # Create root show segment
+    root = create_segment(
         db,
-        type=CoordinateType.SHOW,
+        type=SegmentType.SHOW,
         title=show_title,
         description=description,
     )
 
-    created = {"root_id": root.id, "coordinates": 1, "reps": 0}
+    created = {"root_id": root.id, "segments": 1, "reps": 0}
 
-    # Build coordinate tree from template structure
+    # Build segment tree from template structure
     for movement_def in template.get("movements", []):
-        movement = create_coordinate(
+        movement = create_segment(
             db,
-            type=CoordinateType.MOVEMENT,
+            type=SegmentType.MOVEMENT,
             title=_interpolate(movement_def.get("title", "Movement"), params),
             description=_interpolate(movement_def.get("description", ""), params),
             parent_id=root.id,
             caption=movement_def.get("caption"),
         )
-        created["coordinates"] += 1
+        created["segments"] += 1
 
         for set_def in movement_def.get("sets", []):
-            set_coord = create_coordinate(
+            set_coord = create_segment(
                 db,
-                type=CoordinateType.SET,
+                type=SegmentType.SET,
                 title=_interpolate(set_def.get("title", "Set"), params),
                 description=_interpolate(set_def.get("description", ""), params),
                 parent_id=movement.id,
                 caption=set_def.get("caption") or movement_def.get("caption"),
             )
-            created["coordinates"] += 1
+            created["segments"] += 1
 
             for task_def in set_def.get("tasks", []):
-                task = create_coordinate(
+                task = create_segment(
                     db,
-                    type=CoordinateType.COORDINATE,
+                    type=SegmentType.SEGMENT,
                     title=_interpolate(task_def.get("title", "Task"), params),
                     description=_interpolate(task_def.get("description", ""), params),
                     parent_id=set_coord.id,
                     caption=task_def.get("caption") or set_def.get("caption") or movement_def.get("caption"),
                 )
-                created["coordinates"] += 1
+                created["segments"] += 1
 
                 # Auto-create reps for leaf tasks
                 if task_def.get("auto_rep", True):
