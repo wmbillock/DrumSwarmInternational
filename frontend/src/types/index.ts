@@ -6,6 +6,7 @@ export interface Show {
   description?: string;
   status: "draft" | "active" | "completed" | "archived";
   corps_id?: string;
+  corps_name?: string;
   coordinate_root_id?: string;
   created_at?: string;
   agents_active?: number;
@@ -80,6 +81,7 @@ export interface WebSocketEvent {
   corps_id?: string;
   session_id?: string;
   role?: string;
+  nickname?: string;
   content?: string;
   status?: string;
   from_role?: string;

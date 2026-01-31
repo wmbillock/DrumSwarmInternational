@@ -686,12 +686,18 @@ def api_shows_overview(db: Session = Depends(get_db)):
             stats["reps_failed"] = db.query(Rep).join(Coordinate).filter(
                 Rep.status == RepStatus.FAILED,
             ).count() if show.coordinate_root_id else 0
+        corps_name = None
+        if show.corps_id:
+            corps = db.get(Corps, show.corps_id)
+            if corps:
+                corps_name = corps.name
         results.append({
             "id": show.id,
             "title": show.title,
             "description": show.description,
             "status": show.status.value,
             "corps_id": show.corps_id,
+            "corps_name": corps_name,
             "coordinate_root_id": show.coordinate_root_id,
             "created_at": show.created_at.isoformat() if show.created_at else None,
             **stats,

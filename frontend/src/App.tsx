@@ -140,17 +140,35 @@ function Dashboard({
         <div className="dash-section flex-1">
           <h2>Active Agents ({agents.length})</h2>
           {agents.length === 0 && <p className="empty">No active agents. Activate a show to spawn agents.</p>}
-          <div className="agent-list">
-            {agents.slice(0, 30).map(a => (
-              <div key={a.id} className="agent-row">
-                <span className="agent-nickname">{a.nickname || formatRole(a.role)}</span>
-                <span className="agent-role-small">{formatRole(a.role)}</span>
-                <TierBadge tier={a.model_tier} />
-                <span className="agent-time">{timeAgo(a.started_at)}</span>
-              </div>
-            ))}
-            {agents.length > 30 && <p className="empty">...and {agents.length - 30} more</p>}
-          </div>
+          {(() => {
+            // Group agents by corps, link to their show
+            const byCorps: Record<string, AgentSession[]> = {};
+            for (const a of agents) {
+              const key = a.corps_id || "unknown";
+              (byCorps[key] ??= []).push(a);
+            }
+            return Object.entries(byCorps).map(([corpsId, corpsAgents]) => {
+              const show = shows.find(s => s.corps_id === corpsId);
+              return (
+                <div key={corpsId} className="agent-corps-group">
+                  <div className="agent-corps-header clickable" onClick={() => show && onSelectShow(show)}>
+                    <span className="corps-name">{show?.title || corpsId.slice(0, 8)}</span>
+                    <span className="agent-count">{corpsAgents.length} agents</span>
+                  </div>
+                  <div className="agent-list">
+                    {corpsAgents.slice(0, 10).map(a => (
+                      <div key={a.id} className="agent-row clickable" onClick={() => show && onSelectShow(show)}>
+                        <span className="agent-nickname">{a.nickname || formatRole(a.role)}</span>
+                        <span className="agent-role-small">{formatRole(a.role)}</span>
+                        <TierBadge tier={a.model_tier} />
+                      </div>
+                    ))}
+                    {corpsAgents.length > 10 && <p className="empty">...and {corpsAgents.length - 10} more</p>}
+                  </div>
+                </div>
+              );
+            });
+          })()}
         </div>
 
         <div className="dash-section flex-1">
@@ -181,6 +199,7 @@ function ShowCard({ show, onSelect, onDelete, onActivate }: {
         <h3 title={show.title}>{show.title.length > 60 ? show.title.slice(0, 60) + "..." : show.title}</h3>
         <StatusBadge status={show.status} />
       </div>
+      {show.corps_name && <p className="show-corps-name">{show.corps_name}</p>}
       {show.description && <p className="show-desc">{show.description.slice(0, 120)}</p>}
       <div className="show-stats">
         <span>{show.agents_active ?? 0} agents</span>
@@ -216,24 +235,32 @@ function ShowDetail({
 }) {
   const [chatInput, setChatInput] = useState("");
   const [chatTarget, setChatTarget] = useState("executive_director");
-  const [activeTab, setActiveTab] = useState<"chat" | "agents" | "work" | "activity" | "health">("chat");
+  const [activeTab, setActiveTab] = useState<"agents" | "work" | "activity" | "health">("agents");
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Build unified chat from history + live ws events, deduped
   const seenIds = new Set<string>();
-  const allChat: { id?: string; from: string; content: string; time?: string }[] = [];
+  // Build role→nickname lookup from roster
+  const nicknameByRole: Record<string, string> = {};
+  for (const a of roster) {
+    if (a.nickname) nicknameByRole[a.role] = a.nickname;
+  }
+
+  const allChat: { id?: string; from: string; nickname?: string; content: string; time?: string }[] = [];
   for (const m of chatHistory) {
     if (!seenIds.has(m.id)) {
       seenIds.add(m.id);
-      allChat.push({ id: m.id, from: m.from_role, content: m.body || m.subject, time: m.created_at });
+      allChat.push({ id: m.id, from: m.from_role, nickname: nicknameByRole[m.from_role], content: m.body || m.subject, time: m.created_at });
     }
   }
   for (const e of wsEvents) {
     if (e.type === "chat" || e.type === "agent_response") {
       const id = (e as Record<string, unknown>).message_id as string | undefined;
-      if (id && seenIds.has(id)) continue;
-      if (id) seenIds.add(id);
-      allChat.push({ from: e.from_role || e.role || "agent", content: e.content || "", time: undefined });
+      // Deduplicate by message_id or by content fingerprint
+      const contentKey = id || `ws:${e.from_role || e.role}:${(e.content || "").slice(0, 100)}`;
+      if (seenIds.has(contentKey)) continue;
+      seenIds.add(contentKey);
+      allChat.push({ from: e.from_role || e.role || "agent", nickname: e.nickname, content: e.content || "", time: undefined });
     }
   }
 
@@ -259,7 +286,8 @@ function ShowDetail({
       <div className="show-detail-header">
         <button className="back-btn" onClick={onBack}>&larr;</button>
         <div className="show-detail-title">
-          <h2>{show.title.length > 50 ? show.title.slice(0, 50) + "..." : show.title}</h2>
+          <h2>{show.title.length > 60 ? show.title.slice(0, 60) + "..." : show.title}</h2>
+          {show.corps_name && <span className="corps-badge">{show.corps_name}</span>}
           <StatusBadge status={show.status} />
           <span className={`ws-dot ${connected ? "connected" : "disconnected"}`}
                 title={connected ? "WebSocket connected" : "WebSocket disconnected"} />
@@ -272,36 +300,24 @@ function ShowDetail({
         </div>
       </div>
 
-      <div className="show-detail-tabs">
-        {(["chat", "agents", "work", "activity", "health"] as const).map(tab => (
-          <button key={tab} className={activeTab === tab ? "tab active" : "tab"} onClick={() => setActiveTab(tab)}>
-            {tab === "chat" ? "Chat" :
-             tab === "agents" ? `Agents (${activeAgents.length}/${roster.length})` :
-             tab === "work" ? "Work Tree" :
-             tab === "activity" ? `Activity (${workLog.length})` :
-             "Health"}
-          </button>
-        ))}
-      </div>
-
-      <div className="show-detail-content">
-        {/* ===== CHAT TAB ===== */}
-        {activeTab === "chat" && (
+      <div className="two-pane">
+        {/* ===== LEFT PANE: CHAT ===== */}
+        <div className="pane-left">
           <div className="chat-panel">
             <div className="chat-messages">
               {allChat.length === 0 && (
                 <div className="chat-empty">
                   <p>Send a message to start talking to the swarm.</p>
-                  <p className="hint">Choose a role to message, or talk to the Executive Director to coordinate the whole team.</p>
+                  <p className="hint">Choose a role, or talk to the ED to coordinate the whole team.</p>
                   {deadAgents.length > 0 && activeAgents.length === 0 && (
-                    <p className="hint warning">All agents are currently stopped. Sending a message will revive the target agent.</p>
+                    <p className="hint warning">All agents stopped. Sending a message will revive the target.</p>
                   )}
                 </div>
               )}
               {allChat.map((m, i) => (
                 <div key={m.id || i} className={`chat-msg ${m.from === "user" ? "user" : "agent"}`}>
                   <div className="chat-msg-header">
-                    <span className="chat-sender">{m.from === "user" ? "You" : formatRole(m.from)}</span>
+                    <span className="chat-sender">{m.from === "user" ? "You" : (m.nickname || formatRole(m.from))}</span>
                     {m.time && <span className="chat-time">{timeAgo(m.time)}</span>}
                   </div>
                   <div className="chat-msg-body">{m.content}</div>
@@ -312,7 +328,7 @@ function ShowDetail({
             <div className="chat-input-row">
               <select value={chatTarget} onChange={e => setChatTarget(e.target.value)} title="Target agent role">
                 {uniqueRoles.length > 0 ? uniqueRoles.map(r => (
-                  <option key={r} value={r}>{formatRole(r)}</option>
+                  <option key={r} value={r}>{nicknameByRole[r] ? `${nicknameByRole[r]} (${formatRole(r)})` : formatRole(r)}</option>
                 )) : (
                   <option value="executive_director">Executive Director</option>
                 )}
@@ -326,124 +342,122 @@ function ShowDetail({
               <button className="primary" onClick={handleSend} disabled={!chatInput.trim()}>Send</button>
             </div>
           </div>
-        )}
+        </div>
 
-        {/* ===== AGENTS TAB ===== */}
-        {activeTab === "agents" && (
-          <div className="agents-panel">
-            {activeAgents.length > 0 && (
-              <>
-                <h3 className="section-label">Active ({activeAgents.length})</h3>
-                <div className="agent-grid">
-                  {activeAgents.map(a => <AgentCard key={a.id} agent={a} />)}
-                </div>
-              </>
-            )}
-            {deadAgents.length > 0 && (
-              <>
-                <h3 className="section-label">Stopped ({deadAgents.length})</h3>
-                <p className="hint">Stopped agents will be revived when you send them a message via Chat.</p>
-                <div className="agent-grid">
-                  {deadAgents.map(a => <AgentCard key={a.id} agent={a} />)}
-                </div>
-              </>
-            )}
-            {roster.length === 0 && <p className="empty">No agents spawned. Activate the show first.</p>}
+        {/* ===== RIGHT PANE: INFO TABS ===== */}
+        <div className="pane-right">
+          <div className="info-tabs">
+            {(["agents", "work", "activity", "health"] as const).map(tab => (
+              <button key={tab} className={activeTab === tab ? "tab active" : "tab"} onClick={() => setActiveTab(tab)}>
+                {tab === "agents" ? `Agents (${activeAgents.length}/${roster.length})` :
+                 tab === "work" ? "Work Tree" :
+                 tab === "activity" ? `Activity (${workLog.length})` :
+                 "Health"}
+              </button>
+            ))}
           </div>
-        )}
 
-        {/* ===== WORK TREE TAB ===== */}
-        {activeTab === "work" && (
-          <div className="work-panel">
-            {!tree && <p className="empty">No work tree available. Activate the show to create the coordinate structure.</p>}
-            {tree && <CoordTree node={tree} depth={0} />}
-          </div>
-        )}
+          <div className="info-content">
+            {activeTab === "agents" && (
+              <div className="agents-panel-compact">
+                {activeAgents.length > 0 && (
+                  <>
+                    <h4 className="section-label">Active ({activeAgents.length})</h4>
+                    {activeAgents.map(a => (
+                      <div key={a.id} className="agent-row-compact">
+                        <TierBadge tier={a.model_tier} />
+                        <span className="agent-nickname">{a.nickname || formatRole(a.role)}</span>
+                        <span className="agent-role-small">{formatRole(a.role)}</span>
+                      </div>
+                    ))}
+                  </>
+                )}
+                {deadAgents.length > 0 && (
+                  <>
+                    <h4 className="section-label">Stopped ({deadAgents.length})</h4>
+                    {deadAgents.map(a => (
+                      <div key={a.id} className="agent-row-compact stopped">
+                        <TierBadge tier={a.model_tier} />
+                        <span className="agent-nickname">{a.nickname || formatRole(a.role)}</span>
+                        <span className="agent-role-small">{formatRole(a.role)}</span>
+                      </div>
+                    ))}
+                  </>
+                )}
+                {roster.length === 0 && <p className="empty">No agents spawned.</p>}
+              </div>
+            )}
 
-        {/* ===== ACTIVITY TAB ===== */}
-        {activeTab === "activity" && (
-          <div className="activity-panel">
-            {workLog.length === 0 && wsEvents.length === 0 && <p className="empty">No activity recorded yet.</p>}
+            {activeTab === "work" && (
+              <div className="work-panel">
+                {!tree && <p className="empty">No work tree available.</p>}
+                {tree && <CoordTree node={tree} depth={0} />}
+              </div>
+            )}
 
-            {/* Live events first */}
-            {wsEvents.filter(e => e.type !== "chat" && e.type !== "pong" && e.type !== "ack").length > 0 && (
-              <>
-                <h3 className="section-label">Live Events</h3>
-                <div className="activity-list">
-                  {wsEvents.filter(e => e.type !== "chat" && e.type !== "pong" && e.type !== "ack").slice(-30).reverse().map((e, i) => (
-                    <div key={i} className="activity-row">
-                      <span className="activity-type">{e.type}</span>
-                      <span className="activity-role">{e.role ? formatRole(e.role) : "-"}</span>
-                      <span className="activity-detail">
-                        {e.content?.slice(0, 100) || e.status || (e.tool ? `tool: ${e.tool}` : "")}
-                      </span>
+            {activeTab === "activity" && (
+              <div className="activity-panel-compact">
+                {wsEvents.filter(e => e.type !== "chat" && e.type !== "pong" && e.type !== "ack").length > 0 && (
+                  <>
+                    <h4 className="section-label">Live</h4>
+                    <div className="activity-list">
+                      {wsEvents.filter(e => e.type !== "chat" && e.type !== "pong" && e.type !== "ack").slice(-20).reverse().map((e, i) => (
+                        <div key={i} className="activity-row">
+                          <span className="activity-type">{e.type}</span>
+                          <span className="activity-role">{e.nickname || (e.role ? formatRole(e.role) : "-")}</span>
+                          <span className="activity-detail">
+                            {e.content?.slice(0, 80) || e.status || (e.tool ? `tool: ${e.tool}` : "")}
+                          </span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {workLog.length > 0 && (
-              <>
-                <h3 className="section-label">Work Log</h3>
-                <div className="activity-list">
-                  {workLog.map(w => (
-                    <div key={w.id} className="activity-row">
-                      <span className="activity-type">{w.event_type}</span>
-                      <span className="activity-role">{formatRole(w.role)}</span>
-                      <span className="activity-detail">{w.details?.slice(0, 120)}</span>
-                      <span className="activity-time">{timeAgo(w.timestamp)}</span>
+                  </>
+                )}
+                {workLog.length > 0 && (
+                  <>
+                    <h4 className="section-label">Log</h4>
+                    <div className="activity-list">
+                      {workLog.slice(0, 30).map(w => (
+                        <div key={w.id} className="activity-row">
+                          <span className="activity-type">{w.event_type}</span>
+                          <span className="activity-role">{formatRole(w.role)}</span>
+                          <span className="activity-detail">{w.details?.slice(0, 80)}</span>
+                          <span className="activity-time">{timeAgo(w.timestamp)}</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </>
+                )}
+                {workLog.length === 0 && wsEvents.length === 0 && <p className="empty">No activity yet.</p>}
+              </div>
+            )}
+
+            {activeTab === "health" && (
+              <div className="health-panel-compact">
+                <div className="health-row">
+                  <span>WS: <span className={connected ? "health-ok" : "health-error"}>{connected ? "Connected" : "Down"}</span></span>
+                  <span>Agents: <span className="health-ok">{activeAgents.length}</span>/<span className="health-warn">{deadAgents.length}</span></span>
+                  <span>Tasks: {show.reps_completed ?? 0}/{show.reps_total ?? 0}</span>
                 </div>
-              </>
+                {healthEvents.length > 0 && (
+                  <div className="activity-list">
+                    {healthEvents.slice(-15).reverse().map((e, i) => (
+                      <div key={i} className="activity-row">
+                        <span className="activity-type">{e.type}</span>
+                        <span className="activity-detail">
+                          {e.type === "agent_status" && `${e.nickname || e.role || e.session_id?.slice(0, 8)} → ${e.status}`}
+                          {e.type === "metronome_tick" && `checked: ${(e as Record<string,unknown>).checked}, reclaimed: ${(e as Record<string,unknown>).reclaimed}`}
+                          {e.type === "merge_check" && `merged: ${(e as Record<string,unknown>).merged}, conflicts: ${(e as Record<string,unknown>).conflicts}`}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {healthEvents.length === 0 && <p className="empty">No health events yet.</p>}
+              </div>
             )}
           </div>
-        )}
-
-        {/* ===== HEALTH TAB ===== */}
-        {activeTab === "health" && (
-          <div className="health-panel">
-            <div className="health-grid">
-              <div className="health-card">
-                <h3>WebSocket</h3>
-                <div className={`health-indicator ${connected ? "ok" : "error"}`}>
-                  {connected ? "Connected" : "Disconnected"}
-                </div>
-              </div>
-              <div className="health-card">
-                <h3>Agents</h3>
-                <div className="health-stats">
-                  <span className="health-ok">{activeAgents.length} active</span>
-                  <span className="health-warn">{deadAgents.length} stopped</span>
-                </div>
-              </div>
-              <div className="health-card">
-                <h3>Work Items</h3>
-                <div className="health-stats">
-                  <span>{show.reps_completed ?? 0} completed</span>
-                  <span>{show.reps_failed ?? 0} failed</span>
-                  <span>{(show.reps_total ?? 0) - (show.reps_completed ?? 0) - (show.reps_failed ?? 0)} pending</span>
-                </div>
-              </div>
-            </div>
-
-            <h3 className="section-label">System Events</h3>
-            {healthEvents.length === 0 && <p className="empty">No health events received yet. Events appear as the metronome ticks.</p>}
-            <div className="activity-list">
-              {healthEvents.slice(-20).reverse().map((e, i) => (
-                <div key={i} className="activity-row">
-                  <span className="activity-type">{e.type}</span>
-                  <span className="activity-detail">
-                    {e.type === "agent_status" && `${e.role || e.session_id?.slice(0, 8)} → ${e.status}`}
-                    {e.type === "metronome_tick" && `checked: ${(e as Record<string,unknown>).checked}, reclaimed: ${(e as Record<string,unknown>).reclaimed}`}
-                    {e.type === "merge_check" && `merged: ${(e as Record<string,unknown>).merged}, conflicts: ${(e as Record<string,unknown>).conflicts}`}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );
@@ -547,9 +561,11 @@ export default function App() {
   }, [view, refreshDashboard]);
 
   // Load show detail
-  const loadShowDetail = useCallback(async (show: Show) => {
-    setRoster([]); setTree(null); setShowLog([]); setChatHistory([]);
-    clearEvents();
+  const loadShowDetail = useCallback(async (show: Show, isRefresh = false) => {
+    if (!isRefresh) {
+      setRoster([]); setTree(null); setShowLog([]); setChatHistory([]);
+      clearEvents();
+    }
 
     if (show.corps_id) {
       const [r, l, c] = await Promise.allSettled([
@@ -623,7 +639,7 @@ export default function App() {
   };
 
   const handleRefreshDetail = () => {
-    if (selectedShow) loadShowDetail(selectedShow);
+    if (selectedShow) loadShowDetail(selectedShow, true);
   };
 
   return (

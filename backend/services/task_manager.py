@@ -157,6 +157,21 @@ class TaskManager:
         self.active_tasks[session_id] = task
         task.add_done_callback(lambda t: self._on_task_done(session_id, t))
 
+    def _get_agent_identity(self, session_id: str) -> tuple[str, str]:
+        """Look up role and nickname for a session. Returns (role, nickname)."""
+        db = self._session_factory()
+        try:
+            from backend.models.agent_session import AgentSession
+            from backend.models.agent_definition import AgentDefinition
+            session = db.get(AgentSession, session_id)
+            if session:
+                defn = db.get(AgentDefinition, session.definition_id)
+                if defn:
+                    return defn.role, defn.nickname or defn.role
+            return "unknown", "unknown"
+        finally:
+            db.close()
+
     async def _run_agent_task(
         self,
         session_id: str,
@@ -165,10 +180,14 @@ class TaskManager:
         context_snapshot: Optional[str] = None,
     ) -> None:
         """Run an agent in a thread and broadcast status events."""
+        role, nickname = self._get_agent_identity(session_id)
+
         await self.connection_manager.broadcast(corps_id, {
             "type": "agent_status",
             "corps_id": corps_id,
             "session_id": session_id,
+            "role": role,
+            "nickname": nickname,
             "status": "started",
         })
 
@@ -181,6 +200,8 @@ class TaskManager:
                 def on_event(event: dict):
                     event.setdefault("corps_id", corps_id)
                     event.setdefault("session_id", session_id)
+                    event.setdefault("role", role)
+                    event.setdefault("nickname", nickname)
                     pending_events.append(event)
 
                 result = run_agent(
@@ -208,6 +229,8 @@ class TaskManager:
                 "type": "agent_status",
                 "corps_id": corps_id,
                 "session_id": session_id,
+                "role": role,
+                "nickname": nickname,
                 "status": result.status,
                 "final_response": result.final_response,
             })
@@ -217,6 +240,9 @@ class TaskManager:
                     "type": "agent_response",
                     "corps_id": corps_id,
                     "session_id": session_id,
+                    "role": role,
+                    "nickname": nickname,
+                    "from_role": role,
                     "content": result.final_response,
                 })
 
@@ -226,6 +252,8 @@ class TaskManager:
                 "type": "agent_status",
                 "corps_id": corps_id,
                 "session_id": session_id,
+                "role": role,
+                "nickname": nickname,
                 "status": "failed",
                 "error": str(e),
             })
