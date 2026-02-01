@@ -283,6 +283,7 @@ cmd_horns_up() {
     echo -e "  ${GREEN}resume-hut${NC}       Restart backend + frontend, keep TMUX alive"
     echo -e "  ${GREEN}dress-center${NC}     Alias for resume-hut"
     echo -e "  ${GREEN}drill${NC}            Run a calibration drill (agent swarm on a task)"
+    echo -e "  ${GREEN}swarm${NC}            DCI Swarm CLI (season, corps, show, mode, status, etc.)"
     echo -e "  ${GREEN}horns-up${NC}         Show this help"
     echo ""
     echo -e "${BOLD}  Examples:${NC}"
@@ -324,6 +325,7 @@ case "${1:-horns-up}" in
     set-the-field)   cmd_set_the_field ;;
     resume-hut|dress-center) cmd_resume_hut ;;
     drill)           shift; cmd_drill "$@" ;;
+    swarm)           shift; activate_venv; cd "$PROJECT_ROOT"; python -m backend.cli.main "$@" ;;
     horns-up|-h|--help|help) cmd_horns_up ;;
     *)
         log_error "Unknown command: $1"

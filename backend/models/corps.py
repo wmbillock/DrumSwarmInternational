@@ -17,6 +17,14 @@ class CorpsStatus(str, enum.Enum):
     DISBANDED = "disbanded"
 
 
+class CorpsMode(str, enum.Enum):
+    DESIGN_ROOM = "design_room"
+    SHOW_MODE = "show_mode"
+    REHEARSAL_MODE = "rehearsal_mode"
+    JUDGING = "judging"
+    OFFSEASON_REVIEW = "offseason_review"
+
+
 class RehearsalMode(str, enum.Enum):
     BASICS = "basics"  # Self-improvement: understand role, tools, show structure
     SECTIONALS = "sectionals"  # Section coordination: work within caption
@@ -51,6 +59,9 @@ class Corps(Base):
     theme_id: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     mascot: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     uniform_concept: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    mode: Mapped[Optional[CorpsMode]] = mapped_column(
+        Enum(CorpsMode, values_callable=lambda x: [e.value for e in x]), nullable=True
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
