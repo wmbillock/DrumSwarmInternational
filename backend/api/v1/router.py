@@ -623,46 +623,98 @@ def v1_get_thread_messages(slug: str):
 _DESIGN_ROLE_PROMPTS = {
     "music_writer": (
         "You are the Music Arranger for this show. You specialize in brass arrangements, "
-        "percussion writing, and musical pacing. Help the user design the musical elements. "
-        "Suggest specific musical ideas, key changes, tempo progressions, and scoring decisions."
+        "percussion writing, and musical pacing. Contribute specific musical ideas — key changes, "
+        "tempo progressions, instrument voicings, scoring decisions. Be concrete."
     ),
     "drill_writer": (
         "You are the Drill Designer for this show. You specialize in visual design, "
-        "formations, transitions, and staging. Help the user design the visual program. "
-        "Suggest formations, movement patterns, visual moments, and staging concepts."
+        "formations, transitions, and staging. Contribute specific visual ideas — formations, "
+        "movement patterns, staging concepts, spatial relationships. Be concrete."
     ),
     "choreographer": (
         "You are the Guard Choreographer for this show. You specialize in color guard "
-        "choreography, equipment work, and dance. Help design the guard elements. "
-        "Suggest equipment choices, choreographic moments, and visual impact points."
+        "choreography, equipment work, and dance. Contribute specific guard ideas — equipment "
+        "choices, choreographic moments, tosses, visual impact points. Be concrete."
     ),
     "program_coordinator": (
-        "You are the Program Coordinator for this show. You oversee the overall design, "
-        "ensure all elements (music, visual, guard, general effect) work together cohesively. "
-        "Help the user develop the show concept, resolve design conflicts, and make high-level "
-        "creative decisions. Ask clarifying questions when the direction is unclear."
+        "You are the Program Coordinator (lead designer) for this show. You run the design room "
+        "meeting. Your job is to FACILITATE discussion, not just respond. You should:\n"
+        "- Ask the user direct questions to draw out their vision\n"
+        "- Identify which areas need input from specialists (music, drill, guard)\n"
+        "- Synthesize ideas from the team into coherent design direction\n"
+        "- Challenge vague ideas — push for specifics\n"
+        "- Track what's been decided vs. what's still open\n"
+        "- When enough decisions are made, suggest updating the spec"
     ),
 }
 
-_DESIGN_SYSTEM_TEMPLATE = """You are a DCI show design staff member working in the Design Room.
+_DESIGN_ROLE_DISPLAY = {
+    "music_writer": "Music Arranger",
+    "drill_writer": "Drill Designer",
+    "choreographer": "Guard Choreographer",
+    "program_coordinator": "Program Coordinator",
+}
 
-ROLE: {role_prompt}
+_DESIGN_SYSTEM_TEMPLATE = """You are a DCI show design staff member in a live Design Room meeting.
+You are having a real-time collaborative discussion with the show's director (the user) and other design staff.
+
+YOUR ROLE: {role_prompt}
 
 SHOW: {slug}
+
+CURRENT SPEC (what's been decided so far):
+{spec_content}
+
+CONVERSATION SO FAR:
+{notes_content}
+
+REQUIRED SPEC SECTIONS (the spec needs all of these before it can be published):
+- ## Show Concept
+- ## Musical Design
+- ## Visual Design
+- ## Guard Design
+- ## General Effect
+- ## Deliverables
+- ## Evaluation Rubric
+
+INSTRUCTIONS:
+- Respond as your character in 2-5 sentences. Be specific and creative.
+- This is a LIVE DISCUSSION. Talk naturally — react to what was just said, build on ideas, push back respectfully.
+- If you need more information from the director, ask a SPECIFIC question (not generic).
+- When you have a design idea, pitch it with enthusiasm and detail.
+- If something another agent said concerns you, say so and explain why.
+- Do NOT just acknowledge or summarize. Contribute substantive creative ideas.
+- Keep driving toward a complete, publishable spec.
+"""
+
+_PC_MARSHAL_TEMPLATE = """You are the Program Coordinator running a Design Room meeting for show "{slug}".
 
 CURRENT SPEC:
 {spec_content}
 
-DESIGN NOTES SO FAR:
+CONVERSATION SO FAR:
 {notes_content}
 
-INSTRUCTIONS:
-- Respond as your role character in 2-4 sentences. Be specific and actionable.
-- If the user's message leads to a design decision, state it clearly.
-- If you need more information, ask a specific question.
-- Reference the current spec when relevant.
-- Stay in character — you're a creative professional collaborating on a show design.
-- Do NOT just acknowledge. Contribute substantive creative ideas or ask clarifying questions.
+REQUIRED SPEC SECTIONS:
+- ## Show Concept
+- ## Musical Design
+- ## Visual Design
+- ## Guard Design
+- ## General Effect
+- ## Deliverables
+- ## Evaluation Rubric
+
+The director (user) just said: "{user_message}"
+
+Based on the message content and what's been discussed, identify which design staff should weigh in.
+Your job is to:
+1. React to the director's message — acknowledge their input, ask a follow-up question to sharpen the idea
+2. If specific expertise areas are relevant, call on those specialists by name
+3. Track progress: note what sections of the spec are covered vs still open
+4. Keep the energy up — this is a creative collaboration
+
+Respond in 2-4 sentences as the Program Coordinator. Be direct and engaged.
+If calling on a specialist, say something like "Let me get [Music Arranger/Drill Designer/Guard Choreographer]'s take on this."
 """
 
 
@@ -682,9 +734,29 @@ def _get_llm_client():
     return None
 
 
+def _llm_chat(llm_client, system_prompt: str, user_message: str) -> str | None:
+    """Send a chat to the LLM client and return the response text, or None on failure."""
+    try:
+        from backend.services.llm_client import LLMMessage
+        from backend.models.agent_definition import ModelTier
+
+        resp = llm_client.chat(
+            messages=[
+                LLMMessage(role="system", content=system_prompt),
+                LLMMessage(role="user", content=user_message),
+            ],
+            model_tier=ModelTier.HAIKU,
+        )
+        if resp.content and resp.stop_reason != "error":
+            return resp.content.strip()
+    except Exception:
+        pass
+    return None
+
+
 @router.post("/design/threads/{slug}/messages")
 def v1_post_thread_message(slug: str, req: PostMessageRequest):
-    """Post a message to a design thread — routes via note_router, generates LLM response."""
+    """Post a message to a design thread — PC marshals the conversation, specialists contribute."""
     show_dir = _show_dir(slug)
     from backend.services.note_router import route_note
     from backend.services.show_persistence import read_spec
@@ -696,10 +768,17 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
         "guard": "choreographer", "ge": "program_coordinator",
         "admin": "program_coordinator", "questions": "program_coordinator",
     }
-    if req.role_hint and req.role_hint in TAG_TO_ROLE.values():
-        role = req.role_hint
-    else:
-        role = TAG_TO_ROLE.get(tags[0], "program_coordinator") if tags else "program_coordinator"
+
+    # Determine which specialists to involve based on tags
+    specialist_roles = set()
+    for tag in tags:
+        role = TAG_TO_ROLE.get(tag)
+        if role and role != "program_coordinator":
+            specialist_roles.add(role)
+
+    # If user explicitly requested a role, include it
+    if req.role_hint and req.role_hint in _DESIGN_ROLE_PROMPTS and req.role_hint != "program_coordinator":
+        specialist_roles.add(req.role_hint)
 
     # Persist user message to design notes
     notes_path = show_dir / "design_notes.md"
@@ -708,55 +787,86 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
     with open(notes_path, "a") as f:
         f.write(tag_comment + entry)
 
-    # Try to generate an LLM response
+    # Build context
+    spec_content = read_spec(show_dir) or "(no spec yet)"
+    notes_content = notes_path.read_text() if notes_path.exists() else "(no notes yet)"
+    if len(notes_content) > 4000:
+        notes_content = "...\n" + notes_content[-4000:]
+
+    responses: list[dict] = []
     llm_client = _get_llm_client()
+
     if llm_client:
-        try:
-            from backend.services.llm_client import LLMMessage
-            from backend.models.agent_definition import ModelTier
+        # 1. Program Coordinator always speaks first — marshals the discussion
+        pc_prompt = _PC_MARSHAL_TEMPLATE.format(
+            slug=slug,
+            spec_content=spec_content[:2000],
+            notes_content=notes_content,
+            user_message=req.message,
+        )
+        pc_text = _llm_chat(llm_client, pc_prompt, req.message)
+        if pc_text:
+            pc_entry = f"\n<!-- tags: {', '.join(tags)} -->\n**[program_coordinator]** {pc_text}\n"
+            with open(notes_path, "a") as f:
+                f.write(pc_entry)
+            responses.append({
+                "role": "program_coordinator",
+                "display_name": _DESIGN_ROLE_DISPLAY["program_coordinator"],
+                "tags": tags,
+                "response": pc_text,
+            })
+            # Re-read notes so specialists see PC's response
+            notes_content = notes_path.read_text()
+            if len(notes_content) > 4000:
+                notes_content = "...\n" + notes_content[-4000:]
 
-            spec_content = read_spec(show_dir) or "(no spec yet)"
-            notes_content = notes_path.read_text() if notes_path.exists() else "(no notes yet)"
-            # Truncate notes to last 3000 chars to keep context manageable
-            if len(notes_content) > 3000:
-                notes_content = "...\n" + notes_content[-3000:]
-
-            role_prompt = _DESIGN_ROLE_PROMPTS.get(role, _DESIGN_ROLE_PROMPTS["program_coordinator"])
+        # 2. Specialists contribute if their domain was tagged
+        for spec_role in sorted(specialist_roles):
+            role_prompt = _DESIGN_ROLE_PROMPTS[spec_role]
             system_prompt = _DESIGN_SYSTEM_TEMPLATE.format(
                 role_prompt=role_prompt,
                 slug=slug,
                 spec_content=spec_content[:2000],
                 notes_content=notes_content,
             )
-
-            resp = llm_client.chat(
-                messages=[
-                    LLMMessage(role="system", content=system_prompt),
-                    LLMMessage(role="user", content=req.message),
-                ],
-                model_tier=ModelTier.HAIKU,
-            )
-
-            response_text = resp.content.strip() if resp.content else None
-            if response_text and resp.stop_reason != "error":
-                # Persist the agent response to design notes
-                agent_entry = f"\n<!-- tags: {', '.join(tags)} -->\n**[{role}]** {response_text}\n"
+            spec_text = _llm_chat(llm_client, system_prompt, req.message)
+            if spec_text:
+                spec_entry = f"\n<!-- tags: {', '.join(tags)} -->\n**[{spec_role}]** {spec_text}\n"
                 with open(notes_path, "a") as f:
-                    f.write(agent_entry)
-
-                return {
-                    "role": role,
+                    f.write(spec_entry)
+                responses.append({
+                    "role": spec_role,
+                    "display_name": _DESIGN_ROLE_DISPLAY.get(spec_role, spec_role),
                     "tags": tags,
-                    "response": response_text,
-                }
-        except Exception:
-            pass  # Fall through to stub response
+                    "response": spec_text,
+                })
+                # Update notes for subsequent specialists
+                notes_content = notes_path.read_text()
+                if len(notes_content) > 4000:
+                    notes_content = "...\n" + notes_content[-4000:]
 
-    # Fallback: structured stub response
+    # Fallback if no LLM responses were generated
+    if not responses:
+        fallback_text = (
+            f"I hear you on that. Let me think about how this fits into the overall design. "
+            f"(LLM unavailable — connect an LLM backend for full collaborative design sessions.)"
+        )
+        fb_entry = f"\n<!-- tags: {', '.join(tags)} -->\n**[program_coordinator]** {fallback_text}\n"
+        with open(notes_path, "a") as f:
+            f.write(fb_entry)
+        responses.append({
+            "role": "program_coordinator",
+            "display_name": _DESIGN_ROLE_DISPLAY["program_coordinator"],
+            "tags": tags,
+            "response": fallback_text,
+        })
+
+    # Return backward-compatible single response + full responses array
     return {
-        "role": role,
+        "role": responses[0]["role"],
         "tags": tags,
-        "response": f"[{role}] Noted. Tags: {', '.join(tags)}. (LLM unavailable — responses will be richer when an LLM backend is configured.)",
+        "response": responses[0]["response"],
+        "responses": responses,
     }
 
 

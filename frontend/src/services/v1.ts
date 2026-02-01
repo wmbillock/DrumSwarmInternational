@@ -90,10 +90,18 @@ export interface V1Messages {
   messages: { role: string; content: string; tags: string[] }[];
 }
 
+export interface V1AgentResp {
+  role: string;
+  display_name: string;
+  tags: string[];
+  response: string;
+}
+
 export interface V1MessageResp {
   role: string;
   tags: string[];
   response: string;
+  responses?: V1AgentResp[];
 }
 
 export interface V1Seance {
