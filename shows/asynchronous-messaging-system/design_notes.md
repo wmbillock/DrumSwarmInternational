@@ -431,3 +431,14 @@ async def generate_archive_summary(thread_id: str) -> str:
 - ✅ Deliverables (DB schema, API routes, UI components, WebSocket events, services layer)
 
 **Ready to implement!** This show is now in approved status and can move to implementation phase.
+<!-- tags: questions -->
+
+**[user]** Ok, what's my prompt?
+
+<!-- tags: questions -->
+**[program_coordinator]** Your prompt is to **implement the asynchronous-messaging-system show** (spec is locked and ready). Start by building the database schema and API endpoints for the threaded inbox, then move to the frontend UI components and WebSocket integration.
+
+What would you like to tackle first—the database migrations and backend services, or should I create a detailed implementation plan for you to review?
+<!-- tags: admin -->
+
+**[user]** Oh no, sorry - we have the brief and it's good to go. I wish to populate the "prompt" tab in the DCI swarm design room interface so that I can then publish this show for implementation.

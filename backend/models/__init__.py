@@ -14,6 +14,14 @@ from backend.models.show import Show, ShowStatus
 from backend.models.work_log import WorkLog
 from backend.models.performer import Performer, PerformerStatus
 from backend.models.capability_ledger import CapabilityLedgerEntry, LedgerEntryType
+from backend.models.messaging_thread import (
+    Thread,
+    ThreadMessage,
+    ArchivedThread,
+    ThreadStatus,
+    OriginatorRole,
+    SenderType,
+)
 
 __all__ = [
     "Segment", "SegmentType", "SegmentStatus",
@@ -30,4 +38,6 @@ __all__ = [
     "WorkLog",
     "Performer", "PerformerStatus",
     "CapabilityLedgerEntry", "LedgerEntryType",
+    "Thread", "ThreadMessage", "ArchivedThread",
+    "ThreadStatus", "OriginatorRole", "SenderType",
 ]

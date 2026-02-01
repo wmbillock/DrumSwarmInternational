@@ -1,0 +1,68 @@
+.message-archive {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--bg-primary);
+}
+
+.archive-header {
+  padding: 20px 32px;
+  border-bottom: 1px solid var(--border);
+}
+
+.archive-container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.archive-search {
+  width: 350px;
+  border-right: 1px solid var(--border);
+  padding: 24px;
+}
+
+.search-group {
+  margin-bottom: 16px;
+}
+
+.search-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.search-group input,
+.search-group select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.results-list {
+  margin-top: 24px;
+}
+
+.result-item {
+  padding: 12px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.result-item:hover {
+  background: var(--bg-hover);
+}
+
+.result-item.selected {
+  background: var(--bg-accent);
+  border-color: var(--accent);
+}
+
+.archive-detail {
+  flex: 1;
+  padding: 32px;
+  overflow-y: auto;
+}

@@ -146,6 +146,7 @@ export interface V1CompResult {
 
 export interface V1StandingEntry {
   corps_id: string;
+  display_name?: string;
   rank: number;
   final_score: number;
   raw_score: number;
@@ -360,6 +361,150 @@ export const getSeason = (id: string, signal?: AbortSignal) =>
 
 export const registerSeasonCorps = (seasonId: string, corpsId: string) =>
   request<{ status: string }>(`/api/v1/seasons/${seasonId}/corps`, { method: "POST", body: JSON.stringify({ corps_id: corpsId }) });
+
+// --- Messaging ---
+
+export interface MessagingThreadMessage {
+  message_id: string;
+  sender_type: string;
+  sender_role: string;
+  sender_name: string;
+  body: string;
+  created_at: string;
+}
+
+export interface MessagingThread {
+  thread_id: string;
+  originator_role: string;
+  subject: string;
+  status: "pending" | "completed" | "archived";
+  created_at: string;
+  updated_at: string;
+  completed_at?: string;
+  completed_by?: string;
+  messages: MessagingThreadMessage[];
+}
+
+export interface ArchivedThreadSummary {
+  archived_thread_id: string;
+  original_thread_id: string;
+  originator_role: string;
+  subject: string;
+  summary: string;
+  message_count: number;
+  created_at: string;
+  archived_at: string;
+  tags?: string[];
+  decision?: string;
+}
+
+export interface CreateThreadRequest {
+  originator_role: string;
+  subject: string;
+  initial_message_body: string;
+  initial_sender_name?: string;
+  user_role: string;
+}
+
+export const createMessagingThread = (req: CreateThreadRequest) =>
+  request<MessagingThread>("/api/v1/messaging/threads", {
+    method: "POST",
+    body: JSON.stringify(req),
+  });
+
+export const listMessagingThreads = (
+  status?: string,
+  originatorRole?: string,
+  limit: number = 50,
+  offset: number = 0,
+  signal?: AbortSignal
+) => {
+  const params = new URLSearchParams();
+  if (status) params.append("status", status);
+  if (originatorRole) params.append("originator_role", originatorRole);
+  params.append("limit", limit.toString());
+  params.append("offset", offset.toString());
+  return request<{ threads: MessagingThread[]; total: number }>(
+    `/api/v1/messaging/threads?${params}`,
+    { signal }
+  );
+};
+
+export const getMessagingThread = (threadId: string, signal?: AbortSignal) =>
+  request<MessagingThread>(`/api/v1/messaging/threads/${threadId}`, { signal });
+
+export const addMessageToThread = (
+  threadId: string,
+  senderRole: string,
+  senderName: string,
+  body: string,
+  senderType: string = "user"
+) =>
+  request<MessagingThreadMessage>(`/api/v1/messaging/threads/${threadId}/messages`, {
+    method: "POST",
+    body: JSON.stringify({
+      sender_type: senderType,
+      sender_role: senderRole,
+      sender_name: senderName,
+      body,
+    }),
+  });
+
+export const markThreadComplete = (
+  threadId: string,
+  userRole: string,
+  userId: string = "current-user"
+) =>
+  request<MessagingThread>(`/api/v1/messaging/threads/${threadId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      completed_by_user_id: userId,
+      completed_by_user_role: userRole,
+    }),
+  });
+
+export const searchArchive = (
+  query?: string,
+  originatorRole?: string,
+  limit: number = 50,
+  offset: number = 0,
+  signal?: AbortSignal
+) => {
+  const params = new URLSearchParams();
+  if (query) params.append("search", query);
+  if (originatorRole) params.append("originator_role", originatorRole);
+  params.append("limit", limit.toString());
+  params.append("offset", offset.toString());
+  return request<{ threads: ArchivedThreadSummary[]; total: number }>(
+    `/api/v1/messaging/archive?${params}`,
+    { signal }
+  );
+};
+
+export const getArchivedThread = (archivedThreadId: string, signal?: AbortSignal) =>
+  request<ArchivedThreadSummary>(`/api/v1/messaging/archive/${archivedThreadId}`, {
+    signal,
+  });
+
+export const bulkArchiveThreads = (
+  threadIds: string[],
+  userRole: string,
+  userId: string = "current-user"
+) =>
+  request<{ operation_id: string; count_archived: number; archived_threads: Array<{ archived_thread_id: string; original_thread_id: string; subject: string; summary: string }> }>(
+    "/api/v1/messaging/archive/bulk-archive",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        thread_ids: threadIds,
+        archived_by_user_id: userId,
+        archived_by_user_role: userRole,
+      }),
+    }
+  );
+
+export const getUnreadMessageCount = (signal?: AbortSignal) =>
+  request<{ unread_count: number }>("/api/v1/messaging/unread-count", { signal });
 
 // --- Admin ---
 
