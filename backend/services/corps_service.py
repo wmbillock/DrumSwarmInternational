@@ -1,8 +1,11 @@
 """Corps orchestration — initialization, winter camps / on tour lifecycle,
 handoff chain, escalation, merge monitor, rehearsal modes, mode guidance."""
 
+import logging
 from dataclasses import dataclass, field
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 from sqlalchemy.orm import Session
 
@@ -353,8 +356,8 @@ def initialize_corps(db: Session, corps_id: str, use_auditions: bool = True) -> 
                 if performer:
                     session.performer_id = performer.id
                     db.commit()
-            except Exception:
-                pass  # Auditions are best-effort
+            except Exception as exc:
+                logger.warning("Audition failed for role %s in corps %s: %s", role, corps_id, exc)
 
         sessions[role] = session
 

@@ -3,7 +3,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import type { Show, AgentSession, ChatMessage, Scoresheet, CorpsMode } from "../types";
 import * as api from "../services/api";
 import { useWebSocket } from "../hooks/useWebSocket";
-import { useCorpsTheme } from "../contexts/CorpsThemeContext";
 import { ModeIndicator } from "../components/ModeIndicator";
 import { useMode } from "../contexts/ModeContext";
 import { TheRoster } from "../components/TheRoster";
@@ -148,9 +147,7 @@ export function CorpsDeepDive() {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const { connected, events, clearEvents } = useWebSocket(corpsId || null);
-  const { setCorpsTheme } = useCorpsTheme();
   const { config: modeConfig, refreshMode } = useMode();
-  const userThemeRef = useRef(localStorage.getItem("dci-corps-theme") || "default");
 
   const loadData = useCallback(async (isRefresh = false) => {
     if (!corpsId) return;
@@ -164,11 +161,17 @@ export function CorpsDeepDive() {
       const corps = await api.getCorps(corpsId);
       setCorpsMode(corps.mode as CorpsMode | undefined);
       if (corpsId) refreshMode(corpsId);
-      if (corps.theme_id && !isRefresh) {
-        userThemeRef.current = localStorage.getItem("dci-corps-theme") || "default";
-        setCorpsTheme(corps.theme_id);
-      }
     } catch {}
+
+    // Load roster, chat, and scoresheet (independent of show)
+    const [r, c, sc] = await Promise.allSettled([
+      api.getRoster(corpsId),
+      api.getChatHistory(corpsId),
+      api.getScoresheet(corpsId),
+    ]);
+    if (r.status === "fulfilled") setRoster(r.value);
+    if (c.status === "fulfilled") setChatHistory(c.value);
+    if (sc.status === "fulfilled") setScoresheet(sc.value);
 
     // Find show for this corps
     try {
@@ -177,25 +180,20 @@ export function CorpsDeepDive() {
       if (s) {
         const fullShow = await api.getShow(s.id);
         setShow({ ...s, ...fullShow } as Show);
-
-        // Load show-specific data
-        const [r, c, sc] = await Promise.allSettled([
-          api.getRoster(corpsId),
-          api.getChatHistory(corpsId),
-          api.getScoresheet(corpsId),
-        ]);
-        if (r.status === "fulfilled") setRoster(r.value);
-        if (c.status === "fulfilled") setChatHistory(c.value);
-        if (sc.status === "fulfilled") setScoresheet(sc.value);
       }
     } catch {}
-  }, [corpsId, clearEvents, setCorpsTheme]);
+  }, [corpsId, clearEvents, refreshMode]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
   const handleSendChat = async (content: string, toRole: string) => {
     if (!corpsId) return;
     await api.sendChat(corpsId, content, toRole);
+    // Re-fetch chat history to pick up the sent message and any agent responses
+    try {
+      const history = await api.getChatHistory(corpsId);
+      setChatHistory(history);
+    } catch {}
   };
 
   const handleSend = () => {
@@ -246,7 +244,7 @@ export function CorpsDeepDive() {
   return (
     <div className="show-detail">
       <div className="show-detail-header">
-        <button className="back-btn" onClick={() => { setCorpsTheme(userThemeRef.current); navigate("/"); }}>&larr;</button>
+        <button className="back-btn" onClick={() => navigate("/")}>&larr;</button>
         <div className="show-detail-title">
           <h2>{show?.title ? (show.title.length > 60 ? show.title.slice(0, 60) + "..." : show.title) : corpsId?.slice(0, 8)}</h2>
           {show?.corps_name && <span className="corps-badge">{show.corps_name}</span>}

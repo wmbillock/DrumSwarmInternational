@@ -1225,21 +1225,38 @@ def api_delete_show(show_id: str, db: Session = Depends(get_db)):
 
 @app.get("/api/agents-overview")
 def api_agents_overview(db: Session = Depends(get_db)):
-    """Get all active agent sessions across all corps with their definitions."""
+    """Get all active agent sessions across all corps with their definitions.
+
+    Optimized to use eager loading (joinedload) and batch Corps lookup to reduce
+    N+1 queries to just 2 queries: one for sessions + definitions, one for corps.
+    """
+    from sqlalchemy.orm import joinedload
     from backend.models.agent_session import AgentSession, SessionStatus
     from backend.models.agent_definition import AgentDefinition
     from backend.models.corps import Corps
+
+    # Query 1: Fetch all active sessions with eager-loaded AgentDefinition
     sessions = (
         db.query(AgentSession)
-        .outerjoin(AgentDefinition, AgentSession.definition_id == AgentDefinition.id)
+        .options(joinedload(AgentSession.definition))
         .filter(AgentSession.status == SessionStatus.ACTIVE)
         .all()
     )
+
+    # Collect all unique corps_ids for batch loading
+    corps_ids = {s.corps_id for s in sessions if s.corps_id}
+
+    # Query 2: Batch-load all Corps records in a single query
+    corps_map = {}
+    if corps_ids:
+        corps_records = db.query(Corps).filter(Corps.id.in_(corps_ids)).all()
+        corps_map = {c.id: c for c in corps_records}
+
+    # Build results using pre-loaded data
     results = []
     for s in sessions:
-        defn = db.get(AgentDefinition, s.definition_id)
-        # Look up Corps record to get corps_name
-        corps = db.get(Corps, s.corps_id) if s.corps_id else None
+        defn = s.definition
+        corps = corps_map.get(s.corps_id) if s.corps_id else None
         results.append({
             "id": s.id,
             "role": defn.role if defn else "unknown",

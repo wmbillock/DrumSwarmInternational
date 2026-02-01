@@ -26,6 +26,17 @@ class ApprovalRequired(Exception):
 # --- Agent Definition Management ---
 
 
+SUPERVISORY_SINGLETON_ROLES = {
+    "executive_director",
+    "program_coordinator",
+    "drum_major",
+    "brass_caption_head",
+    "percussion_caption_head",
+    "guard_caption_head",
+    "visual_caption_head",
+}
+
+
 def create_definition(
     db: Session,
     role: str,
@@ -35,6 +46,21 @@ def create_definition(
     corps_id: Optional[str] = None,
     nickname: Optional[str] = None,
 ) -> AgentDefinition:
+    # Enforce one supervisory agent per caption per corps
+    if role in SUPERVISORY_SINGLETON_ROLES and corps_id:
+        existing = (
+            db.query(AgentDefinition)
+            .filter(AgentDefinition.role == role,
+                    AgentDefinition.corps_id == corps_id,
+                    AgentDefinition.version >= 0)  # version -1 = retired
+            .first()
+        )
+        if existing:
+            raise ValueError(
+                f"Corps {corps_id} already has a {role} "
+                f"(definition {existing.id}). Only one is allowed."
+            )
+
     defn = AgentDefinition(
         role=role,
         system_prompt=system_prompt,
