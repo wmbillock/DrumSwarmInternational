@@ -365,28 +365,10 @@ def api_agents_overview(db: Session = Depends(get_db)):
         corps_records = db.query(Corps).filter(Corps.id.in_(corps_ids)).all()
         corps_map = {c.id: c for c in corps_records}
 
-    by_defn: dict[str, AgentSession] = {}
-    for s in sessions:
-        if s.definition_id not in by_defn or (s.started_at and (
-            not by_defn[s.definition_id].started_at or s.started_at > by_defn[s.definition_id].started_at
-        )):
-            by_defn[s.definition_id] = s
-
-    all_defn_ids = {s.definition_id for s in sessions}
-    dormant_defns = (
-        db.query(AgentDefinition)
-        .filter(
-            AgentDefinition.corps_id.in_(corps_ids),
-            ~AgentDefinition.id.in_(all_defn_ids) if all_defn_ids else AgentDefinition.id.isnot(None),
-        )
-        .all()
-    ) if corps_ids else []
-
     results = []
-    for s in by_defn.values():
+    for s in sessions:
         defn = s.definition
         corps = corps_map.get(s.corps_id) if s.corps_id else None
-        session_count = sum(1 for sess in sessions if sess.definition_id == s.definition_id)
         results.append({
             "id": s.id,
             "definition_id": s.definition_id,
@@ -398,23 +380,7 @@ def api_agents_overview(db: Session = Depends(get_db)):
             "corps_id": s.corps_id,
             "corps_name": corps.name if corps else None,
             "started_at": s.started_at.isoformat() if s.started_at else None,
-            "session_count": session_count,
-        })
-
-    for defn in dormant_defns:
-        corps = corps_map.get(defn.corps_id) if defn.corps_id else None
-        results.append({
-            "id": defn.id,
-            "definition_id": defn.id,
-            "role": defn.role,
-            "nickname": defn.nickname,
-            "classification": defn.classification.value if defn.classification else None,
-            "model_tier": defn.model_tier.value,
-            "status": "dormant",
-            "corps_id": defn.corps_id,
-            "corps_name": corps.name if corps else None,
-            "started_at": None,
-            "session_count": 0,
+            "session_count": 1,
         })
 
     return results

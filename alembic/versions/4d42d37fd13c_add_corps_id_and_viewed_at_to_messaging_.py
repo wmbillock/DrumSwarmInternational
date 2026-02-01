@@ -20,9 +20,19 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Upgrade schema."""
-    pass
+    # Add new columns to messaging_threads
+    op.add_column('messaging_threads', sa.Column('corps_id', sa.String(36), nullable=True))
+    op.add_column('messaging_threads', sa.Column('initiator_agent_id', sa.String(36), nullable=True))
+    op.add_column('messaging_threads', sa.Column('viewed_at', sa.DateTime(timezone=True), nullable=True))
+
+    # Add foreign key constraints (SQLite requires special handling for FK constraints)
+    # For SQLite, we need to recreate the table to add FK constraints
+    # For now, we'll just add the columns without FK constraints
+    # The application will enforce referential integrity
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    pass
+    op.drop_column('messaging_threads', 'viewed_at')
+    op.drop_column('messaging_threads', 'initiator_agent_id')
+    op.drop_column('messaging_threads', 'corps_id')
