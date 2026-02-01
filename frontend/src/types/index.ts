@@ -16,14 +16,42 @@ export interface Show {
   final_score?: number | null;
 }
 
+export type CorpsMode = "design_room" | "show_mode" | "rehearsal_mode" | "judging" | "offseason_review";
+
 export interface Corps {
   id: string;
   name: string;
   status: "initializing" | "winter_camps" | "on_tour" | "completed" | "disbanded";
   rehearsal_mode?: "basics" | "sectionals" | "full_ensemble" | "run_through";
+  mode?: CorpsMode;
   theme_id?: string;
   mascot?: string;
   uniform_concept?: string;
+}
+
+export interface SystemHealth {
+  active_corps: number;
+  total_agents: number;
+  active_agents: number;
+  failed_agents: number;
+  total_reps: number;
+  completed_reps: number;
+  failed_reps: number;
+  stale_reps: number;
+  failure_rate: number;
+  corps_summaries: CorpsSummary[];
+}
+
+export interface CorpsSummary {
+  id: string;
+  name: string;
+  status: string;
+  mode: CorpsMode | null;
+  agents_active: number;
+  agents_total: number;
+  reps_completed: number;
+  reps_total: number;
+  failures: number;
 }
 
 export type AgentClassification = "performing_member" | "instructional_staff" | "administrative_staff" | "logistics" | "dci_assigned";

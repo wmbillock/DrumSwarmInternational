@@ -1,6 +1,6 @@
 // API client for DCI Swarm backend
 
-import type { Show, AgentSession, Corps, SegmentNode, WorkLogEntry, ChatMessage, Scoresheet } from "../types";
+import type { Show, AgentSession, Corps, CorpsMode, SegmentNode, WorkLogEntry, ChatMessage, Scoresheet, SystemHealth } from "../types";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -61,6 +61,52 @@ export const sendChat = (corpsId: string, content: string, toRole: string = "exe
 export const getChatHistory = (corpsId: string) =>
   request<ChatMessage[]>(`/api/corps/${corpsId}/chat`);
 
+// Chat streaming (SSE)
+export const sendChatStream = (
+  corpsId: string,
+  content: string,
+  toRole: string = "executive_director",
+  onMessage: (event: { type: string; id?: string; from_role?: string; content?: string }) => void,
+  onDone?: () => void,
+): AbortController => {
+  const controller = new AbortController();
+  fetch(`${BASE_URL}/api/corps/${corpsId}/chat-stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content, to_role: toRole }),
+    signal: controller.signal,
+  }).then(async resp => {
+    if (!resp.ok || !resp.body) {
+      onDone?.();
+      return;
+    }
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            onMessage(data);
+            if (data.type === "done" || data.type === "timeout") {
+              onDone?.();
+              return;
+            }
+          } catch {}
+        }
+      }
+    }
+    onDone?.();
+  }).catch(() => onDone?.());
+  return controller;
+};
+
 // Messages
 export const pollMessages = (corpsId: string, role?: string) => {
   const params = role ? `?role=${role}` : "";
@@ -100,6 +146,21 @@ export const getPerformerLedger = (id: string) => request<any[]>(`/api/performer
 export const getPerformerStats = (id: string) => request<any>(`/api/performers/${id}/stats`);
 export const retirePerformer = (id: string) =>
   request(`/api/performers/${id}/retire`, { method: "POST" });
+
+// System health
+export const getSystemHealth = () => request<SystemHealth>("/api/system-health");
+
+// Corps mode
+export const switchCorpsMode = (corpsId: string, mode: CorpsMode) =>
+  request<{ id: string; mode: string }>(`/api/corps/${corpsId}/mode`, {
+    method: "POST", body: JSON.stringify({ mode }),
+  });
+
+// Seasons
+export const createSeason = (name: string, year?: number) =>
+  request<{ season_id: string; name: string; year?: number }>("/api/seasons", {
+    method: "POST", body: JSON.stringify({ name, year }),
+  });
 
 // Metrics
 export const getCorpsMetrics = (corpsId: string) => request<any>(`/api/corps/${corpsId}/metrics`);
