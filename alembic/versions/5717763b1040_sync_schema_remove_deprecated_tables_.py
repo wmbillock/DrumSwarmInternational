@@ -1,7 +1,7 @@
 """sync schema: remove deprecated tables and fix enum types
 
 Revision ID: 5717763b1040
-Revises: g1h2i3j4k5l6
+Revises: 4d42d37fd13c
 Create Date: 2026-02-01 01:53:38.674896
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = '5717763b1040'
-down_revision: Union[str, Sequence[str], None] = 'g1h2i3j4k5l6'
+down_revision: Union[str, Sequence[str], None] = '4d42d37fd13c'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
