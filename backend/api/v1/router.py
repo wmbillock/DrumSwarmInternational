@@ -2931,22 +2931,25 @@ def api_metrics_trends(
         types_to_query = [metric_type] if metric_type else [mt.value for mt in MetricType]
 
         trends = []
-        for mt in types_to_query:
-            trend = aggregator.calculate_trends(
-                metric_type=mt,
-                period_days=period_days,
-                corps_id=corps_id,
-            )
-            if trend:
-                trends.append({
-                    "metric_type": trend.metric_type,
-                    "period_days": trend.period_days,
-                    "avg_value": round(trend.avg_value, 4) if trend.avg_value else None,
-                    "prev_period_avg": round(trend.prev_period_avg, 4) if trend.prev_period_avg else None,
-                    "rate_of_change": round(trend.rate_of_change, 2) if trend.rate_of_change else None,
-                    "direction": trend.trend_direction,
-                    "corps_id": trend.corps_id,
-                })
+        try:
+            for mt in types_to_query:
+                trend = aggregator.calculate_trends(
+                    metric_type=mt,
+                    period_days=period_days,
+                    corps_id=corps_id,
+                )
+                if trend:
+                    trends.append({
+                        "metric_type": trend.metric_type,
+                        "period_days": trend.period_days,
+                        "avg_value": round(trend.avg_value, 4) if trend.avg_value else None,
+                        "prev_period_avg": round(trend.prev_period_avg, 4) if trend.prev_period_avg else None,
+                        "rate_of_change": round(trend.rate_of_change, 2) if trend.rate_of_change else None,
+                        "direction": trend.trend_direction,
+                        "corps_id": trend.corps_id,
+                    })
+        except Exception:
+            pass  # metrics_events/trends tables may not exist yet
 
         return {
             "period_days": period_days,
