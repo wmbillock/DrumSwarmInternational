@@ -168,13 +168,22 @@ cd frontend && npx tsc --noEmit             # TypeScript check
 
 ## Current State (as of 2026-02-01)
 
-### ✅ Recently Fixed (This Session)
-- **Evolution & Talent Pool performer assignment**: Backfilled 786 legacy sessions with performers via audition — 100% of sessions now have performers
-- **System Health status endpoint**: Added health status calculation (ok/warning/error) based on agent and rep metrics; TelemetryPanel now shows meaningful status instead of UNKNOWN
+### ✅ Recently Completed (This Session)
+- **Asynchronous Messaging System (Full Implementation)**:
+  - Backend: 5 service modules (messaging_service, messaging_permissions, messaging_summary_service) + 8 API endpoints
+  - Database: Thread, ThreadMessage, ArchivedThread models with SQLAlchemy ORM
+  - API: POST/GET/PATCH threads, message management, bulk-archive with LLM summaries, archive search
+  - Role-based permissions: ED/PC create, Admin archive/search, ED search (read-only)
+  - LLM summary generation with fallback (no LLM → deterministic summaries)
+  - Full-text search with relevance ranking (BM25 + recency + decision prominence)
+  - Frontend: MessageInbox + MessageArchive pages fully implemented with UI/UX
+  - Testing: 21 comprehensive tests covering all spec behaviors (100% pass rate)
+  - Archive timings: 14-day suggestion flag, 30-day auto-archive eligibility
 
 ### Working
 - 5+ active corps (DB-only, filesystem corps deleted)
-- V1 API router with 39 routes
+- V1 API router with 47 routes (39 → 47 after messaging endpoints)
+- **Asynchronous messaging system** (NEW): Full lifecycle — thread creation → multi-message conversation → manual completion → bulk archival with summaries → searchable archive
 - Design room has LLM-powered responses via shared Claude CLI client
 - Corps creation modal with auto-generated identity (name, mascot, colors)
 - Season CRUD endpoints (create, list, get, update, register corps)
@@ -185,7 +194,6 @@ cd frontend && npx tsc --noEmit             # TypeScript check
 - System health monitoring and swarm health aggregation
 
 ### In Progress / Ready for Implementation
-- **Asynchronous-messaging-system show**: Spec fully locked and ready for backend + frontend implementation
 - **Caption-awards achievement system**: Spec drafted, design notes in progress
 - **Metronome-system-agent**: In progress
 
