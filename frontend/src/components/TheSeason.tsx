@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import * as api from "../services/api";
 import * as v1 from "../services/v1";
 import type { Show } from "../types";
 
@@ -29,12 +28,12 @@ export function TheSeason() {
   };
 
   const handleTour = async (id: string, enable: boolean) => {
-    await api.toggleTour(id, enable);
+    await v1.toggleTour(id, enable);
     loadShows();
   };
 
   const handleComplete = async (id: string) => {
-    await api.completeShow(id);
+    await v1.completeShow(id);
     loadShows();
   };
 

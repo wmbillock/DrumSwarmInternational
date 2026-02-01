@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Show, AgentSession, WorkLogEntry } from "../types";
-import * as api from "../services/api";
 import * as v1 from "../services/v1";
 
 function formatRole(role: string): string {
@@ -90,7 +89,7 @@ export function SwarmOverview() {
 
   const refreshDashboard = useCallback(async () => {
     const [s, a, l, c] = await Promise.allSettled([
-      api.getShowsOverview(),
+      v1.getShowsOverview(),
       v1.getAgentsOverview(),
       v1.getGlobalWorkLog(50),
       v1.listCorps(),

@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import type { Show, AgentSession, ChatMessage, Scoresheet, CorpsMode } from "../types";
-import * as api from "../services/api";
 import * as v1 from "../services/v1";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { ModeIndicator } from "../components/ModeIndicator";
@@ -179,7 +178,7 @@ export function CorpsDeepDive() {
       const shows = await v1.listShows();
       const s = shows.find((s: any) => s.corps_id === corpsId);
       if (s) {
-        const fullShow = await api.getShow(s.id);
+        const fullShow = await v1.getShow(s.id);
         setShow({ ...s, ...fullShow } as Show);
       }
     } catch {}
@@ -257,7 +256,7 @@ export function CorpsDeepDive() {
         <div className="show-detail-actions">
           <button className="small" onClick={() => loadData(true)}>Refresh</button>
           {show?.status === "active" && (
-            <button className="small primary" onClick={() => show && api.toggleTour(show.id, true)}>Go On Tour</button>
+            <button className="small primary" onClick={() => show && v1.toggleTour(show.id, true)}>Go On Tour</button>
           )}
         </div>
       </div>

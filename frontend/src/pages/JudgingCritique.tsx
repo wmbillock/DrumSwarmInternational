@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import * as api from "../services/api";
 import * as v1 from "../services/v1";
 import type { JudgeTape, CritiqueDetail, CritiqueActionsResponse } from "../types";
 
@@ -37,7 +36,7 @@ export function JudgingCritique() {
     try {
       const [t, a] = await Promise.all([
         v1.listJudgingTapes(cid),
-        api.getCritiqueActions(cid),
+        v1.getCritiqueActions(cid),
       ]);
       setTapes(t);
       setActions(a);
@@ -63,7 +62,7 @@ export function JudgingCritique() {
   const handleExport = async () => {
     if (!activeCorps || !selectedRep) return;
     try {
-      const result = await api.exportJudgeTape(activeCorps, selectedRep);
+      const result = await v1.exportJudgeTape(activeCorps, selectedRep);
       setExportMd(result.markdown);
     } catch (e: any) { setExportMd(`Export failed: ${e.message}`); }
   };

@@ -859,3 +859,43 @@ export const seanceQuery = (corpsId: string, question: string) =>
 export const adminListCorps = (signal?: AbortSignal) =>
   request<any[]>(`/api/v1/admin/corps`, { signal });
 
+// --- Shows: Additional ---
+
+export const getShowsOverview = (signal?: AbortSignal) =>
+  request<any>(`/api/v1/shows-overview`, { signal });
+
+export const getShow = (slug: string, signal?: AbortSignal) =>
+  request<any>(`/api/v1/shows/${slug}/detail`, { signal });
+
+export const toggleTour = (slug: string, enable: boolean) =>
+  request<any>(`/api/v1/shows/${slug}/tour`, { method: "POST", body: JSON.stringify({ enable }) });
+
+export const completeShow = (slug: string) =>
+  request<any>(`/api/v1/shows/${slug}/complete`, { method: "POST" });
+
+// --- Admin: singleton corps ---
+
+export const getAdminCorps = (signal?: AbortSignal) =>
+  request<any>(`/api/v1/admin/admin-corps`, { signal });
+
+// --- Judging: Critique actions & export ---
+
+export const getCritiqueActions = (corpsId: string, signal?: AbortSignal) =>
+  request<any[]>(`/api/v1/judging/corps/${corpsId}/actions`, { signal });
+
+export const exportJudgeTape = (corpsId: string, repId: string, signal?: AbortSignal) =>
+  request<any>(`/api/v1/judging/corps/${corpsId}/tapes/${repId}/export`, { signal });
+
+// --- Evolution: Simulate ---
+
+export const simulateMutation = (definitionId: string, changes: Record<string, unknown>, reason: string) =>
+  request<any>(`/api/v1/evolution/simulate-mutation`, {
+    method: "POST",
+    body: JSON.stringify({ definition_id: definitionId, changes, reason }),
+  });
+
+// --- Sessions ---
+
+export const getSessionActivity = (sessionId: string, signal?: AbortSignal) =>
+  request<any>(`/api/v1/sessions/${sessionId}/activity`, { signal });
+

@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { useShow } from "../contexts/ShowContext";
 import { useWebSocket } from "../hooks/useWebSocket";
-import { getSessionActivity } from "../services/api";
-import { getCorpsRoster } from "../services/v1";
+import { getCorpsRoster, getSessionActivity } from "../services/v1";
 import type { AgentSession, SessionActivity } from "../types";
 
 const ROLE_COLORS: Record<string, string> = {

@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import * as api from "../services/api";
 import * as v1 from "../services/v1";
 import type { PerformerGenome, SelectionEvent, MutationLog, MutationSimulationResult } from "../types";
 
@@ -104,7 +103,7 @@ export function EvolutionTalentPool() {
     setSimulating(true);
     try {
       const changes = JSON.parse(simChanges);
-      const result = await api.simulateMutation(simDefId, changes, simReason);
+      const result = await v1.simulateMutation(simDefId, changes, simReason);
       setSimResult(result);
     } catch (e: any) {
       setSimResult(null);

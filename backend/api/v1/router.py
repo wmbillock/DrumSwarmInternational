@@ -4032,3 +4032,209 @@ def v1_admin_list_corps():
         } for c in corps_list]
     finally:
         db.close()
+
+
+# ---------------------------------------------------------------------------
+# Shows: Additional operations
+# ---------------------------------------------------------------------------
+
+@router.get("/shows-overview")
+def v1_shows_overview():
+    """Get shows overview with status counts and recent activity."""
+    from backend.services.show_persistence import list_shows
+    shows = list_shows()
+    status_counts = {}
+    for s in shows:
+        st = s.get("status", "unknown")
+        status_counts[st] = status_counts.get(st, 0) + 1
+    return {
+        "shows": shows,
+        "total": len(shows),
+        "status_counts": status_counts,
+    }
+
+
+@router.get("/shows/{slug}/detail")
+def v1_get_show(slug: str):
+    """Get a single show's full detail."""
+    from backend.services.show_persistence import get_show
+    show = get_show(slug)
+    if not show:
+        raise HTTPException(404, "Show not found")
+    return show
+
+
+@router.post("/shows/{slug}/tour")
+def v1_toggle_tour(slug: str, payload: dict):
+    """Toggle tour mode for a show."""
+    from backend.services.show_persistence import get_show, update_show_status
+    show = get_show(slug)
+    if not show:
+        raise HTTPException(404, "Show not found")
+    enable = payload.get("enable", True)
+    new_status = "on_tour" if enable else "published"
+    update_show_status(slug, new_status)
+    return {"slug": slug, "status": new_status}
+
+
+@router.post("/shows/{slug}/complete")
+def v1_complete_show(slug: str):
+    """Mark a show as completed."""
+    from backend.services.show_persistence import get_show, update_show_status
+    show = get_show(slug)
+    if not show:
+        raise HTTPException(404, "Show not found")
+    update_show_status(slug, "completed")
+    return {"slug": slug, "status": "completed"}
+
+
+# ---------------------------------------------------------------------------
+# Admin: Corps detail (singleton admin corps)
+# ---------------------------------------------------------------------------
+
+@router.get("/admin/admin-corps")
+def v1_get_admin_corps():
+    """Get the admin/bar corps with its roster."""
+    from backend.models.corps import Corps
+    from backend.models.agent_definition import AgentDefinition
+    db = _get_db_session()
+    try:
+        # Find the admin corps (typically "the-bar" or first corps)
+        admin = db.query(Corps).filter(Corps.id == "the-bar").first()
+        if not admin:
+            admin = db.query(Corps).first()
+        if not admin:
+            raise HTTPException(404, "No admin corps found")
+        agents = db.query(AgentDefinition).filter(
+            AgentDefinition.corps_id == admin.id
+        ).all()
+        return {
+            "id": admin.id,
+            "name": admin.name,
+            "status": admin.status.value if admin.status else None,
+            "mode": admin.mode.value if admin.mode else None,
+            "roster": [{
+                "id": a.id,
+                "role": a.role,
+                "name": a.name,
+            } for a in agents],
+        }
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Judging: Critique actions & tape export
+# ---------------------------------------------------------------------------
+
+@router.get("/judging/corps/{corps_id}/actions")
+def v1_critique_actions(corps_id: str):
+    """Get critique action items for a corps."""
+    from backend.models.reputation import Reputation
+    db = _get_db_session()
+    try:
+        reps = (
+            db.query(Reputation)
+            .filter(Reputation.corps_id == corps_id)
+            .filter(Reputation.critique.isnot(None))
+            .order_by(Reputation.created_at.desc())
+            .limit(20)
+            .all()
+        )
+        return [{
+            "id": r.id,
+            "agent_id": r.agent_id,
+            "dimension": r.dimension,
+            "score": r.score,
+            "critique": r.critique,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        } for r in reps]
+    finally:
+        db.close()
+
+
+@router.get("/judging/corps/{corps_id}/tapes/{rep_id}/export")
+def v1_export_judge_tape(corps_id: str, rep_id: str):
+    """Export a judging tape as markdown."""
+    from backend.models.reputation import Reputation
+    db = _get_db_session()
+    try:
+        rep = db.query(Reputation).filter(
+            Reputation.id == rep_id,
+            Reputation.corps_id == corps_id,
+        ).first()
+        if not rep:
+            raise HTTPException(404, "Tape not found")
+        md = f"# Judging Tape: {rep.id}\n\n"
+        md += f"**Corps:** {rep.corps_id}\n"
+        md += f"**Agent:** {rep.agent_id}\n"
+        md += f"**Dimension:** {rep.dimension}\n"
+        md += f"**Score:** {rep.score}\n\n"
+        md += f"## Critique\n\n{rep.critique or 'No critique recorded.'}\n"
+        return {"markdown": md}
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Evolution: Simulate mutation
+# ---------------------------------------------------------------------------
+
+@router.post("/evolution/simulate-mutation")
+def v1_simulate_mutation(payload: dict):
+    """Simulate a mutation on an agent definition."""
+    from backend.models.agent_definition import AgentDefinition
+    db = _get_db_session()
+    try:
+        def_id = payload.get("definition_id")
+        changes = payload.get("changes", {})
+        reason = payload.get("reason", "manual simulation")
+        defn = db.query(AgentDefinition).filter(AgentDefinition.id == def_id).first()
+        if not defn:
+            raise HTTPException(404, "Agent definition not found")
+        # Return a preview of what the mutation would produce
+        preview = {
+            "definition_id": def_id,
+            "current_role": defn.role,
+            "current_system_prompt": defn.system_prompt[:200] if defn.system_prompt else None,
+            "proposed_changes": changes,
+            "reason": reason,
+            "status": "simulated",
+        }
+        return preview
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Sessions: Activity
+# ---------------------------------------------------------------------------
+
+@router.get("/sessions/{session_id}/activity")
+def v1_session_activity(session_id: str):
+    """Get activity log for a session."""
+    from backend.models.agent_session import AgentSession
+    from backend.models.work_log import WorkLog
+    db = _get_db_session()
+    try:
+        session = db.query(AgentSession).filter(AgentSession.id == session_id).first()
+        if not session:
+            raise HTTPException(404, "Session not found")
+        logs = (
+            db.query(WorkLog)
+            .filter(WorkLog.session_id == session_id)
+            .order_by(WorkLog.created_at.asc())
+            .all()
+        )
+        return {
+            "session_id": session_id,
+            "status": session.status.value if session.status else None,
+            "entries": [{
+                "id": w.id,
+                "action": w.action,
+                "details": w.details,
+                "created_at": w.created_at.isoformat() if w.created_at else None,
+            } for w in logs],
+        }
+    finally:
+        db.close()

@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import type { AgentSession, ChatMessage } from "../types";
-import * as api from "../services/api";
 import * as v1 from "../services/v1";
 import { useWebSocket } from "../hooks/useWebSocket";
 
@@ -34,7 +33,7 @@ export function AdminChat() {
   const { connected, events } = useWebSocket(corpsId);
 
   useEffect(() => {
-    api.getAdminCorps().then(data => {
+    v1.getAdminCorps().then(data => {
       setCorpsId(data.id);
       setRoster(data.roster);
       v1.getCorpsChatHistory(data.id).then(setChatHistory).catch(() => setChatHistory([]));
