@@ -564,6 +564,22 @@ def complete_corps(db: Session, corps_id: str) -> Corps:
     return corps
 
 
+def return_to_tour(db: Session, corps_id: str) -> Corps:
+    """Return a corps from READY_FOR_CONTEST back to ON_TOUR for rework."""
+    corps = db.get(Corps, corps_id)
+    if not corps:
+        raise CorpsError(f"Corps '{corps_id}' not found")
+    if corps.status != CorpsStatus.READY_FOR_CONTEST:
+        raise CorpsError(
+            f"Corps must be in READY_FOR_CONTEST state to return to tour (current: {corps.status.value})"
+        )
+
+    corps.status = CorpsStatus.ON_TOUR
+    db.commit()
+    db.refresh(corps)
+    return corps
+
+
 # Legacy aliases for backward compatibility during transition
 start_tour = go_on_tour
 stop_tour = return_to_camps

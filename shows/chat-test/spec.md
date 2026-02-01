@@ -23,14 +23,27 @@ Brass section featured with forte dynamics throughout key passages, establishing
 - **Instrumentation:** Bb trumpet & French horn in unison
 - **Dynamics:** Forte
 - **Tempo:** 120 BPM
-- **Key:** A major
-- **Length:** Punchy 8-bar phrase
+- **Key:** B♭ major
+- **Length:** Punchy 8-bar phrase with staccato articulation
 - **Musical Intent:** Establishes the show's competitive energy with a bold, striking opening statement
 
+**Brass Arrangement (Locked):**
+**Counts 1–8: Fanfare Opening**
+- Trumpets (1–2) & French horns (1–2) in unison
+- Dynamic: Forte
+- Articulation: Punchy staccato
+- Character: Aggressive, commanding attack establishing Corps identity from downbeat
+
+**Counts 9–16: Harmonic Foundation Entry**
+- Trombones (1–2) enter at mezzo-forte
+- Function: Sustained harmonic foundation below the trumpet/horn melody
+- Dynamic transition: Creates depth and warmth while maintaining forward momentum
+- Character: Bold, confident ensemble presence
+
 **Next Steps:**
-- Music writer to draft complete brass line arrangement with detailed voicing
-- Specify additional brass voicing (baritone, trombone, tuba ranges and doubling strategy)
-- Define dynamics transitions moving from fanfare into verse/chorus sections
+- Complete instrumentation specification (baritone, tuba voicing, percussion foundation)
+- Develop extended brass arrangement beyond fanfare section
+- Define dynamics transitions moving from fanfare into subsequent musical sections
 
 ### Melodic & Harmonic Structure
 
@@ -137,22 +150,29 @@ TBD — awaiting visual design specifications
 
 ## Decisions
 
-✓ **Brass Section with Forte Dynamics**: Prominent brass section with strong, powerful dynamics to drive musical intensity. Locked.
+✓ **Brass Section with Forte Dynamics**: Prominent brass section with strong, powerful dynamics to drive musical intensity. Locked by Program Coordinator.
 
-✓ **Fanfare Opening**: Bb trumpet & French horn in unison, forte, 120 BPM, A major, 8-bar punchy phrase establishing competitive energy. Locked.
+✓ **Fanfare Opening**: Bb trumpet & French horn in unison, forte, 120 BPM, B♭ major, 8-bar punchy staccato phrase establishing competitive Corps identity. Locked by Program Coordinator.
+
+✓ **Brass Arrangement — Opening (Counts 1–16)**:
+- Counts 1–8: Trumpets (1–2) & French horns (1–2) in unison, forte, punchy staccato articulation
+- Counts 9–16: Trombones (1–2) enter at mezzo-forte with sustained harmonic foundation
+- Establishes bold, confident Corps identity from downbeat. Locked by Music Writer.
 
 ## Open Questions
 
-- What is the complete brass voicing (baritone, trombone, tuba parts)?
-- How does the fanfare transition into the next section?
-- What are the key modulations and harmonic structure for the piece?
+- What is the complete brass voicing (baritone, tuba parts) for the harmonic foundation?
+- How does the fanfare transition into the next musical section after count 16?
+- What are the key modulations and harmonic structure for the remaining piece?
 - What visual themes accompany the musical opening?
-- What is the overall show narrative or emotional journey?
-- What are the guard's choreographic and equipment choices?
+- What is the overall show narrative or emotional journey beyond the opening?
+- How will the rhythmic/harmonic foundation extend into the main body of the show?
 
 ## Constraints
 
-- Tempo locked at 120 BPM for fanfare section
-- Key locked at A major for opening
-- Instrumentation locked: Bb trumpet & French horn unison for fanfare
-- Dynamics locked: Forte for brass section passages
+- **Tempo:** Locked at 120 BPM for fanfare section and opening brass arrangement
+- **Key:** Locked at B♭ major for opening fanfare and harmonic foundation
+- **Instrumentation (Opening):** Locked — Bb trumpet & French horn unison (counts 1–8), trombones added (counts 9–16)
+- **Dynamics:** Locked — Forte for trumpet/horn unison, mezzo-forte for trombone foundation
+- **Articulation:** Punchy staccato for trumpet/horn phrase, sustained legato for trombone foundation
+- **Choreographic Integration:** Guard V-formation and flag work must align precisely with brass attacks and dynamics transitions

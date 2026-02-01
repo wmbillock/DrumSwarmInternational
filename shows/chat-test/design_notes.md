@@ -4,7 +4,9 @@
 
 **Director**: Add brass section with forte dynamics
 
-**PC Decision**: Brass section locked in with forte dynamics to establish powerful musical foundation. Next: specify instrumentation (trumpets, trombones, French horns, tubas) and arrange horn line voicing.
+**PC Decision**: Brass section locked in with forte dynamics to establish powerful musical foundation. Opening fanfare (Bb trumpet & French horn unison in A major, 120 BPM, 8 bars, forte) is approved and locked.
+
+**Next Action**: Music Writer to draft complete brass line arrangement with detailed voicing for all brass instruments (trumpets, trombones, French horns, tubas), including dynamics transitions moving into verse/chorus sections.
 
 **Choreographer Don Zingali**: For the opening 8-bar fanfare, I'm proposing a guard choreography that mirrors the competitive energy and precision of the brass. Guard enters from upstage in a sharp V-formation, weapons vertical (flags or sabres TBD). On count 1 of the fanfare, simultaneous drop to performance angle with crisp unison. Movement vocabulary: angular, percussive gestures — lots of 90-degree angles, sharp directional changes, held positions that punctuate the brass hits. No flowing or lyrical movement here; everything is architectural and commanding.
 
