@@ -31,9 +31,10 @@ export interface Corps {
 
 export interface SystemHealth {
   active_corps: number;
-  total_agents: number;
-  active_agents: number;
-  failed_agents: number;
+  total_agents: number;      // unique agent definitions (roles)
+  active_agents: number;     // definitions with an active session
+  failed_agents: number;     // definitions whose latest session failed
+  total_sessions: number;    // total session instances (for diagnostics)
   total_reps: number;
   completed_reps: number;
   failed_reps: number;
@@ -58,16 +59,18 @@ export type AgentClassification = "performing_member" | "instructional_staff" | 
 
 export interface AgentSession {
   id: string;
+  definition_id?: string;
   role: string;
   nickname?: string;
   model_tier?: string;
   classification?: AgentClassification;
-  status: "active" | "completed" | "failed" | "timed_out";
+  status: "active" | "completed" | "failed" | "timed_out" | "dormant";
   corps_id?: string;
   corps_name?: string;
   parent_session_id?: string;
   started_at?: string;
   ended_at?: string;
+  session_count?: number;  // how many instances this agent has had
 }
 
 export interface SegmentNode {
@@ -462,4 +465,45 @@ export interface MutationSimulationResult {
   }[];
   sandbox: boolean;
   applied: boolean;
+}
+
+// --- Rehearsal Mode Types ---
+
+export interface BasicsResult {
+  summary: string;
+  caption?: string;
+  definitions_reviewed?: number;
+  improvements_suggested?: number;
+  suggestions?: Array<{
+    aspect?: string;
+    suggestion?: string;
+    [key: string]: unknown;
+  }>;
+  items: Array<{
+    aspect: string;
+    status: string;
+    detail: string;
+  }>;
+}
+
+export interface CritiqueResult {
+  summary: string;
+  overall_assessment?: string;
+  needs_rework?: boolean;
+  feedbacks: Array<CritiqueFeedback & { score?: number }>;
+}
+
+export interface SessionActivity {
+  session_id: string;
+  role: string;
+  status: string;
+  iterations?: Array<{ [key: string]: unknown }>;
+  tool_calls?: Array<{ [key: string]: unknown }>;
+  final_response?: string;
+  messages?: Array<{ [key: string]: unknown }>;
+  activity: Array<{
+    timestamp: string;
+    event_type: string;
+    detail: string;
+  }>;
 }

@@ -1,9 +1,16 @@
-"""System health aggregation for the swarm overview."""
+"""System health aggregation for the swarm overview.
+
+Agent identity is based on AgentDefinition (one per role per corps), NOT
+AgentSession (ephemeral instances that come and go). When an agent dies
+and restarts, it's the same agent with a new session — not a new agent.
+"""
 
 from dataclasses import dataclass
+from sqlalchemy import func as sqlfunc
 from sqlalchemy.orm import Session
 
 from backend.models.corps import Corps, CorpsStatus, CorpsMode
+from backend.models.agent_definition import AgentDefinition
 from backend.models.agent_session import AgentSession, SessionStatus
 from backend.models.work_log import WorkLog
 from backend.models.rep import Rep, RepStatus
@@ -12,9 +19,10 @@ from backend.models.rep import Rep, RepStatus
 @dataclass
 class SwarmHealth:
     active_corps: int
-    total_agents: int
-    active_agents: int
-    failed_agents: int
+    total_agents: int       # unique agent definitions (roles)
+    active_agents: int      # definitions with at least one ACTIVE session
+    failed_agents: int      # definitions whose latest session is FAILED
+    total_sessions: int     # total session instances (for diagnostics)
     total_reps: int
     completed_reps: int
     failed_reps: int
@@ -24,7 +32,10 @@ class SwarmHealth:
 
 
 def get_swarm_health(db: Session) -> SwarmHealth:
-    """Aggregate health metrics across all active corps."""
+    """Aggregate health metrics across all active corps.
+
+    Agents are counted by unique AgentDefinition (role), not by session.
+    """
     active_corps_list = (
         db.query(Corps)
         .filter(Corps.status.in_([CorpsStatus.WINTER_CAMPS, CorpsStatus.ON_TOUR]))
@@ -34,6 +45,7 @@ def get_swarm_health(db: Session) -> SwarmHealth:
     total_agents = 0
     active_agents = 0
     failed_agents = 0
+    total_sessions = 0
     total_reps = 0
     completed_reps = 0
     failed_reps = 0
@@ -41,28 +53,58 @@ def get_swarm_health(db: Session) -> SwarmHealth:
     corps_summaries = []
 
     for corps in active_corps_list:
-        sessions = db.query(AgentSession).filter(AgentSession.corps_id == corps.id).all()
-        c_active = sum(1 for s in sessions if s.status == SessionStatus.ACTIVE)
-        c_failed = sum(1 for s in sessions if s.status == SessionStatus.FAILED)
+        # Count unique agent definitions (the actual agents)
+        definitions = (
+            db.query(AgentDefinition)
+            .filter(AgentDefinition.corps_id == corps.id)
+            .all()
+        )
+        c_total_agents = len(definitions)
+
+        # For each definition, check if it has an active session (agent is "alive")
+        c_active = 0
+        c_failed = 0
+        for defn in definitions:
+            latest_session = (
+                db.query(AgentSession)
+                .filter(
+                    AgentSession.definition_id == defn.id,
+                    AgentSession.corps_id == corps.id,
+                )
+                .order_by(AgentSession.started_at.desc())
+                .first()
+            )
+            if latest_session:
+                if latest_session.status == SessionStatus.ACTIVE:
+                    c_active += 1
+                elif latest_session.status == SessionStatus.FAILED:
+                    c_failed += 1
+
+        # Count total sessions for diagnostics
+        c_sessions = (
+            db.query(AgentSession)
+            .filter(AgentSession.corps_id == corps.id)
+            .count()
+        )
 
         reps = db.query(Rep).join(
             AgentSession, Rep.assigned_to == AgentSession.id, isouter=True
-        ).filter(AgentSession.corps_id == corps.id).all() if sessions else []
+        ).filter(AgentSession.corps_id == corps.id).all() if c_sessions > 0 else []
 
         c_total_reps = len(reps)
         c_completed = sum(1 for r in reps if r.status == RepStatus.COMPLETED)
         c_failed_reps = sum(1 for r in reps if r.status == RepStatus.FAILED)
 
-        # Count stale: in_progress but no activity recently
         failure_count = (
             db.query(WorkLog)
             .filter(WorkLog.corps_id == corps.id, WorkLog.event_type == "failure")
             .count()
         )
 
-        total_agents += len(sessions)
+        total_agents += c_total_agents
         active_agents += c_active
         failed_agents += c_failed
+        total_sessions += c_sessions
         total_reps += c_total_reps
         completed_reps += c_completed
         failed_reps += c_failed_reps
@@ -73,7 +115,8 @@ def get_swarm_health(db: Session) -> SwarmHealth:
             "status": corps.status.value,
             "mode": corps.mode.value if corps.mode else None,
             "agents_active": c_active,
-            "agents_total": len(sessions),
+            "agents_total": c_total_agents,
+            "sessions_total": c_sessions,
             "reps_completed": c_completed,
             "reps_total": c_total_reps,
             "failures": failure_count,
@@ -86,6 +129,7 @@ def get_swarm_health(db: Session) -> SwarmHealth:
         total_agents=total_agents,
         active_agents=active_agents,
         failed_agents=failed_agents,
+        total_sessions=total_sessions,
         total_reps=total_reps,
         completed_reps=completed_reps,
         failed_reps=failed_reps,
