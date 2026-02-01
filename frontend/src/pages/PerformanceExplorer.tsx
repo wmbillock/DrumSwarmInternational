@@ -1,37 +1,9 @@
 /**
  * Performance Explorer — Advanced metrics analysis tool.
- *
- * Features:
- * - Custom time range selection
- * - Multiple metric comparison
- * - Advanced filtering
- * - Export capabilities
  */
 
-import React, { useState, useEffect } from "react";
-import {
-  Card,
-  Row,
-  Col,
-  Select,
-  Button,
-  Space,
-  Checkbox,
-  Empty,
-  Spin,
-  message,
-} from "antd";
-import { DownloadOutlined } from "@ant-design/icons";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
+import { useState } from "react";
+import { Panel } from "../ui";
 
 const MetricOptions = [
   "rep_completed",
@@ -46,32 +18,28 @@ interface MetricDataPoint {
   [key: string]: string | number;
 }
 
-const PerformanceExplorer: React.FC = () => {
+const PerformanceExplorer = () => {
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>(["rep_completed"]);
-  const [timeRange, setTimeRange] = useState<string>("24h");
-  const [granularity, setGranularity] = useState<"1m" | "5m" | "1h" | "1d">("1h");
+  const [timeRange, setTimeRange] = useState("24h");
+  const [granularity, setGranularity] = useState("1h");
   const [chartData, setChartData] = useState<MetricDataPoint[]>([]);
   const [loading, setLoading] = useState(false);
 
   const handleMetricToggle = (metric: string) => {
     if (selectedMetrics.includes(metric)) {
-      setSelectedMetrics(selectedMetrics.filter((m) => m !== metric));
+      setSelectedMetrics(selectedMetrics.filter(m => m !== metric));
     } else {
       setSelectedMetrics([...selectedMetrics, metric]);
     }
   };
 
   const getPeriodDays = () => {
-    const map: { [key: string]: number } = { "1h": 0, "6h": 0, "24h": 1, "7d": 7, "30d": 30 };
+    const map: Record<string, number> = { "1h": 0, "6h": 0, "24h": 1, "7d": 7, "30d": 30 };
     return map[timeRange] || 7;
   };
 
   const fetchMetricsData = async () => {
-    if (selectedMetrics.length === 0) {
-      setChartData([]);
-      return;
-    }
-
+    if (selectedMetrics.length === 0) { setChartData([]); return; }
     setLoading(true);
     try {
       const metricTypes = selectedMetrics.join(",");
@@ -83,138 +51,126 @@ const PerformanceExplorer: React.FC = () => {
       setChartData(data.data || []);
     } catch (error) {
       console.error("Failed to fetch metrics:", error);
-      message.error("Failed to load metrics data");
     } finally {
       setLoading(false);
     }
   };
 
   const handleExport = () => {
-    if (chartData.length === 0) {
-      message.warning("No data to export");
-      return;
-    }
-
+    if (chartData.length === 0) return;
     const csv = [
       ["Timestamp", ...selectedMetrics].join(","),
-      ...chartData.map((row) =>
-        [row.timestamp, ...selectedMetrics.map((m) => row[m] || "")].join(",")
+      ...chartData.map(row =>
+        [row.timestamp, ...selectedMetrics.map(m => row[m] || "")].join(",")
       ),
     ].join("\n");
-
     const blob = new Blob([csv], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = `metrics-${Date.now()}.csv`;
     a.click();
-    message.success("Metrics exported successfully");
   };
 
   return (
-    <div style={{ padding: "24px" }}>
-      <h1 style={{ marginBottom: "24px" }}>Performance Explorer</h1>
+    <div className="page-content">
+      <h2 className="page-title">Performance Explorer</h2>
 
-      <Card style={{ marginBottom: "24px" }}>
-        <Row gutter={[16, 16]}>
-          <Col xs={24} sm={12} md={6}>
-            <label style={{ display: "block", marginBottom: "8px", fontWeight: "bold" }}>
+      <Panel title="Controls">
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 16 }}>
+          <div>
+            <label className="form-label" style={{ display: "block", marginBottom: 4, fontSize: 12, color: "var(--text-secondary)" }}>
               Time Range
             </label>
-            <Select
-              value={timeRange}
-              onChange={setTimeRange}
-              options={[
-                { label: "Last Hour", value: "1h" },
-                { label: "Last 6 Hours", value: "6h" },
-                { label: "Last 24 Hours", value: "24h" },
-                { label: "Last 7 Days", value: "7d" },
-                { label: "Last 30 Days", value: "30d" },
-              ]}
-              style={{ width: "100%" }}
-            />
-          </Col>
+            <select className="library-filter" value={timeRange} onChange={e => setTimeRange(e.target.value)}>
+              <option value="1h">Last Hour</option>
+              <option value="6h">Last 6 Hours</option>
+              <option value="24h">Last 24 Hours</option>
+              <option value="7d">Last 7 Days</option>
+              <option value="30d">Last 30 Days</option>
+            </select>
+          </div>
 
-          <Col xs={24} sm={12} md={6}>
-            <label style={{ display: "block", marginBottom: "8px", fontWeight: "bold" }}>
+          <div>
+            <label className="form-label" style={{ display: "block", marginBottom: 4, fontSize: 12, color: "var(--text-secondary)" }}>
               Granularity
             </label>
-            <Select
-              value={granularity}
-              onChange={setGranularity as any}
-              options={[
-                { label: "1 Minute", value: "1m" },
-                { label: "5 Minutes", value: "5m" },
-                { label: "1 Hour", value: "1h" },
-                { label: "1 Day", value: "1d" },
-              ]}
-              style={{ width: "100%" }}
-            />
-          </Col>
+            <select className="library-filter" value={granularity} onChange={e => setGranularity(e.target.value)}>
+              <option value="1m">1 Minute</option>
+              <option value="5m">5 Minutes</option>
+              <option value="1h">1 Hour</option>
+              <option value="1d">1 Day</option>
+            </select>
+          </div>
 
-          <Col xs={24} sm={24} md={12}>
-            <label style={{ display: "block", marginBottom: "8px", fontWeight: "bold" }}>
+          <div style={{ flex: 1 }}>
+            <label className="form-label" style={{ display: "block", marginBottom: 4, fontSize: 12, color: "var(--text-secondary)" }}>
               Metrics
             </label>
-            <Space wrap>
-              {MetricOptions.map((metric) => (
-                <Checkbox
-                  key={metric}
-                  checked={selectedMetrics.includes(metric)}
-                  onChange={() => handleMetricToggle(metric)}
-                >
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {MetricOptions.map(metric => (
+                <label key={metric} style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 12, cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedMetrics.includes(metric)}
+                    onChange={() => handleMetricToggle(metric)}
+                  />
                   {metric.replace(/_/g, " ")}
-                </Checkbox>
+                </label>
               ))}
-            </Space>
-          </Col>
+            </div>
+          </div>
+        </div>
 
-          <Col xs={24}>
-            <Space>
-              <Button type="primary" onClick={fetchMetricsData} loading={loading}>
-                Update Chart
-              </Button>
-              <Button icon={<DownloadOutlined />} onClick={handleExport} disabled={chartData.length === 0}>
-                Export
-              </Button>
-            </Space>
-          </Col>
-        </Row>
-      </Card>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="primary" onClick={fetchMetricsData} disabled={loading}>
+            {loading ? "Loading..." : "Update Chart"}
+          </button>
+          <button className="small" onClick={handleExport} disabled={chartData.length === 0}>
+            Export CSV
+          </button>
+        </div>
+      </Panel>
 
-      <Spin spinning={loading}>
-        {selectedMetrics.length > 0 ? (
-          <Card title="Performance Metrics">
-            {chartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="timestamp" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  {selectedMetrics.map((metric, index) => (
-                    <Line
-                      key={metric}
-                      type="monotone"
-                      dataKey={metric}
-                      stroke={`hsl(${(index * 60) % 360}, 70%, 50%)`}
-                      dot={false}
-                      isAnimationActive={false}
-                    />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <Empty description="Click 'Update Chart' to load data" />
-            )}
-          </Card>
-        ) : (
-          <Card>
-            <Empty description="Select metrics to display" />
-          </Card>
+      <Panel title="Metrics Data" style={{ marginTop: 16 }}>
+        {loading && <div className="page-loading">Loading metrics...</div>}
+
+        {!loading && chartData.length === 0 && (
+          <p className="empty">
+            {selectedMetrics.length === 0
+              ? "Select metrics to display"
+              : "Click 'Update Chart' to load data"}
+          </p>
         )}
-      </Spin>
+
+        {!loading && chartData.length > 0 && (
+          <div style={{ overflowX: "auto" }}>
+            <table className="standings-table">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  {selectedMetrics.map(m => <th key={m}>{m.replace(/_/g, " ")}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {chartData.slice(0, 100).map((row, i) => (
+                  <tr key={i}>
+                    <td className="mono" style={{ fontSize: 11 }}>{row.timestamp}</td>
+                    {selectedMetrics.map(m => (
+                      <td key={m} className="mono">
+                        {typeof row[m] === "number" ? (row[m] as number).toFixed(2) : row[m] || "—"}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {chartData.length > 100 && (
+              <p className="hint" style={{ marginTop: 8 }}>Showing 100 of {chartData.length} data points. Export for full data.</p>
+            )}
+          </div>
+        )}
+      </Panel>
     </div>
   );
 };

@@ -632,3 +632,63 @@ export const getMetricsTrends = (metricType?: string, corpsId?: string, periodDa
   if (corpsId) params.set("corps_id", corpsId);
   return request<{ trends: MetricTrend[] }>(`/api/v1/metrics/trends?${params}`, { signal });
 };
+
+// --- Asynchronous Messaging System ---
+
+export interface MessageThread {
+  id: string;
+  corps_id?: string;
+  initiator_agent_id?: string;
+  originator_role: string;
+  subject: string;
+  status: "pending" | "completed";
+  created_at: string;
+  updated_at: string;
+  viewed_at?: string;
+  completed_at?: string;
+  completed_by?: string;
+  message_count: number;
+}
+
+export interface ThreadMessage {
+  id: string;
+  sender_type: "user" | "agent";
+  sender_role: string;
+  sender_name: string;
+  body: string;
+  created_at: string;
+}
+
+export interface ThreadDetail extends MessageThread {
+  messages: ThreadMessage[];
+}
+
+export interface ArchivedThread {
+  id: string;
+  original_thread_id: string;
+  originator_role: string;
+  subject: string;
+  summary: string;
+  message_count: number;
+  created_at: string;
+  archived_at: string;
+  tags: string[];
+  decision?: string;
+}
+
+export interface ThreadCreateRequest {
+  corps_id?: string;
+  initiator_agent_id?: string;
+  originator_role: string;
+  subject: string;
+  initial_message_body: string;
+  sender_name: string;
+}
+
+export interface MessageAddRequest {
+  sender_type: "user" | "agent";
+  sender_role: string;
+  sender_name: string;
+  body: string;
+}
+

@@ -68,32 +68,12 @@ async def lifespan(app: FastAPI):
     init_db(engine)
 
     # Initialize task manager with real LLM client and tool registry
-    from backend.services.llm_client import AnthropicLLMClient
+    from backend.services.llm_client import build_llm_client
     from backend.tools import create_tool_registry
     from backend.services.tool_executor import ToolExecutor
     from backend.services.task_manager import TaskManager
-    import os
 
-    import shutil
-    if shutil.which("claude"):
-        from backend.services.llm_client import ClaudeCLIClient
-        llm_client = ClaudeCLIClient()
-        logger.info("Using Claude CLI client")
-    elif shutil.which("chatgpt"):
-        from backend.services.llm_client import ChatGPTCLIClient
-        llm_client = ChatGPTCLIClient()
-        logger.info("Using ChatGPT CLI client")
-    elif os.environ.get("ANTHROPIC_API_KEY"):
-        llm_client = AnthropicLLMClient()
-        logger.info("Using Anthropic API client")
-    elif os.environ.get("OPENAI_API_KEY"):
-        from backend.services.llm_client import OpenAIClient
-        llm_client = OpenAIClient()
-        logger.info("Using OpenAI API client")
-    else:
-        from backend.services.llm_client import MockLLMClient
-        llm_client = MockLLMClient()
-        logger.warning("No LLM client available — using MockLLMClient")
+    llm_client = build_llm_client()
 
     registry = create_tool_registry()
     tool_executor = ToolExecutor(registry)
