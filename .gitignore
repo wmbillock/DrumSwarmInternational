@@ -41,3 +41,4 @@ Thumbs.db
 
 # Agent file-based memory
 memory_store/
+logs/

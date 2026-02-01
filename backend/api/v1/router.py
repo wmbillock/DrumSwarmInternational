@@ -2174,7 +2174,7 @@ def v1_release_staff(corps_id: str, req: ReleaseStaffRequest):
             )
 
         session.status = SessionStatus.COMPLETED
-        session.completed_at = datetime.now(timezone.utc)
+        session.ended_at = datetime.now(timezone.utc)
 
         # Apply optional trust penalty
         if req.trust_penalty:
@@ -2189,7 +2189,7 @@ def v1_release_staff(corps_id: str, req: ReleaseStaffRequest):
             "corps_id": corps_id,
             "performer_id": req.performer_id,
             "status": session.status.value,
-            "completed_at": session.completed_at.isoformat(),
+            "completed_at": session.ended_at.isoformat(),
             "trust_penalty_applied": req.trust_penalty,
         }
     except HTTPException:
