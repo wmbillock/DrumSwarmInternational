@@ -1,1 +1,0 @@
-Stub execution for show 'demo'

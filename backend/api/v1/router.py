@@ -1407,21 +1407,25 @@ def v1_run_competition(competition_id: str):
     if not corps_ids:
         raise HTTPException(400, "No corps registered for this season")
 
-    # Validate corps exist (filesystem or DB)
+    # Filter to corps that still exist (filesystem or DB), skip stale entries
+    valid_corps_ids = []
     for cid in corps_ids:
-        if not (root / "corps" / cid / "corps.yaml").exists():
+        if (root / "corps" / cid / "corps.yaml").exists():
+            valid_corps_ids.append(cid)
+        else:
             try:
                 from backend.models.corps import Corps as CorpsModel
                 db = _get_db_session()
                 try:
-                    if not db.get(CorpsModel, cid):
-                        raise HTTPException(400, f"Corps '{cid}' no longer exists")
+                    if db.get(CorpsModel, cid):
+                        valid_corps_ids.append(cid)
                 finally:
                     db.close()
-            except HTTPException:
-                raise
             except Exception:
-                raise HTTPException(400, f"Corps '{cid}' no longer exists")
+                pass  # Skip corps that can't be found
+    corps_ids = valid_corps_ids
+    if not corps_ids:
+        raise HTTPException(400, "No valid corps remaining for this competition")
 
     from backend.models.score import JudgeType
     from backend.services.scoring_service import CompositeScore, DEFAULT_WEIGHTS
