@@ -29,6 +29,7 @@ import { TourDashboard } from "./pages/TourDashboard";
 import { CompetitionLive } from "./pages/CompetitionLive";
 import { Finals } from "./pages/Finals";
 import { SeasonReview } from "./pages/SeasonReview";
+import { CritiquePage } from "./pages/CritiquePage";
 
 export const router = createBrowserRouter([
   {
@@ -70,6 +71,7 @@ export const router = createBrowserRouter([
       { path: "/seance", element: <Seance /> },
       { path: "/judging", element: <JudgingCritique /> },
       { path: "/judging/:corpsId", element: <JudgingCritique /> },
+      { path: "/critique/:competitionId/:corpsId", element: <CritiquePage /> },
       { path: "/evolution", element: <EvolutionTalentPool /> },
       { path: "/staff", element: <StaffMarketplace /> },
       { path: "/history", element: <CorpsHistory /> },

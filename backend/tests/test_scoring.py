@@ -102,10 +102,13 @@ class TestScoreModel:
             record_score(db, corps_id=corps_id, judge_type=JudgeType.BRASS,
                          value=50.0, box=6, rep_id=rep.id)
 
-    def test_score_requires_target(self, db, corps_id):
-        with pytest.raises(InvalidScore, match="rep or segment"):
-            record_score(db, corps_id=corps_id, judge_type=JudgeType.BRASS,
-                         value=50.0, box=3)
+    def test_score_without_target_allowed(self, db, corps_id):
+        """Competition-level scores can exist without a rep or segment."""
+        score = record_score(db, corps_id=corps_id, judge_type=JudgeType.BRASS,
+                             value=50.0, box=3)
+        assert score.value == 50.0
+        assert score.rep_id is None
+        assert score.segment_id is None
 
     def test_score_on_segment(self, db, corps_id, show_coord):
         score = record_score(

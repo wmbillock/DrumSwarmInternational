@@ -48,6 +48,9 @@ def _apply_schema_patches(engine) -> None:
     inspector = inspect(engine)
     patches = [
         ("agent_sessions", "performer_id", "VARCHAR(36)"),
+        ("scores", "rep_score", "FLOAT"),
+        ("scores", "perf_score", "FLOAT"),
+        # judges_tapes and critique_sessions are created by create_all
     ]
 
     with engine.connect() as conn:

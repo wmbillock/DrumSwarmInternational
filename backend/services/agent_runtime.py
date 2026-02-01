@@ -60,6 +60,38 @@ class RunResult:
     phase_state: Optional[dict] = None
 
 
+def _get_critique_context(definition: AgentDefinition) -> str:
+    """Get recent critique action items for this agent's corps + role."""
+    try:
+        from backend.models.critique_session import CritiqueSession, CritiqueStatus
+        from backend.database import create_db_engine, create_session_factory
+        engine = create_db_engine()
+        SessionFactory = create_session_factory(engine)
+        db = SessionFactory()
+        try:
+            critiques = db.query(CritiqueSession).filter(
+                CritiqueSession.corps_id == definition.corps_id,
+                CritiqueSession.status == CritiqueStatus.COMPLETED,
+                CritiqueSession.action_items.isnot(None),
+            ).order_by(CritiqueSession.completed_at.desc()).limit(3).all()
+
+            if not critiques:
+                return ""
+
+            items = []
+            for c in critiques:
+                if c.action_items:
+                    items.append(f"[{c.judge_type}] {c.action_items[:300]}")
+
+            if items:
+                return "## Recent Critique Feedback\nIn your last performance, judges noted:\n" + "\n".join(items) + "\nFocus on addressing these points."
+            return ""
+        finally:
+            db.close()
+    except Exception:
+        return ""
+
+
 def build_initial_messages(
     definition: AgentDefinition,
     task_description: str,
@@ -79,6 +111,11 @@ def build_initial_messages(
         system_content += f"\n\n{phase_guidance}"
     if corps_context:
         system_content += f"\n\n{corps_context}"
+
+    # Inject recent critique action items
+    critique_context = _get_critique_context(definition)
+    if critique_context:
+        system_content += f"\n\n{critique_context}"
 
     messages = [
         LLMMessage(role="system", content=system_content),

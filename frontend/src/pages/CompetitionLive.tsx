@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import * as v1 from "../services/v1";
 import { Tabs, Badge } from "../ui";
 import type { TabItem } from "../ui";
+
+const CAPTION_ORDER = ["brass", "percussion", "guard", "visual", "general_effect", "ensemble_technique"];
 
 export function CompetitionLive() {
   const { competitionId } = useParams<{ competitionId: string }>();
@@ -25,6 +27,8 @@ export function CompetitionLive() {
   const tabs: TabItem[] = [
     { key: "standings", label: "Standings" },
     { key: "scorecards", label: "Scorecards" },
+    { key: "tapes", label: "Judges Tapes" },
+    { key: "recap", label: "Recap" },
   ];
 
   if (loading) return <div className="page-loading">Loading competition...</div>;
@@ -86,6 +90,18 @@ export function CompetitionLive() {
           ))}
         </div>
       )}
+
+      {activeTab === "tapes" && standings && competitionId && (
+        <div style={{ marginTop: 16 }}>
+          <JudgesTapesPanel competitionId={competitionId} results={standings.results} />
+        </div>
+      )}
+
+      {activeTab === "recap" && competitionId && (
+        <div style={{ marginTop: 16 }}>
+          <RecapPanel competitionId={competitionId} />
+        </div>
+      )}
     </div>
   );
 }
@@ -128,6 +144,177 @@ function ScoreCard({ competitionId, entry }: { competitionId: string; entry: v1.
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function JudgesTapesPanel({ competitionId, results }: { competitionId: string; results: v1.V1StandingEntry[] }) {
+  const [selectedCorps, setSelectedCorps] = useState<string | null>(null);
+  const [tape, setTape] = useState<v1.V1TapeDetail | null>(null);
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const loadTape = (corpsId: string) => {
+    setSelectedCorps(corpsId);
+    setLoading(true);
+    v1.getTape(competitionId, corpsId)
+      .then(setTape)
+      .catch(() => setTape(null))
+      .finally(() => setLoading(false));
+  };
+
+  const handleExport = async (corpsId: string) => {
+    try {
+      const result = await v1.exportTape(competitionId, corpsId);
+      const blob = new Blob([result.markdown], { type: "text/markdown" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `tape_${corpsId.slice(0, 8)}.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { /* ignore */ }
+  };
+
+  if (results.length === 0) return <p className="text-muted">No results yet.</p>;
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+        {results.map(r => (
+          <button
+            key={r.corps_id}
+            className={selectedCorps === r.corps_id ? "primary" : "secondary"}
+            onClick={() => loadTape(r.corps_id)}
+            style={{ fontSize: 12, padding: "4px 10px" }}
+          >
+            #{r.rank} {r.display_name || r.corps_id.slice(0, 8)}
+          </button>
+        ))}
+      </div>
+
+      {loading && <p className="text-muted">Loading tape...</p>}
+
+      {tape && !loading && (
+        <div className="competition-card" style={{ padding: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <h3 style={{ margin: 0 }}>Judges Tape</h3>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="secondary" style={{ fontSize: 11 }} onClick={() => handleExport(tape.corps_id)}>
+                Export MD
+              </button>
+              <button className="secondary" style={{ fontSize: 11 }} onClick={() => navigate(`/critique/${competitionId}/${tape.corps_id}`)}>
+                Start Critique
+              </button>
+            </div>
+          </div>
+
+          {tape.overall_assessment && (
+            <div style={{ marginBottom: 16, padding: 12, background: "var(--surface-2, #1a1a2e)", borderRadius: 4 }}>
+              <strong style={{ fontSize: 12 }}>Overall Assessment</strong>
+              <p style={{ margin: "4px 0 0", fontSize: 13 }}>{tape.overall_assessment}</p>
+            </div>
+          )}
+
+          <div style={{ display: "grid", gap: 8 }}>
+            {Object.entries(tape.caption_feedbacks).map(([caption, info]) => (
+              <div key={caption} style={{ padding: 10, border: "1px solid var(--border, #333)", borderRadius: 4 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <strong style={{ textTransform: "uppercase", fontSize: 11, letterSpacing: 1 }}>
+                    {caption.replace(/_/g, " ")}
+                  </strong>
+                  <span style={{ fontFamily: "var(--font-mono, monospace)", fontWeight: 700 }}>
+                    {info.value.toFixed(1)}
+                    {info.rep_score != null && info.perf_score != null && (
+                      <span style={{ fontSize: 10, opacity: 0.7 }}>
+                        {" "}(R:{info.rep_score.toFixed(0)} P:{info.perf_score.toFixed(0)})
+                      </span>
+                    )}
+                  </span>
+                </div>
+                {info.feedback && <p style={{ margin: 0, fontSize: 12, opacity: 0.8 }}>{info.feedback}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RecapPanel({ competitionId }: { competitionId: string }) {
+  const [rows, setRows] = useState<v1.V1RecapRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    v1.getRecap(competitionId)
+      .then(setRows)
+      .catch(() => setRows([]))
+      .finally(() => setLoading(false));
+  }, [competitionId]);
+
+  const handleCSV = () => {
+    window.open(
+      `${(import.meta as any).env?.VITE_API_URL || "http://localhost:8000"}/api/v1/competitions/${competitionId}/recap?format=csv`,
+      "_blank"
+    );
+  };
+
+  if (loading) return <p className="text-muted">Loading recap...</p>;
+  if (rows.length === 0) return <p className="text-muted">No recap data available.</p>;
+
+  const allCaptions = new Set<string>();
+  rows.forEach(r => Object.keys(r.caption_scores).forEach(c => allCaptions.add(c)));
+  const captions = CAPTION_ORDER.filter(c => allCaptions.has(c));
+
+  return (
+    <div>
+      <div style={{ marginBottom: 12 }}>
+        <button className="secondary" style={{ fontSize: 12 }} onClick={handleCSV}>Download CSV</button>
+      </div>
+      <div style={{ overflowX: "auto" }}>
+        <table className="standings-table" style={{ fontSize: 12 }}>
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Corps</th>
+              {captions.map(c => (
+                <th key={c} colSpan={3} style={{ textAlign: "center" }}>{c.replace(/_/g, " ")}</th>
+              ))}
+              <th>Pen</th>
+              <th>Raw</th>
+              <th>Final</th>
+            </tr>
+            <tr>
+              <th></th>
+              <th></th>
+              {captions.map(c => (
+                <Fragment key={c}><th style={{ fontSize: 10 }}>R</th><th style={{ fontSize: 10 }}>P</th><th style={{ fontSize: 10 }}>T</th></Fragment>
+              ))}
+              <th></th>
+              <th></th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(r => (
+              <tr key={r.corps_id}>
+                <td><strong>{r.rank}</strong></td>
+                <td>{r.corps_name || r.corps_id.slice(0, 8)}</td>
+                {captions.map(c => {
+                  const cs = r.caption_scores[c] || { rep: 0, perf: 0, tot: 0 };
+                  return (
+                    <Fragment key={c}><td>{cs.rep.toFixed(1)}</td><td>{cs.perf.toFixed(1)}</td><td>{cs.tot.toFixed(1)}</td></Fragment>
+                  );
+                })}
+                <td>{r.penalties_total.toFixed(1)}</td>
+                <td>{r.raw_total.toFixed(1)}</td>
+                <td className="standings-score">{r.final_score.toFixed(1)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

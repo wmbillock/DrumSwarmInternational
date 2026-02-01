@@ -1830,18 +1830,44 @@ def v1_run_competition(competition_id: str):
     from backend.services.scoring_engine import compute_standings
     from backend.services.yaml_util import atomic_write, safe_dump_yaml
 
+    from backend.services.judge_service import judge_corps_performance
+
+    # Get LLM client for real judging
+    from backend.api.app import get_task_manager
+    tm = get_task_manager()
+    llm_client = tm.llm_client if tm else None
+
     composites = {}
-    for cid in corps_ids:
-        caption_scores = _stub_caption_scores(cid, show_slug)
-        raw_total = sum(caption_scores[jt] * DEFAULT_WEIGHTS[jt] for jt in caption_scores)
-        composites[cid] = CompositeScore(
-            caption_scores=caption_scores,
-            raw_total=raw_total,
-            penalties_total=0.0,
-            final_score=raw_total,
-            needs_rework=False,
-            needs_escalation=False,
-        )
+    judge_results_all = {}
+    db = None
+    try:
+        db = _get_db_session()
+        for cid in corps_ids:
+            judge_results = judge_corps_performance(db, cid, show_slug, llm_client)
+            judge_results_all[cid] = judge_results
+            caption_scores = {jt: jr.total_score for jt, jr in judge_results.items()}
+            raw_total = sum(caption_scores[jt] * DEFAULT_WEIGHTS.get(jt, 0) for jt in caption_scores)
+            composites[cid] = CompositeScore(
+                caption_scores=caption_scores,
+                raw_total=raw_total,
+                penalties_total=0.0,
+                final_score=raw_total,
+                needs_rework=False,
+                needs_escalation=False,
+            )
+
+            # Store scores in DB with rep/perf split
+            from backend.services.scoring_service import record_score
+            for jt, jr in judge_results.items():
+                record_score(
+                    db, corps_id=cid, judge_type=jt,
+                    value=jr.total_score, box=max(1, min(5, int(jr.total_score / 20))),
+                    feedback=jr.feedback,
+                    rep_score=jr.rep_score, perf_score=jr.perf_score,
+                )
+    finally:
+        if db:
+            db.close()
 
     standings = compute_standings(season_id, DEFAULT_WEIGHTS, composites)
 
@@ -2014,6 +2040,263 @@ def v1_generate_all_reports(competition_id: str):
         db.close()
 
 
+# =========================================================================
+# JUDGES TAPES & RECAP
+# =========================================================================
+
+
+@router.get("/competitions/{competition_id}/tapes")
+def v1_list_tapes(competition_id: str):
+    """List all judges tapes for a competition."""
+    from backend.models.judges_tape import JudgesTape
+    db = _get_db_session()
+    try:
+        tapes = db.query(JudgesTape).filter(
+            JudgesTape.competition_id == competition_id
+        ).all()
+        return [
+            {
+                "id": t.id,
+                "competition_id": t.competition_id,
+                "corps_id": t.corps_id,
+                "overall_assessment": t.overall_assessment,
+                "caption_count": len(t.caption_feedbacks or {}),
+                "created_at": str(t.created_at),
+            }
+            for t in tapes
+        ]
+    finally:
+        db.close()
+
+
+@router.get("/competitions/{competition_id}/tapes/{corps_id}")
+def v1_get_tape(competition_id: str, corps_id: str):
+    """Get detailed judges tape for a corps in a competition."""
+    _validate_id(corps_id, "corps_id")
+    from backend.models.judges_tape import JudgesTape
+    db = _get_db_session()
+    try:
+        tape = db.query(JudgesTape).filter(
+            JudgesTape.competition_id == competition_id,
+            JudgesTape.corps_id == corps_id,
+        ).order_by(JudgesTape.created_at.desc()).first()
+
+        if not tape:
+            # Generate on-demand
+            from backend.services.judge_service import generate_judges_tape
+            from backend.api.app import get_task_manager
+            tm = get_task_manager()
+            llm_client = tm.llm_client if tm else None
+            tape = generate_judges_tape(db, competition_id, corps_id, llm_client)
+
+        return {
+            "id": tape.id,
+            "competition_id": tape.competition_id,
+            "corps_id": tape.corps_id,
+            "caption_feedbacks": tape.caption_feedbacks,
+            "overall_assessment": tape.overall_assessment,
+            "created_at": str(tape.created_at),
+        }
+    finally:
+        db.close()
+
+
+@router.get("/competitions/{competition_id}/tapes/{corps_id}/export")
+def v1_export_tape(competition_id: str, corps_id: str):
+    """Export judges tape as markdown."""
+    _validate_id(corps_id, "corps_id")
+    from backend.models.judges_tape import JudgesTape
+    from backend.services.judge_service import export_tape_markdown, generate_judges_tape
+    db = _get_db_session()
+    try:
+        tape = db.query(JudgesTape).filter(
+            JudgesTape.competition_id == competition_id,
+            JudgesTape.corps_id == corps_id,
+        ).order_by(JudgesTape.created_at.desc()).first()
+
+        if not tape:
+            from backend.api.app import get_task_manager
+            tm = get_task_manager()
+            llm_client = tm.llm_client if tm else None
+            tape = generate_judges_tape(db, competition_id, corps_id, llm_client)
+
+        return {"markdown": export_tape_markdown(tape), "corps_id": corps_id}
+    finally:
+        db.close()
+
+
+@router.get("/competitions/{competition_id}/recap")
+def v1_get_recap(competition_id: str, format: str = "json"):
+    """Get recap sheet for a competition. format: json, markdown, csv."""
+    root = _get_root()
+    season_id, show_slug = _parse_competition_id(competition_id, root)
+
+    from backend.services.recap_sheet import (
+        generate_recap_sheet, export_recap_markdown, export_recap_csv,
+    )
+
+    rows = generate_recap_sheet(season_id, show_slug)
+    if not rows:
+        raise HTTPException(404, "No standings data for this competition")
+
+    if format == "markdown":
+        return {"markdown": export_recap_markdown(rows)}
+    elif format == "csv":
+        from fastapi.responses import PlainTextResponse
+        return PlainTextResponse(
+            content=export_recap_csv(rows),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=recap_{competition_id}.csv"},
+        )
+    else:
+        return [
+            {
+                "rank": r.rank,
+                "corps_id": r.corps_id,
+                "corps_name": r.corps_name,
+                "caption_scores": r.caption_scores,
+                "penalties_total": r.penalties_total,
+                "raw_total": r.raw_total,
+                "final_score": r.final_score,
+            }
+            for r in rows
+        ]
+
+
+# =========================================================================
+# CRITIQUE SESSIONS
+# =========================================================================
+
+
+class StartCritiqueRequest(BaseModel):
+    corps_id: str
+    judge_type: str
+
+
+@router.post("/competitions/{competition_id}/critique")
+def v1_start_critique(competition_id: str, req: StartCritiqueRequest):
+    """Start a critique session between a judge and staff member."""
+    _validate_id(req.corps_id, "corps_id")
+    from backend.services.critique_service import start_critique
+    from backend.api.app import get_task_manager
+    tm = get_task_manager()
+    llm_client = tm.llm_client if tm else None
+
+    db = _get_db_session()
+    try:
+        session = start_critique(db, competition_id, req.corps_id, req.judge_type, llm_client)
+        return {
+            "id": session.id,
+            "competition_id": session.competition_id,
+            "corps_id": session.corps_id,
+            "judge_type": session.judge_type,
+            "staff_role": session.staff_role,
+            "status": session.status.value,
+            "conversation": session.conversation,
+            "action_items": session.action_items,
+            "created_at": str(session.created_at),
+        }
+    finally:
+        db.close()
+
+
+@router.get("/critique/{session_id}")
+def v1_get_critique(session_id: str):
+    """Get critique session conversation."""
+    from backend.models.critique_session import CritiqueSession
+    db = _get_db_session()
+    try:
+        session = db.get(CritiqueSession, session_id)
+        if not session:
+            raise HTTPException(404, "Critique session not found")
+        return {
+            "id": session.id,
+            "competition_id": session.competition_id,
+            "corps_id": session.corps_id,
+            "judge_type": session.judge_type,
+            "staff_role": session.staff_role,
+            "status": session.status.value,
+            "conversation": session.conversation,
+            "action_items": session.action_items,
+            "created_at": str(session.created_at),
+        }
+    finally:
+        db.close()
+
+
+class CritiqueMessageRequest(BaseModel):
+    message: str
+
+
+@router.post("/critique/{session_id}/message")
+def v1_send_critique_message(session_id: str, req: CritiqueMessageRequest):
+    """Send a message in a critique session."""
+    from backend.services.critique_service import send_message
+    from backend.api.app import get_task_manager
+    tm = get_task_manager()
+    llm_client = tm.llm_client if tm else None
+
+    db = _get_db_session()
+    try:
+        session = send_message(db, session_id, req.message, llm_client)
+        return {
+            "id": session.id,
+            "competition_id": session.competition_id,
+            "corps_id": session.corps_id,
+            "judge_type": session.judge_type,
+            "staff_role": session.staff_role,
+            "status": session.status.value,
+            "conversation": session.conversation,
+            "action_items": session.action_items,
+            "created_at": str(session.created_at),
+        }
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    finally:
+        db.close()
+
+
+@router.post("/critique/{session_id}/complete")
+def v1_complete_critique(session_id: str):
+    """Complete a critique session — extract action items."""
+    from backend.services.critique_service import complete_critique
+    from backend.api.app import get_task_manager
+    tm = get_task_manager()
+    llm_client = tm.llm_client if tm else None
+
+    db = _get_db_session()
+    try:
+        session = complete_critique(db, session_id, llm_client)
+        return {
+            "id": session.id,
+            "competition_id": session.competition_id,
+            "corps_id": session.corps_id,
+            "judge_type": session.judge_type,
+            "staff_role": session.staff_role,
+            "status": session.status.value,
+            "conversation": session.conversation,
+            "action_items": session.action_items,
+            "created_at": str(session.created_at),
+            "completed_at": str(session.completed_at) if session.completed_at else None,
+        }
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    finally:
+        db.close()
+
+
+@router.get("/corps/{corps_id}/adaptation-history")
+def v1_get_adaptation_history(corps_id: str):
+    """View agent adaptation attempts and outcomes for a corps."""
+    _validate_id(corps_id, "corps_id")
+    from backend.services.agent_adaptation import get_adaptation_history
+    db = _get_db_session()
+    try:
+        return get_adaptation_history(db, corps_id)
+    finally:
+        db.close()
+
+
 class ContestEvaluateRequest(BaseModel):
     season_id: str
     show_slug: str
@@ -2056,11 +2339,17 @@ def v1_contest_evaluate(req: ContestEvaluateRequest):
             perf_dir = season_dir / "performances" / cid
             perf_dir.mkdir(parents=True, exist_ok=True)
 
-        # Score using existing stub logic
+        # Score using real LLM judging (falls back to stubs if unavailable)
+        from backend.services.judge_service import judge_corps_performance
+        from backend.api.app import get_task_manager
+        tm = get_task_manager()
+        llm_client = tm.llm_client if tm else None
+
         composites = {}
         for cid in corps_ids:
-            caption_scores = _stub_caption_scores(cid, req.show_slug)
-            raw_total = sum(caption_scores[jt] * DEFAULT_WEIGHTS[jt] for jt in caption_scores)
+            judge_results = judge_corps_performance(db, cid, req.show_slug, llm_client)
+            caption_scores = {jt: jr.total_score for jt, jr in judge_results.items()}
+            raw_total = sum(caption_scores[jt] * DEFAULT_WEIGHTS.get(jt, 0) for jt in caption_scores)
             composites[cid] = CompositeScore(
                 caption_scores=caption_scores,
                 raw_total=raw_total,
@@ -2069,6 +2358,16 @@ def v1_contest_evaluate(req: ContestEvaluateRequest):
                 needs_rework=False,
                 needs_escalation=False,
             )
+
+            # Persist individual judge scores
+            from backend.services.scoring_service import record_score
+            for jt, jr in judge_results.items():
+                record_score(
+                    db, corps_id=cid, judge_type=jt,
+                    value=jr.total_score, box=max(1, min(5, int(jr.total_score / 20))),
+                    feedback=jr.feedback,
+                    rep_score=jr.rep_score, perf_score=jr.perf_score,
+                )
 
         standings = compute_standings(req.season_id, DEFAULT_WEIGHTS, composites)
 

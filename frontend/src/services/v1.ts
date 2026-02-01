@@ -903,3 +903,91 @@ export const simulateMutation = (definitionId: string, changes: Record<string, u
 export const getSessionActivity = (sessionId: string, signal?: AbortSignal) =>
   request<any>(`/api/v1/sessions/${sessionId}/activity`, { signal });
 
+// --- Judges Tapes & Recap ---
+
+export interface V1TapeSummary {
+  id: string;
+  competition_id: string;
+  corps_id: string;
+  overall_assessment: string;
+  caption_count: number;
+  created_at: string;
+}
+
+export interface V1TapeDetail {
+  id: string;
+  competition_id: string;
+  corps_id: string;
+  caption_feedbacks: Record<string, {
+    value: number;
+    rep_score: number | null;
+    perf_score: number | null;
+    feedback: string;
+    box: number;
+  }>;
+  overall_assessment: string;
+  created_at: string;
+}
+
+export interface V1RecapRow {
+  rank: number;
+  corps_id: string;
+  corps_name: string;
+  caption_scores: Record<string, { rep: number; perf: number; tot: number }>;
+  penalties_total: number;
+  raw_total: number;
+  final_score: number;
+}
+
+export const listTapes = (competitionId: string, signal?: AbortSignal) =>
+  request<V1TapeSummary[]>(`/api/v1/competitions/${competitionId}/tapes`, { signal });
+
+export const getTape = (competitionId: string, corpsId: string, signal?: AbortSignal) =>
+  request<V1TapeDetail>(`/api/v1/competitions/${competitionId}/tapes/${corpsId}`, { signal });
+
+export const exportTape = (competitionId: string, corpsId: string) =>
+  request<{ markdown: string; corps_id: string }>(`/api/v1/competitions/${competitionId}/tapes/${corpsId}/export`);
+
+export const getRecap = (competitionId: string, format: string = "json", signal?: AbortSignal) =>
+  request<V1RecapRow[]>(`/api/v1/competitions/${competitionId}/recap?format=${format}`, { signal });
+
+export const getRecapMarkdown = (competitionId: string) =>
+  request<{ markdown: string }>(`/api/v1/competitions/${competitionId}/recap?format=markdown`);
+
+// --- Critique Sessions ---
+
+export interface V1CritiqueSession {
+  id: string;
+  competition_id: string;
+  corps_id: string;
+  judge_type: string;
+  staff_role: string;
+  status: string;
+  conversation: Array<{ role: string; content: string }>;
+  action_items: string;
+  created_at: string;
+}
+
+export const startCritique = (competitionId: string, corpsId: string, judgeType: string) =>
+  request<V1CritiqueSession>(`/api/v1/competitions/${competitionId}/critique`, {
+    method: "POST",
+    body: JSON.stringify({ corps_id: corpsId, judge_type: judgeType }),
+  });
+
+export const getCritiqueSession = (sessionId: string, signal?: AbortSignal) =>
+  request<V1CritiqueSession>(`/api/v1/critique/${sessionId}`, { signal });
+
+export const sendCritiqueMessage = (sessionId: string, message: string) =>
+  request<V1CritiqueSession>(`/api/v1/critique/${sessionId}/message`, {
+    method: "POST",
+    body: JSON.stringify({ message }),
+  });
+
+export const completeCritique = (sessionId: string) =>
+  request<V1CritiqueSession>(`/api/v1/critique/${sessionId}/complete`, {
+    method: "POST",
+  });
+
+export const getAdaptationHistory = (corpsId: string, signal?: AbortSignal) =>
+  request<any[]>(`/api/v1/corps/${corpsId}/adaptation-history`, { signal });
+

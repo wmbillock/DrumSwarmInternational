@@ -14,6 +14,8 @@ from backend.models.show import Show, ShowStatus
 from backend.models.work_log import WorkLog
 from backend.models.performer import Performer, PerformerStatus
 from backend.models.capability_ledger import CapabilityLedgerEntry, LedgerEntryType
+from backend.models.judges_tape import JudgesTape
+from backend.models.critique_session import CritiqueSession, CritiqueStatus
 from backend.models.messaging_thread import (
     Thread,
     ThreadMessage,
@@ -38,6 +40,8 @@ __all__ = [
     "WorkLog",
     "Performer", "PerformerStatus",
     "CapabilityLedgerEntry", "LedgerEntryType",
+    "JudgesTape",
+    "CritiqueSession", "CritiqueStatus",
     "Thread", "ThreadMessage", "ArchivedThread",
     "ThreadStatus", "OriginatorRole", "SenderType",
 ]

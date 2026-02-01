@@ -23,11 +23,12 @@ CAPTION_JUDGE_MAP = {
 
 # Default weights for composite score calculation
 DEFAULT_WEIGHTS: dict[JudgeType, float] = {
-    JudgeType.BRASS: 0.20,
-    JudgeType.PERCUSSION: 0.20,
-    JudgeType.GUARD: 0.20,
-    JudgeType.VISUAL: 0.15,
-    JudgeType.GENERAL_EFFECT: 0.25,
+    JudgeType.BRASS: 0.17,
+    JudgeType.PERCUSSION: 0.17,
+    JudgeType.GUARD: 0.17,
+    JudgeType.VISUAL: 0.12,
+    JudgeType.GENERAL_EFFECT: 0.22,
+    JudgeType.ENSEMBLE_TECHNIQUE: 0.15,
 }
 
 # Thresholds for score-driven routing
@@ -56,13 +57,13 @@ def record_score(
     rep_id: Optional[str] = None,
     segment_id: Optional[str] = None,
     feedback: Optional[str] = None,
+    rep_score: Optional[float] = None,
+    perf_score: Optional[float] = None,
 ) -> Score:
     if value < 0 or value > 100:
         raise InvalidScore(f"Score value must be 0-100, got {value}")
     if box < 1 or box > 5:
         raise InvalidScore(f"Box must be 1-5, got {box}")
-    if rep_id is None and segment_id is None:
-        raise InvalidScore("Score must reference a rep or segment")
 
     score = Score(
         corps_id=corps_id,
@@ -72,6 +73,8 @@ def record_score(
         rep_id=rep_id,
         segment_id=segment_id,
         feedback=feedback,
+        rep_score=rep_score,
+        perf_score=perf_score,
     )
     db.add(score)
     db.commit()
