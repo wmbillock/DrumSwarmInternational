@@ -1357,6 +1357,136 @@ def api_metronome_tick(corps_id: str, db: Session = Depends(get_db)):
     }
 
 
+@app.post("/api/metronome/tick")
+def api_metronome_system_tick(db: Session = Depends(get_db)):
+    """System-wide metronome tick: ten-hut all active corps, resume-hut stalled ones, report status.
+
+    Called by the cron script (scripts/metronome/tick.sh) every 5 minutes.
+    Returns structured JSON for logging and alerting.
+    """
+    from backend.tools.metronome import tick
+    from backend.services.corps_service import merge_monitor_check
+    from backend.models.corps import Corps, CorpsStatus
+    from backend.models.agent_session import AgentSession, SessionStatus
+    from backend.models.agent_definition import AgentDefinition
+    from backend.models.rep import Rep, RepStatus
+    from datetime import datetime, timezone, timedelta
+
+    STALLED_THRESHOLD_SECONDS = 300  # 5 minutes
+
+    active_corps = (
+        db.query(Corps)
+        .filter(Corps.status.in_([CorpsStatus.WINTER_CAMPS, CorpsStatus.ON_TOUR]))
+        .all()
+    )
+
+    corps_results = []
+    for corps in active_corps:
+        # Run the core metronome tick (reclaim, GUPP, watchdog)
+        met_result = tick(db, corps.id)
+        merge_result = merge_monitor_check(db, corps.id)
+
+        # Gather session counts
+        sessions = db.query(AgentSession).filter(AgentSession.corps_id == corps.id).all()
+        active_sessions = sum(1 for s in sessions if s.status == SessionStatus.ACTIVE)
+        completed_sessions = sum(1 for s in sessions if s.status == SessionStatus.COMPLETED)
+        failed_sessions = sum(1 for s in sessions if s.status == SessionStatus.FAILED)
+
+        # Gather rep counts — find reps via Show → segment tree
+        from backend.models.show import Show
+        from backend.models.segment import Segment
+        show = db.query(Show).filter(Show.corps_id == corps.id).first()
+        reps: list = []
+        if show and show.segment_root_id:
+            # Get all segments in this show's tree
+            def _collect_segment_ids(seg_id):
+                ids = [seg_id]
+                children = db.query(Segment).filter(Segment.parent_id == seg_id).all()
+                for c in children:
+                    ids.extend(_collect_segment_ids(c.id))
+                return ids
+            seg_ids = _collect_segment_ids(show.segment_root_id)
+            reps = db.query(Rep).filter(Rep.segment_id.in_(seg_ids)).all() if seg_ids else []
+        rep_counts = {
+            "pending": sum(1 for r in reps if r.status == RepStatus.PENDING),
+            "assigned": sum(1 for r in reps if r.status == RepStatus.ASSIGNED),
+            "in_progress": sum(1 for r in reps if r.status == RepStatus.IN_PROGRESS),
+            "completed": sum(1 for r in reps if r.status == RepStatus.COMPLETED),
+            "failed": sum(1 for r in reps if r.status == RepStatus.FAILED),
+        }
+
+        # Detect stalled work: reps pending or assigned for >5 min with no agent activity
+        now = datetime.now(timezone.utc)
+        stalled_reps = []
+        for r in reps:
+            if r.status in (RepStatus.PENDING, RepStatus.ASSIGNED) and r.updated_at:
+                idle_secs = (now - r.updated_at.replace(tzinfo=timezone.utc)).total_seconds()
+                if idle_secs > STALLED_THRESHOLD_SECONDS:
+                    stalled_reps.append({
+                        "rep_id": r.id,
+                        "status": r.status.value,
+                        "idle_seconds": round(idle_secs),
+                        "last_updated": r.updated_at.isoformat(),
+                    })
+
+        # Agent liveness: check key staff roles
+        staff_roles = ["executive_director", "program_coordinator", "brass_caption_head",
+                       "percussion_caption_head", "guard_caption_head", "visual_caption_head"]
+        liveness = {}
+        for role in staff_roles:
+            role_sessions = (
+                db.query(AgentSession)
+                .join(AgentDefinition, AgentSession.definition_id == AgentDefinition.id)
+                .filter(
+                    AgentSession.corps_id == corps.id,
+                    AgentDefinition.role == role,
+                )
+                .all()
+            )
+            liveness[role] = any(s.status == SessionStatus.ACTIVE for s in role_sessions)
+
+        corps_results.append({
+            "corps_id": corps.id,
+            "corps_name": corps.name,
+            "corps_status": corps.status.value,
+            "rehearsal_mode": corps.rehearsal_mode.value if corps.rehearsal_mode else None,
+            "metronome": {
+                "checked": met_result.checked,
+                "reclaimed": met_result.reclaimed,
+                "reclaimed_rep_ids": met_result.reclaimed_rep_ids,
+                "idle_kicked": met_result.idle_kicked,
+                "idle_kicked_rep_ids": met_result.idle_kicked_rep_ids,
+                "watchdog_respawned": met_result.watchdog_respawned,
+            },
+            "merge": {
+                "checked": merge_result.checked,
+                "merged": merge_result.merged,
+                "conflicts": merge_result.conflicts,
+            },
+            "sessions": {
+                "active": active_sessions,
+                "completed": completed_sessions,
+                "failed": failed_sessions,
+            },
+            "reps": rep_counts,
+            "stalled_reps": stalled_reps,
+            "is_stalled": len(stalled_reps) > 0,
+            "liveness": liveness,
+        })
+
+    return {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "total_corps": len(active_corps),
+        "corps": corps_results,
+        "summary": {
+            "total_active_sessions": sum(r["sessions"]["active"] for r in corps_results),
+            "total_stalled_corps": sum(1 for r in corps_results if r["is_stalled"]),
+            "total_reclaimed": sum(r["metronome"]["reclaimed"] for r in corps_results),
+            "total_idle_kicked": sum(r["metronome"]["idle_kicked"] for r in corps_results),
+        },
+    }
+
+
 # --- Merge monitor endpoint ---
 
 @app.post("/api/corps/{corps_id}/merge-check")
@@ -1551,106 +1681,110 @@ async def api_execute_corps_command(corps_id: str, data: CorpsCommand, db: Sessi
 async def api_heartbeat(db: Session = Depends(get_db)):
     """External heartbeat endpoint for cron-based wakeup.
 
-    Pings the DCI head (admin ED), which then pings all admin/logistics
-    agents and the executive director for each active corps.
+    Sends ten-hut (wake all) and resume-hut (resume stalled) commands
+    to all active corps via the metronome heartbeat service.
+
+    Also gathers swarm-wide status metrics for observability.
+
+    Uses the new MessageType.TEN_HUT and MessageType.RESUME_HUT command types.
     """
-    tm = get_task_manager()
-    if not tm:
-        raise HTTPException(503, "Task manager not initialized")
+    import json
+    from pathlib import Path
+    from backend.services.metronome_heartbeat import heartbeat_tick
+    from backend.tools.metronome_orchestrator import gather_corps_health, get_active_corps
+    from datetime import datetime, timezone
 
-    from backend.services.corps_service import get_or_create_admin_corps, ADMIN_CORPS_NAME
-    from backend.models.corps import Corps, CorpsStatus
-    from backend.models.agent_session import AgentSession, SessionStatus
-    from backend.models.agent_definition import AgentDefinition
+    tick_timestamp = datetime.now(timezone.utc)
 
-    admin_corps = get_or_create_admin_corps(db)
+    # Execute brass section: command dispatch
+    brass_result = heartbeat_tick(db)
 
-    # 1. Build status summary for admin ED
-    active_corps = (
-        db.query(Corps)
-        .filter(
-            Corps.status.in_([CorpsStatus.WINTER_CAMPS, CorpsStatus.ON_TOUR]),
-            Corps.name != ADMIN_CORPS_NAME,
-        )
-        .all()
-    )
+    # Execute visual section: status gathering
+    alerts = []
+    try:
+        active_corps = get_active_corps(db)
+        corps_health_list = []
 
-    lines = ["SYSTEM HEARTBEAT — Periodic cron wakeup.\n"]
-    corps_eds_pinged = []
+        for corps in active_corps:
+            try:
+                health = gather_corps_health(db, corps)
 
-    for corps in active_corps:
-        sessions = (
-            db.query(AgentSession)
-            .filter(AgentSession.corps_id == corps.id)
-            .all()
-        )
-        active_count = sum(1 for s in sessions if s.status == SessionStatus.ACTIVE)
-        completed_count = sum(1 for s in sessions if s.status == SessionStatus.COMPLETED)
-        failed_count = sum(1 for s in sessions if s.status == SessionStatus.FAILED)
+                # Check for RED FLAG: unresponsive corps
+                if not health.ed_responding and not health.pc_responding:
+                    alert = f"RED FLAG: Corps {health.corps_id[:8]} ({health.corps_name}) - No ED/PC response"
+                    alerts.append(alert)
+                    logger.warning(alert)
 
-        lines.append(
-            f"  Corps '{corps.name}' ({corps.id[:8]}...) [{corps.status.value}]:\n"
-            f"    Sessions: {active_count} active, {completed_count} completed, {failed_count} failed"
-        )
+                corps_health_list.append({
+                    "corps_id": health.corps_id,
+                    "corps_name": health.corps_name,
+                    "status": health.status,
+                    "rehearsal_mode": health.rehearsal_mode,
+                    "active_sessions": health.active_sessions,
+                    "completed_sessions": health.completed_sessions,
+                    "failed_sessions": health.failed_sessions,
+                    "stalled_reps": len(health.stalled_reps),
+                    "ed_responding": health.ed_responding,
+                    "pc_responding": health.pc_responding,
+                    "tick_duration_ms": health.tick_duration_ms,
+                })
+            except Exception as e:
+                error_msg = f"Failed to gather health for corps {corps.id}: {e}"
+                logger.error(error_msg)
+                alerts.append(error_msg)
 
-    if not active_corps:
-        lines.append("  No active corps currently running.")
+        visual_result = {
+            "total_corps": len(active_corps),
+            "corps_health": corps_health_list,
+        }
+    except Exception as e:
+        error_msg = f"Failed to gather swarm status: {e}"
+        logger.error(error_msg)
+        visual_result = {
+            "total_corps": 0,
+            "corps_health": [],
+            "error": str(e),
+        }
+        alerts.append(error_msg)
 
-    lines.append(
-        "\nThis is a periodic system heartbeat. Review swarm status. "
-        "Ping each corps executive_director to request a status update. "
-        "Check on admin and logistics agents. Ensure all active corps have work progressing."
-    )
-
-    status_text = "\n".join(lines)
-
-    # 2. Ping admin ED
-    admin_ed_session = tm.get_session_for_role(db, admin_corps.id, "executive_director")
-    admin_ed_pinged = False
-    if admin_ed_session and not tm.is_active(admin_ed_session):
-        tm.start_agent(
-            session_id=admin_ed_session,
-            task_description=status_text,
-            corps_id=admin_corps.id,
-            keep_alive=True,
-        )
-        admin_ed_pinged = True
-
-    # 3. Ping all admin corps agents (program_coordinator, timing_judge)
-    admin_agents_pinged = []
-    for admin_role in ("program_coordinator", "timing_judge"):
-        sid = tm.get_session_for_role(db, admin_corps.id, admin_role)
-        if sid and not tm.is_active(sid):
-            tm.start_agent(
-                session_id=sid,
-                task_description=(
-                    f"SYSTEM HEARTBEAT — Periodic wakeup for admin {admin_role}. "
-                    f"Check your current assignments and report any issues."
-                ),
-                corps_id=admin_corps.id,
-            )
-            admin_agents_pinged.append(admin_role)
-
-    # 4. Ping the ED of each active corps
-    for corps in active_corps:
-        ed_session = tm.get_session_for_role(db, corps.id, "executive_director")
-        if ed_session and not tm.is_active(ed_session):
-            tm.start_agent(
-                session_id=ed_session,
-                task_description=(
-                    f"SYSTEM HEARTBEAT — Periodic wakeup. Check status of all work in your corps. "
-                    f"Ensure reps are progressing. If agents are idle, dispatch new work or escalate issues."
-                ),
-                corps_id=corps.id,
-            )
-            corps_eds_pinged.append(corps.name)
-
-    return {
+    # Build complete heartbeat result
+    heartbeat_result = {
         "status": "ok",
-        "admin_ed_pinged": admin_ed_pinged,
-        "admin_agents_pinged": admin_agents_pinged,
-        "corps_eds_pinged": corps_eds_pinged,
+        "timestamp": brass_result["timestamp"],
+        "ten_hut_sent": brass_result["ten_hut"]["sent"],
+        "resume_hut_sent": brass_result["resume_hut"]["sent"],
+        "corps_pinged": brass_result["ten_hut"]["corps"],
+        "stalled_corps": brass_result["resume_hut"]["stalled_corps"],
+        "swarm_status": visual_result,
+        "errors": brass_result["errors"] + alerts,
     }
+
+    # Write structured logs
+    try:
+        log_dir = Path("logs/metronome")
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        # JSON log for machine readability
+        timestamp_clean = tick_timestamp.isoformat().replace(":", "-").replace(".", "-")
+        json_log_path = log_dir / f"{timestamp_clean}.json"
+
+        with open(json_log_path, "w") as f:
+            json.dump(heartbeat_result, f, indent=2)
+
+        logger.info(f"Heartbeat tick logged to {json_log_path}")
+
+        # Alert log for RED FLAGS
+        if alerts:
+            alert_log_path = log_dir / "alerts.log"
+            with open(alert_log_path, "a") as f:
+                for alert in alerts:
+                    f.write(f"[{tick_timestamp.isoformat()}] {alert}\n")
+            logger.warning(f"Wrote {len(alerts)} alerts to {alert_log_path}")
+
+    except Exception as e:
+        logger.error(f"Failed to write heartbeat logs: {e}")
+
+    return heartbeat_result
 
 
 # --- System Health ---

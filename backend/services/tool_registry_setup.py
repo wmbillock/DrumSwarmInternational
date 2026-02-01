@@ -102,6 +102,16 @@ def register_service_tools(registry: ToolRegistry) -> None:
         reps = _get(db, segment_id)
         return [{"id": r.id, "status": r.status.value, "assigned_to": r.assigned_to, "result": r.result} for r in reps]
 
+    def get_shows_for_corps(db, corps_id: str):
+        """Get all shows (root segments) for a corps. Used by timing_judge to find entry points."""
+        from backend.models.show import Show
+        shows = (
+            db.query(Show)
+            .filter(Show.corps_id == corps_id)
+            .all()
+        )
+        return [{"id": s.id, "title": s.title, "status": s.status.value, "segment_root_id": s.segment_root_id} for s in shows]
+
     def submit_work(db, rep_id: str, result: str):
         """Convenience: transition a rep to review with a result."""
         from backend.models.rep import RepStatus
@@ -259,6 +269,16 @@ def register_service_tools(registry: ToolRegistry) -> None:
                 "segment_id": {"type": "string"},
             },
             "required": ["segment_id"],
+        },
+    })
+
+    registry.register("get_shows_for_corps", get_shows_for_corps, {
+        "name": "get_shows_for_corps",
+        "description": "Get all shows (root segments) for a corps. Used by timing_judge to identify entry points for health investigation. corps_id is auto-injected.",
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": [],
         },
     })
 

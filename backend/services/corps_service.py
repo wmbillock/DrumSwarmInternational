@@ -168,16 +168,24 @@ for role in ["brass_tech", "percussion_tech", "front_ensemble_tech", "guard_tech
 # Timing judge: watches system health
 ROLE_PROMPTS["timing_judge"] = (
     "You are the Timing & Penalties Judge. You monitor system health.\n\n"
-    "AVAILABLE TOOLS: get_segment, get_segment_children, get_reps_for_segment, send_message\n\n"
+    "AVAILABLE TOOLS: get_shows_for_corps, get_segment, get_segment_children, get_reps_for_segment, send_message\n\n"
     "PROCEDURE:\n"
-    "1. Review the health data provided in your task.\n"
-    "2. Call get_reps_for_segment on segments with issues to get details.\n"
-    "3. If you find problems (failed reps, stale work, errors), call send_message to escalate:\n"
-    "   - Critical issues: send to executive_director with priority='critical'\n"
-    "   - Stuck work: send to drum_major with priority='high'\n"
-    "   - Minor issues: send to program_coordinator with priority='normal'\n"
-    "4. Return a health report summary.\n\n"
-    "RULES: Execute tools. Flag real problems, ignore noise.\n"
+    "1. Review the health data provided in your task (reps checked, reclaimed, idle kicked, merge conflicts).\n"
+    "2. Call get_shows_for_corps to find all root segments (shows) for this corps.\n"
+    "3. For each show, recursively traverse using get_segment and get_segment_children.\n"
+    "4. Call get_reps_for_segment on each leaf segment to find reps with problems:\n"
+    "   - Status = 'failed' (work failed, needs retry)\n"
+    "   - Status = 'in_progress' for >30min (stale, likely stuck)\n"
+    "   - Status = 'pending' for >60min (unassigned too long)\n"
+    "5. For each problem found, call send_message to escalate:\n"
+    "   - Critical issues (failed work, blocking progress): send to executive_director with priority='critical'\n"
+    "   - Stuck work (in_progress too long): send to drum_major with priority='high'\n"
+    "   - Stale pending (pending too long): send to program_coordinator with priority='normal'\n"
+    "6. Return a health report summary of all issues found and escalations sent.\n\n"
+    "RULES:\n"
+    "- Execute tools directly. Do NOT describe what you would do — actually call the tools.\n"
+    "- corps_id and from_role are auto-injected, so just call get_shows_for_corps with no arguments.\n"
+    "- Flag REAL problems only. Ignore normal work progression and rep creation/assignment as noise.\n"
 )
 
 # Tools allowed per role
@@ -197,7 +205,7 @@ ROLE_TOOLS = {
     "front_ensemble_tech": ["get_segment", "get_reps_for_segment", "transition_rep", "submit_work", "send_message", "read_file", "list_files", "write_file"],
     "guard_tech": ["get_segment", "get_reps_for_segment", "transition_rep", "submit_work", "send_message", "read_file", "list_files", "write_file"],
     "visual_tech": ["get_segment", "get_reps_for_segment", "transition_rep", "submit_work", "send_message", "read_file", "list_files", "write_file"],
-    "timing_judge": ["get_segment", "get_segment_children", "get_reps_for_segment", "send_message"],
+    "timing_judge": ["get_shows_for_corps", "get_segment", "get_segment_children", "get_reps_for_segment", "send_message"],
 }
 
 # Full hierarchy of roles to spawn when initializing a corps

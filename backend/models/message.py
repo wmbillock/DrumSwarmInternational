@@ -18,6 +18,8 @@ class MessageType(str, enum.Enum):
     FEEDBACK = "feedback"
     QUESTION = "question"
     REQUEST = "request"
+    TEN_HUT = "ten_hut"        # System heartbeat wake command
+    RESUME_HUT = "resume_hut"  # System command to resume stalled work
 
 
 class MessagePriority(str, enum.Enum):
