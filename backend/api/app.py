@@ -138,7 +138,8 @@ from backend.api.legacy.scoring_routes import router as scoring_router
 app.include_router(scoring_router)
 
 from backend.api.legacy.communication_routes import router as communication_router
-from backend.api.legacy.communication_routes import _build_chat_agent_context  # noqa: F401 — re-export for tests
+from backend.services.chat_service import build_chat_agent_context  # noqa: F401 — re-export
+_build_chat_agent_context = build_chat_agent_context  # noqa: F841 — backward-compatible alias for tests
 app.include_router(communication_router)
 
 from backend.api.legacy.system_routes import router as system_router
@@ -209,8 +210,8 @@ async def websocket_endpoint(websocket: WebSocket, corps_id: str):
                         if tm:
                             session_id = tm.get_session_for_role(db, corps_id, to_role)
                             if session_id and not tm.is_active(session_id):
-                                from backend.api.legacy.communication_routes import _build_chat_agent_context
-                                task_desc, snapshot = _build_chat_agent_context(
+                                from backend.services.chat_service import build_chat_agent_context
+                                task_desc, snapshot = build_chat_agent_context(
                                     db, corps_id, to_role, content, session_id
                                 )
                                 tm.start_agent(

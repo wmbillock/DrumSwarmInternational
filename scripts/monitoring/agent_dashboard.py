@@ -52,7 +52,7 @@ def render():
     print(f"{BOLD}{GREEN}ACTIVE AGENTS{RESET}  {DIM}{now}{RESET}")
     print()
 
-    shows = fetch("/api/shows") or []
+    shows = fetch("/api/v1/shows") or []
     active_shows = [s for s in shows if s.get("status") == "active" and s.get("corps_id")]
 
     if not active_shows:
@@ -64,7 +64,7 @@ def render():
     for show in active_shows:
         corps_id = show["corps_id"]
         title = show.get("title", "Untitled")
-        roster = fetch(f"/api/corps/{corps_id}/roster") or []
+        roster = fetch(f"/api/v1/corps/{corps_id}/roster") or []
 
         if not roster:
             print(f"  {DIM}{title}: no agents spawned{RESET}")

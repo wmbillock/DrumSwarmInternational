@@ -9,7 +9,7 @@ API_BASE="http://localhost:$BACKEND_PORT"
 # Service checks
 be="OFF"
 fe="OFF"
-if curl -s "$API_BASE/api/shows" >/dev/null 2>&1; then
+if curl -s "$API_BASE/api/v1/shows" >/dev/null 2>&1; then
     be="ON"
 fi
 if curl -s "http://localhost:5173" >/dev/null 2>&1; then
@@ -19,7 +19,7 @@ fi
 # Corps count
 corps="?"
 if [ "$be" = "ON" ]; then
-    corps=$(curl -s "$API_BASE/api/shows" 2>/dev/null | python3 -c "
+    corps=$(curl -s "$API_BASE/api/v1/shows" 2>/dev/null | python3 -c "
 import json,sys
 try:
     shows=json.load(sys.stdin)

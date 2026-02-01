@@ -47,7 +47,7 @@ action_resume_hut() {
 
     # Wait for backend
     for i in $(seq 1 10); do
-        if curl -s "$API_BASE/api/shows" >/dev/null 2>&1; then
+        if curl -s "$API_BASE/api/v1/shows" >/dev/null 2>&1; then
             echo -e "${GREEN}Backend is set${NC}"
             break
         fi
@@ -61,7 +61,7 @@ action_resume_hut() {
 action_heartbeat() {
     echo -e "${BOLD}HEARTBEAT${NC}"
     echo ""
-    result=$(_api POST /api/heartbeat)
+    result=$(_api POST /api/v1/heartbeat)
     if [ -n "$result" ]; then
         echo "$result" | python3 -m json.tool 2>/dev/null || echo "$result"
     else
@@ -90,7 +90,7 @@ action_restart_backend() {
     tmux run-shell -b "cd '$PROJECT_ROOT' && source '$VENV_DIR/bin/activate' 2>/dev/null; uvicorn backend.api.app:app --host 0.0.0.0 --port $BACKEND_PORT --reload > '$PROJECT_ROOT/backend.log' 2>&1 &"
     echo -e "${GREEN}Backend restarting${NC}"
     sleep 2
-    if curl -s "$API_BASE/api/shows" >/dev/null 2>&1; then
+    if curl -s "$API_BASE/api/v1/shows" >/dev/null 2>&1; then
         echo -e "${GREEN}Backend is set${NC}"
     else
         echo -e "${YELLOW}Backend still starting...${NC}"
@@ -143,7 +143,7 @@ action_check_step() {
     echo -e "${BOLD}CHECK STEP${NC}"
     echo ""
 
-    if curl -s "$API_BASE/api/shows" >/dev/null 2>&1; then
+    if curl -s "$API_BASE/api/v1/shows" >/dev/null 2>&1; then
         echo -e "  Backend:   ${GREEN}ON${NC}  (port $BACKEND_PORT)"
     else
         echo -e "  Backend:   ${RED}OFF${NC}"
@@ -163,13 +163,13 @@ action_check_step() {
 
     echo ""
     # Show counts
-    shows=$(_api GET /api/shows 2>/dev/null)
+    shows=$(_api GET /api/v1/shows 2>/dev/null)
     if [ -n "$shows" ]; then
         total=$(echo "$shows" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "?")
         echo -e "  Shows: ${CYAN}$total${NC}"
     fi
 
-    agents=$(_api GET /api/agents-overview 2>/dev/null)
+    agents=$(_api GET /api/v1/system/agents 2>/dev/null)
     if [ -n "$agents" ]; then
         count=$(echo "$agents" | python3 -c "import json,sys; d=json.load(sys.stdin); print(sum(1 for a in d if a.get('status')=='active'))" 2>/dev/null || echo "?")
         echo -e "  Active agents: ${GREEN}$count${NC}"

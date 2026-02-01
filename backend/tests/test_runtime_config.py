@@ -90,6 +90,8 @@ def _setup_env(tmp_path: Path) -> None:
 def run_cli(*args: str, root: str, env_extra: dict | None = None) -> subprocess.CompletedProcess:
     env = os.environ.copy()
     env["DCI_PROJECT_ROOT"] = root
+    # Force offline mode so tests don't poll a live server and time out.
+    env["DCI_API_URL"] = "http://127.0.0.1:19999"
     if env_extra:
         env.update(env_extra)
     return subprocess.run(

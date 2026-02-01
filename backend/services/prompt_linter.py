@@ -12,7 +12,6 @@ REQUIRED_SECTIONS = [
     "General Effect",
     "Constraints",
     "Deliverables",
-    "Evaluation Rubric",
 ]
 
 PLACEHOLDER_PATTERNS = [
@@ -97,14 +96,6 @@ def lint_prompt(content: str) -> LintReport:
         report.required_fix.append(
             LintFinding("Deliverables", "Deliverables section has no bullet items")
         )
-
-    # Evaluation Rubric empty/no references
-    if "Evaluation Rubric" in sections:
-        body = sections["Evaluation Rubric"]
-        if not body or not body.strip():
-            report.nice_to_have.append(
-                LintFinding("Evaluation Rubric", "Evaluation Rubric section is empty or has no references")
-            )
 
     # Ambiguous MUST
     for name, body in sections.items():

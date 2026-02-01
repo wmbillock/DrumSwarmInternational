@@ -65,7 +65,7 @@ def fetch(path):
 
 
 def backend_up():
-    return fetch("/api/shows") is not None
+    return fetch("/api/v1/shows") is not None
 
 
 def clear():
@@ -123,7 +123,7 @@ def render_metrics():
         _render_quick_ref()
         return
 
-    shows = fetch("/api/shows") or []
+    shows = fetch("/api/v1/shows") or []
     total = len(shows)
     active = sum(1 for s in shows if s.get("status") == "active")
     draft = sum(1 for s in shows if s.get("status") == "draft")
@@ -136,12 +136,12 @@ def render_metrics():
         if show.get("status") != "active" or not show.get("corps_id"):
             continue
         corps_id = show["corps_id"]
-        corps = fetch(f"/api/corps/{corps_id}")
+        corps = fetch(f"/api/v1/corps/{corps_id}")
         if not corps:
             continue
         print()
         print(f"  {BOLD}{corps.get('name', '?')}{RESET}")
-        roster = fetch(f"/api/corps/{corps_id}/roster") or []
+        roster = fetch(f"/api/v1/corps/{corps_id}/roster") or []
         if roster:
             active_agents = sum(1 for a in roster if a.get("status") == "active")
             print(f"  Agents: {GREEN}{active_agents}{RESET}/{len(roster)}")
@@ -175,7 +175,7 @@ def render_agents():
     print(f"{BOLD}{GREEN}AGENTS{RESET}  {DIM}{now}{RESET}")
     print()
 
-    shows = fetch("/api/shows") or []
+    shows = fetch("/api/v1/shows") or []
     active_shows = [s for s in shows if s.get("status") == "active" and s.get("corps_id")]
 
     if not active_shows:
@@ -185,7 +185,7 @@ def render_agents():
     for show in active_shows:
         corps_id = show["corps_id"]
         title = show.get("title", "Untitled")
-        roster = fetch(f"/api/corps/{corps_id}/roster") or []
+        roster = fetch(f"/api/v1/corps/{corps_id}/roster") or []
 
         if not roster:
             print(f"  {DIM}{title}: no agents{RESET}")
@@ -324,7 +324,7 @@ def render_changes():
     print()
 
     # Completed reps
-    shows = fetch("/api/shows") or []
+    shows = fetch("/api/v1/shows") or []
     active = [s for s in shows if s.get("status") == "active"]
     print(f"  {BOLD}COMPLETED REPS{RESET}")
     found = False
@@ -332,7 +332,7 @@ def render_changes():
         coord_root = show.get("segment_root_id")
         if not coord_root:
             continue
-        reps = fetch(f"/api/segments/{coord_root}/reps") or []
+        reps = fetch(f"/api/v1/segments/{coord_root}/reps") or []
         if reps:
             found = True
             completed = sum(1 for r in reps if r.get("status") == "completed")
@@ -388,7 +388,7 @@ def render_memory():
         print(f"  {DIM}Backend offline.{RESET}")
         return
 
-    shows = fetch("/api/shows") or []
+    shows = fetch("/api/v1/shows") or []
     active_shows = [s for s in shows if s.get("status") == "active" and s.get("corps_id")]
 
     if not active_shows:
@@ -397,13 +397,13 @@ def render_memory():
 
     for show in active_shows[:3]:
         corps_id = show["corps_id"]
-        roster = fetch(f"/api/corps/{corps_id}/roster") or []
+        roster = fetch(f"/api/v1/corps/{corps_id}/roster") or []
         title = show.get("title", "Untitled")
         print(f"  {BOLD}{title}{RESET}")
 
         for agent in roster[:8]:
             identity = agent.get("nickname") or agent.get("role", "?")
-            stats = fetch(f"/api/agents/{identity}/memory-stats")
+            stats = fetch(f"/api/v1/agents/{identity}/memory-stats")
             if not stats:
                 continue
             total = stats.get("total_memories", 0)
@@ -433,7 +433,7 @@ def render_lifecycle():
         print(f"  {DIM}Backend offline.{RESET}")
         return
 
-    shows = fetch("/api/shows") or []
+    shows = fetch("/api/v1/shows") or []
     active_shows = [s for s in shows if s.get("status") == "active" and s.get("corps_id")]
 
     if not active_shows:
@@ -442,7 +442,7 @@ def render_lifecycle():
 
     for show in active_shows[:3]:
         corps_id = show["corps_id"]
-        corps = fetch(f"/api/corps/{corps_id}")
+        corps = fetch(f"/api/v1/corps/{corps_id}")
         if not corps:
             continue
 
@@ -453,7 +453,7 @@ def render_lifecycle():
         print()
 
         # Ageouts
-        ageouts = fetch(f"/api/corps/{corps_id}/ageouts") or []
+        ageouts = fetch(f"/api/v1/corps/{corps_id}/ageouts") or []
         if ageouts:
             print(f"  {YELLOW}Pending Ageouts: {len(ageouts)}{RESET}")
             for a in ageouts[:5]:
@@ -464,7 +464,7 @@ def render_lifecycle():
         print()
 
         # Roster classification breakdown
-        roster = fetch(f"/api/corps/{corps_id}/roster") or []
+        roster = fetch(f"/api/v1/corps/{corps_id}/roster") or []
         if roster:
             by_class = {}
             for agent in roster:
@@ -490,7 +490,7 @@ def render_lifecycle():
         print()
 
         # Self-improvement pending
-        pending = fetch("/api/self-improvement/pending") or []
+        pending = fetch("/api/v1/self-improvement/pending") or []
         if pending:
             print(f"  {CYAN}Pending Improvements: {len(pending)}{RESET}")
             for p in pending[:5]:

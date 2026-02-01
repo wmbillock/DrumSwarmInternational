@@ -70,7 +70,13 @@ export function SeasonWorkshop() {
   };
 
   if (loading) return <div className="page-loading">Loading seasons...</div>;
-  if (error) return <div className="page-error"><div className="error-banner">{error}</div></div>;
+
+  const errorBanner = error ? (
+    <div className="error-banner" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+      <span>{error}</span>
+      <button className="small" onClick={() => setError("")} style={{ marginLeft: 8 }}>Dismiss</button>
+    </div>
+  ) : null;
 
   // Detail view
   if (seasonId && detail) {
@@ -85,6 +91,7 @@ export function SeasonWorkshop() {
 
     return (
       <div className="season-workshop">
+        {errorBanner}
         <div className="page-header">
           <button className="back-btn" onClick={() => navigate("/seasons")}>Back</button>
           <h1 className="page-title" style={{ marginBottom: 0 }}>
@@ -197,9 +204,23 @@ export function SeasonWorkshop() {
     return <div className="page-loading">Loading season details...</div>;
   }
 
+  if (seasonId && !detail && !detailLoading) {
+    return (
+      <div className="season-workshop">
+        {errorBanner}
+        <div className="page-header">
+          <button className="back-btn" onClick={() => navigate("/seasons")}>Back</button>
+          <h1 className="page-title">{seasonId}</h1>
+        </div>
+        <p className="empty">Season not found or failed to load.</p>
+      </div>
+    );
+  }
+
   // List view
   return (
     <div className="season-workshop">
+      {errorBanner}
       <h1 className="page-title">Season Workshop</h1>
 
       <div className="summary-bar">

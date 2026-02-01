@@ -10,7 +10,7 @@ interface Props {
 const CHECKLIST_ITEMS = [
   "I have reviewed the prompt for completeness",
   "Edge cases and constraints are addressed",
-  "Evaluation rubric matches show goals",
+  "Deliverables are specific and actionable",
 ];
 
 export function DevilsAdvocate({ showSlug, onClose, onPublished }: Props) {
@@ -116,8 +116,18 @@ export function DevilsAdvocate({ showSlug, onClose, onPublished }: Props) {
           ))}
         </div>
 
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", alignItems: "center" }}>
           <button className="small" onClick={onClose}>Cancel</button>
+          {!lintClean && allChecked && (
+            <button
+              className="small"
+              style={{ color: "var(--warning)", borderColor: "var(--warning)" }}
+              onClick={handlePublish}
+              disabled={publishing}
+            >
+              {publishing ? "Publishing..." : "Publish Anyway"}
+            </button>
+          )}
           <button
             className="primary"
             onClick={handlePublish}

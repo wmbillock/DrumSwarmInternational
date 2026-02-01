@@ -147,7 +147,7 @@ def render():
     print()
 
     # Completed tasks from API (reps)
-    shows = fetch("/api/shows") or []
+    shows = fetch("/api/v1/shows") or []
     active = [s for s in shows if s.get("status") == "active"]
 
     if active:
@@ -157,7 +157,7 @@ def render():
             coord_root = show.get("segment_root_id")
             if not coord_root:
                 continue
-            reps = fetch(f"/api/segments/{coord_root}/reps") or []
+            reps = fetch(f"/api/v1/segments/{coord_root}/reps") or []
             completed = [r for r in reps if r.get("status") == "completed"]
             failed = [r for r in reps if r.get("status") == "failed"]
             pending = [r for r in reps if r.get("status") in ("pending", "assigned", "in_progress")]

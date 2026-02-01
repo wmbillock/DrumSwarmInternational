@@ -33,7 +33,7 @@ echo "Backend started (PID: $BACKEND_PID) on port $BACKEND_PORT"
 
 # Wait for backend
 for i in $(seq 1 10); do
-    if curl -s "http://localhost:$BACKEND_PORT/api/shows" >/dev/null 2>&1; then
+    if curl -s "http://localhost:$BACKEND_PORT/api/v1/shows" >/dev/null 2>&1; then
         echo "Backend is ready."
         break
     fi

@@ -207,6 +207,8 @@ def run_agent(
         except Exception:
             logger.debug("Failed to load corps context", exc_info=True)
 
+    from backend.models.work_log import WorkLogEventType
+
     _emit({
         "type": "agent_status",
         "role": definition.role,
@@ -215,8 +217,8 @@ def run_agent(
         "phase": phase_controller.current_phase.value,
     })
     _write_work_log(db, {
-        "type": "agent_status", "role": definition.role,
-        "session_id": session_id, "status": "running",
+        "type": WorkLogEventType.AGENT_START, "role": definition.role,
+        "session_id": session_id, "task": task_description[:500],
     }, corps_id, phase_controller.current_phase.value)
 
     messages = build_initial_messages(
@@ -233,12 +235,26 @@ def run_agent(
         for i in range(max_iterations):
             result.iterations = i + 1
 
+            _write_work_log(db, {
+                "type": WorkLogEventType.LLM_REQUEST, "role": definition.role,
+                "session_id": session_id, "iteration": i + 1,
+                "message_count": len(messages),
+            }, corps_id, phase_controller.current_phase.value)
+
             response = llm_client.chat(
                 messages=messages,
                 model_tier=definition.model_tier,
                 tools=tool_schemas if tool_schemas else None,
                 session_id=session_id,
             )
+
+            _write_work_log(db, {
+                "type": WorkLogEventType.LLM_RESPONSE, "role": definition.role,
+                "session_id": session_id, "iteration": i + 1,
+                "stop_reason": response.stop_reason,
+                "has_tool_use": response.wants_tool_use,
+                "tool_count": len(response.tool_calls) if response.tool_calls else 0,
+            }, corps_id, phase_controller.current_phase.value)
 
             if response.stop_reason == "error":
                 result.final_response = response.content
@@ -296,7 +312,7 @@ def run_agent(
                     "phase": phase_controller.current_phase.value,
                 })
                 _write_work_log(db, {
-                    "type": "tool_call", "role": definition.role,
+                    "type": WorkLogEventType.TOOL_CALL, "role": definition.role,
                     "session_id": session_id, "tool": tool_call.tool_name,
                     "args": tool_call.arguments,
                 }, corps_id, phase_controller.current_phase.value)
@@ -349,9 +365,11 @@ def run_agent(
                     "result": tool_result_data,
                 })
                 _write_work_log(db, {
-                    "type": "tool_result", "role": definition.role,
+                    "type": WorkLogEventType.TOOL_SUCCESS if tool_result_data.get("success") else WorkLogEventType.TOOL_ERROR,
+                    "role": definition.role,
                     "session_id": session_id, "tool": tool_call.tool_name,
                     "success": tool_result_data.get("success"),
+                    "error": tool_result_data.get("error") if not tool_result_data.get("success") else None,
                 }, corps_id, phase_controller.current_phase.value)
 
                 # Feed tool result back into conversation
@@ -392,8 +410,11 @@ def run_agent(
             "phase": phase_controller.current_phase.value,
         })
         _write_work_log(db, {
-            "type": "agent_status", "role": definition.role,
+            "type": WorkLogEventType.AGENT_COMPLETE if result.status == RunStatus.COMPLETED else WorkLogEventType.AGENT_FAIL,
+            "role": definition.role,
             "session_id": session_id, "status": result.status,
+            "iterations": result.iterations,
+            "tool_calls_count": len(result.tool_calls_made),
         }, corps_id, phase_controller.current_phase.value)
 
         bus.publish("agent.completed", AgentCompleted(
@@ -433,8 +454,9 @@ def run_agent(
             "error": str(e),
         })
         _write_work_log(db, {
-            "type": "agent_status", "role": definition.role,
+            "type": WorkLogEventType.AGENT_FAIL, "role": definition.role,
             "session_id": session_id, "status": "failed", "error": str(e),
+            "iterations": result.iterations,
         }, corps_id, phase_controller.current_phase.value)
 
         # Store failure lesson in memory bank

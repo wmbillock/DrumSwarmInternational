@@ -98,6 +98,7 @@ export interface V1Thread {
   slug: string;
   status: string;
   has_spec: boolean;
+  summary?: string;
 }
 
 export interface V1Messages {
@@ -270,6 +271,9 @@ export const lintPrompt = (slug: string) =>
 export const publishThread = (slug: string) =>
   request<{ status: string }>(`/api/v1/design/threads/${slug}/publish`, { method: "POST" });
 
+export const generateSummary = (slug: string) =>
+  request<{ summary: string }>(`/api/v1/design/threads/${slug}/generate-summary`, { method: "POST" });
+
 export const listVersions = (slug: string, signal?: AbortSignal) =>
   request<{ versions: number[] }>(`/api/v1/design/threads/${slug}/versions`, { signal });
 
@@ -334,14 +338,14 @@ export interface CorpsCommandResult {
 }
 
 export const executeCorpsCommand = (corpsId: string, command: string) =>
-  request<CorpsCommandResult>(`/api/corps/${corpsId}/command`, { method: "POST", body: JSON.stringify({ command }) });
+  request<CorpsCommandResult>(`/api/v1/corps/${corpsId}/command`, { method: "POST", body: JSON.stringify({ command }) });
 
 export interface CorpsCommands {
   [key: string]: { label: string; description: string; category: string };
 }
 
 export const listCorpsCommands = (signal?: AbortSignal) =>
-  request<CorpsCommands>("/api/corps-commands", { signal });
+  request<CorpsCommands>("/api/v1/corps-commands", { signal });
 
 // --- Seasons ---
 

@@ -33,7 +33,7 @@ def fetch(path):
 
 
 def backend_up():
-    return fetch("/api/shows") is not None
+    return fetch("/api/v1/shows") is not None
 
 
 def clear():
@@ -83,7 +83,7 @@ def render():
         return
 
     # Show summary
-    shows = fetch("/api/shows") or []
+    shows = fetch("/api/v1/shows") or []
     total = len(shows)
     active = sum(1 for s in shows if s.get("status") == "active")
     draft = sum(1 for s in shows if s.get("status") == "draft")
@@ -98,7 +98,7 @@ def render():
             continue
 
         corps_id = show["corps_id"]
-        corps = fetch(f"/api/corps/{corps_id}")
+        corps = fetch(f"/api/v1/corps/{corps_id}")
         if not corps:
             continue
 
@@ -110,7 +110,7 @@ def render():
         print(f"  Mode: {CYAN}{mode}{RESET}")
 
         # Roster counts
-        roster = fetch(f"/api/corps/{corps_id}/roster") or []
+        roster = fetch(f"/api/v1/corps/{corps_id}/roster") or []
         if roster:
             active_agents = sum(1 for a in roster if a.get("status") == "active")
             total_agents = len(roster)
@@ -119,7 +119,7 @@ def render():
         # Rep counts from segment tree
         coord_root = show.get("segment_root_id")
         if coord_root:
-            reps = fetch(f"/api/segments/{coord_root}/reps") or []
+            reps = fetch(f"/api/v1/segments/{coord_root}/reps") or []
             if reps:
                 completed = sum(1 for r in reps if r.get("status") == "completed")
                 failed = sum(1 for r in reps if r.get("status") == "failed")

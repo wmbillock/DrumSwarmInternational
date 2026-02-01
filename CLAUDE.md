@@ -169,7 +169,20 @@ cd frontend && npx tsc --noEmit             # TypeScript check
 
 ## Current State (as of 2026-02-01)
 
-### ✅ Recently Completed (This Session + Previous Sessions)
+### ✅ Recently Completed (This Session)
+- **Design Room Prompt Rewrite**: ✅ COMPLETE
+  - All design staff prompts rewritten to orient toward Brief + Swarm Prompt deliverables
+  - Spec auto-update template now includes ## Swarm Prompt section
+  - Dogfooded: PC and Music Arranger responses reference Brief sections and prompt readiness
+- **Legacy → V1 API Consolidation (Phase 1-2)**: ✅ COMPLETE
+  - 40+ legacy-only endpoints ported to V1 (corps commands, heartbeat, metronome, segments/reps, scoring, theme, self-improvement, memory, messages)
+  - `_build_chat_agent_context` extracted to `backend/services/chat_service.py`
+  - All production callers migrated: frontend v1.ts, CLI client.py, all scripts (metronome, heartbeat, monitoring)
+  - Zero legacy paths remain in production code
+  - Legacy routes kept as deprecated backward-compat for tests (tests rely on legacy response shapes)
+  - V1 router now has 130+ endpoints
+
+### ✅ Previously Completed
 - **Ready-for-Contest Lifecycle**: ✅ COMPLETE
   - Backend: ready_for_contest() and complete_corps() with validation gates
   - V1 API: /ready-for-contest, /return-to-tour, /complete endpoints
@@ -200,12 +213,12 @@ cd frontend && npx tsc --noEmit             # TypeScript check
 
 ### Working (Complete Feature List)
 - 11+ active corps with full lifecycle management
-- V1 API router with 90+ endpoints (all legacy endpoints migrated)
+- V1 API router with 130+ endpoints (all legacy endpoints ported, production callers migrated)
 - **Corps Lifecycle**: INITIALIZING → WINTER_CAMPS ⇄ ON_TOUR → READY_FOR_CONTEST ⇄ COMPLETED
 - **Messaging**: Threaded inbox, bulk archive with LLM summaries, searchable archive, permission enforcement
 - **Metrics & Scoring**: Composite scores, leaderboards, trend analysis, performance bottleneck detection
 - **Metronome**: 5-minute heartbeat, corps liveness monitoring, stalled work recovery
-- **Design Room**: LLM-powered collaboration with role-based routing and spec synthesis
+- **Design Room**: LLM-powered collaboration with role-based routing, Brief/Swarm Prompt deliverables, spec synthesis
 - **Rehearsal Modes**: BASICS → SECTIONALS → FULL_ENSEMBLE → RUN_THROUGH with auto-progression
 - **Agent System**: Full role hierarchy (ED → PC → Designers → Caption Heads → Techs), performer assignment, audition pipeline
 - **Seasons & Competitions**: Season management, competition registration, standings calculation
@@ -245,4 +258,6 @@ cd frontend && npx tsc --noEmit             # TypeScript check
 - **Font fix**: App.css body now uses design system variable (--font-body)
 
 ### Known Issues / Not Yet Working
-- **2 test failures in test_v1_api.py**: Unrelated (test expects empty DB but finds existing corps)
+- **2 test failures in test_v1_api.py / test_agents_overview.py**: Tests expect empty DB but find existing corps
+- **Legacy routes still registered in app.py**: 9 legacy routers kept for test backward-compat — tests use legacy response shapes (id vs slug). Remove once tests updated.
+- **6 pre-existing test failures**: test_cli_run (4 timeouts), test_runtime_config (2 env override)

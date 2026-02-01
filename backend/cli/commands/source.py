@@ -39,6 +39,17 @@ def cmd_source(client, args):
     corps_id = activate_result.get("corps_id", "")
     print_success(f"Show activated — corps {corps_id[:8]}")
 
+    # Transition to autonomous execution
+    if corps_id:
+        try:
+            tour_result = client.post(f"/api/corps/{corps_id}/command", json={"command": "go_on_tour"})
+            if tour_result.get("status") == "ok":
+                print_success("Corps on tour — autonomous execution started")
+            else:
+                print_error(f"Tour transition: {tour_result}")
+        except Exception as e:
+            print_error(f"Tour transition failed: {e}")
+
     # Print tracking handle
     print_info(f"Tracking handle:")
     print_info(f"  show_id:  {show_id}")

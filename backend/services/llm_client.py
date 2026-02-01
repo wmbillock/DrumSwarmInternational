@@ -304,6 +304,12 @@ Available tools:
         if session_id and session_id in self._active_sessions:
             # Resume existing session — CLI preserves full conversation history
             cmd.extend(["--resume", session_id])
+            # Re-inject system prompt on resume to prevent role identity loss
+            resume_sp = system_prompt
+            if tools:
+                resume_sp += "\n" + self.TOOL_PROTOCOL + self._format_tools_for_prompt(tools)
+            if resume_sp.strip():
+                cmd.extend(["--system-prompt", resume_sp.strip()])
         elif session_id:
             # First call for this session in this process — try --session-id
             # but we'll retry with --resume if the CLI says it already exists
@@ -351,6 +357,12 @@ Available tools:
                         "--dangerously-skip-permissions",
                         "--resume", session_id,
                     ]
+                    # Re-inject system prompt on retry-resume
+                    retry_sp = system_prompt
+                    if tools:
+                        retry_sp += "\n" + self.TOOL_PROTOCOL + self._format_tools_for_prompt(tools)
+                    if retry_sp.strip():
+                        resume_cmd.extend(["--system-prompt", retry_sp.strip()])
                     if self.max_budget_usd:
                         resume_cmd.extend(["--max-budget-usd", str(self.max_budget_usd)])
                     resume_cmd.append(user_content)

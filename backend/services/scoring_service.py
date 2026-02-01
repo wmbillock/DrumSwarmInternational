@@ -218,3 +218,93 @@ def check_timing(
         )
 
     return None
+
+
+def generate_judge_report(
+    db: Session,
+    corps_id: str,
+    competition_id: Optional[str] = None,
+) -> dict:
+    """Generate an audit report linking scores to agent work activity.
+
+    Aggregates scores by judge type, correlates with work log activity,
+    identifies bottlenecks, and generates recommendations.
+    """
+    import json
+    from backend.models.work_log import WorkLog
+    from sqlalchemy import func
+
+    # --- Scores by judge type ---
+    scores = db.query(Score).filter(Score.corps_id == corps_id).all()
+    by_judge: dict[str, list[float]] = {}
+    for s in scores:
+        jt = s.judge_type.value if hasattr(s.judge_type, "value") else str(s.judge_type)
+        by_judge.setdefault(jt, []).append(s.value)
+
+    score_summary = {}
+    for jt, vals in by_judge.items():
+        score_summary[jt] = {
+            "count": len(vals),
+            "avg": round(sum(vals) / len(vals), 2) if vals else 0,
+            "min": min(vals) if vals else 0,
+            "max": max(vals) if vals else 0,
+        }
+
+    # --- Work log activity per role ---
+    role_activity = (
+        db.query(WorkLog.role, WorkLog.event_type, func.count(WorkLog.id))
+        .filter(WorkLog.corps_id == corps_id)
+        .group_by(WorkLog.role, WorkLog.event_type)
+        .all()
+    )
+    agent_activity: dict[str, dict[str, int]] = {}
+    for role, event_type, count in role_activity:
+        agent_activity.setdefault(role, {}).setdefault(event_type, 0)
+        agent_activity[role][event_type] = count
+
+    # --- Bottlenecks: roles with >10% failure rate ---
+    bottlenecks = []
+    for role, events in agent_activity.items():
+        total = sum(events.values())
+        failures = events.get("agent_fail", 0) + events.get("tool_error", 0)
+        if total > 0 and failures / total > 0.10:
+            bottlenecks.append({
+                "role": role,
+                "failure_rate": round(failures / total * 100, 1),
+                "total_events": total,
+                "failures": failures,
+            })
+
+    # --- Penalties ---
+    penalties = get_penalties_for_corps(db, corps_id)
+    penalty_summary = {
+        "count": len(penalties),
+        "total_deduction": sum(p.amount for p in penalties),
+        "types": {},
+    }
+    for p in penalties:
+        pt = p.type.value if hasattr(p.type, "value") else str(p.type)
+        penalty_summary["types"][pt] = penalty_summary["types"].get(pt, 0) + 1
+
+    # --- Recommendations ---
+    recommendations = []
+    if bottlenecks:
+        for b in bottlenecks:
+            recommendations.append(
+                f"Role '{b['role']}' has {b['failure_rate']}% failure rate — investigate tool errors and retry patterns"
+            )
+    if not scores:
+        recommendations.append("No scores recorded — ensure judges are configured and running")
+    for jt, summary in score_summary.items():
+        if summary["avg"] < REWORK_THRESHOLD:
+            recommendations.append(f"{jt} average ({summary['avg']}) below rework threshold ({REWORK_THRESHOLD}) — schedule additional reps")
+
+    return {
+        "corps_id": corps_id,
+        "competition_id": competition_id,
+        "score_summary": score_summary,
+        "agent_activity": agent_activity,
+        "bottlenecks": bottlenecks,
+        "penalties": penalty_summary,
+        "recommendations": recommendations,
+    }

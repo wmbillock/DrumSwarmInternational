@@ -12,7 +12,7 @@ import yaml
 
 from backend.services.yaml_util import atomic_write, safe_dump_yaml
 
-VALID_STATUSES = ("draft", "needs_review", "approved", "rejected", "published")
+VALID_STATUSES = ("draft", "needs_review", "approved", "rejected", "published", "on_tour", "completed")
 
 
 def slugify(title: str) -> str:
@@ -176,19 +176,22 @@ def synthesize_prompt(show_dir: Path) -> None:
         deliverables.append("- Completed show design with all sections finalized\n- Performance-ready prompt for agent execution")
     parts.append("\n".join(deliverables))
 
-    # Evaluation Rubric
-    parts.append("\n\n## Evaluation Rubric\n")
-    rubric = []
-    if spec:
-        rubric_match = re.search(r"##\s+(?:Evaluation Rubric|Scoring|Rubric)\s*\n(.*?)(?=\n##|\Z)", spec, re.DOTALL)
-        if rubric_match:
-            rubric.append(rubric_match.group(1).strip())
-    if not rubric:
-        rubric.append("Evaluated per standard DCI scoring criteria: musical performance, visual performance, general effect.")
-    parts.append("\n".join(rubric))
-
     parts.append("\n")
     atomic_write(show_dir / "show_prompt.md", "\n".join(parts))
+
+
+def read_summary(show_dir: Path) -> str:
+    """Read the humorous summary from status.yaml. Returns empty string if none."""
+    data = load_status(show_dir)
+    return data.get("summary", "")
+
+
+def write_summary(show_dir: Path, summary: str) -> None:
+    """Write a humorous summary to status.yaml."""
+    show_dir = Path(show_dir)
+    data = load_status(show_dir)
+    data["summary"] = summary
+    atomic_write(show_dir / "status.yaml", safe_dump_yaml(data))
 
 
 def check_field_ready(show_dir: Path) -> bool:
@@ -262,3 +265,71 @@ def list_spec_versions(show_dir: Path) -> list[int]:
         if m:
             versions.append(int(m.group(1)))
     return sorted(versions)
+
+
+# ---------------------------------------------------------------------------
+# Show CRUD helpers (used by V1 API router)
+# ---------------------------------------------------------------------------
+
+def _shows_base_dir() -> Path:
+    """Return the project-level shows/ directory."""
+    return Path("shows")
+
+
+def list_shows() -> list[dict]:
+    """List all shows from filesystem, returning slug + status + metadata."""
+    base = _shows_base_dir()
+    if not base.exists():
+        return []
+    results = []
+    for d in sorted(base.iterdir()):
+        status_file = d / "status.yaml"
+        if not d.is_dir() or not status_file.exists():
+            continue
+        data = yaml.safe_load(status_file.read_text()) or {}
+        spec_text = read_spec(d)
+        title = d.name
+        if spec_text:
+            heading = re.match(r"^#\s+(.+)$", spec_text, re.MULTILINE)
+            if heading:
+                title = heading.group(1).strip()
+        results.append({
+            "slug": d.name,
+            "title": title,
+            "status": data.get("status", "draft"),
+            "has_spec": bool(spec_text.strip()),
+            "has_prompt": (d / "show_prompt.md").exists() and (d / "show_prompt.md").stat().st_size > 0,
+            "summary": data.get("summary", ""),
+        })
+    return results
+
+
+def get_show(slug: str) -> dict | None:
+    """Get a single show's details by slug."""
+    show_dir = _shows_base_dir() / slug
+    status_file = show_dir / "status.yaml"
+    if not show_dir.exists() or not status_file.exists():
+        return None
+    data = yaml.safe_load(status_file.read_text()) or {}
+    spec_text = read_spec(show_dir)
+    title = slug
+    if spec_text:
+        heading = re.match(r"^#\s+(.+)$", spec_text, re.MULTILINE)
+        if heading:
+            title = heading.group(1).strip()
+    return {
+        "slug": slug,
+        "title": title,
+        "status": data.get("status", "draft"),
+        "has_spec": bool(spec_text.strip()),
+        "has_prompt": (show_dir / "show_prompt.md").exists() and (show_dir / "show_prompt.md").stat().st_size > 0,
+        "versions": list_spec_versions(show_dir),
+    }
+
+
+def update_show_status(slug: str, new_status: str) -> None:
+    """Update a show's status by slug. Updates filesystem status.yaml."""
+    show_dir = _shows_base_dir() / slug
+    if not show_dir.exists():
+        raise ValueError(f"Show '{slug}' not found")
+    update_status(show_dir, new_status)

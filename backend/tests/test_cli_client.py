@@ -14,28 +14,28 @@ class TestAPIClient:
         client = APIClient()
         with patch.object(client, "_request", return_value={"season_id": "test_2026"}) as mock:
             result = client.season_create("Test", year=2026)
-            mock.assert_called_once_with("POST", "/api/seasons", json={"name": "Test", "year": 2026})
+            mock.assert_called_once_with("POST", "/api/v1/seasons", json={"name": "Test", "year": 2026})
             assert result["season_id"] == "test_2026"
 
     def test_corps_status_call(self):
         client = APIClient()
         with patch.object(client, "_request", return_value={"id": "abc", "status": "winter_camps"}) as mock:
             result = client.corps_status("abc")
-            mock.assert_called_once_with("GET", "/api/corps/abc", params={})
+            mock.assert_called_once_with("GET", "/api/v1/corps/abc", params={})
             assert result["id"] == "abc"
 
     def test_mode_switch_call(self):
         client = APIClient()
         with patch.object(client, "_request", return_value={"id": "abc", "mode": "design_room"}) as mock:
             result = client.mode_switch("abc", "design_room")
-            mock.assert_called_once_with("POST", "/api/corps/abc/mode", json={"mode": "design_room"})
+            mock.assert_called_once_with("POST", "/api/v1/corps/abc/mode", json={"mode": "design_room"})
             assert result["mode"] == "design_room"
 
     def test_show_list_call(self):
         client = APIClient()
         with patch.object(client, "_request", return_value=[]) as mock:
             result = client.show_list()
-            mock.assert_called_once_with("GET", "/api/shows", params={})
+            mock.assert_called_once_with("GET", "/api/v1/shows", params={})
             assert result == []
 
     def test_system_health_call(self):

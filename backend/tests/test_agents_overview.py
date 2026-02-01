@@ -1,4 +1,4 @@
-"""Comprehensive test suite for /api/agents-overview endpoint.
+"""Comprehensive test suite for /api/v1/system/agents endpoint.
 
 Tests the enhanced agents-overview endpoint which returns all active agent sessions
 with:
@@ -54,7 +54,7 @@ def db_engine():
 
 
 @pytest.fixture
-def client(db_engine):
+def client(db_engine, monkeypatch):
     """Set up test client with shared in-memory SQLite database."""
     TestingSession = sessionmaker(bind=db_engine)
 
@@ -65,7 +65,9 @@ def client(db_engine):
         finally:
             db.close()
 
+    # Override both the Depends(get_db) path and the V1 _get_db_session() path
     app.dependency_overrides[get_db] = override_get_db
+    monkeypatch.setattr("backend.api.v1.router._get_db_session", lambda: TestingSession())
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
@@ -81,11 +83,11 @@ def db(db_engine):
 
 
 class TestAgentsOverviewBasic:
-    """Basic functionality tests for /api/agents-overview."""
+    """Basic functionality tests for /api/v1/system/agents."""
 
     def test_empty_sessions_returns_empty_list(self, client):
         """Test endpoint returns empty list when no active sessions exist."""
-        resp = client.get("/api/agents-overview")
+        resp = client.get("/api/v1/system/agents")
         assert resp.status_code == 200
         data = resp.json()
         assert isinstance(data, list)
@@ -125,7 +127,7 @@ class TestAgentsOverviewBasic:
         db.commit()
 
         # Query endpoint
-        resp = client.get("/api/agents-overview")
+        resp = client.get("/api/v1/system/agents")
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) == 1
@@ -190,7 +192,7 @@ class TestAgentsOverviewBasic:
         db.add_all([active_session, completed_session, failed_session])
         db.commit()
 
-        resp = client.get("/api/agents-overview")
+        resp = client.get("/api/v1/system/agents")
         assert resp.status_code == 200
         data = resp.json()
 
@@ -235,7 +237,7 @@ class TestAgentsOverviewCorpsNameResolution:
         db.add(session)
         db.commit()
 
-        resp = client.get("/api/agents-overview")
+        resp = client.get("/api/v1/system/agents")
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) == 1
@@ -275,7 +277,7 @@ class TestAgentsOverviewCorpsNameResolution:
         db.add(session)
         db.commit()
 
-        resp = client.get("/api/agents-overview")
+        resp = client.get("/api/v1/system/agents")
         assert resp.status_code == 200
         data = resp.json()
         # No active sessions
@@ -306,7 +308,7 @@ class TestAgentsOverviewCorpsNameResolution:
         db.add(session)
         db.commit()
 
-        resp = client.get("/api/agents-overview")
+        resp = client.get("/api/v1/system/agents")
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) == 1
@@ -376,7 +378,7 @@ class TestAgentsOverviewCorpsNameResolution:
         db.add_all([session_ed, session_pc, session_tj])
         db.commit()
 
-        resp = client.get("/api/agents-overview")
+        resp = client.get("/api/v1/system/agents")
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) == 3
@@ -415,7 +417,7 @@ class TestAgentsOverviewEdgeCases:
         db.add(session)
         db.commit()
 
-        resp = client.get("/api/agents-overview")
+        resp = client.get("/api/v1/system/agents")
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) == 1
@@ -456,7 +458,7 @@ class TestAgentsOverviewEdgeCases:
         db.add(session)
         db.commit()
 
-        resp = client.get("/api/agents-overview")
+        resp = client.get("/api/v1/system/agents")
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) == 1
@@ -498,7 +500,7 @@ class TestAgentsOverviewEdgeCases:
         db.add_all([session1, session2, session3])
         db.commit()
 
-        resp = client.get("/api/agents-overview")
+        resp = client.get("/api/v1/system/agents")
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) == 3
@@ -534,7 +536,7 @@ class TestAgentsOverviewResponseValidation:
         db.add(session)
         db.commit()
 
-        resp = client.get("/api/agents-overview")
+        resp = client.get("/api/v1/system/agents")
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) == 1
@@ -564,7 +566,7 @@ class TestAgentsOverviewResponseValidation:
         db.add(session)
         db.commit()
 
-        resp = client.get("/api/agents-overview")
+        resp = client.get("/api/v1/system/agents")
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) == 1
@@ -609,7 +611,7 @@ class TestAgentsOverviewResponseValidation:
             db.add(session)
         db.commit()
 
-        resp = client.get("/api/agents-overview")
+        resp = client.get("/api/v1/system/agents")
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) == len(ModelTier)
@@ -641,7 +643,7 @@ class TestAgentsOverviewResponseValidation:
             db.add(session)
         db.commit()
 
-        resp = client.get("/api/agents-overview")
+        resp = client.get("/api/v1/system/agents")
         assert resp.status_code == 200
         data = resp.json()
 
@@ -666,7 +668,7 @@ class TestAgentsOverviewResponseValidation:
         db.add(session)
         db.commit()
 
-        resp = client.get("/api/agents-overview")
+        resp = client.get("/api/v1/system/agents")
         assert resp.status_code == 200
         data = resp.json()
 

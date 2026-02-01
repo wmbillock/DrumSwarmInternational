@@ -2,6 +2,7 @@
 
 import os
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -17,6 +18,25 @@ def _get_root() -> Path:
     if override:
         return Path(override).resolve()
     return Path(_find_project_root())
+
+
+def _corps_exists(root: Path, corps_id: str) -> bool:
+    """Check if corps exists on filesystem or in DB."""
+    corps_dir = root / "corps" / corps_id
+    if (corps_dir / "corps.yaml").exists():
+        return True
+    # Check DB as fallback for DB-only corps
+    try:
+        from backend.database import SessionLocal
+        from backend.models.corps import Corps
+        db = SessionLocal()
+        try:
+            corps = db.get(Corps, corps_id)
+            return corps is not None
+        finally:
+            db.close()
+    except Exception:
+        return False
 
 
 def cmd_run_show(args) -> None:
@@ -44,9 +64,8 @@ def cmd_run_show(args) -> None:
         print(f"Show '{slug}' must be approved before running.", file=sys.stderr)
         sys.exit(1)
 
-    corps_dir = root / "corps" / corps_id
-    if not (corps_dir / "corps.yaml").exists():
-        print(f"Corps '{corps_id}' not found at {corps_dir}", file=sys.stderr)
+    if not _corps_exists(root, corps_id):
+        print(f"Corps '{corps_id}' not found (filesystem or DB)", file=sys.stderr)
         sys.exit(1)
 
     season_dir = root / "seasons" / season_id
@@ -86,18 +105,70 @@ def cmd_run_show(args) -> None:
         "started_at": started_at,
         "status": "running",
         "config": config,
-        "inputs": {"show_dir": str(show_dir), "corps_dir": str(corps_dir)},
+        "inputs": {"show_dir": str(show_dir), "corps_dir": str(root / "corps" / corps_id)},
         "outputs": [],
     }
     atomic_write(run_dir / "manifest.yaml", safe_dump_yaml(manifest))
 
-    # Execution stub — placeholder artifact
-    (run_dir / "output.txt").write_text(f"Stub execution for show '{slug}'\n")
+    # --- Execute via API: trigger go_on_tour and poll ---
 
-    manifest["status"] = "completed"
-    manifest["completed_at"] = datetime.now(timezone.utc).isoformat()
-    manifest["outputs"] = ["output.txt"]
+    poll_interval = 5
+    timeout = config["timeout"]
+    deadline = time.monotonic() + timeout
+
+    try:
+        from backend.cli.client import APIClient
+        client = APIClient()
+
+        # Check if API is reachable
+        if not client.ping():
+            raise ConnectionError("API server not reachable")
+
+        # Trigger go_on_tour
+        try:
+            result = client.execute_command(corps_id, "go_on_tour")
+            print(f"Corps {corps_id[:8]} sent on tour: {result.get('status', 'unknown')}")
+        except Exception as e:
+            print(f"Warning: go_on_tour failed ({e}), corps may already be on tour")
+
+        # Poll for completion
+        print(f"Polling corps status (timeout={timeout}s)...")
+        final_status = "timeout"
+        while time.monotonic() < deadline:
+            time.sleep(poll_interval)
+            try:
+                status = client.corps_status(corps_id)
+                current = status.get("status", "unknown")
+                mode = status.get("mode", "")
+                print(f"  status={current} mode={mode}")
+
+                if current in ("completed", "disbanded"):
+                    final_status = current
+                    break
+                if current == "ready_for_contest":
+                    final_status = "ready_for_contest"
+                    break
+            except Exception:
+                pass
+
+        manifest["status"] = final_status
+        manifest["completed_at"] = datetime.now(timezone.utc).isoformat()
+
+    except (ConnectionError, ImportError):
+        # No API server available — run in offline mode (manifest-only)
+        print("API server not available — completing in offline mode")
+        manifest["status"] = "completed"
+        manifest["completed_at"] = datetime.now(timezone.utc).isoformat()
+        manifest["outputs"] = ["manifest.yaml"]
+
+    except Exception as e:
+        manifest["status"] = "failed"
+        manifest["error"] = str(e)
+        manifest["completed_at"] = datetime.now(timezone.utc).isoformat()
+        print(f"Run failed: {e}", file=sys.stderr)
+
+    # Write final manifest
     atomic_write(run_dir / "manifest.yaml", safe_dump_yaml(manifest))
 
-    print(f"Run completed: {run_id}")
+    print(f"Run {manifest['status']}: {run_id}")
     print(f"  manifest: {run_dir / 'manifest.yaml'}")

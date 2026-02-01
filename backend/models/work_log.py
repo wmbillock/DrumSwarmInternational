@@ -10,6 +10,21 @@ from sqlalchemy.orm import Mapped, mapped_column
 from backend.database import Base
 
 
+class WorkLogEventType:
+    """Standard event type constants for structured work logging."""
+    AGENT_START = "agent_start"
+    AGENT_COMPLETE = "agent_complete"
+    AGENT_FAIL = "agent_fail"
+    TOOL_CALL = "tool_call"
+    TOOL_SUCCESS = "tool_success"
+    TOOL_ERROR = "tool_error"
+    LLM_REQUEST = "llm_request"
+    LLM_RESPONSE = "llm_response"
+    HANDOFF_SENT = "handoff_sent"
+    HANDOFF_RECEIVED = "handoff_received"
+    DECISION_POINT = "decision_point"
+
+
 class WorkLog(Base):
     __tablename__ = "work_logs"
 

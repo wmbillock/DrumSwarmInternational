@@ -88,17 +88,17 @@ main() {
     acquire_lock
 
     # Health check: verify backend is reachable
-    if ! curl -sf --max-time 5 "${BACKEND_URL}/api/system-health" > /dev/null 2>&1; then
+    if ! curl -sf --max-time 5 "${BACKEND_URL}/api/v1/system/health" > /dev/null 2>&1; then
         error_exit "Backend unreachable at ${BACKEND_URL}. Aborting tick."
     fi
     log "Backend reachable at ${BACKEND_URL}"
 
     # Execute system-wide tick
-    log "Calling POST ${BACKEND_URL}/api/metronome/tick ..."
+    log "Calling POST ${BACKEND_URL}/api/v1/metronome/tick ..."
     TICK_RESPONSE=$(curl -sf --max-time 120 \
         -X POST \
         -H "Content-Type: application/json" \
-        "${BACKEND_URL}/api/metronome/tick" 2>&1) || {
+        "${BACKEND_URL}/api/v1/metronome/tick" 2>&1) || {
         error_exit "System tick API call failed: ${TICK_RESPONSE}"
     }
 
@@ -204,7 +204,7 @@ for corps in response.get('corps', []):
         log('WARN', f"  {len(stalled)} stalled reps detected — issuing resume-hut")
         try:
             req = urllib.request.Request(
-                f'{backend_url}/api/corps/{cid}/command',
+                f'{backend_url}/api/v1/corps/{cid}/command',
                 data=json.dumps({'command': 'resume_hut'}).encode(),
                 headers={'Content-Type': 'application/json'},
                 method='POST',

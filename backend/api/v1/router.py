@@ -5,6 +5,7 @@ HTTP ↔ service calls and enforce slug/id validation.
 """
 
 import hashlib
+import json
 import os
 import re
 import uuid
@@ -34,9 +35,14 @@ def _get_root() -> Path:
 def _validate_id(value: str, label: str = "id") -> None:
     """Reject path-traversal attempts and non-slug characters."""
     if ".." in value or "/" in value or "\\" in value:
-        raise HTTPException(400, f"Invalid {label}")
+        raise HTTPException(400, f"Invalid {label}: must not contain path separators")
+    if not value:
+        raise HTTPException(400, f"Invalid {label}: must not be empty")
     if not re.match(r"^[a-zA-Z0-9][a-zA-Z0-9._-]*$", value):
-        raise HTTPException(400, f"Invalid {label}")
+        raise HTTPException(
+            400,
+            f"Invalid {label}: '{value}' must start with a letter or digit and contain only letters, digits, dots, underscores, or hyphens",
+        )
 
 
 # =========================================================================
@@ -704,6 +710,7 @@ def v1_list_threads():
             "slug": d.name,
             "status": status.get("status", "unknown"),
             "has_spec": (d / "spec.md").exists(),
+            "summary": status.get("summary", ""),
         })
     return threads
 
@@ -742,20 +749,27 @@ def v1_get_thread_messages(slug: str):
 
 _DESIGN_ROLE_PROMPTS = {
     "music_writer": (
-        "You are the Music Arranger. Pitch a concrete musical idea in 1-2 sentences. "
-        "Name keys, tempos, instruments, dynamics. Don't ask questions — propose."
+        "You are the Music Arranger — the person who hears a director say 'I want something epic' "
+        "and comes back with keys, tempos, and a brass book. Talk like a colleague in a planning "
+        "meeting, not a spec document. When the director is vague, pitch a specific idea "
+        "('What about a ballad in Db at 72 bpm?') and let them react."
     ),
     "drill_writer": (
-        "You are the Drill Designer. Pitch a concrete visual idea in 1-2 sentences. "
-        "Name formations, transitions, staging. Don't ask questions — propose."
+        "You are the Drill Designer — you think in formations, transitions, and spatial flow. "
+        "Talk like you're sketching on a whiteboard with the director, not narrating a manual. "
+        "When something is vague, propose a concrete visual ('Company front into a pinwheel "
+        "at the brass hit?') and let the director react."
     ),
     "choreographer": (
-        "You are the Guard Choreographer. Pitch a concrete guard idea in 1-2 sentences. "
-        "Name equipment, tosses, choreographic moments. Don't ask questions — propose."
+        "You are the Guard Choreographer — you live in the world of silk, sabre, and movement. "
+        "Talk like a creative partner brainstorming in a gym, not writing a rubric. "
+        "When the director is vague, propose something specific ('Triple on the downbeat of "
+        "measure 16, rifle exchange into the closer?') and let them steer."
     ),
     "program_coordinator": (
-        "You are the Program Coordinator (lead designer). Synthesize the director's input "
-        "into design direction. Be brief — 1-2 sentences. Only ask ONE question if truly needed."
+        "You are the Program Coordinator — the person who keeps the whole show coherent. "
+        "You track what's decided vs. what's still foggy, and you push for the details agents "
+        "will need. Talk like a lead designer in a production meeting: direct, practical, no fluff."
     ),
 }
 
@@ -766,20 +780,45 @@ _DESIGN_ROLE_DISPLAY = {
     "program_coordinator": "Program Coordinator",
 }
 
-_DESIGN_SYSTEM_TEMPLATE = """You are a DCI show design staff member. Be BRIEF — 1-2 sentences max.
+_DESIGN_SYSTEM_TEMPLATE = """You're on the design staff for show "{slug}". Have a natural conversation with the director.
 
-ROLE: {role_prompt}
-SHOW: {slug}
-CURRENT SPEC: {spec_content}
+{role_prompt}
 
-RULES:
-- Contribute a SPECIFIC creative idea. No fluff, no summaries.
-- Do NOT ask questions unless absolutely critical. Propose, don't interrogate.
-- Build on what exists. If the spec already covers your area, refine rather than restart.
-- One idea per response. Be punchy.
+WHAT YOU KNOW SO FAR (the Brief):
+{spec_content}
+
+You're working toward two things:
+- A **Brief** (the spec) with enough detail that agents can build from it
+- A **Swarm Prompt** that tells the agent swarm exactly what to do
+
+HOW TO TALK:
+- 2-4 sentences, like a colleague in a planning meeting
+- If the director is vague, pitch a specific idea and let them react
+- Build on what's already decided — don't restart from scratch
+- When your area is solid, suggest Swarm Prompt language for it
+- Never recap what the director just said
 """
 
-_PC_MARSHAL_TEMPLATE = """You are the Program Coordinator for show "{slug}".
+_PC_MARSHAL_TEMPLATE = """You're the Program Coordinator for "{slug}".
+
+Here's the Brief so far:
+{spec_content}
+
+Recent conversation:
+{notes_content}
+
+Director just said: "{user_message}"
+
+Respond in 2-4 sentences. Pick ONE move:
+- Turn their input into a concrete Brief update (name the section, state the detail)
+- Call out a section that's too vague for agents and propose specific language
+- If the Brief is solid, draft Swarm Prompt language
+- Ask ONE question only if you're genuinely stuck
+
+Don't recap what they said. Be direct about what's ready and what's not.
+"""
+
+_SPEC_UPDATE_TEMPLATE = """Update the show spec (Brief) based on the design conversation.
 
 CURRENT SPEC:
 {spec_content}
@@ -787,33 +826,22 @@ CURRENT SPEC:
 RECENT CONVERSATION:
 {notes_content}
 
-Director just said: "{user_message}"
+MANDATORY SECTIONS (every spec must have these):
+- ## Show Concept
+- ## Musical Design
+- ## Visual Design
+- ## Guard Design
+- ## General Effect
+- ## Constraints
+- ## Deliverables
+- ## Swarm Prompt
 
-Respond in 1-2 sentences. Do ONE of these:
-- Synthesize their input into a clear design decision
-- Build on their idea with a concrete next step
-- Only ask a question if you genuinely can't proceed without it (max 1 question)
-
-Do NOT recap what they said. Do NOT list what's still needed. Be action-oriented.
-"""
-
-_SPEC_UPDATE_TEMPLATE = """You are updating the show spec based on the design discussion.
-
-CURRENT SPEC:
-{spec_content}
-
-RECENT DESIGN CONVERSATION:
-{notes_content}
-
-REQUIRED SECTIONS:
-## Show Concept, ## Musical Design, ## Visual Design, ## Guard Design, ## General Effect, ## Deliverables, ## Evaluation Rubric
-
-Write the COMPLETE updated spec in markdown. Incorporate ALL design decisions from the conversation.
+Write the COMPLETE updated spec in markdown.
 - Keep existing content that's still valid
-- Add new sections for decisions just made
-- Fill in details from the discussion
+- Incorporate all design decisions from the conversation
 - Use professional DCI show design language
-- If a section hasn't been discussed yet, include a brief placeholder like "TBD — awaiting design input"
+- If a section hasn't been discussed, write "TBD — awaiting design input"
+- ## Swarm Prompt: synthesize decided sections into an actionable prompt for the agent swarm. Note what's still missing.
 - Output ONLY the spec markdown, no preamble
 """
 
@@ -1056,6 +1084,48 @@ def v1_publish_thread(slug: str):
 
     update_status(show_dir, "published")
     return {"status": "published"}
+
+
+@router.post("/design/threads/{slug}/generate-summary")
+def v1_generate_summary(slug: str):
+    """Generate a humorous 5-6 word summary for a show card."""
+    show_dir = _show_dir(slug)
+    from backend.services.show_persistence import read_spec, write_summary
+    from backend.services.llm_client import LLMMessage
+    from backend.models.agent_definition import ModelTier
+
+    spec = read_spec(show_dir)
+    if not spec.strip():
+        raise HTTPException(400, "No spec to summarize")
+
+    llm = _get_llm_client()
+    if not llm:
+        summary = slug.replace("-", " ").title()
+        write_summary(show_dir, summary)
+        return {"summary": summary}
+
+    system = (
+        "You write witty show summaries. Write exactly 5-6 words. "
+        "Think movie tagline meets inside joke. No quotes, no punctuation at the end. "
+        "Examples: 'Brass goes brrr with feelings', 'Guard throws things really well', "
+        "'Existential dread but make it jazz'."
+    )
+    try:
+        resp = llm.chat(
+            messages=[
+                LLMMessage(role="system", content=system),
+                LLMMessage(role="user", content=f"Write a summary for this show:\n\n{spec[:2000]}"),
+            ],
+            model_tier=ModelTier.HAIKU,
+        )
+        summary = (resp.content or "").strip().strip('"').strip("'")[:80]
+        if not summary:
+            summary = slug.replace("-", " ").title()
+    except Exception:
+        summary = slug.replace("-", " ").title()
+
+    write_summary(show_dir, summary)
+    return {"summary": summary}
 
 
 @router.post("/design/threads/{slug}/approve")
@@ -1905,6 +1975,43 @@ def v1_get_corps_breakdown(competition_id: str, corps_id: str):
         "final_score": data.get("final_score", 0.0),
         "commentary": commentary,
     }
+
+
+@router.get("/competitions/{competition_id}/reports/{corps_id}")
+def v1_get_judge_report(competition_id: str, corps_id: str):
+    """Get automated judge report for a corps in a competition."""
+    _validate_id(corps_id, "corps_id")
+    from backend.services.scoring_service import generate_judge_report
+    db = _get_db_session()
+    try:
+        report = generate_judge_report(db, corps_id, competition_id)
+        return report
+    finally:
+        db.close()
+
+
+@router.post("/competitions/{competition_id}/reports/generate-all")
+def v1_generate_all_reports(competition_id: str):
+    """Generate judge reports for all corps in a competition."""
+    root = _get_root()
+    season_id, show_slug = _parse_competition_id(competition_id, root)
+    perf_dir = root / "seasons" / season_id / "performances"
+
+    if not perf_dir.exists():
+        return {"reports": [], "count": 0}
+
+    from backend.services.scoring_service import generate_judge_report
+    db = _get_db_session()
+    try:
+        reports = []
+        for corps_dir in perf_dir.iterdir():
+            if corps_dir.is_dir():
+                corps_id = corps_dir.name
+                report = generate_judge_report(db, corps_id, competition_id)
+                reports.append(report)
+        return {"reports": reports, "count": len(reports)}
+    finally:
+        db.close()
 
 
 class ContestEvaluateRequest(BaseModel):
@@ -3272,6 +3379,79 @@ def v1_corps_work_log(corps_id: str, limit: int = 100, event_type: Optional[str]
         db.close()
 
 
+@router.get("/corps/{corps_id}/work-log/analysis")
+def v1_work_log_analysis(corps_id: str):
+    """Aggregate work log analysis: event distribution, tool usage, failure patterns."""
+    _validate_id(corps_id, "corps_id")
+    from backend.models.work_log import WorkLog
+    from sqlalchemy import func
+
+    db = _get_db_session()
+    try:
+        # Event type distribution
+        event_counts = (
+            db.query(WorkLog.event_type, func.count(WorkLog.id))
+            .filter(WorkLog.corps_id == corps_id)
+            .group_by(WorkLog.event_type)
+            .all()
+        )
+
+        # Tool usage counts (from details JSON containing "tool" key)
+        tool_logs = (
+            db.query(WorkLog.details)
+            .filter(WorkLog.corps_id == corps_id, WorkLog.event_type.in_(["tool_call", "tool_success", "tool_error"]))
+            .all()
+        )
+        tool_usage: dict[str, dict] = {}
+        for (details_str,) in tool_logs:
+            if not details_str:
+                continue
+            try:
+                details = json.loads(details_str) if details_str.startswith("{") else {}
+            except (json.JSONDecodeError, TypeError):
+                details = {}
+            tool_name = details.get("tool", "unknown")
+            if tool_name not in tool_usage:
+                tool_usage[tool_name] = {"calls": 0, "successes": 0, "errors": 0}
+            tool_usage[tool_name]["calls"] += 1
+            if details.get("success"):
+                tool_usage[tool_name]["successes"] += 1
+            elif details.get("success") is False:
+                tool_usage[tool_name]["errors"] += 1
+
+        # Failure patterns (error details)
+        failures = (
+            db.query(WorkLog.role, WorkLog.details)
+            .filter(WorkLog.corps_id == corps_id, WorkLog.event_type.in_(["agent_fail", "tool_error"]))
+            .order_by(WorkLog.timestamp.desc())
+            .limit(20)
+            .all()
+        )
+        failure_details = []
+        for role, details_str in failures:
+            try:
+                details = json.loads(details_str) if details_str and details_str.startswith("{") else {}
+            except (json.JSONDecodeError, TypeError):
+                details = {}
+            failure_details.append({"role": role, "error": details.get("error", str(details_str)[:200])})
+
+        # Total count
+        total = db.query(func.count(WorkLog.id)).filter(WorkLog.corps_id == corps_id).scalar()
+
+        return {
+            "corps_id": corps_id,
+            "total_events": total,
+            "event_distribution": {et: count for et, count in event_counts},
+            "tool_usage": tool_usage,
+            "recent_failures": failure_details,
+            "failure_rate": (
+                sum(1 for f in failure_details) / max(total, 1) * 100
+            ),
+        }
+    finally:
+        db.close()
+
+
 @router.get("/corps/{corps_id}/roster")
 def v1_corps_roster(corps_id: str):
     """Get agent roster for a corps."""
@@ -3585,6 +3765,20 @@ def v1_get_segment_children(segment_id: str):
         db.close()
 
 
+@router.get("/segments/{segment_id}/reps")
+def v1_get_reps_for_segment(segment_id: str):
+    """Get reps for a specific segment."""
+    from backend.services.rep_service import get_reps_for_segment
+
+    db = _get_db_session()
+    try:
+        reps = get_reps_for_segment(db, segment_id)
+        return [{"id": r.id, "status": r.status.value, "assigned_to": r.assigned_to,
+                 "result": r.result, "error": r.error} for r in reps]
+    finally:
+        db.close()
+
+
 @router.get("/segments/{segment_id}/tree")
 def v1_get_segment_tree(segment_id: str):
     """Get full segment tree with reps."""
@@ -3853,9 +4047,16 @@ def v1_list_shows():
 def v1_create_show(payload: dict):
     """Create a new show."""
     from backend.services.show_persistence import create_show
-    slug = payload.get("slug") or payload.get("title", "untitled").lower().replace(" ", "-")
-    result = create_show(slug, payload.get("title", slug), payload.get("description", ""))
-    return result
+    from pathlib import Path
+    title = payload.get("title", "untitled")
+    description = payload.get("description", "")
+    show_path = create_show(title, Path("shows"))
+    slug = show_path.name
+    # Write description to spec if provided
+    if description:
+        from backend.services.show_persistence import write_spec
+        write_spec(show_path, f"# {title}\n\n{description}\n")
+    return {"slug": slug, "title": title, "status": "draft"}
 
 
 @router.post("/shows/{slug}/activate")
@@ -4116,7 +4317,7 @@ def v1_get_admin_corps():
             "roster": [{
                 "id": a.id,
                 "role": a.role,
-                "name": a.name,
+                "name": a.nickname or a.role,
             } for a in agents],
         }
     finally:
@@ -4236,5 +4437,868 @@ def v1_session_activity(session_id: str):
                 "created_at": w.created_at.isoformat() if w.created_at else None,
             } for w in logs],
         }
+    finally:
+        db.close()
+
+
+# =========================================================================
+# PORTED LEGACY ENDPOINTS (Phase 1)
+# =========================================================================
+
+# ---------------------------------------------------------------------------
+# Corps Commands (ported from legacy corps_routes.py)
+# ---------------------------------------------------------------------------
+
+CORPS_COMMANDS = {
+    "resume_hut": {"label": "Resume, Hut!", "description": "Wake all agents and begin/resume work", "category": "control"},
+    "attention": {"label": "Attention!", "description": "All agents pause and report current status", "category": "control"},
+    "at_ease": {"label": "At Ease", "description": "Finish current tasks then idle", "category": "control"},
+    "dismissed": {"label": "Dismissed", "description": "Stop all agents, disband the corps", "category": "control"},
+    "basics": {"label": "Basics", "description": "Switch to basics rehearsal mode (manual override)", "category": "rehearsal"},
+    "sectionals": {"label": "Sectionals", "description": "Switch to sectionals rehearsal mode (manual override)", "category": "rehearsal"},
+    "full_ensemble": {"label": "Full Ensemble", "description": "Switch to full ensemble rehearsal (manual override)", "category": "rehearsal"},
+    "run_through": {"label": "Run Through", "description": "Full run-through rehearsal mode (manual override)", "category": "rehearsal"},
+    "go_on_tour": {"label": "Go On Tour", "description": "Autonomous execution — agents work independently", "category": "execution"},
+    "return_to_camps": {"label": "Return to Camps", "description": "Back to planning phase", "category": "execution"},
+    "metronome_tick": {"label": "Metronome Tick", "description": "Manual metronome tick — reclaim stale work", "category": "system"},
+    "merge_check": {"label": "Merge Check", "description": "Check and merge completed work", "category": "system"},
+}
+
+
+@router.get("/corps-commands")
+def v1_list_corps_commands():
+    """List all available corps commands."""
+    return CORPS_COMMANDS
+
+
+class CorpsCommandRequest(BaseModel):
+    command: str
+
+
+@router.post("/corps/{corps_id}/command")
+async def v1_execute_corps_command(corps_id: str, data: CorpsCommandRequest):
+    """Execute a corps command."""
+    from backend.models.corps import Corps, CorpsStatus, RehearsalMode
+    from backend.services.corps_service import (
+        go_on_tour, return_to_camps, set_rehearsal_mode, disband_corps, merge_monitor_check, CorpsError,
+    )
+    from backend.tools.metronome import tick
+    from backend.api.app import get_task_manager, manager
+
+    db = _get_db_session()
+    try:
+        corps = db.get(Corps, corps_id)
+        if not corps:
+            raise HTTPException(404, "Corps not found")
+
+        cmd = data.command
+        if cmd not in CORPS_COMMANDS:
+            raise HTTPException(400, f"Unknown command: {cmd}")
+
+        result = {"command": cmd, "corps_id": corps_id, "status": "ok", "detail": ""}
+        tm = get_task_manager()
+
+        if cmd == "resume_hut":
+            if tm:
+                from backend.models.agent_session import AgentSession, SessionStatus
+                from backend.models.agent_definition import AgentDefinition
+                unique_roles = (
+                    db.query(AgentDefinition.role)
+                    .join(AgentSession)
+                    .filter(AgentSession.corps_id == corps_id)
+                    .distinct()
+                    .all()
+                )
+                woken = 0
+                for (role,) in unique_roles:
+                    sid = tm.get_session_for_role(db, corps_id, role)
+                    if sid and not tm.is_active(sid):
+                        tm.start_agent(
+                            session_id=sid,
+                            task_description=(
+                                f"RESUME HUT! The corps has been called to attention and work is resuming. "
+                                f"Check your current assignments and continue working. Corps ID: {corps_id}"
+                            ),
+                            corps_id=corps_id,
+                        )
+                        woken += 1
+                result["detail"] = f"Woke {woken} agents"
+            await manager.broadcast(corps_id, {
+                "type": "command", "command": "resume_hut",
+                "content": "Resume, Hut! All agents resuming work.",
+            })
+
+        elif cmd == "attention":
+            if tm:
+                ed_session = tm.get_session_for_role(db, corps_id, "executive_director")
+                if ed_session and not tm.is_active(ed_session):
+                    tm.start_agent(
+                        session_id=ed_session,
+                        task_description=(
+                            f"ATTENTION! The director has called the corps to attention. "
+                            f"Report the current status of all work in progress. Corps ID: {corps_id}. "
+                            f"Check all segments and reps, then provide a full status report."
+                        ),
+                        corps_id=corps_id,
+                    )
+            await manager.broadcast(corps_id, {
+                "type": "command", "command": "attention",
+                "content": "Attention! Status report requested.",
+            })
+            result["detail"] = "Status report requested from ED"
+
+        elif cmd == "at_ease":
+            corps.status = CorpsStatus.WINTER_CAMPS
+            db.commit()
+            await manager.broadcast(corps_id, {
+                "type": "command", "command": "at_ease",
+                "content": "At ease. Returning to Winter Camps. Finishing current tasks, then standing by.",
+            })
+            result["detail"] = "Corps returned to Winter Camps"
+
+        elif cmd == "dismissed":
+            try:
+                disband_corps(db, corps_id)
+                await manager.broadcast(corps_id, {
+                    "type": "command", "command": "dismissed",
+                    "content": "Corps dismissed. All agents standing down.",
+                })
+                result["detail"] = "Corps disbanded"
+            except CorpsError as e:
+                raise HTTPException(400, str(e))
+
+        elif cmd in ("basics", "sectionals", "full_ensemble", "run_through"):
+            try:
+                mode = RehearsalMode(cmd)
+                set_rehearsal_mode(db, corps_id, mode)
+                await manager.broadcast(corps_id, {
+                    "type": "command", "command": cmd,
+                    "content": f"Rehearsal mode set to: {cmd.replace('_', ' ')}",
+                })
+                result["detail"] = f"Rehearsal mode: {cmd}"
+            except (ValueError, CorpsError) as e:
+                raise HTTPException(400, str(e))
+
+        elif cmd == "go_on_tour":
+            try:
+                go_on_tour(db, corps_id)
+                await manager.broadcast(corps_id, {
+                    "type": "command", "command": "go_on_tour",
+                    "content": "On Tour — autonomous execution active.",
+                })
+                result["detail"] = "On Tour"
+            except CorpsError as e:
+                raise HTTPException(400, str(e))
+
+        elif cmd == "return_to_camps":
+            try:
+                return_to_camps(db, corps_id)
+                await manager.broadcast(corps_id, {
+                    "type": "command", "command": "return_to_camps",
+                    "content": "Returned to Winter Camps — planning phase.",
+                })
+                result["detail"] = "Returned to Winter Camps"
+            except CorpsError as e:
+                raise HTTPException(400, str(e))
+
+        elif cmd == "metronome_tick":
+            tick_result = tick(db, corps_id)
+            await manager.broadcast(corps_id, {
+                "type": "metronome_tick", "corps_id": corps_id,
+                "checked": tick_result.checked, "reclaimed": tick_result.reclaimed,
+            })
+            result["detail"] = f"Checked {tick_result.checked}, reclaimed {tick_result.reclaimed}"
+
+        elif cmd == "merge_check":
+            merge_result = merge_monitor_check(db, corps_id)
+            await manager.broadcast(corps_id, {
+                "type": "merge_check", "corps_id": corps_id,
+                "merged": merge_result.merged, "conflicts": merge_result.conflicts,
+            })
+            result["detail"] = f"Merged {merge_result.merged}, conflicts {merge_result.conflicts}"
+
+        return result
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Corps Theme
+# ---------------------------------------------------------------------------
+
+class CorpsThemeUpdateRequest(BaseModel):
+    theme_id: Optional[str] = None
+    mascot: Optional[str] = None
+    uniform_concept: Optional[str] = None
+
+
+@router.get("/corps/{corps_id}/theme")
+def v1_get_corps_theme(corps_id: str):
+    from backend.models.corps import Corps
+    db = _get_db_session()
+    try:
+        corps = db.get(Corps, corps_id)
+        if not corps:
+            raise HTTPException(404, "Corps not found")
+        return {"corps_id": corps.id, "theme_id": corps.theme_id,
+                "mascot": corps.mascot, "uniform_concept": corps.uniform_concept}
+    finally:
+        db.close()
+
+
+@router.put("/corps/{corps_id}/theme")
+def v1_update_corps_theme(corps_id: str, data: CorpsThemeUpdateRequest):
+    from backend.services.corps_service import update_corps_theme, CorpsError
+    db = _get_db_session()
+    try:
+        corps = update_corps_theme(db, corps_id, theme_id=data.theme_id,
+                                   mascot=data.mascot, uniform_concept=data.uniform_concept)
+        return {"corps_id": corps.id, "theme_id": corps.theme_id,
+                "mascot": corps.mascot, "uniform_concept": corps.uniform_concept}
+    except CorpsError as e:
+        raise HTTPException(404, str(e))
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Corps Progression & Rehearsal
+# ---------------------------------------------------------------------------
+
+@router.get("/corps/{corps_id}/progression")
+def v1_get_progression(corps_id: str):
+    """Current rehearsal mode, milestones, and what's needed to advance."""
+    from backend.models.corps import Corps, RehearsalMode
+    from backend.services.rehearsal_progression import (
+        _basics_met, _sectionals_met, _full_ensemble_met, _next_mode,
+    )
+    db = _get_db_session()
+    try:
+        corps = db.get(Corps, corps_id)
+        if not corps:
+            raise HTTPException(404, "Corps not found")
+        current = corps.rehearsal_mode
+        checks = {
+            RehearsalMode.BASICS: ("basics_met", _basics_met),
+            RehearsalMode.SECTIONALS: ("sectionals_met", _sectionals_met),
+            RehearsalMode.FULL_ENSEMBLE: ("full_ensemble_met", _full_ensemble_met),
+        }
+        milestones = {}
+        for mode, (key, fn) in checks.items():
+            milestones[key] = fn(db, corps_id)
+        return {
+            "corps_id": corps_id,
+            "status": corps.status.value,
+            "current_mode": current.value if current else None,
+            "next_mode": _next_mode(current).value if current and _next_mode(current) else None,
+            "milestones": milestones,
+        }
+    finally:
+        db.close()
+
+
+class RehearsalModeSetRequest(BaseModel):
+    mode: str
+
+
+@router.post("/corps/{corps_id}/rehearsal-mode")
+def v1_set_rehearsal_mode(corps_id: str, data: RehearsalModeSetRequest):
+    from backend.models.corps import RehearsalMode
+    from backend.services.corps_service import set_rehearsal_mode, CorpsError
+    db = _get_db_session()
+    try:
+        mode = RehearsalMode(data.mode)
+        corps = set_rehearsal_mode(db, corps_id, mode)
+        return {"id": corps.id, "rehearsal_mode": corps.rehearsal_mode.value}
+    except (ValueError, CorpsError) as e:
+        raise HTTPException(400, str(e))
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Corps Metrics, Evaluate, Season Transition, Ageouts, Merge Check
+# ---------------------------------------------------------------------------
+
+@router.get("/corps/{corps_id}/metrics")
+def v1_corps_metrics(corps_id: str):
+    """Get aggregate metrics for a corps."""
+    from backend.services.metrics_collector import collect_corps_metrics
+    import dataclasses
+    db = _get_db_session()
+    try:
+        metrics = collect_corps_metrics(db, corps_id)
+        return dataclasses.asdict(metrics)
+    finally:
+        db.close()
+
+
+@router.post("/corps/{corps_id}/evaluate")
+def v1_evaluate_corps(corps_id: str):
+    """Run post-show evaluation on all performers in a corps."""
+    from backend.services.evaluation_service import evaluate_corps
+    db = _get_db_session()
+    try:
+        return evaluate_corps(db, corps_id)
+    finally:
+        db.close()
+
+
+@router.post("/corps/{corps_id}/season-transition")
+def v1_season_transition(corps_id: str):
+    """Run end-of-season lifecycle: age performers, check ageouts."""
+    from backend.services.lifecycle_manager import conduct_season_transition
+    db = _get_db_session()
+    try:
+        return conduct_season_transition(db, corps_id)
+    finally:
+        db.close()
+
+
+@router.get("/corps/{corps_id}/ageouts")
+def v1_get_ageouts(corps_id: str):
+    """Get performers approaching ageout for this corps."""
+    from backend.services.lifecycle_manager import check_ageouts
+    db = _get_db_session()
+    try:
+        ageouts = check_ageouts(db)
+        return [{"id": p.id, "name": p.name, "age": p.age, "role_type": p.role_type} for p in ageouts]
+    finally:
+        db.close()
+
+
+@router.post("/corps/{corps_id}/merge-check")
+def v1_merge_check(corps_id: str):
+    from backend.services.corps_service import merge_monitor_check
+    db = _get_db_session()
+    try:
+        result = merge_monitor_check(db, corps_id)
+        return {
+            "checked": result.checked,
+            "merged": result.merged,
+            "conflicts": result.conflicts,
+            "merged_segment_ids": result.merged_segment_ids,
+            "conflict_segment_ids": result.conflict_segment_ids,
+        }
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Heartbeat & System Metronome Tick
+# ---------------------------------------------------------------------------
+
+@router.post("/heartbeat")
+async def v1_heartbeat():
+    """External heartbeat endpoint for cron-based wakeup."""
+    import json as _json
+    from pathlib import Path as _Path
+    from backend.services.metronome_heartbeat import heartbeat_tick
+    from backend.tools.metronome_orchestrator import gather_corps_health, get_active_corps
+    from datetime import datetime as _dt, timezone as _tz
+
+    db = _get_db_session()
+    try:
+        tick_timestamp = _dt.now(_tz.utc)
+        brass_result = heartbeat_tick(db)
+
+        alerts = []
+        try:
+            active_corps = get_active_corps(db)
+            corps_health_list = []
+            for corps in active_corps:
+                try:
+                    health = gather_corps_health(db, corps)
+                    if not health.ed_responding and not health.pc_responding:
+                        alert = f"RED FLAG: Corps {health.corps_id[:8]} ({health.corps_name}) - No ED/PC response"
+                        alerts.append(alert)
+                    corps_health_list.append({
+                        "corps_id": health.corps_id,
+                        "corps_name": health.corps_name,
+                        "status": health.status,
+                        "rehearsal_mode": health.rehearsal_mode,
+                        "active_sessions": health.active_sessions,
+                        "completed_sessions": health.completed_sessions,
+                        "failed_sessions": health.failed_sessions,
+                        "stalled_reps": len(health.stalled_reps),
+                        "ed_responding": health.ed_responding,
+                        "pc_responding": health.pc_responding,
+                        "tick_duration_ms": health.tick_duration_ms,
+                    })
+                except Exception as e:
+                    alerts.append(f"Failed to gather health for corps {corps.id}: {e}")
+
+            visual_result = {"total_corps": len(active_corps), "corps_health": corps_health_list}
+        except Exception as e:
+            visual_result = {"total_corps": 0, "corps_health": [], "error": str(e)}
+            alerts.append(f"Failed to gather swarm status: {e}")
+
+        heartbeat_result = {
+            "status": "ok",
+            "timestamp": brass_result["timestamp"],
+            "ten_hut_sent": brass_result["ten_hut"]["sent"],
+            "resume_hut_sent": brass_result["resume_hut"]["sent"],
+            "corps_pinged": brass_result["ten_hut"]["corps"],
+            "stalled_corps": brass_result["resume_hut"]["stalled_corps"],
+            "swarm_status": visual_result,
+            "errors": brass_result["errors"] + alerts,
+        }
+
+        # Write structured logs
+        try:
+            log_dir = _Path("logs/metronome")
+            log_dir.mkdir(parents=True, exist_ok=True)
+            timestamp_clean = tick_timestamp.isoformat().replace(":", "-").replace(".", "-")
+            json_log_path = log_dir / f"{timestamp_clean}.json"
+            with open(json_log_path, "w") as f:
+                _json.dump(heartbeat_result, f, indent=2)
+            if alerts:
+                alert_log_path = log_dir / "alerts.log"
+                with open(alert_log_path, "a") as f:
+                    for alert in alerts:
+                        f.write(f"[{tick_timestamp.isoformat()}] {alert}\n")
+        except Exception:
+            pass
+
+        return heartbeat_result
+    finally:
+        db.close()
+
+
+@router.post("/metronome/tick")
+def v1_metronome_system_tick():
+    """System-wide metronome tick."""
+    from backend.tools.metronome import tick
+    from backend.services.corps_service import merge_monitor_check
+    from backend.models.corps import Corps, CorpsStatus
+    from backend.models.agent_session import AgentSession, SessionStatus
+    from backend.models.agent_definition import AgentDefinition
+    from backend.models.rep import Rep, RepStatus
+    from backend.models.show import Show
+    from backend.models.segment import Segment
+    from datetime import datetime as _dt, timezone as _tz
+
+    STALLED_THRESHOLD_SECONDS = 300
+
+    db = _get_db_session()
+    try:
+        active_corps = (
+            db.query(Corps)
+            .filter(Corps.status.in_([CorpsStatus.WINTER_CAMPS, CorpsStatus.ON_TOUR]))
+            .all()
+        )
+        corps_results = []
+        for corps in active_corps:
+            met_result = tick(db, corps.id)
+            merge_result = merge_monitor_check(db, corps.id)
+
+            sessions = db.query(AgentSession).filter(AgentSession.corps_id == corps.id).all()
+            active_sessions = sum(1 for s in sessions if s.status == SessionStatus.ACTIVE)
+            completed_sessions = sum(1 for s in sessions if s.status == SessionStatus.COMPLETED)
+            failed_sessions = sum(1 for s in sessions if s.status == SessionStatus.FAILED)
+
+            show = db.query(Show).filter(Show.corps_id == corps.id).first()
+            reps: list = []
+            if show and show.segment_root_id:
+                def _collect_segment_ids(seg_id):
+                    ids = [seg_id]
+                    children = db.query(Segment).filter(Segment.parent_id == seg_id).all()
+                    for c in children:
+                        ids.extend(_collect_segment_ids(c.id))
+                    return ids
+                seg_ids = _collect_segment_ids(show.segment_root_id)
+                reps = db.query(Rep).filter(Rep.segment_id.in_(seg_ids)).all() if seg_ids else []
+
+            rep_counts = {
+                "pending": sum(1 for r in reps if r.status == RepStatus.PENDING),
+                "assigned": sum(1 for r in reps if r.status == RepStatus.ASSIGNED),
+                "in_progress": sum(1 for r in reps if r.status == RepStatus.IN_PROGRESS),
+                "completed": sum(1 for r in reps if r.status == RepStatus.COMPLETED),
+                "failed": sum(1 for r in reps if r.status == RepStatus.FAILED),
+            }
+
+            now = _dt.now(_tz.utc)
+            stalled_reps = []
+            for r in reps:
+                if r.status in (RepStatus.PENDING, RepStatus.ASSIGNED) and r.updated_at:
+                    idle_secs = (now - r.updated_at.replace(tzinfo=_tz.utc)).total_seconds()
+                    if idle_secs > STALLED_THRESHOLD_SECONDS:
+                        stalled_reps.append({
+                            "rep_id": r.id, "status": r.status.value,
+                            "idle_seconds": round(idle_secs),
+                            "last_updated": r.updated_at.isoformat(),
+                        })
+
+            staff_roles = ["executive_director", "program_coordinator", "brass_caption_head",
+                           "percussion_caption_head", "guard_caption_head", "visual_caption_head"]
+            liveness = {}
+            for role in staff_roles:
+                role_sessions = (
+                    db.query(AgentSession)
+                    .join(AgentDefinition, AgentSession.definition_id == AgentDefinition.id)
+                    .filter(AgentSession.corps_id == corps.id, AgentDefinition.role == role)
+                    .all()
+                )
+                liveness[role] = any(s.status == SessionStatus.ACTIVE for s in role_sessions)
+
+            corps_results.append({
+                "corps_id": corps.id, "corps_name": corps.name,
+                "corps_status": corps.status.value,
+                "rehearsal_mode": corps.rehearsal_mode.value if corps.rehearsal_mode else None,
+                "metronome": {
+                    "checked": met_result.checked, "reclaimed": met_result.reclaimed,
+                    "reclaimed_rep_ids": met_result.reclaimed_rep_ids,
+                    "idle_kicked": met_result.idle_kicked,
+                    "idle_kicked_rep_ids": met_result.idle_kicked_rep_ids,
+                    "watchdog_respawned": met_result.watchdog_respawned,
+                },
+                "merge": {"checked": merge_result.checked, "merged": merge_result.merged, "conflicts": merge_result.conflicts},
+                "sessions": {"active": active_sessions, "completed": completed_sessions, "failed": failed_sessions},
+                "reps": rep_counts, "stalled_reps": stalled_reps, "is_stalled": len(stalled_reps) > 0,
+                "liveness": liveness,
+            })
+
+        return {
+            "timestamp": _dt.now(_tz.utc).isoformat(),
+            "total_corps": len(active_corps),
+            "corps": corps_results,
+            "summary": {
+                "total_active_sessions": sum(r["sessions"]["active"] for r in corps_results),
+                "total_stalled_corps": sum(1 for r in corps_results if r["is_stalled"]),
+                "total_reclaimed": sum(r["metronome"]["reclaimed"] for r in corps_results),
+                "total_idle_kicked": sum(r["metronome"]["idle_kicked"] for r in corps_results),
+            },
+        }
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Segments & Reps (create/transition — ported from legacy)
+# ---------------------------------------------------------------------------
+
+class SegmentCreateRequest(BaseModel):
+    type: str
+    title: str
+    description: Optional[str] = None
+    parent_id: Optional[str] = None
+    caption: Optional[str] = None
+
+
+class RepCreateRequest(BaseModel):
+    segment_id: str
+
+
+class RepTransitionRequest(BaseModel):
+    new_status: str
+    assigned_to: Optional[str] = None
+    result: Optional[str] = None
+    error: Optional[str] = None
+
+
+@router.post("/segments")
+def v1_create_segment(data: SegmentCreateRequest):
+    from backend.models.segment import SegmentType
+    from backend.services.segment_service import create_segment, InvalidSegmentStructure
+    db = _get_db_session()
+    try:
+        coord = create_segment(
+            db, type=SegmentType(data.type), title=data.title,
+            description=data.description, parent_id=data.parent_id, caption=data.caption,
+        )
+        return {"id": coord.id, "type": coord.type.value, "title": coord.title, "status": coord.status.value}
+    except (ValueError, InvalidSegmentStructure) as e:
+        raise HTTPException(400, str(e))
+    finally:
+        db.close()
+
+
+@router.post("/reps")
+def v1_create_rep(data: RepCreateRequest):
+    from backend.services.rep_service import create_rep
+    db = _get_db_session()
+    try:
+        rep = create_rep(db, segment_id=data.segment_id)
+        return {"id": rep.id, "status": rep.status.value, "segment_id": rep.segment_id}
+    finally:
+        db.close()
+
+
+@router.post("/reps/{rep_id}/transition")
+def v1_transition_rep(rep_id: str, data: RepTransitionRequest):
+    from backend.models.rep import RepStatus
+    from backend.services.rep_service import transition_rep, InvalidRepTransition
+    db = _get_db_session()
+    try:
+        rep = transition_rep(
+            db, rep_id=rep_id, new_status=RepStatus(data.new_status),
+            assigned_to=data.assigned_to, result=data.result, error=data.error,
+        )
+        return {"id": rep.id, "status": rep.status.value}
+    except (ValueError, InvalidRepTransition) as e:
+        raise HTTPException(400, str(e))
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Scoring (ported from legacy)
+# ---------------------------------------------------------------------------
+
+class ScoreCreateRequest(BaseModel):
+    judge_type: str
+    value: float
+    box: int
+    rep_id: Optional[str] = None
+    segment_id: Optional[str] = None
+    feedback: Optional[str] = None
+
+
+@router.post("/scores")
+def v1_create_score(data: ScoreCreateRequest):
+    from backend.models.score import JudgeType
+    from backend.services.scoring_service import record_score, InvalidScore
+    db = _get_db_session()
+    try:
+        score = record_score(
+            db, corps_id="default", judge_type=JudgeType(data.judge_type),
+            value=data.value, box=data.box, rep_id=data.rep_id,
+            segment_id=data.segment_id, feedback=data.feedback,
+        )
+        return {"id": score.id, "value": score.value, "box": score.box}
+    except (ValueError, InvalidScore) as e:
+        raise HTTPException(400, str(e))
+    finally:
+        db.close()
+
+
+@router.get("/reps/{rep_id}/scores")
+def v1_get_scores_for_rep(rep_id: str):
+    from backend.services.scoring_service import get_scores_for_rep
+    db = _get_db_session()
+    try:
+        scores = get_scores_for_rep(db, rep_id)
+        return [{"id": s.id, "judge_type": s.judge_type.value, "value": s.value,
+                 "box": s.box, "feedback": s.feedback} for s in scores]
+    finally:
+        db.close()
+
+
+@router.get("/reps/{rep_id}/composite")
+def v1_get_composite(rep_id: str):
+    from backend.services.scoring_service import compute_composite
+    db = _get_db_session()
+    try:
+        result = compute_composite(db, corps_id="default", rep_id=rep_id)
+        return {
+            "raw_total": result.raw_total,
+            "penalties_total": result.penalties_total,
+            "final_score": result.final_score,
+            "needs_rework": result.needs_rework,
+            "needs_escalation": result.needs_escalation,
+        }
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Corps Mode Switch (ported — separate from PUT /corps/{id}/mode above)
+# ---------------------------------------------------------------------------
+
+class CorpsModeSwitchRequest(BaseModel):
+    mode: str
+
+
+@router.post("/corps/{corps_id}/mode")
+async def v1_switch_corps_mode(corps_id: str, data: CorpsModeSwitchRequest):
+    """Switch a corps to a new operational mode."""
+    from backend.models.corps import CorpsMode
+    from backend.services.mode_manager import switch_mode, ModeError
+    from backend.api.app import manager
+
+    db = _get_db_session()
+    try:
+        new_mode = CorpsMode(data.mode)
+        corps = switch_mode(db, corps_id, new_mode)
+        await manager.broadcast(corps_id, {
+            "type": "mode_switch", "corps_id": corps_id, "mode": new_mode.value,
+        })
+        return {"id": corps.id, "mode": corps.mode.value}
+    except ValueError:
+        raise HTTPException(400, f"Invalid mode: {data.mode}")
+    except ModeError as e:
+        raise HTTPException(400, str(e))
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Theme API (ported from legacy)
+# ---------------------------------------------------------------------------
+
+@router.get("/theme")
+def v1_get_theme():
+    from backend.config.theme import get_theme
+    theme = get_theme()
+    return {
+        "name": theme.name, "display_name": theme.display_name,
+        "org_unit": theme.org_unit, "org_unit_plural": theme.org_unit_plural,
+        "project": theme.project, "project_plural": theme.project_plural,
+        "work_levels": theme.work_levels, "work_item": theme.work_item,
+        "work_item_plural": theme.work_item_plural,
+        "execution_modes": theme.execution_modes, "admin_name": theme.admin_name,
+        "color_palette": theme.color_palette,
+        "commands": {
+            k: {"label": v.label, "description": v.description, "category": v.category}
+            for k, v in theme.commands.items()
+        },
+    }
+
+
+@router.get("/themes")
+def v1_list_themes():
+    from backend.config.theme import list_themes
+    return list_themes()
+
+
+# ---------------------------------------------------------------------------
+# Self-Improvement (ported from legacy)
+# ---------------------------------------------------------------------------
+
+class SelfImprovementProposalRequest(BaseModel):
+    definition_id: str
+    changes: dict
+    reason: str
+
+
+class ImprovementActionRequest(BaseModel):
+    approver_session_id: str
+
+
+@router.post("/self-improvement/propose")
+def v1_propose_improvement(data: SelfImprovementProposalRequest):
+    from backend.services.lifecycle_manager import propose_self_improvement
+    db = _get_db_session()
+    try:
+        log = propose_self_improvement(db, data.definition_id, data.changes, data.reason)
+        return {"id": log.id, "status": log.status.value}
+    finally:
+        db.close()
+
+
+@router.post("/self-improvement/{proposal_id}/approve")
+def v1_approve_improvement(proposal_id: str, data: ImprovementActionRequest):
+    from backend.services.lifecycle_manager import approve_self_improvement
+    db = _get_db_session()
+    try:
+        defn = approve_self_improvement(db, proposal_id, data.approver_session_id)
+        return {"id": defn.id, "role": defn.role, "version": defn.version}
+    finally:
+        db.close()
+
+
+@router.post("/self-improvement/{proposal_id}/reject")
+def v1_reject_improvement(proposal_id: str, data: ImprovementActionRequest):
+    from backend.services.lifecycle_manager import reject_self_improvement
+    db = _get_db_session()
+    try:
+        log = reject_self_improvement(db, proposal_id, data.approver_session_id)
+        return {"id": log.id, "status": log.status.value}
+    finally:
+        db.close()
+
+
+@router.get("/self-improvement/pending")
+def v1_pending_improvements():
+    from backend.models.self_improvement_log import SelfImprovementLog, ImprovementStatus
+    from backend.models.agent_definition import AgentDefinition
+    db = _get_db_session()
+    try:
+        logs = db.query(SelfImprovementLog).filter(
+            SelfImprovementLog.status == ImprovementStatus.PENDING
+        ).all()
+        result = []
+        for log in logs:
+            defn = db.get(AgentDefinition, log.agent_definition_id)
+            result.append({
+                "id": log.id,
+                "role": defn.role if defn else "unknown",
+                "nickname": defn.nickname if defn else None,
+                "old_version": log.old_version,
+                "new_version": log.new_version,
+                "changes": log.changes,
+                "reason": log.reason,
+                "created_at": log.created_at.isoformat() if log.created_at else None,
+            })
+        return result
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Memory endpoints (ported from legacy)
+# ---------------------------------------------------------------------------
+
+class MemoryUpdateRequest(BaseModel):
+    content: str
+
+
+@router.get("/agents/{agent_identity}/memories")
+def v1_get_memories(agent_identity: str, memory_type: Optional[str] = None):
+    from backend.services.memory_manager import MemoryManager
+    db = _get_db_session()
+    try:
+        mgr = MemoryManager(db)
+        memories = mgr.get_memories(agent_identity, memory_type=memory_type)
+        return [
+            {"id": m.id, "memory_type": m.memory_type, "title": m.title,
+             "content": m.content, "confidence": m.confidence, "version": m.version,
+             "created_at": m.created_at.isoformat() if m.created_at else None}
+            for m in memories
+        ]
+    finally:
+        db.close()
+
+
+@router.get("/agents/{agent_identity}/memory-stats")
+def v1_memory_stats(agent_identity: str):
+    from backend.services.memory_manager import MemoryManager
+    db = _get_db_session()
+    try:
+        mgr = MemoryManager(db)
+        return mgr.get_memory_stats(agent_identity)
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Communication: Messages (ported from legacy)
+# ---------------------------------------------------------------------------
+
+class MessageCreateV1Request(BaseModel):
+    from_role: str
+    type: str
+    subject: str
+    body: Optional[str] = None
+    to_role: Optional[str] = None
+    priority: str = "normal"
+    segment_id: Optional[str] = None
+
+
+@router.post("/corps/{corps_id}/messages")
+def v1_send_message(corps_id: str, data: MessageCreateV1Request):
+    from backend.models.message import MessageType, MessagePriority
+    from backend.services.message_service import send_message, InvalidMessagePath, InvalidMessageType
+    db = _get_db_session()
+    try:
+        msg = send_message(
+            db, corps_id=corps_id, from_role=data.from_role,
+            type=MessageType(data.type), subject=data.subject, body=data.body,
+            to_role=data.to_role, priority=MessagePriority(data.priority),
+            segment_id=data.segment_id,
+        )
+        return {"id": msg.id, "type": msg.type.value, "subject": msg.subject}
+    except (ValueError, InvalidMessagePath, InvalidMessageType) as e:
+        raise HTTPException(400, str(e))
     finally:
         db.close()

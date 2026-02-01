@@ -15,7 +15,7 @@ DCI_API_URL="${DCI_API_URL:-http://localhost:8000}"
 
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-response=$(curl -sf -X POST "${DCI_API_URL}/api/heartbeat" \
+response=$(curl -sf -X POST "${DCI_API_URL}/api/v1/heartbeat" \
     -H "Content-Type: application/json" \
     -w "\n%{http_code}" \
     --max-time 30 2>&1)

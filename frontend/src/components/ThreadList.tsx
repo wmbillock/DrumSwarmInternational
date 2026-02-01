@@ -67,6 +67,7 @@ export function ThreadList() {
           <thead>
             <tr>
               <th>Thread</th>
+              <th>Summary</th>
               <th>Status</th>
               <th>Spec</th>
             </tr>
@@ -75,6 +76,7 @@ export function ThreadList() {
             {threads.map(t => (
               <tr key={t.slug} className="clickable" onClick={() => navigate(`/design/${t.slug}`)}>
                 <td>{t.slug}</td>
+                <td style={{ fontSize: 12, fontStyle: "italic", color: "var(--text-secondary)" }}>{t.summary || "—"}</td>
                 <td><span className={`badge ${statusVariant(t.status)}`}>{t.status}</span></td>
                 <td>{t.has_spec ? "Yes" : "No"}</td>
               </tr>

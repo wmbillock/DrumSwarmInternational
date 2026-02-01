@@ -8,9 +8,8 @@ import type { TabItem } from "../ui";
 import {
   getCorpsScoreboard,
   getAgentLeaderboard,
-  CorpsScore,
-  AgentLeaderEntry,
 } from "../services/v1";
+import type { CorpsScore, AgentLeaderEntry } from "../services/v1";
 
 export function ScoreboardsPage() {
   const [corpsList, setCorpsList] = useState<CorpsScore[]>([]);

@@ -17,6 +17,9 @@ PROJECT_ROOT = subprocess.check_output(
 def run_cli(*args: str, root: str) -> subprocess.CompletedProcess:
     env = os.environ.copy()
     env["DCI_PROJECT_ROOT"] = root
+    # Force API client to connect to a port nothing listens on, so tests
+    # always hit the offline/ConnectionError path instead of polling a live server.
+    env["DCI_API_URL"] = "http://127.0.0.1:19999"
     return subprocess.run(
         [sys.executable, "-m", "backend.cli.main", *args],
         capture_output=True,

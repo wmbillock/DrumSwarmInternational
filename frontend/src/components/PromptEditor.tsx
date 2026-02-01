@@ -73,25 +73,8 @@ export function PromptEditor({ showSlug }: Props) {
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}>
-        {editing ? (
-          <textarea
-            value={editContent}
-            onChange={e => setEditContent(e.target.value)}
-            style={{
-              width: "100%", height: "100%", minHeight: 300,
-              background: "var(--bg-primary)", color: "var(--text-primary)",
-              border: "1px solid var(--border)", borderRadius: 6,
-              padding: 12, fontSize: 13, fontFamily: "monospace", resize: "vertical",
-            }}
-          />
-        ) : (
-          <div className="spec-content" style={{ fontSize: 13, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
-            {content || <span className="empty">No prompt yet. Click Edit to write one.</span>}
-          </div>
-        )}
-
         {lintReport && (
-          <div style={{ marginTop: 12 }}>
+          <div style={{ marginBottom: 12 }}>
             {lintReport.required_fix.length > 0 && (
               <div style={{ marginBottom: 8 }}>
                 <strong style={{ color: "var(--danger)" }}>Required Fixes ({lintReport.required_fix.length})</strong>
@@ -127,6 +110,24 @@ export function PromptEditor({ showSlug }: Props) {
             )}
           </div>
         )}
+
+        {editing ? (
+          <textarea
+            value={editContent}
+            onChange={e => setEditContent(e.target.value)}
+            style={{
+              width: "100%", height: "100%", minHeight: 300,
+              background: "var(--bg-primary)", color: "var(--text-primary)",
+              border: "1px solid var(--border)", borderRadius: 6,
+              padding: 12, fontSize: 13, fontFamily: "monospace", resize: "vertical",
+            }}
+          />
+        ) : (
+          <div className="spec-content" style={{ fontSize: 13, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
+            {content || <span className="empty">No prompt yet. Click Edit to write one.</span>}
+          </div>
+        )}
+
       </div>
     </div>
   );
