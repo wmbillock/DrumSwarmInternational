@@ -174,3 +174,53 @@ export type WebSocketMessage = {
   data?: unknown;
   [key: string]: unknown;
 };
+
+// Types used by sub-components (TheField, TheReps, TheLot, TheMet, TheBanquet)
+
+export interface Segment {
+  id: string;
+  type: "show" | "movement" | "set" | "segment";
+  title: string;
+  description?: string;
+  status: "pending" | "in_progress" | "review" | "completed" | "failed" | "blocked";
+  caption?: string;
+  parent_id?: string;
+}
+
+export interface Rep {
+  id: string;
+  segment_id: string;
+  status: "pending" | "assigned" | "in_progress" | "review" | "completed" | "failed";
+  assigned_to?: string;
+  result?: string;
+  error?: string;
+}
+
+export interface Message {
+  id: string;
+  type: string;
+  from_role: string;
+  to_role?: string;
+  subject: string;
+  body?: string;
+  priority?: string;
+  acknowledged_at?: string;
+  created_at?: string;
+}
+
+export interface MetronomeResult {
+  checked: number;
+  reclaimed: number;
+  reclaimed_rep_ids: string[];
+}
+
+export interface BanquetReport {
+  total_reps: number;
+  completed_reps: number;
+  failed_reps: number;
+  average_score: number;
+  top_caption?: string;
+  what_worked: string[];
+  what_failed: string[];
+  improvements: string[];
+}

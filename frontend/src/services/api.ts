@@ -196,3 +196,16 @@ export const updateMemory = (id: string, content: string) =>
   request<any>(`/api/memories/${id}`, { method: "PUT", body: JSON.stringify({ content }) });
 export const deleteMemory = (id: string) =>
   request<any>(`/api/memories/${id}`, { method: "DELETE" });
+
+// Segments
+export const getSegment = (id: string) => request<any>(`/api/segments/${id}`);
+export const getSegmentChildren = (parentId: string) =>
+  request<any[]>(`/api/segments/${parentId}/children`);
+
+// Banquet (retrospective)
+export const runBanquet = (corpsId: string) =>
+  request<any>(`/api/corps/${corpsId}/banquet`, { method: "POST" });
+
+// Complete show
+export const completeShow = (id: string) =>
+  request<any>(`/api/shows/${id}/complete`, { method: "POST" });
