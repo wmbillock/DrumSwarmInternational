@@ -552,3 +552,83 @@ export const releaseStaff = (corpsId: string, performerId: string) =>
     method: "POST",
     body: JSON.stringify({ performer_id: performerId }),
   });
+
+// --- Metrics & Scoreboards ---
+
+export interface CorpsScore {
+  rank: number;
+  corps_id: string;
+  corps_name: string;
+  corps_status: string;
+  composite_score: number;
+  completion_score: number;
+  throughput_score: number;
+  efficiency_score: number;
+  error_penalty_score: number;
+  total_sessions: number;
+  completed_sessions: number;
+  failed_sessions: number;
+  total_reps: number;
+  completed_reps: number;
+  failed_reps: number;
+  period_days: number;
+}
+
+export interface AgentLeaderEntry {
+  rank: number;
+  role: string;
+  nickname: string;
+  corps_id: string;
+  total_sessions: number;
+  completed_sessions: number;
+  failed_sessions: number;
+  success_rate: number;
+  period_days: number;
+}
+
+export interface RoleBottleneck {
+  role: string;
+  session_count: number;
+  p50_duration_s: number;
+  p95_duration_s: number;
+  max_duration_s: number;
+  mean_duration_s: number;
+}
+
+export interface MetricTrend {
+  metric_type: string;
+  period_days: number;
+  avg_value: number | null;
+  prev_period_avg: number | null;
+  rate_of_change: number | null;
+  direction: string;
+  corps_id: string | null;
+}
+
+export const getCorpsScoreboard = (periodDays = 7, signal?: AbortSignal) =>
+  request<{ period_days: number; generated_at: string; scoreboard: CorpsScore[] }>(
+    `/api/v1/metrics/scoreboard/corps?period_days=${periodDays}`,
+    { signal },
+  );
+
+export const getAgentLeaderboard = (corpsId?: string, periodDays = 7, signal?: AbortSignal) => {
+  const params = new URLSearchParams({ period_days: String(periodDays) });
+  if (corpsId) params.set("corps_id", corpsId);
+  return request<{ leaderboard: AgentLeaderEntry[] }>(`/api/v1/metrics/scoreboard/agents?${params}`, { signal });
+};
+
+export const getBottlenecks = (corpsId?: string, periodDays = 7, signal?: AbortSignal) => {
+  const params = new URLSearchParams({ period_days: String(periodDays) });
+  if (corpsId) params.set("corps_id", corpsId);
+  return request<{ role_bottlenecks: RoleBottleneck[]; latency_bottlenecks: any[] }>(
+    `/api/v1/metrics/bottlenecks?${params}`,
+    { signal },
+  );
+};
+
+export const getMetricsTrends = (metricType?: string, corpsId?: string, periodDays = 7, signal?: AbortSignal) => {
+  const params = new URLSearchParams({ period_days: String(periodDays) });
+  if (metricType) params.set("metric_type", metricType);
+  if (corpsId) params.set("corps_id", corpsId);
+  return request<{ trends: MetricTrend[] }>(`/api/v1/metrics/trends?${params}`, { signal });
+};

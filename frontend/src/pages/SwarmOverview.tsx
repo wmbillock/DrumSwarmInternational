@@ -155,7 +155,7 @@ export function SwarmOverview() {
   const completedShows = shows.filter(s => s.status === "completed" || s.status === "archived");
 
   return (
-    <div className="dashboard shows-overview">
+    <div className="shows-overview">
       <h1 className="page-title">Shows</h1>
       <div className="summary-bar">
         <div className="summary-stat">

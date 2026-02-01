@@ -11,3 +11,33 @@
 Color palette for flags should complement the brass sound — I'm thinking deep crimson with metallic gold accents to match the "royal" quality of A major and project power under lights. 16-count guard (divisible into 4 squads of 4 for formations).
 
 Ready to detail the full 8-bar choreography chart once we lock equipment choice and confirm visual color scheme with the design team.
+
+**Choreographer Don Zingali (Update)**: I've added comprehensive guard design specifications to the spec document. The 16-member guard will use 3x5 silk flags in crimson/gold with geometric motifs. Opening 32 counts detailed with formation, staging, movement vocabulary, and technical requirements. This gives us a complete guard framework for the fanfare that can be rehearsed once the brass arrangement is locked.
+
+Proposed next steps:
+1. Visual designer approval on flag color scheme and motif design
+2. Program coordinator review of guard count (16 members) for roster planning
+3. Drill writer coordination on guard placement relative to brass formations
+4. Once approved, I'll create the detailed 8-count choreography chart with exact positions and transitions
+
+---
+
+## Status Report - Choreographer Don Zingali
+
+**Completed:**
+- ✅ Guard concept and equipment selection (3x5 silk flags)
+- ✅ Color scheme proposal (crimson/gold with geometric motifs)
+- ✅ Formation design (16-member V-formation from upstage)
+- ✅ 32-count choreography framework for opening fanfare
+- ✅ Movement vocabulary definition (angular, percussive, architectural)
+- ✅ Technical requirements documentation
+
+**Ready for Review:**
+- Guard Design section in spec.md is complete and ready for PC approval
+- Awaiting coordination with drill_writer for field positioning
+- Awaiting visual_designer approval on color scheme
+
+**Next Development Phase:**
+- Create detailed 8-count breakdown once design is locked
+- Specify exact flag positions, body facings, and transitions
+- Develop choreography for sections beyond the opening fanfare

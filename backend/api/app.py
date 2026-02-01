@@ -141,6 +141,9 @@ app.include_router(seance_router)
 from backend.api.v1.router import router as v1_router
 app.include_router(v1_router)
 
+from backend.api.v1.scoreboards import router as scoreboards_router
+app.include_router(scoreboards_router)
+
 # --- Legacy routes (extracted from app.py) ---
 from backend.api.legacy.shows_routes import router as shows_router
 app.include_router(shows_router)

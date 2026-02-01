@@ -442,3 +442,26 @@ What would you like to tackle first—the database migrations and backend servic
 <!-- tags: admin -->
 
 **[user]** Oh no, sorry - we have the brief and it's good to go. I wish to populate the "prompt" tab in the DCI swarm design room interface so that I can then publish this show for implementation.
+
+<!-- tags: admin -->
+**[program_coordinator]** ✅ **Prompt tab is already populated!**
+
+The `show_prompt.md` file (140 lines) contains the complete implementation guide with:
+
+- **Core Requirements**: Database schema (message_threads + messages + archived_threads tables)
+- **API Endpoints**: 8 V1 routes for thread management and archive
+- **Services Layer**: message_service.py with 6 core functions + async LLM summary generation
+- **WebSocket Events**: 5 real-time event types (message:new, thread:created, status_changed, etc.)
+- **Frontend Components**: MessageInbox, MessageArchive, MessageAdmin pages + TopNav badge integration
+- **Permission Guards**: Role-based access control (create, complete, archive, search)
+- **Ranking Logic**: BM25 + recency + tags + decision formula for archive search
+- **Acceptance Criteria**: Performance benchmarks (<1s search, <2min bulk-archive 50 threads)
+- **Implementation Order**: 7-step build sequence from migrations → services → API → WebSocket → frontend → testing
+
+**The show is ready to publish!** Status is already set to `published`. Engineering can now pick this up and start implementing the threaded inbox system. All design artifacts are complete:
+- ✅ spec.md (full specification)
+- ✅ show_prompt.md (implementation guide)
+- ✅ design_notes.md (design conversation)
+- ✅ status.yaml (published)
+
+**Next step**: Assign this to an engineering agent or developer to begin implementation, starting with the database migrations.

@@ -408,6 +408,66 @@ def v1_ready_for_contest(corps_id: str):
         db.close()
 
 
+@router.post("/corps/{corps_id}/return-to-tour")
+def v1_return_to_tour(corps_id: str):
+    """Return a corps from READY_FOR_CONTEST back to ON_TOUR for rework."""
+    _validate_id(corps_id, "corps_id")
+    from backend.models.corps import Corps, CorpsStatus
+
+    db = _get_db_session()
+    try:
+        corps = db.get(Corps, corps_id)
+        if not corps:
+            raise HTTPException(404, f"Corps '{corps_id}' not found")
+        if corps.status != CorpsStatus.READY_FOR_CONTEST:
+            raise HTTPException(
+                400,
+                f"Corps must be READY_FOR_CONTEST to return to tour (current: {corps.status.value})",
+            )
+        corps.status = CorpsStatus.ON_TOUR
+        db.commit()
+        return {
+            "corps_id": corps.id,
+            "display_name": corps.name,
+            "state": corps.status.value,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Failed to transition corps: {e}")
+    finally:
+        db.close()
+
+
+@router.post("/corps/{corps_id}/complete")
+def v1_complete_corps(corps_id: str):
+    """Complete a corps season — transition from READY_FOR_CONTEST to COMPLETED."""
+    _validate_id(corps_id, "corps_id")
+    from backend.models.corps import Corps, CorpsStatus, RehearsalMode
+    from backend.models.segment import Segment, SegmentStatus
+    from backend.models.rep import Rep
+    from backend.models.agent_session import AgentSession
+
+    db = _get_db_session()
+    try:
+        from backend.services.corps_service import complete_corps as complete_corps_service
+        corps = complete_corps_service(db, corps_id)
+        return {
+            "corps_id": corps.id,
+            "display_name": corps.name,
+            "state": corps.status.value,
+            "message": "Corps season completed successfully",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Failed to complete corps: {e}")
+    finally:
+        db.close()
+
+
 # =========================================================================
 # RUNS
 # =========================================================================

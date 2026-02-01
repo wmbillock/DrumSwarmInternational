@@ -4,7 +4,6 @@
  * Displays:
  * - Corps leaderboard by composite score
  * - Agent roles leaderboard by performance
- * - Drill-down into individual performance
  * - Filter and sort controls
  */
 
@@ -18,104 +17,48 @@ import {
   Select,
   Space,
   Button,
-  Badge,
   Progress,
   Spin,
   Empty,
   Modal,
 } from "antd";
-import { EyeOutlined } from "@ant-design/icons";
+import { EyeOutlined, ReloadOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
-
-interface CorpsScore {
-  rank: number;
-  corps_id: string;
-  corps_name: string;
-  shows_completed: number;
-  shows_total: number;
-  show_completion_rate: number;
-  avg_task_duration: number;
-  task_success_rate: number;
-  query_latency_p95: number;
-  composite_score: number;
-}
-
-interface AgentScore {
-  rank: number;
-  agent_role: string;
-  agent_count: number;
-  avg_session_duration: number;
-  sessions_completed: number;
-  task_success_rate: number;
-  avg_task_throughput: number;
-  composite_score: number;
-}
+import {
+  getCorpsScoreboard,
+  getAgentLeaderboard,
+  CorpsScore,
+  AgentLeaderEntry,
+} from "../services/v1";
 
 const ScoreboardsPage: React.FC = () => {
   const [corpsList, setCorpsList] = useState<CorpsScore[]>([]);
-  const [agentsList, setAgentsList] = useState<AgentScore[]>([]);
+  const [agentsList, setAgentsList] = useState<AgentLeaderEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sortBy, setSortBy] = useState<"composite" | "completion" | "latency">("composite");
+  const [periodDays, setPeriodDays] = useState(7);
   const [selectedCorps, setSelectedCorps] = useState<CorpsScore | null>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
 
-  // Fetch corps scoreboard
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [corpsRes, agentsRes] = await Promise.all([
+        getCorpsScoreboard(periodDays),
+        getAgentLeaderboard(undefined, periodDays),
+      ]);
+      setCorpsList(corpsRes.scoreboard || []);
+      setAgentsList(agentsRes.leaderboard || []);
+    } catch (error) {
+      console.error("Failed to fetch scoreboards:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchCorpsScores = async () => {
-      try {
-        const response = await fetch(`/api/v1/metrics/scoreboard/corps?limit=100`);
-        const data = await response.json();
+    fetchData();
+  }, [periodDays]);
 
-        // Transform API response to component format
-        const transformed: CorpsScore[] = (data.scoreboard || []).map((item: any) => ({
-          rank: item.rank,
-          corps_id: item.corps_id,
-          corps_name: item.corps_name,
-          shows_completed: item.completed_reps,
-          shows_total: item.total_reps,
-          show_completion_rate: item.completed_reps / Math.max(item.total_reps, 1),
-          avg_task_duration: 0,
-          task_success_rate: item.efficiency_score / 100,
-          query_latency_p95: 0,
-          composite_score: item.composite_score,
-        }));
-
-        setCorpsList(transformed);
-        setLoading(false);
-      } catch (error) {
-        console.error("Failed to fetch corps scores:", error);
-        setLoading(false);
-      }
-    };
-
-    const fetchAgentScores = async () => {
-      try {
-        const response = await fetch(`/api/v1/metrics/scoreboard/agents?limit=100`);
-        const data = await response.json();
-
-        // Transform API response to component format
-        const transformed: AgentScore[] = (data.leaderboard || []).map((item: any) => ({
-          rank: item.rank,
-          agent_role: item.role,
-          agent_count: 1,
-          avg_session_duration: 0,
-          sessions_completed: item.completed_sessions,
-          task_success_rate: (item.success_rate || 0) / 100,
-          avg_task_throughput: 0,
-          composite_score: item.success_rate || 0,
-        }));
-
-        setAgentsList(transformed);
-      } catch (error) {
-        console.error("Failed to fetch agent scores:", error);
-      }
-    };
-
-    fetchCorpsScores();
-    fetchAgentScores();
-  }, []);
-
-  // Corps columns
   const corpsColumns: ColumnsType<CorpsScore> = [
     {
       title: "Rank",
@@ -123,9 +66,7 @@ const ScoreboardsPage: React.FC = () => {
       key: "rank",
       width: 60,
       render: (text) => (
-        <span style={{ fontWeight: "bold", fontSize: "16px" }}>
-          #{text}
-        </span>
+        <span style={{ fontWeight: "bold", fontSize: "16px" }}>#{text}</span>
       ),
     },
     {
@@ -135,38 +76,41 @@ const ScoreboardsPage: React.FC = () => {
       render: (text) => <strong>{text}</strong>,
     },
     {
-      title: "Shows",
-      dataIndex: "shows_completed",
-      key: "shows",
+      title: "Status",
+      dataIndex: "corps_status",
+      key: "corps_status",
+      render: (text) => <span>{text.replace(/_/g, " ")}</span>,
+    },
+    {
+      title: "Completion",
+      dataIndex: "completion_score",
+      key: "completion",
+      render: (text) => (
+        <Progress percent={Math.round(text)} strokeColor="#52c41a" size="small" />
+      ),
+    },
+    {
+      title: "Efficiency",
+      dataIndex: "efficiency_score",
+      key: "efficiency",
+      render: (text) => <span>{text.toFixed(1)}%</span>,
+    },
+    {
+      title: "Sessions",
+      key: "sessions",
       render: (_, record) => (
         <span>
-          {record.shows_completed}/{record.shows_total} ({Math.round(record.show_completion_rate * 100)}%)
+          {record.completed_sessions}/{record.total_sessions}
         </span>
       ),
     },
     {
-      title: "Avg Duration",
-      dataIndex: "avg_task_duration",
-      key: "duration",
-      render: (text) => <span>{text.toFixed(1)} min</span>,
-    },
-    {
-      title: "Success Rate",
-      dataIndex: "task_success_rate",
-      key: "success",
-      render: (text) => (
-        <Progress percent={Math.round(text * 100)} strokeColor="#52c41a" size="small" />
-      ),
-    },
-    {
-      title: "Latency (p95)",
-      dataIndex: "query_latency_p95",
-      key: "latency",
-      render: (text) => (
-        <Badge
-          count={`${text.toFixed(1)}ms`}
-          color={text > 300 ? "#f5222d" : text > 150 ? "#faad14" : "#52c41a"}
-        />
+      title: "Reps",
+      key: "reps",
+      render: (_, record) => (
+        <span>
+          {record.completed_reps}/{record.total_reps}
+        </span>
       ),
     },
     {
@@ -175,9 +119,10 @@ const ScoreboardsPage: React.FC = () => {
       key: "composite",
       render: (text) => <strong>{text.toFixed(1)}</strong>,
       sorter: (a, b) => b.composite_score - a.composite_score,
+      defaultSortOrder: "descend",
     },
     {
-      title: "Action",
+      title: "",
       key: "action",
       render: (_, record) => (
         <Button
@@ -194,65 +139,80 @@ const ScoreboardsPage: React.FC = () => {
     },
   ];
 
-  // Agent columns
-  const agentColumns: ColumnsType<AgentScore> = [
+  const agentColumns: ColumnsType<AgentLeaderEntry> = [
     {
       title: "Rank",
       dataIndex: "rank",
       key: "rank",
       width: 60,
-      render: (text) => <span style={{ fontWeight: "bold", fontSize: "16px" }}>#{text}</span>,
-    },
-    {
-      title: "Agent Role",
-      dataIndex: "agent_role",
-      key: "agent_role",
-      render: (text) => <strong>{text.replace(/_/g, " ")}</strong>,
-    },
-    {
-      title: "Agents",
-      dataIndex: "agent_count",
-      key: "agent_count",
-      render: (text) => <span>{text}</span>,
-    },
-    {
-      title: "Sessions Completed",
-      dataIndex: "sessions_completed",
-      key: "sessions",
-      render: (text) => <span>{text}</span>,
-    },
-    {
-      title: "Avg Duration",
-      dataIndex: "avg_session_duration",
-      key: "duration",
-      render: (text) => <span>{(text / 60).toFixed(1)} min</span>,
-    },
-    {
-      title: "Success Rate",
-      dataIndex: "task_success_rate",
-      key: "success",
       render: (text) => (
-        <Progress percent={Math.round(text * 100)} strokeColor="#52c41a" size="small" />
+        <span style={{ fontWeight: "bold", fontSize: "16px" }}>#{text}</span>
       ),
     },
     {
-      title: "Throughput",
-      dataIndex: "avg_task_throughput",
-      key: "throughput",
-      render: (text) => <span>{text.toFixed(1)} tasks/hr</span>,
+      title: "Role",
+      dataIndex: "role",
+      key: "role",
+      render: (text) => <strong>{text.replace(/_/g, " ")}</strong>,
     },
     {
-      title: "Score",
-      dataIndex: "composite_score",
-      key: "composite",
-      render: (text) => <strong>{text.toFixed(1)}</strong>,
-      sorter: (a, b) => b.composite_score - a.composite_score,
+      title: "Nickname",
+      dataIndex: "nickname",
+      key: "nickname",
+    },
+    {
+      title: "Sessions",
+      dataIndex: "total_sessions",
+      key: "total_sessions",
+    },
+    {
+      title: "Completed",
+      dataIndex: "completed_sessions",
+      key: "completed_sessions",
+    },
+    {
+      title: "Failed",
+      dataIndex: "failed_sessions",
+      key: "failed_sessions",
+      render: (text) => (
+        <span style={{ color: text > 0 ? "#f5222d" : undefined }}>{text}</span>
+      ),
+    },
+    {
+      title: "Success Rate",
+      dataIndex: "success_rate",
+      key: "success_rate",
+      render: (text) => (
+        <Progress
+          percent={Math.round(text)}
+          strokeColor={text >= 80 ? "#52c41a" : text >= 50 ? "#faad14" : "#f5222d"}
+          size="small"
+        />
+      ),
+      sorter: (a, b) => b.success_rate - a.success_rate,
     },
   ];
 
   return (
     <div style={{ padding: "24px" }}>
-      <h1 style={{ marginBottom: "24px" }}>Scoreboards & Leaderboards</h1>
+      <div style={{ marginBottom: "24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h1 style={{ margin: 0 }}>Scoreboards & Leaderboards</h1>
+        <Space>
+          <Select
+            value={periodDays}
+            onChange={setPeriodDays}
+            options={[
+              { label: "Last 7 Days", value: 7 },
+              { label: "Last 14 Days", value: 14 },
+              { label: "Last 30 Days", value: 30 },
+            ]}
+            style={{ width: "150px" }}
+          />
+          <Button icon={<ReloadOutlined />} onClick={fetchData}>
+            Refresh
+          </Button>
+        </Space>
+      </div>
 
       <Spin spinning={loading}>
         <Tabs
@@ -260,47 +220,34 @@ const ScoreboardsPage: React.FC = () => {
           items={[
             {
               key: "corps",
-              label: "Corps Leaderboard",
+              label: `Corps Leaderboard (${corpsList.length})`,
               children: (
                 <Card>
-                  <Row style={{ marginBottom: "16px" }}>
-                    <Col>
-                      <Space>
-                        <span>Sort by:</span>
-                        <Select
-                          value={sortBy}
-                          onChange={setSortBy}
-                          options={[
-                            { label: "Composite Score", value: "composite" },
-                            { label: "Completion Rate", value: "completion" },
-                            { label: "Latency", value: "latency" },
-                          ]}
-                          style={{ width: "150px" }}
-                        />
-                      </Space>
-                    </Col>
-                  </Row>
                   <Table
                     columns={corpsColumns}
                     dataSource={corpsList}
                     rowKey="corps_id"
                     pagination={{ pageSize: 20 }}
-                    locale={{ emptyText: <Empty description="No corps data available" /> }}
+                    locale={{
+                      emptyText: <Empty description="No corps data available" />,
+                    }}
                   />
                 </Card>
               ),
             },
             {
               key: "agents",
-              label: "Agent Leaderboard",
+              label: `Agent Leaderboard (${agentsList.length})`,
               children: (
                 <Card>
                   <Table
                     columns={agentColumns}
                     dataSource={agentsList}
-                    rowKey="agent_role"
+                    rowKey={(r) => `${r.role}-${r.corps_id}`}
                     pagination={{ pageSize: 20 }}
-                    locale={{ emptyText: <Empty description="No agent data available" /> }}
+                    locale={{
+                      emptyText: <Empty description="No agent data available" />,
+                    }}
                   />
                 </Card>
               ),
@@ -309,79 +256,70 @@ const ScoreboardsPage: React.FC = () => {
         />
       </Spin>
 
-      {/* Detail Modal */}
       <Modal
-        title={selectedCorps ? `${selectedCorps.corps_name} — Detailed Performance` : ""}
+        title={
+          selectedCorps
+            ? `${selectedCorps.corps_name} — Performance Breakdown`
+            : ""
+        }
         open={detailModalVisible}
         onCancel={() => setDetailModalVisible(false)}
         footer={null}
-        width={700}
+        width={600}
       >
         {selectedCorps && (
           <Row gutter={[16, 16]}>
-            <Col span={24}>
-              <Card type="inner" title="Summary">
-                <Row gutter={16}>
-                  <Col xs={12}>
-                    <div style={{ marginBottom: "8px", color: "#888", fontSize: "12px" }}>
-                      Rank
-                    </div>
-                    <div style={{ fontSize: "20px", fontWeight: "bold" }}>
-                      #{selectedCorps.rank}
-                    </div>
-                  </Col>
-                  <Col xs={12}>
-                    <div style={{ marginBottom: "8px", color: "#888", fontSize: "12px" }}>
-                      Composite Score
-                    </div>
-                    <div style={{ fontSize: "20px", fontWeight: "bold", color: "#1890ff" }}>
-                      {selectedCorps.composite_score.toFixed(1)}
-                    </div>
-                  </Col>
-                </Row>
+            <Col span={12}>
+              <Card type="inner" size="small" title="Rank">
+                <div style={{ fontSize: "24px", fontWeight: "bold" }}>
+                  #{selectedCorps.rank}
+                </div>
               </Card>
             </Col>
-            <Col span={24}>
-              <Card type="inner" title="Performance Metrics">
-                <Row gutter={16}>
-                  <Col xs={12} sm={6}>
-                    <div style={{ marginBottom: "8px", color: "#888", fontSize: "12px" }}>
-                      Show Completion
-                    </div>
-                    <Progress
-                      type="circle"
-                      percent={Math.round(selectedCorps.show_completion_rate * 100)}
-                      width={80}
-                    />
-                  </Col>
-                  <Col xs={12} sm={6}>
-                    <div style={{ marginBottom: "8px", color: "#888", fontSize: "12px" }}>
-                      Success Rate
-                    </div>
-                    <Progress
-                      type="circle"
-                      percent={Math.round(selectedCorps.task_success_rate * 100)}
-                      width={80}
-                      strokeColor="#52c41a"
-                    />
-                  </Col>
-                  <Col xs={12} sm={6}>
-                    <div style={{ marginBottom: "8px", color: "#888", fontSize: "12px" }}>
-                      Avg Duration
-                    </div>
-                    <div style={{ fontSize: "16px", fontWeight: "bold" }}>
-                      {selectedCorps.avg_task_duration.toFixed(1)} min
-                    </div>
-                  </Col>
-                  <Col xs={12} sm={6}>
-                    <div style={{ marginBottom: "8px", color: "#888", fontSize: "12px" }}>
-                      Latency (p95)
-                    </div>
-                    <div style={{ fontSize: "16px", fontWeight: "bold" }}>
-                      {selectedCorps.query_latency_p95.toFixed(1)} ms
-                    </div>
-                  </Col>
-                </Row>
+            <Col span={12}>
+              <Card type="inner" size="small" title="Composite Score">
+                <div style={{ fontSize: "24px", fontWeight: "bold", color: "#1890ff" }}>
+                  {selectedCorps.composite_score.toFixed(1)}
+                </div>
+              </Card>
+            </Col>
+            <Col span={12}>
+              <Card type="inner" size="small" title="Completion">
+                <Progress
+                  type="circle"
+                  percent={Math.round(selectedCorps.completion_score)}
+                  width={80}
+                />
+              </Card>
+            </Col>
+            <Col span={12}>
+              <Card type="inner" size="small" title="Efficiency">
+                <Progress
+                  type="circle"
+                  percent={Math.round(selectedCorps.efficiency_score)}
+                  width={80}
+                  strokeColor="#52c41a"
+                />
+              </Card>
+            </Col>
+            <Col span={12}>
+              <Card type="inner" size="small" title="Sessions">
+                <div>
+                  {selectedCorps.completed_sessions} completed / {selectedCorps.total_sessions} total
+                </div>
+                <div style={{ color: "#f5222d" }}>
+                  {selectedCorps.failed_sessions} failed
+                </div>
+              </Card>
+            </Col>
+            <Col span={12}>
+              <Card type="inner" size="small" title="Reps">
+                <div>
+                  {selectedCorps.completed_reps} completed / {selectedCorps.total_reps} total
+                </div>
+                <div style={{ color: "#f5222d" }}>
+                  {selectedCorps.failed_reps} failed
+                </div>
               </Card>
             </Col>
           </Row>

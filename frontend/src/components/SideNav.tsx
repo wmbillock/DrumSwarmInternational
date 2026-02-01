@@ -1,28 +1,38 @@
 import { NavLink } from "react-router-dom";
 
-const NAV_SECTIONS = [
+const LIFECYCLE_ITEMS = [
+  { to: "/design", label: "Design Room", icon: "DSN", color: "var(--stage-design)" },
+  { to: "/shows", label: "Show Library", icon: "LIB", color: "var(--stage-library)" },
+  { to: "/seasons", label: "Season Workshop", icon: "SZN", color: "var(--stage-season)" },
+  { to: "/tour", label: "On Tour", icon: "TUR", color: "var(--stage-tour)" },
+  { to: "/finals", label: "Finals", icon: "FIN", color: "var(--stage-finals)" },
+] as const;
+
+const UTILITY_ITEMS = [
+  { to: "/corps", label: "Corps Garage", icon: "CRP" },
   { to: "/", label: "Command Center", icon: "CMD", end: true },
-  { to: "/shows", label: "Shows", icon: "SHW" },
-  { to: "/corps", label: "Corps", icon: "CRP" },
-  { to: "/runs", label: "Runs & Rehearsals", icon: "RUN" },
-  { to: "/evolution", label: "Evolution & Talent", icon: "EVO" },
-  { to: "/staff", label: "Staff Market", icon: "STF" },
-  { to: "/judging", label: "Judging & Critique", icon: "JDG" },
-  { to: "/templates", label: "Templates", icon: "TPL" },
-  { to: "/design", label: "Design Room", icon: "DSN" },
-  { to: "/messages/inbox", label: "Messages", icon: "MSG" },
-  { to: "/history", label: "Corps History", icon: "HST" },
-  { to: "/seance", label: "Seance (Legacy)", icon: "QRY" },
-  { to: "/competitions", label: "Competitions", icon: "CMP" },
-  { to: "/seasons", label: "Seasons", icon: "SZN" },
-  { to: "/system", label: "System Health", icon: "SYS" },
   { to: "/settings", label: "Settings", icon: "CFG" },
 ] as const;
 
 export function SideNav() {
   return (
     <nav className="side-nav">
-      {NAV_SECTIONS.map(s => (
+      <div className="side-nav-section-label">LIFECYCLE</div>
+      {LIFECYCLE_ITEMS.map((s, i) => (
+        <NavLink
+          key={s.to}
+          to={s.to}
+          className={({ isActive }) => `side-nav-item ${isActive ? "active" : ""}`}
+          style={{ "--stage-color": s.color } as React.CSSProperties}
+        >
+          <span className="side-nav-stage-num">{i + 1}</span>
+          <span className="side-nav-icon" style={{ color: s.color }}>{s.icon}</span>
+          <span className="side-nav-label">{s.label}</span>
+        </NavLink>
+      ))}
+      <div className="side-nav-divider" />
+      <div className="side-nav-section-label">UTILITIES</div>
+      {UTILITY_ITEMS.map(s => (
         <NavLink
           key={s.to}
           to={s.to}

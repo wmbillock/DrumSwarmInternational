@@ -25,6 +25,7 @@ import MessageInbox from "./pages/MessageInbox";
 import MessageArchive from "./pages/MessageArchive";
 import { StaffMarketplace } from "./pages/StaffMarketplace";
 import { ScoreboardsPage } from "./pages/ScoreboardsPage";
+import PerformanceExplorer from "./pages/PerformanceExplorer";
 
 export const router = createBrowserRouter([
   {
@@ -59,6 +60,7 @@ export const router = createBrowserRouter([
       { path: "/messages/inbox", element: <MessageInbox /> },
       { path: "/messages/archive", element: <MessageArchive /> },
       { path: "/scoreboards", element: <ScoreboardsPage /> },
+      { path: "/metrics", element: <PerformanceExplorer /> },
       { path: "/system", element: <SystemHealth /> },
       { path: "/settings", element: <Settings /> },
     ],

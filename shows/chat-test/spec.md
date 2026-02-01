@@ -50,7 +50,36 @@ TBD — awaiting design input on color palette, uniform concept, and visual moti
 
 ## Guard Design
 
-TBD — awaiting design input on guard concept, choreography style, and equipment.
+### Opening Fanfare Guard Choreography (Counts 1-32)
+
+**Equipment:** 3x5 silk flags with metallic finish
+- **Color Scheme:** Deep crimson field with metallic gold geometric accents
+- **Design Motif:** Angular triangular patterns echoing the V-formation staging
+
+**Formation & Staging:**
+- 16-member guard in V-formation, apex downstage center
+- Entry from upstage, weapons vertical at attention
+- Spacing: 8-step intervals between guard members
+
+**Movement Vocabulary:**
+- **Counts 1-8 (Fanfare Opening):** Simultaneous drop from vertical to 45° performance angle, forte attack quality
+- **Counts 9-16:** Percussive tosses (singles) on brass hits, punctuated with sharp directional changes (90° pivots)
+- **Counts 17-24:** Angular flag sweeps through horizontal plane, sustained holds matching brass sustains
+- **Counts 25-32:** Build to parallel ripple effect across the V-formation, ending in unified horizontal presentation
+
+**Choreographic Intent:**
+Geometric precision and architectural shapes that mirror the brass section's commanding presence. Movement quality is sharp, percussive, and deliberate — no softness or flow. Every position is a statement of competitive intensity.
+
+**Technical Requirements:**
+- Crisp unison timing on all attacks and releases
+- Controlled flag work (no wraps or drops during forte brass passages)
+- Strong body positioning with squared shoulders and grounded lower body
+- Visual clarity in angles — flags must hit exact positions on musical beats
+
+**Next Development Phase:**
+- Detailed 8-count breakdown with specific flag positions and body facings
+- Equipment specifications (pole length, silk weight, hardware)
+- Transition choreography from fanfare into subsequent musical sections
 
 ---
 

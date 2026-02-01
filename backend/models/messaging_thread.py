@@ -33,6 +33,12 @@ class Thread(Base):
     id: Mapped[str] = mapped_column(
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
+    corps_id: Mapped[Optional[str]] = mapped_column(
+        String(36), ForeignKey("corps.id", ondelete="CASCADE"), nullable=True
+    )
+    initiator_agent_id: Mapped[Optional[str]] = mapped_column(
+        String(36), ForeignKey("agent_sessions.id"), nullable=True
+    )
     originator_role: Mapped[OriginatorRole] = mapped_column(
         Enum(OriginatorRole, values_callable=lambda x: [e.value for e in x])
     )
@@ -46,6 +52,9 @@ class Thread(Base):
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    viewed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
     completed_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True

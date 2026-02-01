@@ -1,5 +1,7 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
 :root {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
@@ -7,12 +9,32 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Caption colors */
+  --brass: #d29922;
+  --percussion: #f85149;
+  --guard: #a371f7;
+  --visual: #58a6ff;
+  --ge: #3fb950;
+
+  /* Lifecycle stage colors */
+  --stage-design: #a371f7;
+  --stage-library: #58a6ff;
+  --stage-season: #d29922;
+  --stage-tour: #3fb950;
+  --stage-finals: #f85149;
+
+  /* Typography */
+  --font-display: 'JetBrains Mono', monospace;
+  --font-body: 'IBM Plex Sans', -apple-system, sans-serif;
+  --font-data: 'JetBrains Mono', monospace;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  font-family: var(--font-body);
 }
 
 #root {

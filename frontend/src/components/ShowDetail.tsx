@@ -41,95 +41,107 @@ export function ShowDetail({ corpsId, entry, onBack }: Props) {
   };
 
   return (
-    <div>
-      <button className="back-btn small" onClick={onBack} style={{ marginBottom: 12 }}>
-        ← Back to Show List
-      </button>
+    <div className="show-detail">
+      <div className="show-detail-header">
+        <button className="back-btn small" onClick={onBack}>← Back</button>
+        <div className="show-detail-title">
+          <h2>{entry.show_slug || "Unknown Show"} — {entry.season_id}</h2>
+          <Badge variant={entry.placement <= 3 ? "success" : "default"}>
+            #{entry.placement}
+          </Badge>
+        </div>
+        <div className="show-detail-actions">
+          <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+            Score: <strong>{entry.final_score.toFixed(2)}</strong>
+          </span>
+          <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+            Runs: <strong>{entry.runs.length}</strong>
+          </span>
+        </div>
+      </div>
 
-      <Panel title={`${entry.show_slug || "Unknown Show"} — ${entry.season_id}`}>
-        <div style={{ display: "flex", gap: 24, alignItems: "center", marginBottom: 16 }}>
-          <div>
-            <Badge variant={entry.placement <= 3 ? "success" : "default"}>
-              #{entry.placement}
-            </Badge>
-          </div>
-          <div>
-            <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Final Score: </span>
-            <strong>{entry.final_score.toFixed(2)}</strong>
-          </div>
-          <div>
-            <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Runs: </span>
-            <strong>{entry.runs.length}</strong>
+      <div className="two-pane">
+        {/* Left pane: Talk to ED + seance history */}
+        <div className="pane-left">
+          <div className="chat-panel">
+            <div className="chat-toolbar">
+              <span style={{ fontSize: 13, fontWeight: 600 }}>Talk to the ED</span>
+            </div>
+            <div className="chat-messages">
+              {seances.length === 0 ? (
+                <div className="chat-empty">
+                  <p style={{ color: "var(--text-secondary)", marginBottom: 12 }}>
+                    Start a seance session to discuss this show with the Executive Director, grounded in the show artifacts.
+                  </p>
+                  <button className="primary" onClick={handleTalkToED} disabled={creating}>
+                    {creating ? "Starting..." : "Start Seance"}
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: 8 }}>
+                  <button className="primary small" onClick={handleTalkToED} disabled={creating} style={{ alignSelf: "flex-start" }}>
+                    {creating ? "Starting..." : "+ New Seance"}
+                  </button>
+                  {seances.map(s => (
+                    <div
+                      key={s.seance_id}
+                      className="agent-row clickable"
+                      onClick={() => navigate(`/seance-session/${s.seance_id}`)}
+                    >
+                      <span className={`badge ${s.status}`}>{s.status}</span>
+                      <span className="agent-nickname" style={{ fontSize: 12 }}>
+                        {new Date(s.created_at).toLocaleString()}
+                      </span>
+                      <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{s.seance_id.slice(0, 8)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </Panel>
 
-      {/* Artifacts */}
-      <Panel title="Artifacts" className="mt-16">
-        {Object.keys(entry.artifacts).length === 0 ? (
-          <p className="empty">No artifacts recorded</p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            {Object.entries(entry.artifacts).map(([key, path]) => (
-              <div
-                key={key}
-                className="agent-row clickable"
-                onClick={() => handlePreviewArtifact(key, path)}
-              >
-                <span className="badge" style={{ fontSize: 10, minWidth: 90, textAlign: "center" }}>
-                  {key}
-                </span>
-                <span className="agent-nickname" style={{ fontSize: 12 }}>{path}</span>
-              </div>
-            ))}
+        {/* Right pane: Artifacts + preview */}
+        <div className="pane-right">
+          <div className="info-tabs">
+            <span className="tab active">Artifacts</span>
           </div>
-        )}
-        {preview && (
-          <div style={{ marginTop: 12 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <h4 style={{ fontSize: 13, color: "var(--text-secondary)" }}>Preview: {preview.path}</h4>
-              <button className="small" onClick={() => setPreview(null)}>Close</button>
-            </div>
-            <div className="code-block">
-              <pre style={{ whiteSpace: "pre-wrap", fontSize: 11 }}>{preview.content}</pre>
-            </div>
-            {preview.truncated && (
-              <p style={{ fontSize: 11, color: "var(--warning)", marginTop: 4 }}>Content truncated.</p>
+          <div className="info-content" style={{ padding: 12 }}>
+            {Object.keys(entry.artifacts).length === 0 ? (
+              <p className="empty">No artifacts recorded</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {Object.entries(entry.artifacts).map(([key, path]) => (
+                  <div
+                    key={key}
+                    className="agent-row clickable"
+                    onClick={() => handlePreviewArtifact(key, path)}
+                  >
+                    <span className="badge" style={{ fontSize: 10, minWidth: 90, textAlign: "center" }}>
+                      {key}
+                    </span>
+                    <span className="agent-nickname" style={{ fontSize: 12 }}>{path}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {preview && (
+              <div style={{ marginTop: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <h4 style={{ fontSize: 13, color: "var(--text-secondary)" }}>Preview: {preview.path}</h4>
+                  <button className="small" onClick={() => setPreview(null)}>Close</button>
+                </div>
+                <div className="code-block">
+                  <pre style={{ whiteSpace: "pre-wrap", fontSize: 11 }}>{preview.content}</pre>
+                </div>
+                {preview.truncated && (
+                  <p style={{ fontSize: 11, color: "var(--warning)", marginTop: 4 }}>Content truncated.</p>
+                )}
+              </div>
             )}
           </div>
-        )}
-      </Panel>
-
-      {/* Talk to the ED */}
-      <Panel title="Talk to the ED" className="mt-16">
-        <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 12 }}>
-          Start a seance session to discuss this show with the Executive Director, grounded in the show artifacts.
-        </p>
-        <button className="primary" onClick={handleTalkToED} disabled={creating}>
-          {creating ? "Starting..." : "Talk to the ED"}
-        </button>
-      </Panel>
-
-      {/* Past Seance Sessions */}
-      {seances.length > 0 && (
-        <Panel title="Past Seance Sessions" className="mt-16">
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            {seances.map(s => (
-              <div
-                key={s.seance_id}
-                className="agent-row clickable"
-                onClick={() => navigate(`/seance-session/${s.seance_id}`)}
-              >
-                <span className={`badge ${s.status}`}>{s.status}</span>
-                <span className="agent-nickname" style={{ fontSize: 12 }}>
-                  {new Date(s.created_at).toLocaleString()}
-                </span>
-                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{s.seance_id.slice(0, 8)}</span>
-              </div>
-            ))}
-          </div>
-        </Panel>
-      )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -35,27 +35,17 @@ export function NavBar({
         <h1 className="app-title">DCI Swarm</h1>
       </NavLink>
       <nav className="header-nav">
-        <NavLink to="/" end className={({ isActive }) => isActive ? "nav-active small" : "small"}>
-          Dashboard
+        <NavLink to="/" end className={({ isActive }) => isActive ? "nav-active small" : "small"}>Dashboard</NavLink>
+        <NavLink to="/corps" className={({ isActive }) => isActive ? "nav-active small" : "small"}>Corps</NavLink>
+        <NavLink to="/shows" className={({ isActive }) => isActive ? "nav-active small" : "small"}>Shows</NavLink>
+        <NavLink to="/seasons" className={({ isActive }) => isActive ? "nav-active small" : "small"}>Seasons</NavLink>
+        <NavLink to="/admin" className={({ isActive }) => isActive ? "nav-active small" : "small"}>Critique</NavLink>
+        <NavLink to="/performers" className={({ isActive }) => isActive ? "nav-active small" : "small"}>Performers</NavLink>
+        <NavLink to="/seance" className={({ isActive }) => isActive ? "nav-active small" : "small"}>Seance</NavLink>
+        <NavLink to="/messages/inbox" className={({ isActive }) => isActive ? "nav-active small" : "small"}>
+          Messages{unreadCount > 0 && <span className="badge">{unreadCount}</span>}
         </NavLink>
-        <NavLink to="/admin" className={({ isActive }) => isActive ? "nav-active small" : "small"}>
-          Critique
-        </NavLink>
-        <NavLink to="/templates" className={({ isActive }) => isActive ? "nav-active small" : "small"}>
-          Templates
-        </NavLink>
-        <NavLink to="/performers" className={({ isActive }) => isActive ? "nav-active small" : "small"}>
-          Performers
-        </NavLink>
-        <NavLink to="/seance" className={({ isActive }) => isActive ? "nav-active small" : "small"}>
-          Seance
-        </NavLink>
-        <NavLink
-          to="/messages/inbox"
-          className={({ isActive }) => isActive ? "nav-active small" : "small"}
-        >
-          Messages {unreadCount > 0 && <span className="badge">{unreadCount}</span>}
-        </NavLink>
+        <NavLink to="/system" className={({ isActive }) => isActive ? "nav-active small" : "small"}>System</NavLink>
       </nav>
       <SystemHealth />
       <div className="header-controls">

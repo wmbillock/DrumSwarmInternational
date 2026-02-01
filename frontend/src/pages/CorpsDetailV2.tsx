@@ -103,6 +103,7 @@ function OverviewTab({ corps, onStateChange }: { corps: v1.V1CorpsDetail; onStat
 
   const isWinterCamps = corps.state === "winter_camps";
   const isOnTour = corps.state === "on_tour";
+  const isReadyForContest = corps.state === "ready_for_contest";
 
   return (
     <div>
@@ -146,9 +147,24 @@ function OverviewTab({ corps, onStateChange }: { corps: v1.V1CorpsDetail; onStat
             </button>
           )}
           {isOnTour && (
-            <button onClick={() => exec("return_to_camps")} disabled={!!cmdLoading}>
-              {cmdLoading === "return_to_camps" ? "Returning..." : "Return to Camps"}
-            </button>
+            <>
+              <button className="success" onClick={() => exec("ready_for_contest")} disabled={!!cmdLoading}>
+                {cmdLoading === "ready_for_contest" ? "Preparing..." : "Ready for Contest"}
+              </button>
+              <button onClick={() => exec("return_to_camps")} disabled={!!cmdLoading}>
+                {cmdLoading === "return_to_camps" ? "Returning..." : "Return to Camps"}
+              </button>
+            </>
+          )}
+          {isReadyForContest && (
+            <>
+              <button className="success" onClick={() => exec("complete_corps")} disabled={!!cmdLoading}>
+                {cmdLoading === "complete_corps" ? "Completing..." : "Complete Corps"}
+              </button>
+              <button onClick={() => exec("return_to_tour")} disabled={!!cmdLoading}>
+                {cmdLoading === "return_to_tour" ? "Resuming..." : "Back to Tour"}
+              </button>
+            </>
           )}
           <button onClick={() => exec("resume_hut")} disabled={!!cmdLoading}>
             {cmdLoading === "resume_hut" ? "Waking..." : "Resume, Hut!"}

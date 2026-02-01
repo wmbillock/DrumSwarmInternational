@@ -8,16 +8,22 @@
  * - Export capabilities
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Card,
   Row,
   Col,
-  DatePicker,
   Select,
   Button,
   Space,
-  LineChart as RechartLineChart,
+  Checkbox,
+  Empty,
+  Spin,
+  message,
+} from "antd";
+import { DownloadOutlined } from "@ant-design/icons";
+import {
+  LineChart,
   Line,
   XAxis,
   YAxis,
@@ -25,10 +31,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  Checkbox,
-  Empty,
-} from "antd";
-import { DownloadOutlined } from "@ant-design/icons";
+} from "recharts";
 
 const MetricOptions = [
   "rep_completed",
@@ -38,10 +41,17 @@ const MetricOptions = [
   "task_latency",
 ];
 
+interface MetricDataPoint {
+  timestamp: string;
+  [key: string]: string | number;
+}
+
 const PerformanceExplorer: React.FC = () => {
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>(["rep_completed"]);
   const [timeRange, setTimeRange] = useState<string>("24h");
   const [granularity, setGranularity] = useState<"1m" | "5m" | "1h" | "1d">("1h");
+  const [chartData, setChartData] = useState<MetricDataPoint[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const handleMetricToggle = (metric: string) => {
     if (selectedMetrics.includes(metric)) {
@@ -51,9 +61,54 @@ const PerformanceExplorer: React.FC = () => {
     }
   };
 
+  const getPeriodDays = () => {
+    const map: { [key: string]: number } = { "1h": 0, "6h": 0, "24h": 1, "7d": 7, "30d": 30 };
+    return map[timeRange] || 7;
+  };
+
+  const fetchMetricsData = async () => {
+    if (selectedMetrics.length === 0) {
+      setChartData([]);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const metricTypes = selectedMetrics.join(",");
+      const periodDays = getPeriodDays();
+      const response = await fetch(
+        `/api/v1/metrics/timeseries?metric_types=${encodeURIComponent(metricTypes)}&period_days=${periodDays}&granularity=${granularity}`
+      );
+      const data = await response.json();
+      setChartData(data.data || []);
+    } catch (error) {
+      console.error("Failed to fetch metrics:", error);
+      message.error("Failed to load metrics data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleExport = () => {
-    // TODO: Implement export to CSV/JSON
-    console.log("Exporting metrics...");
+    if (chartData.length === 0) {
+      message.warning("No data to export");
+      return;
+    }
+
+    const csv = [
+      ["Timestamp", ...selectedMetrics].join(","),
+      ...chartData.map((row) =>
+        [row.timestamp, ...selectedMetrics.map((m) => row[m] || "")].join(",")
+      ),
+    ].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `metrics-${Date.now()}.csv`;
+    a.click();
+    message.success("Metrics exported successfully");
   };
 
   return (
@@ -116,8 +171,10 @@ const PerformanceExplorer: React.FC = () => {
 
           <Col xs={24}>
             <Space>
-              <Button type="primary">Update Chart</Button>
-              <Button icon={<DownloadOutlined />} onClick={handleExport}>
+              <Button type="primary" onClick={fetchMetricsData} loading={loading}>
+                Update Chart
+              </Button>
+              <Button icon={<DownloadOutlined />} onClick={handleExport} disabled={chartData.length === 0}>
                 Export
               </Button>
             </Space>
@@ -125,33 +182,39 @@ const PerformanceExplorer: React.FC = () => {
         </Row>
       </Card>
 
-      {selectedMetrics.length > 0 ? (
-        <Card title="Performance Metrics">
-          <ResponsiveContainer width="100%" height={400}>
-            <RechartLineChart data={[]}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="timestamp" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              {selectedMetrics.map((metric, index) => (
-                <Line
-                  key={metric}
-                  type="monotone"
-                  dataKey={metric}
-                  stroke={`hsl(${(index * 60) % 360}, 70%, 50%)`}
-                  dot={false}
-                  isAnimationActive={false}
-                />
-              ))}
-            </RechartLineChart>
-          </ResponsiveContainer>
-        </Card>
-      ) : (
-        <Card>
-          <Empty description="Select metrics to display" />
-        </Card>
-      )}
+      <Spin spinning={loading}>
+        {selectedMetrics.length > 0 ? (
+          <Card title="Performance Metrics">
+            {chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={400}>
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="timestamp" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  {selectedMetrics.map((metric, index) => (
+                    <Line
+                      key={metric}
+                      type="monotone"
+                      dataKey={metric}
+                      stroke={`hsl(${(index * 60) % 360}, 70%, 50%)`}
+                      dot={false}
+                      isAnimationActive={false}
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <Empty description="Click 'Update Chart' to load data" />
+            )}
+          </Card>
+        ) : (
+          <Card>
+            <Empty description="Select metrics to display" />
+          </Card>
+        )}
+      </Spin>
     </div>
   );
 };

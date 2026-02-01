@@ -102,6 +102,13 @@ class MessagingService:
         threads = list(self.db.scalars(stmt).all())
         return threads, total
 
+    def get_unread_count(self) -> int:
+        """Get count of threads with status=PENDING (unread)."""
+        stmt = select(func.count()).select_from(Thread).where(
+            Thread.status == ThreadStatus.PENDING
+        )
+        return self.db.scalar(stmt) or 0
+
     def add_message_to_thread(
         self,
         thread_id: str,

@@ -14,7 +14,7 @@ def _make_corps(db, name="Test Corps", status=CorpsStatus.WINTER_CAMPS, mode=Non
 
 
 def _make_agent(db, corps_id, role="test_role", status=SessionStatus.ACTIVE):
-    defn = AgentDefinition(role=role, system_prompt="test", model_tier="sonnet")
+    defn = AgentDefinition(corps_id=corps_id, role=role, system_prompt="test", model_tier="sonnet")
     db.add(defn)
     db.flush()
     session = AgentSession(definition_id=defn.id, corps_id=corps_id, status=status)
