@@ -18,6 +18,7 @@ from backend.models.rep import Rep, RepStatus
 
 @dataclass
 class SwarmHealth:
+    status: str             # "ok", "warning", "error" based on health metrics
     active_corps: int
     total_agents: int       # unique agent definitions (roles)
     active_agents: int      # definitions with at least one ACTIVE session
@@ -124,7 +125,19 @@ def get_swarm_health(db: Session) -> SwarmHealth:
 
     failure_rate = round(failed_reps / total_reps * 100, 1) if total_reps > 0 else 0.0
 
+    # Calculate overall health status
+    # "error" if any agents failed or failure rate > 20%
+    # "warning" if inactive agents > 10% or failure rate > 5%
+    # "ok" otherwise
+    if failed_agents > 0 or failure_rate > 20:
+        health_status = "error"
+    elif total_agents > 0 and active_agents / total_agents < 0.9 or failure_rate > 5:
+        health_status = "warning"
+    else:
+        health_status = "ok"
+
     return SwarmHealth(
+        status=health_status,
         active_corps=len(active_corps_list),
         total_agents=total_agents,
         active_agents=active_agents,
