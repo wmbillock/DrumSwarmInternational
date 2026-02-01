@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Tabs, Panel, DataTable, Badge } from "../ui";
+import { ShowDetail } from "../components/ShowDetail";
 import * as v1 from "../services/v1";
 
 const TAB_ITEMS = [
@@ -45,6 +46,11 @@ export function CorpsDetailV2() {
     navigate(`/corps/${corpsId}/${key}`, { replace: true });
   };
 
+  const refreshCorps = useCallback(() => {
+    if (!corpsId) return;
+    v1.getCorps(corpsId).then(setCorps).catch(() => {});
+  }, [corpsId]);
+
   if (loading) return <div className="page-loading">Loading corps...</div>;
   if (error) return <div className="page-error"><div className="error-banner">{error}</div></div>;
   if (!corps) return <div className="page-error">Corps not found</div>;
@@ -61,7 +67,7 @@ export function CorpsDetailV2() {
 
       <div style={{ marginTop: 16 }}>
         {activeTab === "overview" && (
-          <OverviewTab corps={corps} />
+          <OverviewTab corps={corps} onStateChange={refreshCorps} />
         )}
         {activeTab === "runs" && (
           <RunsTab runs={runs} navigate={navigate} />
@@ -77,7 +83,27 @@ export function CorpsDetailV2() {
   );
 }
 
-function OverviewTab({ corps }: { corps: v1.V1CorpsDetail }) {
+function OverviewTab({ corps, onStateChange }: { corps: v1.V1CorpsDetail; onStateChange?: () => void }) {
+  const [cmdLoading, setCmdLoading] = useState("");
+  const [cmdResult, setCmdResult] = useState("");
+
+  const exec = async (command: string) => {
+    setCmdLoading(command);
+    setCmdResult("");
+    try {
+      const res = await v1.executeCorpsCommand(corps.corps_id, command);
+      setCmdResult(res.detail || "OK");
+      onStateChange?.();
+    } catch (e: unknown) {
+      setCmdResult(e instanceof Error ? e.message : "Command failed");
+    } finally {
+      setCmdLoading("");
+    }
+  };
+
+  const isWinterCamps = corps.state === "winter_camps";
+  const isOnTour = corps.state === "on_tour";
+
   return (
     <div>
       <Panel title="Corps Info">
@@ -90,6 +116,42 @@ function OverviewTab({ corps }: { corps: v1.V1CorpsDetail }) {
           </tbody>
         </table>
       </Panel>
+
+      <Panel title="Lifecycle Controls" className="mt-16">
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+          {isWinterCamps && (
+            <button className="primary" onClick={() => exec("go_on_tour")} disabled={!!cmdLoading}>
+              {cmdLoading === "go_on_tour" ? "Starting..." : "Go On Tour"}
+            </button>
+          )}
+          {isOnTour && (
+            <button onClick={() => exec("return_to_camps")} disabled={!!cmdLoading}>
+              {cmdLoading === "return_to_camps" ? "Returning..." : "Return to Camps"}
+            </button>
+          )}
+          <button onClick={() => exec("resume_hut")} disabled={!!cmdLoading}>
+            {cmdLoading === "resume_hut" ? "Waking..." : "Resume, Hut!"}
+          </button>
+          <button onClick={() => exec("attention")} disabled={!!cmdLoading}>
+            {cmdLoading === "attention" ? "Requesting..." : "Attention!"}
+          </button>
+          <button onClick={() => exec("metronome_tick")} disabled={!!cmdLoading}>
+            Metronome Tick
+          </button>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Rehearsal:</span>
+          {["basics", "sectionals", "full_ensemble", "run_through"].map((mode) => (
+            <button key={mode} className="small" onClick={() => exec(mode)} disabled={!!cmdLoading}>
+              {mode.replace("_", " ")}
+            </button>
+          ))}
+        </div>
+        {cmdResult && (
+          <div style={{ marginTop: 8, fontSize: 13, color: "var(--text-secondary)" }}>{cmdResult}</div>
+        )}
+      </Panel>
+
       {corps.philosophy && (
         <Panel title="Philosophy" className="mt-16">
           <p style={{ fontSize: 13, color: "var(--text-secondary)", fontStyle: "italic" }}>
@@ -150,10 +212,42 @@ function ShowsTab({ history }: { history: v1.V1HistoryIndex | null }) {
 }
 
 function HistoryTab({ corps, history, corpsId }: { corps: v1.V1CorpsDetail; history: v1.V1HistoryIndex | null; corpsId: string }) {
+  const [selectedEntry, setSelectedEntry] = useState<v1.V1HistoryEntry | null>(null);
+
+  if (selectedEntry) {
+    return (
+      <ShowDetail
+        corpsId={corpsId}
+        entry={selectedEntry}
+        onBack={() => setSelectedEntry(null)}
+      />
+    );
+  }
+
   return (
     <div>
+      {/* Show List */}
+      {history && history.entries.length > 0 && (
+        <Panel title="Past Shows">
+          <DataTable<v1.V1HistoryEntry & Record<string, unknown>>
+            columns={[
+              { key: "show_slug", label: "Show", render: (v) => String(v || "N/A") },
+              { key: "season_id", label: "Season" },
+              { key: "placement", label: "Place", render: (v) => <strong>#{String(v)}</strong> },
+              { key: "final_score", label: "Score", render: (v) => Number(v).toFixed(2) },
+              { key: "artifacts", label: "Artifacts", render: (v) => String(Object.keys(v as Record<string, string>).length) },
+              { key: "runs", label: "Runs", render: (v) => String((v as string[]).length) },
+            ]}
+            data={history.entries as (v1.V1HistoryEntry & Record<string, unknown>)[]}
+            onRowClick={(row) => setSelectedEntry(row as unknown as v1.V1HistoryEntry)}
+            emptyMessage="No shows found"
+          />
+        </Panel>
+      )}
+
+      {/* Past Placements from corps.yaml */}
       {corps.history.length > 0 && (
-        <Panel title="Past Placements">
+        <Panel title="Placement History" className="mt-16">
           <DataTable<v1.V1Placement & Record<string, unknown>>
             columns={[
               { key: "season_id", label: "Season" },
@@ -164,21 +258,6 @@ function HistoryTab({ corps, history, corpsId }: { corps: v1.V1CorpsDetail; hist
             data={corps.history as (v1.V1Placement & Record<string, unknown>)[]}
             emptyMessage="No placement history"
           />
-        </Panel>
-      )}
-
-      {history && history.entries.length > 0 && (
-        <Panel title="Seance Sessions" className="mt-16">
-          <p className="hint">Start a seance session to query past show data with the Executive Director.</p>
-          <ul style={{ listStyle: "none", padding: 0, marginTop: 8 }}>
-            {history.entries.map((e) => (
-              <li key={e.entry_id} style={{ marginBottom: 8 }}>
-                <a href={`/seance`} className="link">
-                  {e.season_id} - {e.show_slug || "Unknown Show"} (#{e.placement})
-                </a>
-              </li>
-            ))}
-          </ul>
         </Panel>
       )}
 

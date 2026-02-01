@@ -12,7 +12,7 @@ import yaml
 
 from backend.services.yaml_util import atomic_write, safe_dump_yaml
 
-VALID_STATUSES = ("draft", "needs_review", "approved", "rejected")
+VALID_STATUSES = ("draft", "needs_review", "approved", "rejected", "published")
 
 
 def slugify(title: str) -> str:

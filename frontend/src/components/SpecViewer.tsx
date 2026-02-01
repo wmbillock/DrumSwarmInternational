@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { updateDesignSpec, approveDesignSpec } from "../services/api";
+import * as v1 from "../services/v1";
 
 interface Props {
   showSlug: string;
@@ -17,7 +17,7 @@ export function SpecViewer({ showSlug, content, onRefresh }: Props) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await updateDesignSpec(showSlug, editContent);
+      await v1.updateBrief(showSlug, editContent);
       setEditing(false);
       onRefresh();
     } catch (err: any) {
@@ -32,7 +32,7 @@ export function SpecViewer({ showSlug, content, onRefresh }: Props) {
     setApproving(true);
     setApproveResult(null);
     try {
-      const result = await approveDesignSpec(showSlug);
+      const result = await v1.approveThread(showSlug);
       setApproveResult(`Approved as version ${result.version}`);
       onRefresh();
     } catch (err: any) {

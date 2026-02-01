@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Show, WorkLogEntry, SystemHealth } from "../types";
 import * as api from "../services/api";
+import * as v1 from "../services/v1";
 
 function timeAgo(ts?: string): string {
   if (!ts) return "";
@@ -32,17 +33,29 @@ export function CommandCenter() {
   const [workLog, setWorkLog] = useState<WorkLogEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [corpsSlugMap, setCorpsSlugMap] = useState<Record<string, string>>({});
+  const [cleanupMsg, setCleanupMsg] = useState<string | null>(null);
+  const [cleaning, setCleaning] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
-      const [h, s, l] = await Promise.allSettled([
+      const [h, s, l, c] = await Promise.allSettled([
         api.getSystemHealth(),
         api.getShowsOverview(),
         api.getGlobalWorkLog(30),
+        v1.listCorps(),
       ]);
       if (h.status === "fulfilled") setHealth(h.value);
       if (s.status === "fulfilled") setShows(s.value);
       if (l.status === "fulfilled") setWorkLog(l.value);
+      if (c.status === "fulfilled") {
+        // Build display_name → corps_id (filesystem slug) mapping
+        const slugMap: Record<string, string> = {};
+        for (const corps of c.value) {
+          slugMap[corps.display_name] = corps.corps_id;
+        }
+        setCorpsSlugMap(slugMap);
+      }
 
       const anyFailed = [h, s, l].some(r => r.status === "rejected");
       if (anyFailed) {
@@ -102,6 +115,29 @@ export function CommandCenter() {
           <span className="vital-value">{((health?.failure_rate ?? 0) * 100).toFixed(1)}%</span>
           <span className="vital-label">Failure Rate</span>
         </div>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8, gap: 8, alignItems: "center" }}>
+        {cleanupMsg && <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>{cleanupMsg}</span>}
+        <button
+          className="small"
+          disabled={cleaning}
+          onClick={async () => {
+            setCleaning(true);
+            setCleanupMsg(null);
+            try {
+              const r = await v1.adminCleanup();
+              setCleanupMsg(`Cleaned: ${r.timed_out_sessions} stale sessions, ${r.disbanded_corps} orphan corps`);
+              refresh();
+            } catch (e: any) {
+              setCleanupMsg(`Cleanup failed: ${e.message}`);
+            } finally {
+              setCleaning(false);
+            }
+          }}
+        >
+          {cleaning ? "Cleaning..." : "Clean Up Stale"}
+        </button>
       </div>
 
       {/* Corps Status */}

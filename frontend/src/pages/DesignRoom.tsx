@@ -1,23 +1,28 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getDesignSpec, createDesignShow } from "../services/api";
+import * as v1 from "../services/v1";
+import { ThreadList } from "../components/ThreadList";
 import { DesignChat } from "../components/DesignChat";
-import { SpecViewer } from "../components/SpecViewer";
+import { ArtifactPanel } from "../components/ArtifactPanel";
+import { DevilsAdvocate } from "../components/DevilsAdvocate";
 
-export function DesignRoom() {
-  const { showSlug } = useParams<{ showSlug: string }>();
+function ThreadDetail({ showSlug }: { showSlug: string }) {
   const navigate = useNavigate();
   const [specContent, setSpecContent] = useState("");
+  const [threadStatus, setThreadStatus] = useState<string>("draft");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [newTitle, setNewTitle] = useState("");
+  const [showPublishGate, setShowPublishGate] = useState(false);
 
-  const fetchSpec = useCallback(async () => {
-    if (!showSlug) return;
+  const fetchData = useCallback(async () => {
     try {
-      const data = await getDesignSpec(showSlug);
-      setSpecContent(data.content);
+      const [brief, threads] = await Promise.all([
+        v1.getBrief(showSlug),
+        v1.listThreads(),
+      ]);
+      setSpecContent(brief.content);
+      const thread = threads.find(t => t.slug === showSlug);
+      if (thread) setThreadStatus(thread.status);
       setError(null);
     } catch (err: any) {
       setError(err.message);
@@ -26,68 +31,56 @@ export function DesignRoom() {
     }
   }, [showSlug]);
 
-  useEffect(() => {
-    if (showSlug) {
-      fetchSpec();
-    } else {
-      setLoading(false);
-    }
-  }, [showSlug, fetchSpec]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  const handleCreate = async () => {
-    if (!newTitle.trim()) return;
-    setCreating(true);
-    try {
-      const result = await createDesignShow(newTitle.trim());
-      navigate(`/design/${result.slug}`);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  // No slug — show create form
-  if (!showSlug) {
-    return (
-      <div className="dashboard">
-        <h2 className="page-title">Design Room</h2>
-        <p style={{ marginBottom: 16, color: "var(--text-secondary)" }}>
-          Create a new show to start the design process.
-        </p>
-        <div className="create-form">
-          <input
-            value={newTitle}
-            onChange={e => setNewTitle(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && handleCreate()}
-            placeholder="Show title..."
-          />
-          <button className="primary" onClick={handleCreate} disabled={creating || !newTitle.trim()}>
-            {creating ? "Creating..." : "Create Show"}
-          </button>
-        </div>
-        {error && <div className="error-banner">{error}</div>}
-      </div>
-    );
-  }
-
-  if (loading) return <div className="page-loading">Loading spec...</div>;
+  if (loading) return <div className="page-loading">Loading thread...</div>;
   if (error) return <div className="page-error"><div className="error-banner">{error}</div></div>;
+
+  const statusVariant = (s: string) => {
+    if (s === "approved") return "success";
+    if (s === "published") return "info";
+    if (s === "rejected") return "danger";
+    if (s === "needs_review") return "warning";
+    return "default";
+  };
 
   return (
     <div className="design-room">
-      <div className="design-room-header">
+      <div className="design-room-header" style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <button className="back-btn small" onClick={() => navigate("/design")}>Back</button>
-        <h2>{showSlug}</h2>
+        <h2 style={{ margin: 0 }}>{showSlug}</h2>
+        <span className={`badge ${statusVariant(threadStatus)}`}>{threadStatus}</span>
+        {threadStatus === "approved" && (
+          <button className="primary small" onClick={() => setShowPublishGate(true)} style={{ marginLeft: "auto" }}>
+            Publish
+          </button>
+        )}
       </div>
       <div className="design-room-panes">
         <div className="design-room-left">
-          <DesignChat showSlug={showSlug} onSpecUpdate={fetchSpec} />
+          <DesignChat showSlug={showSlug} onSpecUpdate={fetchData} />
         </div>
         <div className="design-room-right">
-          <SpecViewer showSlug={showSlug} content={specContent} onRefresh={fetchSpec} />
+          <ArtifactPanel showSlug={showSlug} specContent={specContent} onRefresh={fetchData} />
         </div>
       </div>
+      {showPublishGate && (
+        <DevilsAdvocate
+          showSlug={showSlug}
+          onClose={() => setShowPublishGate(false)}
+          onPublished={() => { setShowPublishGate(false); fetchData(); }}
+        />
+      )}
     </div>
   );
+}
+
+export function DesignRoom() {
+  const { showSlug } = useParams<{ showSlug: string }>();
+
+  if (!showSlug) {
+    return <ThreadList />;
+  }
+
+  return <ThreadDetail showSlug={showSlug} />;
 }

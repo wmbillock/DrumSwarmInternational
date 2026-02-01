@@ -1,0 +1,1 @@
+Add a standalone system-level Metronome agent that runs on a 5-minute cron cycle. On each tick, the Metronome wakes up, issues "ten-hut" (and "resume-hut" if needed) to every corps' instructional staff, admin, and logistics agents, then gathers corps status. Performers are NOT woken directly — staff agents wake performers as needed.

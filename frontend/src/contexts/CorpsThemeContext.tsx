@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from "react";
+import { useLocation } from "react-router-dom";
 
 export interface CorpsTheme {
   id: string;
@@ -297,26 +298,35 @@ export const CORPS_THEMES: Record<string, CorpsTheme> = {
 interface CorpsThemeContextValue {
   corpsTheme: CorpsTheme;
   setCorpsTheme: (id: string) => void;
+  setCorpsThemeForContext: (id: string) => void;
   availableThemes: CorpsTheme[];
 }
 
 const CorpsThemeContext = createContext<CorpsThemeContextValue>({
   corpsTheme: CORPS_THEMES.default,
   setCorpsTheme: () => {},
+  setCorpsThemeForContext: () => {},
   availableThemes: Object.values(CORPS_THEMES),
 });
 
 export function CorpsThemeProvider({ children }: { children: ReactNode }) {
-  const [themeId, setThemeId] = useState(() => {
+  const location = useLocation();
+
+  // User's preferred theme (set via theme picker in DCI overview mode)
+  const [userThemeId, setUserThemeId] = useState(() => {
     return localStorage.getItem("dci-corps-theme") || "default";
   });
 
-  const corpsTheme = CORPS_THEMES[themeId] || CORPS_THEMES.default;
+  // Currently active theme (may be overridden by context)
+  const [activeThemeId, setActiveThemeId] = useState(userThemeId);
 
+  // Track if we're in a corps-specific context
+  const isCorpsContext = useRef(false);
+
+  const corpsTheme = CORPS_THEMES[activeThemeId] || CORPS_THEMES.default;
+
+  // Apply theme to CSS custom properties
   useEffect(() => {
-    localStorage.setItem("dci-corps-theme", themeId);
-
-    // Apply theme to CSS custom properties
     const root = document.documentElement;
     root.style.setProperty("--bg-primary", corpsTheme.background);
     root.style.setProperty("--bg-secondary", corpsTheme.surface);
@@ -331,13 +341,52 @@ export function CorpsThemeProvider({ children }: { children: ReactNode }) {
     root.style.setProperty("--success", corpsTheme.success);
     root.style.setProperty("--warning", corpsTheme.warning);
     root.style.setProperty("--danger", corpsTheme.danger);
-  }, [themeId, corpsTheme]);
+  }, [corpsTheme]);
+
+  // Persist user theme preference
+  useEffect(() => {
+    localStorage.setItem("dci-corps-theme", userThemeId);
+  }, [userThemeId]);
+
+  // Auto-restore default theme when leaving corps context
+  useEffect(() => {
+    const wasInCorpsContext = isCorpsContext.current;
+    const isInCorpsRoute = location.pathname.startsWith("/corps/") &&
+                          location.pathname.split("/")[2]; // has corps id
+
+    // Leaving corps context -> restore user's preferred theme
+    if (wasInCorpsContext && !isInCorpsRoute) {
+      setActiveThemeId(userThemeId);
+      isCorpsContext.current = false;
+    }
+
+    // Update corps context flag
+    if (isInCorpsRoute && !wasInCorpsContext) {
+      isCorpsContext.current = true;
+    }
+  }, [location.pathname, userThemeId]);
+
+  // Set user's persistent theme (from theme picker in DCI overview)
+  const setCorpsTheme = (id: string) => {
+    setUserThemeId(id);
+    // Only apply immediately if not in a corps context
+    if (!isCorpsContext.current) {
+      setActiveThemeId(id);
+    }
+  };
+
+  // Set theme for current context (used by corps pages)
+  const setCorpsThemeForContext = (id: string) => {
+    setActiveThemeId(id);
+    isCorpsContext.current = true;
+  };
 
   return (
     <CorpsThemeContext.Provider
       value={{
         corpsTheme,
-        setCorpsTheme: setThemeId,
+        setCorpsTheme,
+        setCorpsThemeForContext,
         availableThemes: Object.values(CORPS_THEMES),
       }}
     >

@@ -1,27 +1,27 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getSeance, getSeanceTranscript, sendSeanceMessage, previewSeanceArtifact } from "../services/api";
-import type { SeanceSession as SeanceSessionType, ContextBinderItem, ArtifactPreview } from "../types";
+import * as v1 from "../services/v1";
+type ContextBinderItem = v1.V1Seance["context_binder"][number];
 
 export function SeanceSession() {
   const { seanceId } = useParams<{ seanceId: string }>();
   const navigate = useNavigate();
-  const [session, setSession] = useState<SeanceSessionType | null>(null);
+  const [session, setSession] = useState<v1.V1Seance | null>(null);
   const [transcript, setTranscript] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [mode, setMode] = useState<"strict" | "relaxed">("strict");
-  const [preview, setPreview] = useState<ArtifactPreview | null>(null);
+  const [preview, setPreview] = useState<{ path: string; content: string; truncated: boolean } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!seanceId) return;
     Promise.all([
-      getSeance(seanceId),
-      getSeanceTranscript(seanceId),
+      v1.getSeance(seanceId),
+      v1.getTranscript(seanceId),
     ])
       .then(([s, t]) => {
         setSession(s);
@@ -39,9 +39,9 @@ export function SeanceSession() {
     if (!seanceId || !message.trim() || sending) return;
     setSending(true);
     try {
-      await sendSeanceMessage(seanceId, message.trim(), mode);
+      await v1.postSeanceMessage(seanceId, message.trim(), mode);
       setMessage("");
-      const t = await getSeanceTranscript(seanceId);
+      const t = await v1.getTranscript(seanceId);
       setTranscript(t.transcript);
     } catch (e: any) {
       setError(e.message);
@@ -54,7 +54,7 @@ export function SeanceSession() {
     if (!seanceId || !item.loaded) return;
     setPreviewLoading(true);
     try {
-      const p = await previewSeanceArtifact(seanceId, item.path);
+      const p = await v1.previewArtifact(seanceId, item.path);
       setPreview(p);
     } catch (e: any) {
       setError(e.message);
@@ -70,7 +70,7 @@ export function SeanceSession() {
   return (
     <div className="design-room">
       <div className="design-room-header">
-        <button className="back-btn small" onClick={() => navigate(`/history/${session.corps_id}`)}>Back</button>
+        <button className="back-btn small" onClick={() => navigate(`/corps/${session.corps_id}/history`)}>Back</button>
         <h2>Seance: {session.corps_id} / {session.season_id}</h2>
         <span className={`badge ${session.status}`}>{session.status}</span>
         {session.show_slug && <span className="corps-badge">{session.show_slug}</span>}

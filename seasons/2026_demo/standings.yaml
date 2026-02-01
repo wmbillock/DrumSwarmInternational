@@ -1,0 +1,13 @@
+season_id: 2026_demo
+generated_at: '2026-02-01T05:02:31.835369+00:00'
+results:
+- corps_id: bluecoats
+  rank: 1
+  final_score: 72.95
+  raw_score: 72.95
+  caption_scores:
+    brass: 85
+    percussion: 63
+    guard: 62
+    visual: 68
+    general_effect: 83

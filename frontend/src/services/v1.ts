@@ -155,6 +155,42 @@ export interface CreateCompReq {
 export const listCorps = (signal?: AbortSignal) =>
   request<V1Corps[]>("/api/v1/corps", { signal });
 
+export interface CorpsIdentity {
+  name: string;
+  mascot: string;
+  color_scheme: { primary: string; secondary: string; accent: string };
+  uniform_concept: string;
+  icon_theme: string;
+  icon_prompt: string;
+}
+
+export interface IconResult {
+  source: string;
+  description: string;
+  image_url: string | null;
+}
+
+export interface V1CreatedCorps extends V1Corps {
+  mascot?: string;
+  color_scheme?: { primary: string; secondary: string; accent: string };
+  uniform_concept?: string;
+}
+
+export const generateCorpsIdentity = () =>
+  request<CorpsIdentity>("/api/v1/corps/generate-identity", { method: "POST" });
+
+export const generateCorpsIcon = (icon_prompt: string) =>
+  request<IconResult>("/api/v1/corps/generate-icon", { method: "POST", body: JSON.stringify({ icon_prompt }) });
+
+export const createCorps = (data: {
+  name: string;
+  mascot?: string;
+  color_scheme?: { primary: string; secondary: string; accent: string };
+  uniform_concept?: string;
+  philosophy?: string;
+}) =>
+  request<V1CreatedCorps>("/api/v1/corps", { method: "POST", body: JSON.stringify(data) });
+
 export const getCorps = (id: string, signal?: AbortSignal) =>
   request<V1CorpsDetail>(`/api/v1/corps/${id}`, { signal });
 
@@ -195,6 +231,24 @@ export const updateBrief = (slug: string, content: string) =>
 export const approveThread = (slug: string) =>
   request<{ version: number }>(`/api/v1/design/threads/${slug}/approve`, { method: "POST" });
 
+export const getPrompt = (slug: string, signal?: AbortSignal) =>
+  request<{ slug: string; content: string }>(`/api/v1/design/threads/${slug}/artifacts/prompt`, { signal });
+
+export const updatePrompt = (slug: string, content: string) =>
+  request<{ status: string }>(`/api/v1/design/threads/${slug}/artifacts/prompt`, { method: "PUT", body: JSON.stringify({ content }) });
+
+export interface V1LintFinding { section: string; message: string; }
+export interface V1LintReport { required_fix: V1LintFinding[]; nice_to_have: V1LintFinding[]; acceptable_risk: V1LintFinding[]; }
+
+export const lintPrompt = (slug: string) =>
+  request<V1LintReport>(`/api/v1/design/threads/${slug}/lint`, { method: "POST" });
+
+export const publishThread = (slug: string) =>
+  request<{ status: string }>(`/api/v1/design/threads/${slug}/publish`, { method: "POST" });
+
+export const listVersions = (slug: string, signal?: AbortSignal) =>
+  request<{ versions: number[] }>(`/api/v1/design/threads/${slug}/versions`, { signal });
+
 // --- Seances ---
 
 export const createSeance = (corpsId: string, entryId: string) =>
@@ -222,3 +276,75 @@ export const runCompetition = (id: string) =>
 
 export const getScores = (id: string, signal?: AbortSignal) =>
   request<V1Standings>(`/api/v1/competitions/${id}/scores`, { signal });
+
+export interface V1CorpsBreakdown {
+  corps_id: string;
+  caption_scores: Record<string, { score: number; weight: number; weighted: number }>;
+  penalties_total: number;
+  final_score: number;
+  commentary: Record<string, string>;
+}
+
+export const getCorpsBreakdown = (competitionId: string, corpsId: string, signal?: AbortSignal) =>
+  request<V1CorpsBreakdown>(`/api/v1/competitions/${competitionId}/corps/${corpsId}/breakdown`, { signal });
+
+// --- Artifact Preview ---
+
+export const previewArtifact = (seanceId: string, path: string, signal?: AbortSignal) =>
+  request<{ path: string; content: string; truncated: boolean }>(
+    `/api/v1/seances/${seanceId}/artifact-preview?path=${encodeURIComponent(path)}`, { signal }
+  );
+
+// --- Corps Seances ---
+
+export const listCorpsSeances = (corpsId: string, signal?: AbortSignal) =>
+  request<V1Seance[]>(`/api/v1/corps/${corpsId}/seances`, { signal });
+
+// --- Corps Commands ---
+
+export interface CorpsCommandResult {
+  command: string;
+  corps_id: string;
+  status: string;
+  detail: string;
+}
+
+export const executeCorpsCommand = (corpsId: string, command: string) =>
+  request<CorpsCommandResult>(`/api/corps/${corpsId}/command`, { method: "POST", body: JSON.stringify({ command }) });
+
+export interface CorpsCommands {
+  [key: string]: { label: string; description: string; category: string };
+}
+
+export const listCorpsCommands = (signal?: AbortSignal) =>
+  request<CorpsCommands>("/api/corps-commands", { signal });
+
+// --- Seasons ---
+
+export interface V1Season {
+  season_id: string;
+  dir_name: string;
+  metadata: Record<string, unknown>;
+}
+
+export const listSeasons = (signal?: AbortSignal) =>
+  request<V1Season[]>("/api/v1/seasons", { signal });
+
+export const createSeason = (season_id: string, metadata?: Record<string, unknown>) =>
+  request<V1Season>("/api/v1/seasons", { method: "POST", body: JSON.stringify({ season_id, metadata }) });
+
+export const getSeason = (id: string, signal?: AbortSignal) =>
+  request<V1Season & { registered_corps?: string[] }>(`/api/v1/seasons/${id}`, { signal });
+
+export const registerSeasonCorps = (seasonId: string, corpsId: string) =>
+  request<{ status: string }>(`/api/v1/seasons/${seasonId}/corps`, { method: "POST", body: JSON.stringify({ corps_id: corpsId }) });
+
+// --- Admin ---
+
+export interface CleanupResult {
+  timed_out_sessions: number;
+  disbanded_corps: number;
+}
+
+export const adminCleanup = () =>
+  request<CleanupResult>("/api/v1/admin/cleanup", { method: "POST" });

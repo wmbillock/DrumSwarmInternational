@@ -1,0 +1,10 @@
+corps_id: bluecoats
+show_slug: demo
+caption_scores:
+  brass: 85
+  percussion: 63
+  guard: 62
+  visual: 68
+  general_effect: 83
+raw_total: 72.95
+final_score: 72.95

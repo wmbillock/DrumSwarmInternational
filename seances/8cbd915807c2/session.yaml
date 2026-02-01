@@ -1,0 +1,24 @@
+seance_id: 8cbd915807c2
+corps_id: cavaliers
+entry_id: cavaliers-tour-s1
+season_id: tour-s1
+show_slug: tour-show-s1
+participant: executive_director
+created_at: '2026-02-01T03:44:43.337937+00:00'
+status: active
+context_binder:
+- path: seasons/tour-s1/standings.yaml
+  type: standings
+  loaded: true
+- path: seasons/tour-s1/performances/cavaliers/scores.yaml
+  type: corps_scores
+  loaded: true
+- path: shows/tour-show-s1/status.yaml
+  type: show_status
+  loaded: true
+- path: shows/tour-show-s1/design_notes.md
+  type: design_notes
+  loaded: true
+- path: shows/tour-show-s1/show_prompt.md
+  type: show_prompt
+  loaded: true

@@ -38,14 +38,11 @@ action_resume_hut() {
     _kill_port 5173
     sleep 1
 
-    _venv
-    cd "$PROJECT_ROOT"
-    uvicorn backend.api.app:app --host 0.0.0.0 --port "$BACKEND_PORT" --reload \
-        > "$PROJECT_ROOT/backend.log" 2>&1 &
+    # Use tmux run-shell to launch outside the popup's PTY so processes survive popup close
+    tmux run-shell -b "cd '$PROJECT_ROOT' && source '$VENV_DIR/bin/activate' 2>/dev/null; uvicorn backend.api.app:app --host 0.0.0.0 --port $BACKEND_PORT --reload > '$PROJECT_ROOT/backend.log' 2>&1 &"
     echo -e "${GREEN}Backend restarting (port $BACKEND_PORT)${NC}"
 
-    cd "$PROJECT_ROOT/frontend"
-    npm run dev > "$PROJECT_ROOT/frontend.log" 2>&1 &
+    tmux run-shell -b "cd '$PROJECT_ROOT/frontend' && npx vite > '$PROJECT_ROOT/frontend.log' 2>&1 &"
     echo -e "${GREEN}Frontend restarting (port 5173)${NC}"
 
     # Wait for backend
@@ -90,11 +87,8 @@ action_restart_backend() {
     echo -e "${BOLD}Restarting Backend${NC}"
     _kill_port "$BACKEND_PORT"
     sleep 1
-    _venv
-    cd "$PROJECT_ROOT"
-    uvicorn backend.api.app:app --host 0.0.0.0 --port "$BACKEND_PORT" --reload \
-        > "$PROJECT_ROOT/backend.log" 2>&1 &
-    echo -e "${GREEN}Backend restarting (PID $!)${NC}"
+    tmux run-shell -b "cd '$PROJECT_ROOT' && source '$VENV_DIR/bin/activate' 2>/dev/null; uvicorn backend.api.app:app --host 0.0.0.0 --port $BACKEND_PORT --reload > '$PROJECT_ROOT/backend.log' 2>&1 &"
+    echo -e "${GREEN}Backend restarting${NC}"
     sleep 2
     if curl -s "$API_BASE/api/shows" >/dev/null 2>&1; then
         echo -e "${GREEN}Backend is set${NC}"
@@ -109,9 +103,8 @@ action_restart_frontend() {
     echo -e "${BOLD}Restarting Frontend${NC}"
     _kill_port 5173
     sleep 1
-    cd "$PROJECT_ROOT/frontend"
-    npm run dev > "$PROJECT_ROOT/frontend.log" 2>&1 &
-    echo -e "${GREEN}Frontend restarting (PID $!)${NC}"
+    tmux run-shell -b "cd '$PROJECT_ROOT/frontend' && npx vite > '$PROJECT_ROOT/frontend.log' 2>&1 &"
+    echo -e "${GREEN}Frontend restarting${NC}"
     echo "Press any key..."
     read -n 1
 }

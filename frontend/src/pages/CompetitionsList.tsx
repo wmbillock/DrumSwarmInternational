@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Panel, DataTable, Badge } from "../ui";
+import { CompetitionForm } from "../components/CompetitionForm";
 import * as v1 from "../services/v1";
 
 export function CompetitionsList() {
@@ -8,6 +9,7 @@ export function CompetitionsList() {
   const [competitions, setCompetitions] = useState<v1.V1Competition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -25,7 +27,23 @@ export function CompetitionsList() {
 
   return (
     <div className="page-content">
-      <Panel title="Competitions">
+      <Panel
+        title="Competitions"
+        actions={
+          <button className="primary" onClick={() => setShowForm(!showForm)}>
+            {showForm ? "Cancel" : "Create Competition"}
+          </button>
+        }
+      >
+        {showForm && (
+          <CompetitionForm
+            onCreated={(comp) => {
+              setCompetitions((prev) => [...prev, comp]);
+              setShowForm(false);
+            }}
+            onCancel={() => setShowForm(false)}
+          />
+        )}
         <DataTable<v1.V1Competition & Record<string, unknown>>
           columns={[
             { key: "competition_id", label: "ID", render: (v) => <span className="mono">{String(v)}</span> },

@@ -1,25 +1,28 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import type { CorpsWorkspace } from "../types";
-import * as api from "../services/api";
+import * as v1 from "../services/v1";
+import { CorpsCreateModal } from "../components/CorpsCreateModal";
 
 const STATE_LABELS: Record<string, string> = {
+  initializing: "Initializing",
+  winter_camps: "Winter Camps",
+  on_tour: "On Tour",
+  completed: "Completed",
+  disbanded: "Disbanded",
   commissioned: "Commissioned",
   active: "Active",
   contending: "Contending",
-  stagnant: "Stagnant",
-  rebuilt: "Rebuilt",
-  retired: "Retired",
 };
 
 export function CorpsList() {
   const navigate = useNavigate();
-  const [corps, setCorps] = useState<CorpsWorkspace[]>([]);
+  const [corps, setCorps] = useState<v1.V1Corps[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
-    api.getCorpsWorkspaces()
+    v1.listCorps()
       .then(setCorps)
       .catch(e => setError(e instanceof Error ? e.message : "Failed to load corps"))
       .finally(() => setLoading(false));
@@ -29,12 +32,27 @@ export function CorpsList() {
 
   return (
     <div className="corps-list-page">
-      <h1 className="page-title">Corps</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h1 className="page-title">Corps</h1>
+        <button className="primary" onClick={() => setShowModal(true)}>
+          Create Corps
+        </button>
+      </div>
 
       {error && <div className="error-banner">{error}</div>}
 
+      {showModal && (
+        <CorpsCreateModal
+          onCreated={(created) => {
+            setCorps(prev => [...prev, created]);
+            setShowModal(false);
+          }}
+          onClose={() => setShowModal(false)}
+        />
+      )}
+
       {corps.length === 0 && !error && (
-        <p className="empty">No corps found. Initialize corps via the CLI to see them here.</p>
+        <p className="empty">No corps found. Create one to get started.</p>
       )}
 
       {corps.length > 0 && (
@@ -46,15 +64,6 @@ export function CorpsList() {
                 <span className={`badge state-${c.state}`}>{STATE_LABELS[c.state] || c.state}</span>
               </div>
               {c.philosophy && <p className="corps-list-philosophy">{c.philosophy}</p>}
-              <div className="corps-list-stats">
-                <span>{c.roster_size} members</span>
-                <span>{c.history.length} placements</span>
-              </div>
-              {c.history.length > 0 && (
-                <div className="corps-list-best">
-                  Best: #{Math.min(...c.history.map(h => h.placement))} ({Math.max(...c.history.map(h => h.final_score)).toFixed(1)} pts)
-                </div>
-              )}
             </div>
           ))}
         </div>

@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { sendDesignMessage } from "../services/api";
-import type { DesignMessage } from "../types";
+import * as v1 from "../services/v1";
 
 interface ChatEntry {
   role: string;
@@ -18,10 +17,29 @@ export function DesignChat({ showSlug, onSpecUpdate }: Props) {
   const [messages, setMessages] = useState<ChatEntry[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // Load message history on mount
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const ctrl = new AbortController();
+    v1.getMessages(showSlug, ctrl.signal)
+      .then(data => {
+        const history: ChatEntry[] = data.messages.map(m => ({
+          role: m.role,
+          message: m.content,
+          tags: m.tags,
+          isUser: m.role === "user",
+        }));
+        setMessages(history);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingHistory(false));
+    return () => ctrl.abort();
+  }, [showSlug]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView?.({ behavior: "smooth" });
   }, [messages]);
 
   const handleSend = async () => {
@@ -33,7 +51,7 @@ export function DesignChat({ showSlug, onSpecUpdate }: Props) {
     setSending(true);
 
     try {
-      const resp: DesignMessage = await sendDesignMessage(showSlug, text);
+      const resp = await v1.postMessage(showSlug, text);
       setMessages(prev => [
         ...prev,
         { role: resp.role, message: resp.response, tags: resp.tags, isUser: false },
@@ -55,7 +73,8 @@ export function DesignChat({ showSlug, onSpecUpdate }: Props) {
         <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>Design Chat</span>
       </div>
       <div className="chat-messages">
-        {messages.length === 0 && (
+        {loadingHistory && <div className="page-loading">Loading history...</div>}
+        {!loadingHistory && messages.length === 0 && (
           <div className="chat-empty">
             <p className="empty">Send a message to start designing your show.</p>
             <p className="empty">Mention brass, drill, guard, or themes to route to creative staff.</p>
@@ -64,7 +83,9 @@ export function DesignChat({ showSlug, onSpecUpdate }: Props) {
         {messages.map((m, i) => (
           <div key={i} className={`chat-msg ${m.isUser ? "user" : "agent"}`}>
             <div className="chat-msg-header">
-              <span className="chat-sender">{m.isUser ? "You" : m.role}</span>
+              <span className="chat-sender">
+                {m.isUser ? "You" : <span className={`badge ${m.role === "system" ? "danger" : "default"}`}>{m.role}</span>}
+              </span>
               {m.tags && m.tags.length > 0 && (
                 <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
                   [{m.tags.join(", ")}]

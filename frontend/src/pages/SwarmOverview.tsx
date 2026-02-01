@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Show, AgentSession, WorkLogEntry } from "../types";
 import * as api from "../services/api";
+import * as v1 from "../services/v1";
 
 function formatRole(role: string): string {
   return role.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
@@ -85,16 +86,25 @@ export function SwarmOverview() {
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [corpsSlugMap, setCorpsSlugMap] = useState<Record<string, string>>({});
 
   const refreshDashboard = useCallback(async () => {
-    const [s, a, l] = await Promise.allSettled([
+    const [s, a, l, c] = await Promise.allSettled([
       api.getShowsOverview(),
       api.getAgentsOverview(),
       api.getGlobalWorkLog(50),
+      v1.listCorps(),
     ]);
     if (s.status === "fulfilled") setShows(s.value);
     if (a.status === "fulfilled") setAgents(a.value);
     if (l.status === "fulfilled") setWorkLog(l.value);
+    if (c.status === "fulfilled") {
+      const slugMap: Record<string, string> = {};
+      for (const corps of c.value) {
+        slugMap[corps.display_name] = corps.corps_id;
+      }
+      setCorpsSlugMap(slugMap);
+    }
   }, []);
 
   useEffect(() => { refreshDashboard(); }, [refreshDashboard]);
@@ -105,7 +115,8 @@ export function SwarmOverview() {
 
   const handleSelectShow = (show: Show) => {
     if (show.corps_id) {
-      navigate(`/corps/${show.corps_id}`);
+      const slug = corpsSlugMap[show.corps_name || ""] || show.corps_id;
+      navigate(`/corps/${slug}`);
     }
   };
 
@@ -144,7 +155,8 @@ export function SwarmOverview() {
   const completedShows = shows.filter(s => s.status === "completed" || s.status === "archived");
 
   return (
-    <div className="dashboard">
+    <div className="dashboard shows-overview">
+      <h1 className="page-title">Shows</h1>
       <div className="summary-bar">
         <div className="summary-stat">
           <span className="summary-value">{shows.length}</span>
@@ -239,7 +251,7 @@ export function SwarmOverview() {
             }
             return Object.entries(byCorps).map(([corpsId, corpsAgents]) => {
               const show = shows.find(s => s.corps_id === corpsId);
-              const corpsName = show?.corps_name || show?.title || corpsId.slice(0, 8);
+              const corpsName = corpsAgents[0]?.corps_name || show?.corps_name || show?.title || "Unknown Corps";
               return (
                 <div key={corpsId} className="agent-corps-group">
                   <div className="agent-corps-header clickable" onClick={() => show && handleSelectShow(show)}>

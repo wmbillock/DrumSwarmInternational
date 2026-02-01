@@ -64,6 +64,7 @@ export interface AgentSession {
   classification?: AgentClassification;
   status: "active" | "completed" | "failed" | "timed_out";
   corps_id?: string;
+  corps_name?: string;
   parent_session_id?: string;
   started_at?: string;
   ended_at?: string;

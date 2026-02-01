@@ -7,7 +7,7 @@ HTTP ↔ service calls and enforce slug/id validation.
 import hashlib
 import os
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -42,55 +42,311 @@ def _validate_id(value: str, label: str = "id") -> None:
 # CORPS
 # =========================================================================
 
+def _get_db_session():
+    """Get a SQLAlchemy session for DB fallback queries."""
+    from backend.api.app import SessionFactory
+    return SessionFactory()
+
+
 @router.get("/corps")
 def v1_list_corps():
-    """List all corps from filesystem workspaces."""
+    """List all corps from filesystem workspaces + DB, deduplicated by display_name."""
     root = _get_root()
     corps_base = root / "corps"
-    if not corps_base.exists():
-        return []
     result = []
-    for corps_dir in sorted(corps_base.iterdir()):
-        corps_path = corps_dir / "corps.yaml"
-        if not corps_path.is_file():
-            continue
+    seen_names: set[str] = set()
+
+    # Filesystem corps
+    if corps_base.exists():
+        for corps_dir in sorted(corps_base.iterdir()):
+            corps_path = corps_dir / "corps.yaml"
+            if not corps_path.is_file():
+                continue
+            try:
+                data = yaml.safe_load(corps_path.read_text())
+                name = data.get("display_name", corps_dir.name)
+                seen_names.add(name)
+                result.append({
+                    "corps_id": data.get("corps_id", corps_dir.name),
+                    "display_name": name,
+                    "philosophy": data.get("philosophy", ""),
+                    "state": data.get("state", "unknown"),
+                })
+            except Exception:
+                continue
+
+    # DB corps (merge, dedup by display_name)
+    try:
+        from backend.models.corps import Corps, CorpsStatus
+        db = _get_db_session()
         try:
-            data = yaml.safe_load(corps_path.read_text())
-            result.append({
-                "corps_id": data.get("corps_id", corps_dir.name),
-                "display_name": data.get("display_name", corps_dir.name),
-                "philosophy": data.get("philosophy", ""),
-                "state": data.get("state", "unknown"),
-            })
-        except Exception:
-            continue
+            db_corps = db.query(Corps).filter(
+                Corps.status != CorpsStatus.DISBANDED
+            ).all()
+            for c in db_corps:
+                if c.name not in seen_names:
+                    seen_names.add(c.name)
+                    result.append({
+                        "corps_id": c.id,
+                        "display_name": c.name,
+                        "philosophy": "",
+                        "state": c.status.value if c.status else "unknown",
+                    })
+        finally:
+            db.close()
+    except Exception:
+        pass  # DB unavailable — filesystem-only mode
+
     return result
+
+
+MAX_CORPS = 18  # DCI semifinals cap
+
+
+def _generate_color_scheme(seed: str) -> dict:
+    """Generate a deterministic DCI-inspired color scheme from a seed string."""
+    h = int(hashlib.sha256(seed.encode()).hexdigest()[:8], 16)
+    # Use golden ratio to spread hues
+    hue = (h % 360)
+    import colorsys
+    # Primary: dark, saturated
+    r, g, b = colorsys.hls_to_rgb(hue / 360.0, 0.25, 0.7)
+    primary = f"#{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}"
+    # Secondary: medium
+    r, g, b = colorsys.hls_to_rgb(((hue + 30) % 360) / 360.0, 0.45, 0.5)
+    secondary = f"#{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}"
+    # Accent: bright
+    r, g, b = colorsys.hls_to_rgb(((hue + 180) % 360) / 360.0, 0.55, 0.8)
+    accent = f"#{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}"
+    return {"primary": primary, "secondary": secondary, "accent": accent}
+
+
+_UNIFORM_STYLES = [
+    "Military-inspired with braided epaulettes and sash",
+    "Sleek modern design with asymmetric color blocking",
+    "Classic corps style with plumed shako and gauntlets",
+    "Contemporary athleisure with gradient panels",
+    "Renaissance-inspired with tabard and metallic accents",
+    "Space-age futuristic with reflective piping",
+    "Western cavalry motif with fringe and concho details",
+    "Art deco geometric patterns with gold trim",
+    "Japanese-inspired hakama silhouette with obi sash",
+    "Steampunk Victorian with brass fittings and goggles",
+]
+
+_ICON_THEMES = [
+    "heraldic shield", "winged emblem", "celestial star burst",
+    "crossed instruments", "flame and laurel wreath", "geometric mandala",
+    "stylized animal crest", "art nouveau flourish", "modernist abstract mark",
+    "military insignia with musical notation",
+]
+
+
+@router.post("/corps/generate-identity")
+def v1_generate_corps_identity():
+    """Auto-generate a complete corps identity for preview."""
+    from backend.services.nickname_generator import generate_corps_name, generate_mascot
+    import json as _json
+
+    # Gather existing names to avoid duplicates
+    existing_names: set[str] = set()
+    try:
+        from backend.models.corps import Corps
+        db = _get_db_session()
+        try:
+            for c in db.query(Corps.name).all():
+                existing_names.add(c[0])
+        finally:
+            db.close()
+    except Exception:
+        pass
+
+    name = generate_corps_name(existing_names)
+    mascot = generate_mascot(existing_names)
+    colors = _generate_color_scheme(name)
+
+    import random
+    uniform = random.choice(_UNIFORM_STYLES)
+    icon_theme = random.choice(_ICON_THEMES)
+
+    icon_prompt = (
+        f"Design a {icon_theme} logo for a drum corps called '{name}' "
+        f"with mascot '{mascot}'. Use colors: {colors['primary']}, "
+        f"{colors['secondary']}, and {colors['accent']}. "
+        f"Style: clean vector art, suitable for embroidery on uniforms. "
+        f"No text in the image."
+    )
+
+    return {
+        "name": name,
+        "mascot": mascot,
+        "color_scheme": colors,
+        "uniform_concept": uniform,
+        "icon_theme": icon_theme,
+        "icon_prompt": icon_prompt,
+    }
+
+
+class GenerateIconRequest(BaseModel):
+    icon_prompt: str
+
+
+@router.post("/corps/generate-icon")
+def v1_generate_corps_icon(req: GenerateIconRequest):
+    """Use ChatGPT CLI to generate an icon description or image."""
+    import shutil
+    if not shutil.which("chatgpt"):
+        return {
+            "source": "fallback",
+            "description": (
+                "A bold heraldic emblem rendered in the corps colors, "
+                "featuring the mascot in a dynamic pose surrounded by "
+                "musical motifs and geometric framing."
+            ),
+            "image_url": None,
+        }
+
+    from backend.services.llm_client import ChatGPTCLIClient, LLMMessage
+    from backend.models.agent_definition import ModelTier
+    client = ChatGPTCLIClient()
+    resp = client.chat(
+        messages=[
+            LLMMessage(role="system", content=(
+                "You are a visual designer. Describe a corps logo based on the prompt. "
+                "Output a vivid 2-3 sentence description of the logo design. "
+                "If you can generate an image, include the URL."
+            )),
+            LLMMessage(role="user", content=req.icon_prompt),
+        ],
+        model_tier=ModelTier.SONNET,
+    )
+    return {
+        "source": "chatgpt",
+        "description": resp.content,
+        "image_url": None,
+    }
+
+
+class CreateCorpsRequest(BaseModel):
+    name: str
+    mascot: Optional[str] = None
+    color_scheme: Optional[dict] = None
+    uniform_concept: Optional[str] = None
+    philosophy: Optional[str] = ""
+
+
+@router.post("/corps")
+def v1_create_corps(req: CreateCorpsRequest):
+    """Create a new corps via the DB. Enforces an 18-corps cap."""
+    from backend.models.corps import Corps, CorpsStatus, CorpsMode
+    import json as _json
+
+    db = _get_db_session()
+    try:
+        active_count = db.query(Corps).filter(
+            Corps.status != CorpsStatus.DISBANDED
+        ).count()
+        if active_count >= MAX_CORPS:
+            raise HTTPException(400, f"Maximum of {MAX_CORPS} active corps reached")
+
+        # Check for name uniqueness
+        existing = db.query(Corps).filter(Corps.name == req.name).first()
+        if existing:
+            raise HTTPException(409, f"Corps '{req.name}' already exists")
+
+        import uuid
+        corps_id = str(uuid.uuid4())
+
+        # Store color scheme + uniform concept together
+        theme_data = {}
+        if req.color_scheme:
+            theme_data["color_scheme"] = req.color_scheme
+        if req.uniform_concept:
+            theme_data["uniform_concept"] = req.uniform_concept
+
+        corps = Corps(
+            id=corps_id,
+            name=req.name,
+            status=CorpsStatus.WINTER_CAMPS,
+            mode=CorpsMode.DESIGN_ROOM,
+            mascot=req.mascot,
+            uniform_concept=_json.dumps(theme_data) if theme_data else None,
+        )
+        db.add(corps)
+        db.commit()
+
+        return {
+            "corps_id": corps_id,
+            "display_name": req.name,
+            "mascot": req.mascot,
+            "color_scheme": req.color_scheme,
+            "uniform_concept": req.uniform_concept,
+            "philosophy": req.philosophy or "",
+            "state": "winter_camps",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Failed to create corps: {e}")
+    finally:
+        db.close()
 
 
 @router.get("/corps/{corps_id}")
 def v1_get_corps(corps_id: str):
-    """Get corps detail including roster size and history."""
+    """Get corps detail including roster size and history. Falls back to DB for UUID lookups."""
     _validate_id(corps_id, "corps_id")
     root = _get_root()
     corps_path = root / "corps" / corps_id / "corps.yaml"
-    if not corps_path.is_file():
+    if corps_path.is_file():
+        data = yaml.safe_load(corps_path.read_text())
+        roster_path = root / "corps" / corps_id / "roster.yaml"
+        roster_size = 0
+        if roster_path.is_file():
+            roster = yaml.safe_load(roster_path.read_text())
+            roster_size = len(roster.get("assignments", []))
+        history = data.get("history", [])
+        return {
+            "corps_id": data.get("corps_id", corps_id),
+            "display_name": data.get("display_name", corps_id),
+            "philosophy": data.get("philosophy", ""),
+            "state": data.get("state", "unknown"),
+            "roster_size": roster_size,
+            "history_count": len(history),
+            "history": history,
+        }
+
+    # Fallback: query DB for this UUID
+    try:
+        from backend.models.corps import Corps
+        from backend.models.agent_session import AgentSession, SessionStatus
+        db = _get_db_session()
+        try:
+            corps = db.get(Corps, corps_id)
+            if not corps:
+                raise HTTPException(404, f"Corps '{corps_id}' not found")
+            roster_size = db.query(AgentSession).filter(
+                AgentSession.corps_id == corps_id,
+                AgentSession.status == SessionStatus.ACTIVE
+            ).count()
+            return {
+                "corps_id": corps.id,
+                "display_name": corps.name,
+                "philosophy": "",
+                "state": corps.status.value if corps.status else "unknown",
+                "roster_size": roster_size,
+                "history_count": 0,
+                "history": [],
+                "mascot": corps.mascot,
+                "mode": corps.mode.value if corps.mode else None,
+            }
+        finally:
+            db.close()
+    except HTTPException:
+        raise
+    except Exception:
         raise HTTPException(404, f"Corps '{corps_id}' not found")
-    data = yaml.safe_load(corps_path.read_text())
-    roster_path = root / "corps" / corps_id / "roster.yaml"
-    roster_size = 0
-    if roster_path.is_file():
-        roster = yaml.safe_load(roster_path.read_text())
-        roster_size = len(roster.get("assignments", []))
-    history = data.get("history", [])
-    return {
-        "corps_id": data.get("corps_id", corps_id),
-        "display_name": data.get("display_name", corps_id),
-        "philosophy": data.get("philosophy", ""),
-        "state": data.get("state", "unknown"),
-        "roster_size": roster_size,
-        "history_count": len(history),
-        "history": history,
-    }
 
 
 # =========================================================================
@@ -201,9 +457,21 @@ def v1_start_run(req: StartRunRequest):
     if not check_field_ready(show_dir):
         raise HTTPException(400, f"Show '{req.show_slug}' is not approved")
 
+    # Validate corps exists (filesystem or DB)
     corps_dir = root / "corps" / req.corps_id
     if not (corps_dir / "corps.yaml").exists():
-        raise HTTPException(404, f"Corps '{req.corps_id}' not found")
+        try:
+            from backend.models.corps import Corps
+            db = _get_db_session()
+            try:
+                if not db.get(Corps, req.corps_id):
+                    raise HTTPException(404, f"Corps '{req.corps_id}' not found")
+            finally:
+                db.close()
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(404, f"Corps '{req.corps_id}' not found")
 
     season_dir = root / "seasons" / req.season_id
     if not (season_dir / "season.yaml").exists():
@@ -352,11 +620,74 @@ def v1_get_thread_messages(slug: str):
     return {"slug": slug, "messages": messages}
 
 
+_DESIGN_ROLE_PROMPTS = {
+    "music_writer": (
+        "You are the Music Arranger for this show. You specialize in brass arrangements, "
+        "percussion writing, and musical pacing. Help the user design the musical elements. "
+        "Suggest specific musical ideas, key changes, tempo progressions, and scoring decisions."
+    ),
+    "drill_writer": (
+        "You are the Drill Designer for this show. You specialize in visual design, "
+        "formations, transitions, and staging. Help the user design the visual program. "
+        "Suggest formations, movement patterns, visual moments, and staging concepts."
+    ),
+    "choreographer": (
+        "You are the Guard Choreographer for this show. You specialize in color guard "
+        "choreography, equipment work, and dance. Help design the guard elements. "
+        "Suggest equipment choices, choreographic moments, and visual impact points."
+    ),
+    "program_coordinator": (
+        "You are the Program Coordinator for this show. You oversee the overall design, "
+        "ensure all elements (music, visual, guard, general effect) work together cohesively. "
+        "Help the user develop the show concept, resolve design conflicts, and make high-level "
+        "creative decisions. Ask clarifying questions when the direction is unclear."
+    ),
+}
+
+_DESIGN_SYSTEM_TEMPLATE = """You are a DCI show design staff member working in the Design Room.
+
+ROLE: {role_prompt}
+
+SHOW: {slug}
+
+CURRENT SPEC:
+{spec_content}
+
+DESIGN NOTES SO FAR:
+{notes_content}
+
+INSTRUCTIONS:
+- Respond as your role character in 2-4 sentences. Be specific and actionable.
+- If the user's message leads to a design decision, state it clearly.
+- If you need more information, ask a specific question.
+- Reference the current spec when relevant.
+- Stay in character — you're a creative professional collaborating on a show design.
+- Do NOT just acknowledge. Contribute substantive creative ideas or ask clarifying questions.
+"""
+
+
+def _get_llm_client():
+    """Get the shared LLM client from the task manager.
+
+    The task manager is initialized at app startup (see app.py lifespan)
+    with the best available client: Claude CLI > ChatGPT CLI > Anthropic API > Mock.
+    """
+    try:
+        from backend.api.app import get_task_manager
+        tm = get_task_manager()
+        if tm and hasattr(tm, "llm_client"):
+            return tm.llm_client
+    except (ImportError, AttributeError):
+        pass
+    return None
+
+
 @router.post("/design/threads/{slug}/messages")
 def v1_post_thread_message(slug: str, req: PostMessageRequest):
-    """Post a message to a design thread — routes via note_router."""
+    """Post a message to a design thread — routes via note_router, generates LLM response."""
     show_dir = _show_dir(slug)
     from backend.services.note_router import route_note
+    from backend.services.show_persistence import read_spec
 
     tags = route_note(req.message)
 
@@ -370,16 +701,62 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
     else:
         role = TAG_TO_ROLE.get(tags[0], "program_coordinator") if tags else "program_coordinator"
 
+    # Persist user message to design notes
     notes_path = show_dir / "design_notes.md"
     tag_comment = f"<!-- tags: {', '.join(tags)} -->\n"
     entry = f"\n**[user]** {req.message}\n"
     with open(notes_path, "a") as f:
         f.write(tag_comment + entry)
 
+    # Try to generate an LLM response
+    llm_client = _get_llm_client()
+    if llm_client:
+        try:
+            from backend.services.llm_client import LLMMessage
+            from backend.models.agent_definition import ModelTier
+
+            spec_content = read_spec(show_dir) or "(no spec yet)"
+            notes_content = notes_path.read_text() if notes_path.exists() else "(no notes yet)"
+            # Truncate notes to last 3000 chars to keep context manageable
+            if len(notes_content) > 3000:
+                notes_content = "...\n" + notes_content[-3000:]
+
+            role_prompt = _DESIGN_ROLE_PROMPTS.get(role, _DESIGN_ROLE_PROMPTS["program_coordinator"])
+            system_prompt = _DESIGN_SYSTEM_TEMPLATE.format(
+                role_prompt=role_prompt,
+                slug=slug,
+                spec_content=spec_content[:2000],
+                notes_content=notes_content,
+            )
+
+            resp = llm_client.chat(
+                messages=[
+                    LLMMessage(role="system", content=system_prompt),
+                    LLMMessage(role="user", content=req.message),
+                ],
+                model_tier=ModelTier.HAIKU,
+            )
+
+            response_text = resp.content.strip() if resp.content else None
+            if response_text and resp.stop_reason != "error":
+                # Persist the agent response to design notes
+                agent_entry = f"\n<!-- tags: {', '.join(tags)} -->\n**[{role}]** {response_text}\n"
+                with open(notes_path, "a") as f:
+                    f.write(agent_entry)
+
+                return {
+                    "role": role,
+                    "tags": tags,
+                    "response": response_text,
+                }
+        except Exception:
+            pass  # Fall through to stub response
+
+    # Fallback: structured stub response
     return {
         "role": role,
         "tags": tags,
-        "response": f"[{role}] Noted. Tags: {', '.join(tags)}.",
+        "response": f"[{role}] Noted. Tags: {', '.join(tags)}. (LLM unavailable — responses will be richer when an LLM backend is configured.)",
     }
 
 
@@ -408,6 +785,50 @@ def v1_get_prompt(slug: str):
     prompt_path = show_dir / "show_prompt.md"
     content = prompt_path.read_text() if prompt_path.exists() else ""
     return {"slug": slug, "content": content}
+
+
+@router.put("/design/threads/{slug}/artifacts/prompt")
+def v1_update_prompt(slug: str, req: UpdateSpecRequest):
+    """Update the show prompt markdown."""
+    show_dir = _show_dir(slug)
+    from backend.services.yaml_util import atomic_write
+    atomic_write(show_dir / "show_prompt.md", req.content)
+    return {"status": "updated"}
+
+
+@router.post("/design/threads/{slug}/lint")
+def v1_lint_prompt(slug: str):
+    """Run prompt linter on current show_prompt.md."""
+    show_dir = _show_dir(slug)
+    prompt_path = show_dir / "show_prompt.md"
+    content = prompt_path.read_text() if prompt_path.exists() else ""
+    from backend.services.prompt_linter import lint_prompt
+    report = lint_prompt(content)
+    return {
+        "required_fix": [{"section": f.section, "message": f.message} for f in report.required_fix],
+        "nice_to_have": [{"section": f.section, "message": f.message} for f in report.nice_to_have],
+        "acceptable_risk": [{"section": f.section, "message": f.message} for f in report.acceptable_risk],
+    }
+
+
+@router.post("/design/threads/{slug}/publish")
+def v1_publish_thread(slug: str):
+    """Publish a thread — guards: status must be approved, lint must have zero required_fix items."""
+    show_dir = _show_dir(slug)
+    from backend.services.show_persistence import load_status, update_status
+    status = load_status(show_dir)
+    if status.get("status") != "approved":
+        raise HTTPException(400, "Thread must be approved before publishing")
+
+    prompt_path = show_dir / "show_prompt.md"
+    content = prompt_path.read_text() if prompt_path.exists() else ""
+    from backend.services.prompt_linter import lint_prompt
+    report = lint_prompt(content)
+    if report.required_fix:
+        raise HTTPException(400, f"Prompt has {len(report.required_fix)} required fixes")
+
+    update_status(show_dir, "published")
+    return {"status": "published"}
 
 
 @router.post("/design/threads/{slug}/approve")
@@ -446,15 +867,33 @@ class SeanceMessageRequest(BaseModel):
 
 @router.get("/corps/{corps_id}/history")
 def v1_get_corps_history(corps_id: str):
-    """List past shows for a corps (builds/returns history index)."""
+    """List past shows for a corps (builds/returns history index). Falls back to empty for DB-only corps."""
     _validate_id(corps_id, "corps_id")
     root = _get_root()
     from backend.services.corps_history import build_history_index
     try:
         index = build_history_index(root, corps_id)
-    except FileNotFoundError as e:
-        raise HTTPException(404, str(e))
-    return index
+        return index
+    except FileNotFoundError:
+        pass
+
+    # Fallback: check DB, return empty index for DB-only corps
+    try:
+        from backend.models.corps import Corps
+        db = _get_db_session()
+        try:
+            corps = db.get(Corps, corps_id)
+            if corps:
+                return {
+                    "corps_id": corps_id,
+                    "generated_at": datetime.now(timezone.utc).isoformat(),
+                    "entries": [],
+                }
+        finally:
+            db.close()
+    except Exception:
+        pass
+    raise HTTPException(404, f"Corps '{corps_id}' not found")
 
 
 @router.post("/seances")
@@ -529,6 +968,255 @@ def v1_get_seance_transcript(seance_id: str):
     return {"seance_id": seance_id, "transcript": transcript}
 
 
+@router.get("/seances/{seance_id}/artifact-preview")
+def v1_preview_artifact(seance_id: str, path: str = ""):
+    """Preview an artifact file from the context binder (read-only, truncated)."""
+    _validate_id(seance_id, "seance_id")
+    if ".." in path:
+        raise HTTPException(400, "Invalid path")
+    root = _get_root()
+    from backend.services.seance_session import load_session
+    try:
+        session = load_session(root, seance_id)
+    except (ValueError, FileNotFoundError) as e:
+        raise HTTPException(404, str(e))
+
+    binder_paths = {item["path"] for item in session["context_binder"]}
+    if path not in binder_paths:
+        raise HTTPException(403, "Path not in context binder")
+
+    abs_path = root / path
+    if not abs_path.is_file():
+        raise HTTPException(404, "Artifact file not found")
+
+    content = abs_path.read_text()
+    max_chars = 10_000
+    truncated = len(content) > max_chars
+    return {"path": path, "content": content[:max_chars], "truncated": truncated}
+
+
+@router.get("/corps/{corps_id}/seances")
+def v1_list_corps_seances(corps_id: str):
+    """List seance sessions for a corps by scanning seances/ directory."""
+    _validate_id(corps_id, "corps_id")
+    root = _get_root()
+    seances_dir = root / "seances"
+    if not seances_dir.exists():
+        return []
+    results = []
+    for sdir in seances_dir.iterdir():
+        if not sdir.is_dir():
+            continue
+        session_path = sdir / "session.yaml"
+        if not session_path.is_file():
+            continue
+        try:
+            data = yaml.safe_load(session_path.read_text())
+            if isinstance(data, dict) and data.get("corps_id") == corps_id:
+                results.append({
+                    "seance_id": data.get("seance_id", sdir.name),
+                    "corps_id": data.get("corps_id"),
+                    "entry_id": data.get("entry_id", ""),
+                    "season_id": data.get("season_id", ""),
+                    "show_slug": data.get("show_slug"),
+                    "participant": data.get("participant", "user"),
+                    "created_at": data.get("created_at", ""),
+                    "status": data.get("status", "active"),
+                    "context_binder": data.get("context_binder", []),
+                })
+        except Exception:
+            continue
+    results.sort(key=lambda s: s.get("created_at", ""), reverse=True)
+    return results
+
+
+# =========================================================================
+# ADMIN / CLEANUP
+# =========================================================================
+
+@router.post("/admin/cleanup")
+def v1_admin_cleanup():
+    """Clean up stale agent sessions and orphan corps."""
+    from backend.models.corps import Corps, CorpsStatus
+    from backend.models.agent_session import AgentSession, SessionStatus
+    from backend.models.work_log import WorkLog
+    from sqlalchemy import func, select, exists
+
+    db = _get_db_session()
+    try:
+        now = datetime.now(timezone.utc)
+        two_hours_ago = now - timedelta(hours=2)
+        four_hours_ago = now - timedelta(hours=4)
+
+        # 1. Stale agent sessions: ACTIVE but started > 2h ago with no recent work log
+        stale_sessions = db.query(AgentSession).filter(
+            AgentSession.status == SessionStatus.ACTIVE,
+            AgentSession.started_at < two_hours_ago,
+            ~exists(
+                select(WorkLog.id).where(
+                    WorkLog.session_id == AgentSession.id,
+                    WorkLog.timestamp > two_hours_ago
+                ).correlate(AgentSession)
+            )
+        ).all()
+
+        for s in stale_sessions:
+            s.status = SessionStatus.TIMED_OUT
+            s.ended_at = now
+
+        # 2. Orphan corps: INITIALIZING or WINTER_CAMPS with 0 active sessions and no recent work log
+        orphan_corps = db.query(Corps).filter(
+            Corps.status.in_([CorpsStatus.INITIALIZING, CorpsStatus.WINTER_CAMPS]),
+            ~exists(
+                select(AgentSession.id).where(
+                    AgentSession.corps_id == Corps.id,
+                    AgentSession.status == SessionStatus.ACTIVE
+                ).correlate(Corps)
+            ),
+            ~exists(
+                select(WorkLog.id).where(
+                    WorkLog.corps_id == Corps.id,
+                    WorkLog.timestamp > four_hours_ago
+                ).correlate(Corps)
+            )
+        ).all()
+
+        for c in orphan_corps:
+            c.status = CorpsStatus.DISBANDED
+
+        db.commit()
+        return {
+            "timed_out_sessions": len(stale_sessions),
+            "disbanded_corps": len(orphan_corps),
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Cleanup failed: {e}")
+    finally:
+        db.close()
+
+
+# =========================================================================
+# SEASONS
+# =========================================================================
+
+@router.get("/seasons")
+def v1_list_seasons():
+    """List all available seasons."""
+    root = _get_root()
+    seasons_dir = root / "seasons"
+    if not seasons_dir.exists():
+        return []
+    results = []
+    for season_dir in sorted(seasons_dir.iterdir()):
+        if not season_dir.is_dir():
+            continue
+        season_yaml = season_dir / "season.yaml"
+        if not season_yaml.is_file():
+            continue
+        data = yaml.safe_load(season_yaml.read_text())
+        season_id = data.get("season_id", season_dir.name)
+        results.append({
+            "season_id": season_id,
+            "dir_name": season_dir.name,
+            "metadata": data.get("metadata", {}),
+        })
+    return results
+
+
+class CreateSeasonRequest(BaseModel):
+    season_id: str
+    metadata: Optional[dict] = None
+
+
+@router.post("/seasons")
+def v1_create_season(req: CreateSeasonRequest):
+    """Create a new season workspace."""
+    _validate_id(req.season_id, "season_id")
+    root = _get_root()
+    from backend.services.season_persistence import create_season
+    try:
+        season_dir = create_season(root, req.season_id, req.metadata)
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+    return {
+        "season_id": req.season_id,
+        "dir_name": season_dir.name,
+        "metadata": req.metadata or {},
+    }
+
+
+@router.get("/seasons/{season_id}")
+def v1_get_season(season_id: str):
+    """Get season details including registered corps."""
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    if not (season_dir / "season.yaml").is_file():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+    from backend.services.season_persistence import load_season
+    data = load_season(season_dir)
+    return data
+
+
+class UpdateSeasonRequest(BaseModel):
+    metadata: Optional[dict] = None
+
+
+@router.put("/seasons/{season_id}")
+def v1_update_season(season_id: str, req: UpdateSeasonRequest):
+    """Update season metadata."""
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    season_yaml = season_dir / "season.yaml"
+    if not season_yaml.is_file():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+    data = yaml.safe_load(season_yaml.read_text())
+    if req.metadata is not None:
+        data["metadata"] = req.metadata
+    from backend.services.yaml_util import atomic_write, safe_dump_yaml
+    atomic_write(season_yaml, safe_dump_yaml(data))
+    return data
+
+
+class RegisterCorpsRequest(BaseModel):
+    corps_id: str
+
+
+@router.post("/seasons/{season_id}/corps")
+def v1_register_season_corps(season_id: str, req: RegisterCorpsRequest):
+    """Register a corps for this season (creates performance directory)."""
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    if not (season_dir / "season.yaml").is_file():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+
+    # Check corps exists (filesystem or DB)
+    corps_dir = root / "corps" / req.corps_id
+    if (corps_dir / "corps.yaml").exists():
+        from backend.services.season_persistence import register_corps
+        register_corps(season_dir, req.corps_id, root / "corps")
+    else:
+        try:
+            from backend.models.corps import Corps
+            db = _get_db_session()
+            try:
+                if not db.get(Corps, req.corps_id):
+                    raise HTTPException(404, f"Corps '{req.corps_id}' not found")
+                perf_dir = season_dir / "performances" / req.corps_id
+                perf_dir.mkdir(parents=True, exist_ok=True)
+            finally:
+                db.close()
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(404, f"Corps '{req.corps_id}' not found")
+
+    return {"status": "registered", "season_id": season_id, "corps_id": req.corps_id}
+
+
 # =========================================================================
 # COMPETITIONS
 # =========================================================================
@@ -537,6 +1225,38 @@ class CreateCompetitionRequest(BaseModel):
     season_id: str
     show_slug: str
     corps_ids: list[str]
+
+
+def _parse_competition_id(competition_id: str, root: Path) -> tuple[str, str]:
+    """Parse competition_id into (season_id, show_slug).
+
+    Tries matching against existing season directory names to handle
+    season IDs that contain hyphens (e.g. 'tour-s1-demo' → ('tour-s1', 'demo')).
+    Falls back to simple first-hyphen split.
+    """
+    seasons_dir = root / "seasons"
+    if seasons_dir.exists():
+        # Try matching longest season_id prefix first
+        season_names = sorted(
+            (d.name for d in seasons_dir.iterdir() if d.is_dir() and (d / "season.yaml").is_file()),
+            key=len, reverse=True
+        )
+        # Also check season_id from yaml (may differ from dir name)
+        for sdir_name in season_names:
+            sdir = seasons_dir / sdir_name
+            try:
+                data = yaml.safe_load((sdir / "season.yaml").read_text())
+                sid = data.get("season_id", sdir_name)
+            except Exception:
+                sid = sdir_name
+            prefix = f"{sid}-"
+            if competition_id.startswith(prefix) and len(competition_id) > len(prefix):
+                return sid, competition_id[len(prefix):]
+    # Fallback: split on first hyphen
+    parts = competition_id.split("-", 1)
+    if len(parts) != 2:
+        raise HTTPException(400, "Invalid competition_id format (expected season_id-show_slug)")
+    return parts[0], parts[1]
 
 
 @router.get("/competitions")
@@ -582,8 +1302,29 @@ def v1_list_competitions():
                     show_slugs.add(st["show_slug"])
             except Exception:
                 pass
+        # Also check per-corps scores.yaml for show_slug
+        if perf_root.exists():
+            for corps_dir in perf_root.iterdir():
+                if not corps_dir.is_dir():
+                    continue
+                scores_path = corps_dir / "scores.yaml"
+                if scores_path.is_file():
+                    try:
+                        sc = yaml.safe_load(scores_path.read_text())
+                        if isinstance(sc, dict) and sc.get("show_slug"):
+                            show_slugs.add(sc["show_slug"])
+                    except Exception:
+                        pass
         if not show_slugs:
-            show_slugs = {"unknown"}
+            # No shows found — list season as a competition with no show
+            results.append({
+                "competition_id": season_id,
+                "season_id": season_id,
+                "show_slug": "",
+                "corps_ids": corps_ids,
+                "status": "ready",
+            })
+            continue
         for show_slug in show_slugs:
             competition_id = f"{season_id}-{show_slug}"
             results.append({
@@ -612,12 +1353,30 @@ def v1_create_competition(req: CreateCompetitionRequest):
     if not check_field_ready(show_dir):
         raise HTTPException(400, f"Show '{req.show_slug}' is not approved")
 
-    from backend.services.season_persistence import register_corps
+    # Validate corps exist (filesystem or DB) and register in season
     for cid in req.corps_ids:
         corps_dir = root / "corps" / cid
-        if not (corps_dir / "corps.yaml").exists():
-            raise HTTPException(404, f"Corps '{cid}' not found")
-        register_corps(season_dir, cid, root / "corps")
+        if (corps_dir / "corps.yaml").exists():
+            from backend.services.season_persistence import register_corps
+            register_corps(season_dir, cid, root / "corps")
+        else:
+            # Check DB for this corps
+            try:
+                from backend.models.corps import Corps
+                db = _get_db_session()
+                try:
+                    corps = db.get(Corps, cid)
+                    if not corps:
+                        raise HTTPException(404, f"Corps '{cid}' not found")
+                    # Create performance directory directly (skip filesystem corps check)
+                    perf_dir = season_dir / "performances" / cid
+                    perf_dir.mkdir(parents=True, exist_ok=True)
+                finally:
+                    db.close()
+            except HTTPException:
+                raise
+            except Exception:
+                raise HTTPException(404, f"Corps '{cid}' not found")
 
     competition_id = f"{req.season_id}-{req.show_slug}"
     return {
@@ -632,12 +1391,9 @@ def v1_create_competition(req: CreateCompetitionRequest):
 @router.post("/competitions/{competition_id}/run")
 def v1_run_competition(competition_id: str):
     """Run a competition heat — deterministic stub scoring + standings."""
-    parts = competition_id.split("-", 1)
-    if len(parts) != 2:
-        raise HTTPException(400, "Invalid competition_id format (expected season_id-show_slug)")
-    season_id, show_slug = parts
-
     root = _get_root()
+    season_id, show_slug = _parse_competition_id(competition_id, root)
+
     season_dir = root / "seasons" / season_id
     if not (season_dir / "season.yaml").exists():
         raise HTTPException(404, f"Season '{season_id}' not found")
@@ -651,9 +1407,21 @@ def v1_run_competition(competition_id: str):
     if not corps_ids:
         raise HTTPException(400, "No corps registered for this season")
 
+    # Validate corps exist (filesystem or DB)
     for cid in corps_ids:
         if not (root / "corps" / cid / "corps.yaml").exists():
-            raise HTTPException(400, f"Corps '{cid}' no longer exists")
+            try:
+                from backend.models.corps import Corps as CorpsModel
+                db = _get_db_session()
+                try:
+                    if not db.get(CorpsModel, cid):
+                        raise HTTPException(400, f"Corps '{cid}' no longer exists")
+                finally:
+                    db.close()
+            except HTTPException:
+                raise
+            except Exception:
+                raise HTTPException(400, f"Corps '{cid}' no longer exists")
 
     from backend.models.score import JudgeType
     from backend.services.scoring_service import CompositeScore, DEFAULT_WEIGHTS
@@ -706,8 +1474,9 @@ def v1_run_competition(competition_id: str):
     from backend.services.reputation import record_corps_placement
     for r in standings.results:
         corps_dir = root / "corps" / r.corps_id
-        record_corps_placement(corps_dir, season_id, r.rank, r.final_score,
-                               notes=f"show:{show_slug}")
+        if corps_dir.exists():
+            record_corps_placement(corps_dir, season_id, r.rank, r.final_score,
+                                   notes=f"show:{show_slug}")
 
     return {
         "competition_id": competition_id,
@@ -719,12 +1488,9 @@ def v1_run_competition(competition_id: str):
 @router.get("/competitions/{competition_id}/scores")
 def v1_get_competition_scores(competition_id: str):
     """Retrieve scores/standings for a completed competition."""
-    parts = competition_id.split("-", 1)
-    if len(parts) != 2:
-        raise HTTPException(400, "Invalid competition_id format")
-    season_id, _show_slug = parts
-
     root = _get_root()
+    season_id, _show_slug = _parse_competition_id(competition_id, root)
+
     standings_path = root / "seasons" / season_id / "standings.yaml"
     if not standings_path.exists():
         raise HTTPException(404, "Standings not found — competition may not have run yet")
@@ -732,6 +1498,52 @@ def v1_get_competition_scores(competition_id: str):
     standings["competition_id"] = competition_id
     standings["show_slug"] = _show_slug
     return standings
+
+
+@router.get("/competitions/{competition_id}/corps/{corps_id}/breakdown")
+def v1_get_corps_breakdown(competition_id: str, corps_id: str):
+    """Per-caption score breakdown with weights and synthetic commentary."""
+    _validate_id(corps_id, "corps_id")
+    root = _get_root()
+    season_id, show_slug = _parse_competition_id(competition_id, root)
+
+    scores_path = root / "seasons" / season_id / "performances" / corps_id / "scores.yaml"
+    if not scores_path.exists():
+        raise HTTPException(404, "Scores not found for this corps in this competition")
+
+    data = yaml.safe_load(scores_path.read_text())
+    caption_scores_raw = data.get("caption_scores", {})
+
+    from backend.services.scoring_service import DEFAULT_WEIGHTS
+    from backend.models.score import JudgeType
+
+    weight_map = {jt.value: w for jt, w in DEFAULT_WEIGHTS.items()}
+
+    caption_detail: dict = {}
+    commentary: dict = {}
+    for caption, score in caption_scores_raw.items():
+        w = weight_map.get(caption, 0.0)
+        caption_detail[caption] = {
+            "score": score,
+            "weight": w,
+            "weighted": round(score * w, 2),
+        }
+        if score >= 85:
+            commentary[caption] = f"Excellent {caption} performance — top-tier execution."
+        elif score >= 70:
+            commentary[caption] = f"Solid {caption} showing with room for refinement."
+        elif score >= 60:
+            commentary[caption] = f"{caption.capitalize()} section needs focused reps — approaching rework threshold."
+        else:
+            commentary[caption] = f"{caption.capitalize()} section below standards — rework recommended."
+
+    return {
+        "corps_id": corps_id,
+        "caption_scores": caption_detail,
+        "penalties_total": data.get("penalties_total", 0.0),
+        "final_score": data.get("final_score", 0.0),
+        "commentary": commentary,
+    }
 
 
 def _stub_caption_scores(corps_id: str, show_slug: str) -> dict:

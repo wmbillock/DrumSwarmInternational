@@ -1,39 +1,40 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getCorpsHistoryIndex, getCorpsWorkspaces, createSeance } from "../services/api";
-import type { HistoryIndex, HistoryIndexEntry, CorpsWorkspace } from "../types";
+import * as v1 from "../services/v1";
 
 export function CorpsHistory() {
   const { corpsId } = useParams<{ corpsId: string }>();
   const navigate = useNavigate();
-  const [corpsList, setCorpsList] = useState<CorpsWorkspace[]>([]);
-  const [index, setIndex] = useState<HistoryIndex | null>(null);
+  const [corpsList, setCorpsList] = useState<v1.V1Corps[]>([]);
+  const [index, setIndex] = useState<v1.V1HistoryIndex | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState<string | null>(null);
 
   useEffect(() => {
+    const ac = new AbortController();
     if (!corpsId) {
-      getCorpsWorkspaces()
+      v1.listCorps(ac.signal)
         .then(setCorpsList)
-        .catch(e => setError(e.message))
+        .catch(e => { if (e.name !== "AbortError") setError(e.message); })
         .finally(() => setLoading(false));
     } else {
-      getCorpsHistoryIndex(corpsId)
+      v1.getCorpsHistory(corpsId, ac.signal)
         .then(setIndex)
-        .catch(e => setError(e.message))
+        .catch(e => { if (e.name !== "AbortError") setError(e.message); })
         .finally(() => setLoading(false));
     }
+    return () => ac.abort();
   }, [corpsId]);
 
-  const handleStartSeance = async (entry: HistoryIndexEntry) => {
+  const handleStartSeance = async (entry: v1.V1HistoryEntry) => {
     if (!corpsId) return;
     setStarting(entry.entry_id);
     try {
-      const session = await createSeance(corpsId, entry.entry_id);
+      const session = await v1.createSeance(corpsId, entry.entry_id);
       navigate(`/seance-session/${session.seance_id}`);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to start seance");
     } finally {
       setStarting(null);
     }
@@ -60,9 +61,6 @@ export function CorpsHistory() {
               <div className="corps-list-header">
                 <span className="corps-list-name">{c.display_name}</span>
                 <span className={`badge ${c.state}`}>{c.state}</span>
-              </div>
-              <div className="corps-list-stats">
-                <span>{c.history.length} season{c.history.length !== 1 ? "s" : ""}</span>
               </div>
             </div>
           ))}
