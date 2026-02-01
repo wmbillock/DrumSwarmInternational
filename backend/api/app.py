@@ -61,6 +61,18 @@ def get_task_manager():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _task_manager
+    # Import all models so create_all() sees them
+    import backend.models.show  # noqa: F401
+    import backend.models.corps  # noqa: F401
+    import backend.models.agent_definition  # noqa: F401
+    import backend.models.agent_session  # noqa: F401
+    import backend.models.performer  # noqa: F401
+    import backend.models.segment  # noqa: F401
+    import backend.models.rep  # noqa: F401
+    import backend.models.score  # noqa: F401
+    import backend.models.work_log  # noqa: F401
+    import backend.models.message  # noqa: F401
+
     from backend.database import init_db
     init_db(engine)
 
