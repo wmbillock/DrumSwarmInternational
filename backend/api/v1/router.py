@@ -2757,6 +2757,7 @@ def api_metrics_agent_leaderboard(
     from backend.models.agent_session import AgentSession, SessionStatus
     from backend.models.agent_definition import AgentDefinition
     from datetime import timedelta
+    from collections import defaultdict
 
     db = _get_db_session()
     try:
@@ -2764,39 +2765,36 @@ def api_metrics_agent_leaderboard(
         cutoff = now - timedelta(days=period_days)
 
         query = (
-            db.query(
-                AgentDefinition.role,
-                AgentDefinition.nickname,
-                AgentSession.corps_id,
-                func.count(AgentSession.id).label("total"),
-                func.sum(
-                    func.cast(AgentSession.status == SessionStatus.COMPLETED.value, Integer)
-                ).label("completed"),
-                func.sum(
-                    func.cast(AgentSession.status == SessionStatus.FAILED.value, Integer)
-                ).label("failed"),
-            )
+            db.query(AgentSession, AgentDefinition.role, AgentDefinition.nickname)
             .join(AgentDefinition, AgentSession.definition_id == AgentDefinition.id)
             .filter(AgentSession.started_at >= cutoff)
         )
         if corps_id:
             query = query.filter(AgentSession.corps_id == corps_id)
 
-        query = query.group_by(AgentDefinition.role, AgentDefinition.nickname, AgentSession.corps_id)
-
-        rows = query.all()
+        # Aggregate in Python to avoid SQLite cast issues
+        buckets: dict[tuple, dict] = {}
+        for session, role, nickname in query.all():
+            key = (role, nickname, session.corps_id)
+            if key not in buckets:
+                buckets[key] = {"total": 0, "completed": 0, "failed": 0}
+            buckets[key]["total"] += 1
+            if session.status == SessionStatus.COMPLETED:
+                buckets[key]["completed"] += 1
+            elif session.status == SessionStatus.FAILED:
+                buckets[key]["failed"] += 1
 
         leaders = []
-        for row in rows:
-            total = row.total or 0
-            completed = row.completed or 0
-            failed = row.failed or 0
+        for (role, nickname, cid), counts in buckets.items():
+            total = counts["total"]
+            completed = counts["completed"]
+            failed = counts["failed"]
             success_rate = (completed / max(total, 1)) * 100
 
             leaders.append({
-                "role": row.role,
-                "nickname": row.nickname,
-                "corps_id": row.corps_id,
+                "role": role,
+                "nickname": nickname,
+                "corps_id": cid,
                 "total_sessions": total,
                 "completed_sessions": completed,
                 "failed_sessions": failed,

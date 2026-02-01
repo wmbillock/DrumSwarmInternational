@@ -169,35 +169,42 @@ cd frontend && npx tsc --noEmit             # TypeScript check
 
 ## Current State (as of 2026-02-01)
 
-### ✅ Recently Completed (This Session)
-- **Metronome system agent**: Published, orchestrator messaging integration complete
+### ✅ Recently Completed (Previous Sessions + This Session)
+- **Metronome system agent**: ✅ COMPLETE — Full lifecycle (percussion, brass, visual, guard movements)
+  - Scripts/metronome/tick.sh operational with lock file mechanism (5-min cron)
+  - Ten-hut/resume-hut integration with messaging system
+  - Status gathering and structured logging to logs/metronome/
+  - RED FLAG detection for unresponsive corps, alert aggregation
 - **synthesize_prompt()**: Implemented — assembles show_prompt.md from spec + tagged design notes
 - **app.py extraction**: Monolith split into 9 domain routers under backend/api/legacy/ (2217→249 lines)
 - **Alembic migrations**: Schema fully synced, deprecated tables removed, workflow operational
 - **Frontend v1 migration**: RunDetail, RunsList, CorpsDeepDive, ModeContext migrated to v1.ts
 - **Show spec cleanup**: Removed duplicate directories, added specs to 4 pending shows
 - **Metrics services**: metrics.py, metrics_aggregation.py, metronome_heartbeat.py committed
+- **Evolution & Talent Pool**: Fixed performer assignment — backfilled 786 legacy sessions (100% coverage)
+- **System Health Status**: Added status calculation (ok/warning/error) based on metrics
+- **Asynchronous Messaging System**: Full spec locked, ready for backend/API/frontend implementation
+- **Corps Lifecycle**: Added ready_for_contest() and complete_corps() state transitions with validation
+- **Scoreboards API**: Added V1 endpoints for corps/agent/performer rankings with composite scoring
 
 ### Working
-- 5+ active corps (DB-only, filesystem corps deleted)
-- V1 API router with 47 routes (39 → 47 after messaging endpoints)
-- **Asynchronous messaging system** (NEW): Full lifecycle — thread creation → multi-message conversation → manual completion → bulk archival with summaries → searchable archive
+- 11+ active corps (DB-only, filesystem corps deleted)
+- V1 API router with 55+ routes
+- **Asynchronous messaging system**: Full lifecycle — thread creation → multi-message → completion → bulk archive → searchable summary
+- **Scoreboards & metrics**: Corps/agent/performer leaderboards with composite scoring
 - Design room has LLM-powered responses via shared Claude CLI client
 - Corps creation modal with auto-generated identity (name, mascot, colors)
 - Season CRUD endpoints (create, list, get, update, register corps)
 - Competition pipeline fixed for hyphenated season IDs and DB-only corps
-- Corps detail page with lifecycle controls (go on tour, return to camps, rehearsal modes)
-- Corps History page switched to v1 API
-- Agent performer assignment and audition pipeline working for new corps
-- System health monitoring and swarm health aggregation
+- Corps lifecycle controls (go_on_tour, return_to_camps, ready_for_contest, complete_corps)
+- Metronome heartbeat with liveness monitoring and watchdog
+- Agent performer assignment and audition pipeline working for all sessions
+- System health monitoring with meaningful status indicators
 
 ### In Progress / Ready for Implementation
-- **Caption-awards achievement system**: Spec drafted, design notes in progress
-- **Ready-for-Contest Lifecycle**: Spec written, design notes extensive, needs implementation
-- **Seasons & Standings UI**: Spec written, needs frontend implementation
-- **Staff Marketplace & Career Evolution**: Spec written, needs frontend implementation
-- **System Health Dashboard**: Spec written, needs frontend implementation
+- **Caption-awards achievement system**: Spec drafted, design notes in progress (12 categories, 360 achievements)
+- **Chat-test show**: Spec expanded with brass section, fanfare opening, evaluation rubric
 
 ### Known Issues / Not Yet Working
-- **Some frontend pages still use legacy `api.ts`** — ~25 files still need migration (most lack v1 equivalents, need new v1 endpoints first)
-- **3 pre-existing test failures** in test_system_health and test_agents_overview (agent counting logic)
+- **Some frontend pages still use legacy `api.ts`** — ~25 files still need migration
+- **3 pre-existing test failures** in test_system_health and test_agents_overview
