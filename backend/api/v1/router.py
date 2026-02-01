@@ -1975,6 +1975,275 @@ def _stub_caption_scores(corps_id: str, show_slug: str) -> dict:
 
 
 # =========================================================================
+# STAFF MARKETPLACE
+# =========================================================================
+
+
+class HireStaffRequest(BaseModel):
+    performer_id: str
+    role: str
+
+
+class ReleaseStaffRequest(BaseModel):
+    performer_id: str
+    trust_penalty: float = 0.0
+
+
+@router.get("/staff/marketplace")
+def v1_list_staff_marketplace():
+    """List all non-retired performers available in the marketplace."""
+    from backend.models.performer import Performer, PerformerStatus
+
+    db = _get_db_session()
+    try:
+        performers = (
+            db.query(Performer)
+            .filter(Performer.status != PerformerStatus.RETIRED)
+            .order_by(Performer.trust_score.desc())
+            .all()
+        )
+        return {
+            "performers": [
+                {
+                    "id": p.id,
+                    "name": p.name,
+                    "role_type": p.role_type,
+                    "trust_score": p.trust_score,
+                    "total_sessions": p.total_sessions,
+                    "successful_sessions": p.successful_sessions,
+                    "failed_sessions": p.failed_sessions,
+                    "status": p.status.value if p.status else None,
+                    "age": p.age,
+                    "experience_seasons": p.experience_seasons,
+                    "specialties": p.specialties,
+                }
+                for p in performers
+            ],
+            "count": len(performers),
+        }
+    finally:
+        db.close()
+
+
+@router.get("/staff/{performer_id}/profile")
+def v1_get_staff_profile(performer_id: str):
+    """Detailed performer profile including capability ledger and experience."""
+    from backend.models.performer import Performer
+    from backend.models.capability_ledger import CapabilityLedger
+    from backend.models.agent_experience import AgentExperience
+
+    _validate_id(performer_id, "performer_id")
+
+    db = _get_db_session()
+    try:
+        performer = db.query(Performer).filter(Performer.id == performer_id).first()
+        if not performer:
+            raise HTTPException(404, f"Performer {performer_id} not found")
+
+        ledger_entries = (
+            db.query(CapabilityLedger)
+            .filter(CapabilityLedger.performer_id == performer_id)
+            .order_by(CapabilityLedger.created_at.desc())
+            .limit(20)
+            .all()
+        )
+
+        experiences = (
+            db.query(AgentExperience)
+            .filter(AgentExperience.performer_id == performer_id)
+            .all()
+        )
+
+        return {
+            "id": performer.id,
+            "name": performer.name,
+            "role_type": performer.role_type,
+            "trust_score": performer.trust_score,
+            "total_sessions": performer.total_sessions,
+            "successful_sessions": performer.successful_sessions,
+            "failed_sessions": performer.failed_sessions,
+            "status": performer.status.value if performer.status else None,
+            "age": performer.age,
+            "experience_seasons": performer.experience_seasons,
+            "specialties": performer.specialties,
+            "capability_ledger": [
+                {
+                    "id": entry.id,
+                    "capability": entry.capability,
+                    "delta": entry.delta,
+                    "reason": entry.reason,
+                    "created_at": entry.created_at.isoformat() if entry.created_at else None,
+                }
+                for entry in ledger_entries
+            ],
+            "experiences": [
+                {
+                    "id": exp.id,
+                    "corps_id": exp.corps_id,
+                    "role": exp.role,
+                    "season": exp.season,
+                    "outcome": exp.outcome,
+                    "notes": exp.notes,
+                }
+                for exp in experiences
+            ],
+        }
+    finally:
+        db.close()
+
+
+@router.post("/corps/{corps_id}/staff/hire")
+def v1_hire_staff(corps_id: str, req: HireStaffRequest):
+    """Hire a performer to a corps by creating an agent definition and session."""
+    from backend.models.performer import Performer
+    from backend.models.agent_definition import AgentDefinition
+    from backend.models.agent_session import AgentSession, SessionStatus
+
+    _validate_id(corps_id, "corps_id")
+    _validate_id(req.performer_id, "performer_id")
+
+    db = _get_db_session()
+    try:
+        performer = db.query(Performer).filter(Performer.id == req.performer_id).first()
+        if not performer:
+            raise HTTPException(404, f"Performer {req.performer_id} not found")
+
+        # Create an AgentDefinition for this role in the corps
+        agent_def = AgentDefinition(
+            id=str(uuid.uuid4()),
+            corps_id=corps_id,
+            role=req.role,
+            performer_id=req.performer_id,
+        )
+        db.add(agent_def)
+
+        # Spawn an active AgentSession linked to the performer
+        session = AgentSession(
+            id=str(uuid.uuid4()),
+            agent_definition_id=agent_def.id,
+            performer_id=req.performer_id,
+            corps_id=corps_id,
+            status=SessionStatus.ACTIVE,
+            started_at=datetime.now(timezone.utc),
+        )
+        db.add(session)
+        db.commit()
+
+        return {
+            "agent_definition_id": agent_def.id,
+            "session_id": session.id,
+            "corps_id": corps_id,
+            "performer_id": req.performer_id,
+            "role": req.role,
+            "status": session.status.value,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Failed to hire staff: {e}")
+    finally:
+        db.close()
+
+
+@router.post("/corps/{corps_id}/staff/release")
+def v1_release_staff(corps_id: str, req: ReleaseStaffRequest):
+    """Release a performer from a corps, ending their active session."""
+    from backend.models.performer import Performer
+    from backend.models.agent_session import AgentSession, SessionStatus
+
+    _validate_id(corps_id, "corps_id")
+    _validate_id(req.performer_id, "performer_id")
+
+    db = _get_db_session()
+    try:
+        # Find the active session for this performer in this corps
+        session = (
+            db.query(AgentSession)
+            .filter(
+                AgentSession.performer_id == req.performer_id,
+                AgentSession.corps_id == corps_id,
+                AgentSession.status == SessionStatus.ACTIVE,
+            )
+            .first()
+        )
+        if not session:
+            raise HTTPException(
+                404,
+                f"No active session for performer {req.performer_id} in corps {corps_id}",
+            )
+
+        session.status = SessionStatus.COMPLETED
+        session.completed_at = datetime.now(timezone.utc)
+
+        # Apply optional trust penalty
+        if req.trust_penalty:
+            performer = db.query(Performer).filter(Performer.id == req.performer_id).first()
+            if performer and performer.trust_score is not None:
+                performer.trust_score = max(0.0, performer.trust_score - req.trust_penalty)
+
+        db.commit()
+
+        return {
+            "session_id": session.id,
+            "corps_id": corps_id,
+            "performer_id": req.performer_id,
+            "status": session.status.value,
+            "completed_at": session.completed_at.isoformat(),
+            "trust_penalty_applied": req.trust_penalty,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Failed to release staff: {e}")
+    finally:
+        db.close()
+
+
+@router.get("/corps/{corps_id}/staff")
+def v1_list_corps_staff(corps_id: str):
+    """List current active staff for a corps."""
+    from backend.models.performer import Performer
+    from backend.models.agent_session import AgentSession, SessionStatus
+    from backend.models.agent_definition import AgentDefinition
+
+    _validate_id(corps_id, "corps_id")
+
+    db = _get_db_session()
+    try:
+        results = (
+            db.query(AgentSession, Performer, AgentDefinition)
+            .join(Performer, AgentSession.performer_id == Performer.id)
+            .join(AgentDefinition, AgentSession.agent_definition_id == AgentDefinition.id)
+            .filter(
+                AgentSession.corps_id == corps_id,
+                AgentSession.status == SessionStatus.ACTIVE,
+            )
+            .all()
+        )
+
+        return {
+            "corps_id": corps_id,
+            "staff": [
+                {
+                    "session_id": session.id,
+                    "performer_id": performer.id,
+                    "performer_name": performer.name,
+                    "role": agent_def.role,
+                    "trust_score": performer.trust_score,
+                    "started_at": session.started_at.isoformat() if session.started_at else None,
+                    "status": session.status.value,
+                }
+                for session, performer, agent_def in results
+            ],
+            "count": len(results),
+        }
+    finally:
+        db.close()
+
+
+# =========================================================================
 # ASYNCHRONOUS MESSAGING
 # =========================================================================
 

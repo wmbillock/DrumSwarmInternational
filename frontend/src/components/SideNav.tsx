@@ -6,6 +6,7 @@ const NAV_SECTIONS = [
   { to: "/corps", label: "Corps", icon: "CRP" },
   { to: "/runs", label: "Runs & Rehearsals", icon: "RUN" },
   { to: "/evolution", label: "Evolution & Talent", icon: "EVO" },
+  { to: "/staff", label: "Staff Market", icon: "STF" },
   { to: "/judging", label: "Judging & Critique", icon: "JDG" },
   { to: "/templates", label: "Templates", icon: "TPL" },
   { to: "/design", label: "Design Room", icon: "DSN" },

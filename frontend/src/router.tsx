@@ -23,6 +23,7 @@ import { Settings } from "./pages/Settings";
 import { SystemHealth } from "./pages/SystemHealth";
 import MessageInbox from "./pages/MessageInbox";
 import MessageArchive from "./pages/MessageArchive";
+import { StaffMarketplace } from "./pages/StaffMarketplace";
 
 export const router = createBrowserRouter([
   {
@@ -46,6 +47,7 @@ export const router = createBrowserRouter([
       { path: "/judging", element: <JudgingCritique /> },
       { path: "/judging/:corpsId", element: <JudgingCritique /> },
       { path: "/evolution", element: <EvolutionTalentPool /> },
+      { path: "/staff", element: <StaffMarketplace /> },
       { path: "/history", element: <CorpsHistory /> },
       { path: "/history/:corpsId", element: <CorpsHistory /> },
       { path: "/seance-session/:seanceId", element: <SeanceSession /> },

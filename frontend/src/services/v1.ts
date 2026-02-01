@@ -515,3 +515,40 @@ export interface CleanupResult {
 
 export const adminCleanup = () =>
   request<CleanupResult>("/api/v1/admin/cleanup", { method: "POST" });
+
+// --- Staff Marketplace ---
+
+export interface StaffMember {
+  id: string;
+  name: string;
+  role_type: string;
+  trust_score: number;
+  total_sessions: number;
+  successful_sessions: number;
+  failed_sessions: number;
+  status: string;
+  age: number;
+  experience_seasons: number;
+  specialties?: string;
+}
+
+export const listMarketplace = (signal?: AbortSignal) =>
+  request<StaffMember[]>("/api/v1/staff/marketplace", { signal });
+
+export const getStaffProfile = (performerId: string, signal?: AbortSignal) =>
+  request<any>(`/api/v1/staff/${performerId}/profile`, { signal });
+
+export const getCorpsStaff = (corpsId: string, signal?: AbortSignal) =>
+  request<any[]>(`/api/v1/corps/${corpsId}/staff`, { signal });
+
+export const hireStaff = (corpsId: string, performerId: string, role: string) =>
+  request<any>(`/api/v1/corps/${corpsId}/staff/hire`, {
+    method: "POST",
+    body: JSON.stringify({ performer_id: performerId, role }),
+  });
+
+export const releaseStaff = (corpsId: string, performerId: string) =>
+  request<any>(`/api/v1/corps/${corpsId}/staff/release`, {
+    method: "POST",
+    body: JSON.stringify({ performer_id: performerId }),
+  });
