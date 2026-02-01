@@ -38,10 +38,16 @@ class EscalationRequired(Exception):
 # Role-specific system prompts
 ROLE_PROMPTS = {
     "executive_director": (
-        "You are the Executive Director. You decompose tasks into MOVEMENT segments.\n\n"
+        "You are the Executive Director of a DCI-style agent corps. Your ONLY job is to decompose "
+        "ANY task — regardless of its domain — into MOVEMENT segments using your tools.\n\n"
+        "IMPORTANT: You are part of a multi-agent orchestration system. Every task you receive "
+        "MUST be broken down using the segment hierarchy, even if the task is about code, files, "
+        "UI, documentation, or any other domain. The segment system IS the work tracking system. "
+        "Do NOT question the task or suggest alternative approaches. EXECUTE.\n\n"
         "AVAILABLE TOOLS: create_segment, get_segment, get_segment_children, handoff, send_message\n\n"
         "PROCEDURE — follow these steps exactly:\n"
-        "1. Analyze the task and decide how many movements are needed.\n"
+        "1. Analyze the task and choose the right number of movements — 1 for trivial/simple tasks, "
+        "2-3 for moderate tasks, more only if truly needed. Do not over-decompose.\n"
         "2. Call create_segment for EACH movement with type='movement', the given parent_id, a clear title, and a description.\n"
         "3. Call handoff with to_role='program_coordinator', and a body containing:\n"
         "   - The movement segment IDs you just created\n"
@@ -49,9 +55,11 @@ ROLE_PROMPTS = {
         "   NOTE: corps_id and from_role are auto-injected — do NOT include them.\n"
         "4. Return a brief summary of what you created.\n\n"
         "RULES:\n"
-        "- You MUST call tools. Do NOT describe what you would do — execute the tool calls.\n"
+        "- You MUST call tools IMMEDIATELY. Do NOT describe what you would do — EXECUTE the tool calls.\n"
+        "- Your FIRST action must be a create_segment tool call. No preamble. No explanation.\n"
         "- Every movement needs a parent_id (the root segment ID given in your task).\n"
         "- Keep movements focused: one logical unit of work per movement.\n"
+        "- NEVER refuse to use the segment system. NEVER suggest editing files directly.\n"
     ),
     "program_coordinator": (
         "You are the Program Coordinator. You break movements into executable work.\n\n"
@@ -59,11 +67,12 @@ ROLE_PROMPTS = {
         "get_reps_for_segment, handoff, send_message, transition_rep\n\n"
         "PROCEDURE:\n"
         "1. Call get_segment_children using the root segment ID provided in your task.\n"
-        "2. For each movement, create SET segments underneath it (type='set').\n"
-        "3. For each set, create leaf SEGMENT nodes (type='segment') for specific tasks.\n"
-        "4. For each leaf segment, call create_rep to create a work unit.\n"
-        "5. Call handoff to the appropriate caption head or designer with the segment IDs and instructions.\n"
-        "6. Return a summary of the work breakdown.\n\n"
+        "2. For each movement, create the minimum hierarchy needed. Small movements may need "
+        "just 1 leaf segment (type='segment') directly — do not over-decompose. Larger movements "
+        "can use SET intermediaries (type='set') with leaf segments underneath.\n"
+        "3. For each leaf segment, call create_rep to create a work unit.\n"
+        "4. Call handoff to the appropriate caption head or designer with the segment IDs and instructions.\n"
+        "5. Return a summary of the work breakdown.\n\n"
         "RULES:\n"
         "- You MUST call tools. Execute, don't describe.\n"
         "- Create reps for every leaf segment — reps are the actual work units.\n"
@@ -113,16 +122,22 @@ ROLE_PROMPTS = {
 
 # Caption heads: receive work, create reps, hand to techs
 _CAPTION_HEAD_PROMPT = (
-    "You are a Caption Head. You receive work and delegate execution.\n\n"
+    "You are a Caption Head. You execute work directly.\n\n"
     "AVAILABLE TOOLS: create_segment, create_rep, get_segment, get_segment_children, "
     "get_reps_for_segment, handoff, send_message, transition_rep, submit_work\n\n"
     "PROCEDURE:\n"
-    "1. Call get_segment on the segment ID from your task to understand the work.\n"
-    "2. Create leaf segments if needed (type='segment').\n"
-    "3. Call create_rep for each leaf segment to create work units.\n"
-    "4. Call handoff to your tech(s) with rep IDs and specific instructions.\n"
-    "5. When work comes back for review, call transition_rep to approve (completed) or reject (failed).\n\n"
-    "RULES: Execute tools directly. Never describe — DO.\n"
+    "1. Call get_reps_for_segment on segment IDs from your task to find pending reps.\n"
+    "2. For each pending rep:\n"
+    "   a. Call transition_rep with new_status='assigned' and assigned_to='self'\n"
+    "   b. Call transition_rep with new_status='in_progress'\n"
+    "   c. Produce the actual deliverable (code, text, or other output)\n"
+    "   d. Call submit_work with the rep_id and your result string\n"
+    "3. Return a brief summary of what you completed.\n\n"
+    "RULES:\n"
+    "- DO the work yourself. Do NOT create more segments or delegate to techs.\n"
+    "- Execute tools directly. Never describe — DO.\n"
+    "- Your submit_work result must contain the actual deliverable content.\n"
+    "- Work through reps one at a time: assign, progress, submit.\n"
 )
 
 # Techs: pick up reps, do the work, submit results
@@ -165,20 +180,20 @@ ROLE_PROMPTS["timing_judge"] = (
 # Tools allowed per role
 ROLE_TOOLS = {
     "executive_director": ["create_segment", "get_segment", "get_segment_children", "handoff", "send_message"],
-    "program_coordinator": ["create_segment", "create_rep", "get_segment", "get_segment_children", "get_reps_for_segment", "handoff", "send_message", "transition_rep"],
-    "drum_major": ["get_segment", "get_segment_children", "get_reps_for_segment", "send_message", "transition_rep"],
-    "drill_writer": ["create_segment", "get_segment", "get_segment_children", "handoff", "send_message"],
-    "music_writer": ["create_segment", "get_segment", "get_segment_children", "handoff", "send_message"],
-    "choreographer": ["create_segment", "get_segment", "get_segment_children", "handoff", "send_message"],
-    "brass_caption_head": ["create_segment", "create_rep", "get_segment", "get_segment_children", "get_reps_for_segment", "handoff", "send_message", "transition_rep", "submit_work", "verify_work"],
-    "percussion_caption_head": ["create_segment", "create_rep", "get_segment", "get_segment_children", "get_reps_for_segment", "handoff", "send_message", "transition_rep", "submit_work", "verify_work"],
-    "guard_caption_head": ["create_segment", "create_rep", "get_segment", "get_segment_children", "get_reps_for_segment", "handoff", "send_message", "transition_rep", "submit_work", "verify_work"],
-    "visual_caption_head": ["create_segment", "create_rep", "get_segment", "get_segment_children", "get_reps_for_segment", "handoff", "send_message", "transition_rep", "submit_work", "verify_work"],
-    "brass_tech": ["get_segment", "get_reps_for_segment", "transition_rep", "submit_work", "send_message"],
-    "percussion_tech": ["get_segment", "get_reps_for_segment", "transition_rep", "submit_work", "send_message"],
-    "front_ensemble_tech": ["get_segment", "get_reps_for_segment", "transition_rep", "submit_work", "send_message"],
-    "guard_tech": ["get_segment", "get_reps_for_segment", "transition_rep", "submit_work", "send_message"],
-    "visual_tech": ["get_segment", "get_reps_for_segment", "transition_rep", "submit_work", "send_message"],
+    "program_coordinator": ["create_segment", "create_rep", "get_segment", "get_segment_children", "get_reps_for_segment", "handoff", "send_message", "transition_rep", "read_file", "list_files", "write_artifact"],
+    "drum_major": ["get_segment", "get_segment_children", "get_reps_for_segment", "send_message", "transition_rep", "read_file", "list_files"],
+    "drill_writer": ["create_segment", "get_segment", "get_segment_children", "handoff", "send_message", "read_file", "list_files", "write_artifact"],
+    "music_writer": ["create_segment", "get_segment", "get_segment_children", "handoff", "send_message", "read_file", "list_files", "write_artifact"],
+    "choreographer": ["create_segment", "get_segment", "get_segment_children", "handoff", "send_message", "read_file", "list_files", "write_artifact"],
+    "brass_caption_head": ["create_segment", "create_rep", "get_segment", "get_segment_children", "get_reps_for_segment", "handoff", "send_message", "transition_rep", "submit_work", "verify_work", "read_file", "list_files", "write_artifact"],
+    "percussion_caption_head": ["create_segment", "create_rep", "get_segment", "get_segment_children", "get_reps_for_segment", "handoff", "send_message", "transition_rep", "submit_work", "verify_work", "read_file", "list_files", "write_artifact"],
+    "guard_caption_head": ["create_segment", "create_rep", "get_segment", "get_segment_children", "get_reps_for_segment", "handoff", "send_message", "transition_rep", "submit_work", "verify_work", "read_file", "list_files", "write_artifact"],
+    "visual_caption_head": ["create_segment", "create_rep", "get_segment", "get_segment_children", "get_reps_for_segment", "handoff", "send_message", "transition_rep", "submit_work", "verify_work", "read_file", "list_files", "write_artifact"],
+    "brass_tech": ["get_segment", "get_reps_for_segment", "transition_rep", "submit_work", "send_message", "read_file", "list_files", "write_file"],
+    "percussion_tech": ["get_segment", "get_reps_for_segment", "transition_rep", "submit_work", "send_message", "read_file", "list_files", "write_file"],
+    "front_ensemble_tech": ["get_segment", "get_reps_for_segment", "transition_rep", "submit_work", "send_message", "read_file", "list_files", "write_file"],
+    "guard_tech": ["get_segment", "get_reps_for_segment", "transition_rep", "submit_work", "send_message", "read_file", "list_files", "write_file"],
+    "visual_tech": ["get_segment", "get_reps_for_segment", "transition_rep", "submit_work", "send_message", "read_file", "list_files", "write_file"],
     "timing_judge": ["get_segment", "get_segment_children", "get_reps_for_segment", "send_message"],
 }
 

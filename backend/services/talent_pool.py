@@ -63,6 +63,7 @@ def export_talent_pool(db: Session, output_dir: Path) -> None:
             "display_name": d["display_name"],
             "primary_instrument": d["primary_instrument"],
             "availability": d["availability"],
+            "trust_score": d["trust_score"],
         })
 
     atomic_write(output_dir / "ledger.yaml", safe_dump_yaml({"agents": ledger_entries}))

@@ -36,7 +36,9 @@ from backend.utils.snapshot import parse_snapshot
 
 logger = logging.getLogger(__name__)
 
-MAX_ITERATIONS = 20
+from backend.services.runtime_config import get_runtime_config as _get_runtime_config
+
+MAX_ITERATIONS = _get_runtime_config()["max_iterations"]
 
 
 class RunStatus(str, enum.Enum):

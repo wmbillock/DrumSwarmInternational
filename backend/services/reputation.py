@@ -20,10 +20,12 @@ SUCCESS_THRESHOLD = 60.0
 
 
 def _validate_score(value, name="score", lo=0.0, hi=100.0):
-    """Validate a numeric score is within range. Rejects None and NaN."""
-    if value is None or (isinstance(value, float) and math.isnan(value)):
+    """Validate a numeric score is within range. Rejects None, NaN, and Inf."""
+    if value is None:
         raise ValueError(f"Invalid {name}: {value!r}")
     value = float(value)
+    if math.isnan(value) or math.isinf(value):
+        raise ValueError(f"Invalid {name}: {value!r}")
     if not (lo <= value <= hi):
         raise ValueError(f"{name} must be {lo}..{hi}, got {value}")
     return value
@@ -43,14 +45,19 @@ def _save_agent(pool_dir: Path, agent: dict) -> None:
     atomic_write(path, safe_dump_yaml(agent))
 
 
-def _update_ledger_availability(pool_dir: Path, agent_id: str, availability: str) -> None:
+def _sync_ledger_entry(pool_dir: Path, agent_id: str, updates: dict) -> None:
+    """Update fields for agent_id in ledger.yaml."""
     ledger_path = pool_dir / "ledger.yaml"
     ledger = yaml.safe_load(ledger_path.read_text())
     for entry in ledger.get("agents", []):
         if entry["agent_id"] == agent_id:
-            entry["availability"] = availability
+            entry.update(updates)
             break
     atomic_write(ledger_path, safe_dump_yaml(ledger))
+
+
+def _update_ledger_availability(pool_dir: Path, agent_id: str, availability: str) -> None:
+    _sync_ledger_entry(pool_dir, agent_id, {"availability": availability})
 
 
 def update_reputations(
@@ -111,6 +118,7 @@ def update_reputations(
                 agent["seen_sessions"] = seen[-20:]  # cap at 20 most recent
 
             _save_agent(pool_dir, agent)
+            _sync_ledger_entry(pool_dir, agent_id, {"trust_score": agent["trust_score"]})
 
 
 def apply_season_decay(
@@ -130,6 +138,7 @@ def apply_season_decay(
         trust += decay_rate * (baseline - trust)
         agent["trust_score"] = round(_clamp(trust), 6)
         _save_agent(pool_dir, agent)
+        _sync_ledger_entry(pool_dir, entry["agent_id"], {"trust_score": agent["trust_score"]})
 
 
 def release_agent(pool_dir: Path, agent_id: str) -> None:

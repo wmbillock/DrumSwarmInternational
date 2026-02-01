@@ -325,6 +325,8 @@ case "${1:-horns-up}" in
     set-the-field)   cmd_set_the_field ;;
     resume-hut|dress-center) cmd_resume_hut ;;
     drill)           shift; cmd_drill "$@" ;;
+    pool)            shift; activate_venv; cd "$PROJECT_ROOT"; python -m backend.cli.main pool "$@" ;;
+    doctor)          shift; activate_venv; cd "$PROJECT_ROOT"; python -m backend.cli.main doctor "$@" ;;
     swarm)           shift; activate_venv; cd "$PROJECT_ROOT"; python -m backend.cli.main "$@" ;;
     horns-up|-h|--help|help) cmd_horns_up ;;
     *)

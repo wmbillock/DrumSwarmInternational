@@ -259,11 +259,14 @@ Available tools:
         cmd.append(user_content)
 
         try:
+            from backend.services.runtime_config import get_runtime_config
+            _effective_timeout = get_runtime_config()["timeout"]
+
             proc = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=120,
+                timeout=_effective_timeout,
                 cwd=self._project_root,
             )
 
@@ -287,7 +290,7 @@ Available tools:
                         resume_cmd,
                         capture_output=True,
                         text=True,
-                        timeout=120,
+                        timeout=_effective_timeout,
                         cwd=self._project_root,
                     )
                     if proc.returncode != 0:
@@ -326,7 +329,7 @@ Available tools:
             )
 
         except subprocess.TimeoutExpired:
-            return LLMResponse(content="Error: Claude CLI timed out after 120s", stop_reason="error")
+            return LLMResponse(content=f"Error: Claude CLI timed out after {_effective_timeout}s", stop_reason="error")
         except FileNotFoundError:
             return LLMResponse(content="Error: 'claude' CLI not found in PATH", stop_reason="error")
 

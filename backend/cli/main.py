@@ -31,6 +31,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--api-url", default=None, help="Override API base URL")
     parser.add_argument("--direct", action="store_true", help="Force direct DB mode")
+    parser.add_argument("--verbose", action="store_true", help="Verbose output")
     sub = parser.add_subparsers(dest="command", help="Available commands")
 
     # --- season ---
@@ -40,6 +41,21 @@ def build_parser() -> argparse.ArgumentParser:
     sc = season_sub.add_parser("create", help="Create a new season")
     sc.add_argument("name", help="Season name")
     sc.add_argument("--year", type=int, default=None, help="Season year")
+    sc.add_argument("--plan", action="store_true", help="Preview writes without applying")
+    sc.add_argument("--yes", action="store_true", help="Apply writes")
+
+    sr = season_sub.add_parser("register-corps", help="Register corps for season")
+    sr.add_argument("season_id", help="Season ID")
+    sr.add_argument("corps_id", help="Corps ID")
+    sr.add_argument("--plan", action="store_true", help="Preview writes without applying")
+    sr.add_argument("--yes", action="store_true", help="Apply writes")
+
+    src_contest = season_sub.add_parser("run-contest", help="Run a contest")
+    src_contest.add_argument("season_id", help="Season ID")
+    src_contest.add_argument("--show", required=True, dest="show_slug", help="Show slug")
+    src_contest.add_argument("--corps", required=True, action="append", dest="corps_ids", help="Corps ID (repeatable)")
+    src_contest.add_argument("--plan", action="store_true", help="Preview writes without applying")
+    src_contest.add_argument("--yes", action="store_true", help="Apply writes")
 
     # --- corps ---
     corps = sub.add_parser("corps", help="Corps management")
@@ -51,18 +67,34 @@ def build_parser() -> argparse.ArgumentParser:
     cs = corps_sub.add_parser("status", help="Corps status")
     cs.add_argument("id", help="Corps ID")
 
+    ci = corps_sub.add_parser("init", help="Create corps workspace on disk")
+    ci.add_argument("corps_id", help="Corps identifier")
+    ci.add_argument("--plan", action="store_true", help="Preview writes without applying")
+    ci.add_argument("--yes", action="store_true", help="Apply writes")
+
     # --- show ---
     show = sub.add_parser("show", help="Show management")
     show_sub = show.add_subparsers(dest="show_cmd")
 
     shc = show_sub.add_parser("create", help="Create a show")
-    shc.add_argument("title", help="Show title")
+    shc.add_argument("title", help="Show title or slug")
     shc.add_argument("--description", default=None, help="Show description")
+    shc.add_argument("--title", dest="show_title", default=None, help="Display title (for workspace mode)")
+    shc.add_argument("--plan", action="store_true", help="Preview writes without applying")
+    shc.add_argument("--yes", action="store_true", help="Apply writes")
 
     sha = show_sub.add_parser("activate", help="Activate a show")
     sha.add_argument("id", help="Show ID")
 
     show_sub.add_parser("list", help="List shows")
+
+    shs = show_sub.add_parser("status", help="Show workspace status")
+    shs.add_argument("slug", help="Show slug")
+
+    shap = show_sub.add_parser("approve", help="Approve a show")
+    shap.add_argument("slug", help="Show slug")
+    shap.add_argument("--plan", action="store_true", help="Preview writes without applying")
+    shap.add_argument("--yes", action="store_true", help="Apply writes")
 
     # --- draft ---
     draft = sub.add_parser("draft", help="Agent drafting")
@@ -121,6 +153,43 @@ def build_parser() -> argparse.ArgumentParser:
     bt.add_argument("script", help="Path to YAML workflow file")
     bt.add_argument("--dry-run", action="store_true", help="Preview steps without executing")
 
+    # --- pool ---
+    pool = sub.add_parser("pool", help="Talent pool management")
+    pool_sub = pool.add_subparsers(dest="pool_cmd")
+
+    pi = pool_sub.add_parser("init", help="Initialize talent pool structure")
+    pi.add_argument("--plan", action="store_true", help="Preview writes without applying")
+    pi.add_argument("--yes", action="store_true", help="Apply writes")
+
+    pl = pool_sub.add_parser("list", help="List talent pool agents")
+    pl.add_argument("--instrument", default=None, help="Filter by instrument/role")
+    pl.add_argument("--json", action="store_true", dest="json_output", help="JSON output")
+
+    # --- run ---
+    run = sub.add_parser("run", help="Execute a show run")
+    run_sub = run.add_subparsers(dest="run_cmd")
+    rs = run_sub.add_parser("show", help="Run a show end-to-end")
+    rs.add_argument("show_slug", help="Show slug")
+    rs.add_argument("--corps", required=True, dest="corps_id", help="Corps ID")
+    rs.add_argument("--season", required=True, dest="season_id", help="Season ID")
+    rs.add_argument("--plan", action="store_true", help="Preview writes without applying")
+    rs.add_argument("--yes", action="store_true", help="Apply writes")
+    rs.add_argument("--timeout-seconds", type=int, default=None, dest="timeout_seconds", help="LLM timeout in seconds (default: 300)")
+    rs.add_argument("--max-iterations", type=int, default=None, dest="max_iterations", help="Max agent iterations (default: 30)")
+
+    # --- demo ---
+    demo = sub.add_parser("demo", help="Demo workflows")
+    demo_sub = demo.add_subparsers(dest="demo_cmd")
+    dt = demo_sub.add_parser("tour", help="Run full lifecycle tour")
+    dt.add_argument("--seed", type=int, default=1, help="Random seed (reserved)")
+    dt.add_argument("--corps-count", type=int, default=2, help="Number of corps (reserved)")
+    dt.add_argument("--plan", action="store_true", help="Preview without applying")
+    dt.add_argument("--yes", action="store_true", help="Apply")
+
+    # --- doctor ---
+    doc = sub.add_parser("doctor", help="Validate repo layout and environment")
+    doc.add_argument("--json", action="store_true", dest="json_output", help="Machine-readable JSON output")
+
     # --- export ---
     ex = sub.add_parser("export", help="Export corps data")
     ex.add_argument("corps_id", help="Corps ID")
@@ -137,6 +206,77 @@ def main(argv=None):
     if not args.command:
         parser.print_help()
         sys.exit(0)
+
+    # Commands that run without a client (filesystem-only)
+    if args.command == "doctor":
+        from backend.cli.commands.doctor import cmd_doctor
+        cmd_doctor(args)
+        return
+
+    if args.command == "demo":
+        from backend.cli.commands.demo import cmd_demo_tour
+        if getattr(args, "demo_cmd", None) == "tour":
+            cmd_demo_tour(args)
+        else:
+            parser.parse_args(["demo", "--help"])
+        return
+
+    if args.command == "pool":
+        from backend.cli.commands.pool import cmd_pool_init, cmd_pool_list
+        if getattr(args, "pool_cmd", None) == "init":
+            cmd_pool_init(args)
+        elif getattr(args, "pool_cmd", None) == "list":
+            cmd_pool_list(args)
+        else:
+            parser.parse_args(["pool", "--help"])
+        return
+
+    if args.command == "run":
+        from backend.cli.commands.run import cmd_run_show
+        if getattr(args, "run_cmd", None) == "show":
+            cmd_run_show(args)
+        else:
+            parser.parse_args(["run", "--help"])
+        return
+
+    if args.command == "season" and getattr(args, "season_cmd", None) == "create" and (
+        getattr(args, "plan", False) or getattr(args, "yes", False)
+    ):
+        from backend.cli.commands.season import cmd_season_create_workspace
+        # Map 'name' positional to 'season_id' for workspace command
+        args.season_id = args.name
+        cmd_season_create_workspace(args)
+        return
+
+    if args.command == "season" and getattr(args, "season_cmd", None) == "register-corps":
+        from backend.cli.commands.season import cmd_season_register_corps
+        cmd_season_register_corps(args)
+        return
+
+    if args.command == "season" and getattr(args, "season_cmd", None) == "run-contest":
+        from backend.cli.commands.season import cmd_season_run_contest
+        cmd_season_run_contest(args)
+        return
+
+    if args.command == "corps" and getattr(args, "corps_cmd", None) == "init":
+        from backend.cli.commands.artifacts import cmd_corps_init
+        cmd_corps_init(args)
+        return
+
+    if args.command == "show" and getattr(args, "show_cmd", None) in ("status", "approve"):
+        from backend.cli.commands.artifacts import cmd_show_status_workspace, cmd_show_approve
+        if args.show_cmd == "status":
+            cmd_show_status_workspace(args)
+        else:
+            cmd_show_approve(args)
+        return
+
+    if args.command == "show" and getattr(args, "show_cmd", None) == "create" and (
+        getattr(args, "plan", False) or getattr(args, "yes", False)
+    ):
+        from backend.cli.commands.artifacts import cmd_show_create_workspace
+        cmd_show_create_workspace(args)
+        return
 
     # Resolve client
     if args.direct:

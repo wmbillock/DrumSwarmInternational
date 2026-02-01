@@ -128,6 +128,26 @@ def register_service_tools(registry: ToolRegistry) -> None:
             {"gate": g.gate_name, "passed": g.passed, "message": g.message} for g in vr.gates
         ]}
 
+    # --- File I/O tools ---
+
+    from pathlib import Path
+    from backend.services.file_tools import make_file_tools
+    from backend.cli.commands.doctor import _find_project_root
+
+    file_tools = make_file_tools(Path(_find_project_root()))
+
+    def read_file(db, file_path: str):
+        return file_tools["read_file"](db, file_path=file_path)
+
+    def list_files(db, directory: str = "", pattern: str = ""):
+        return file_tools["list_files"](db, directory=directory, pattern=pattern)
+
+    def write_artifact(db, file_path: str, content: str):
+        return file_tools["write_artifact"](db, file_path=file_path, content=content)
+
+    def write_file(db, file_path: str, content: str):
+        return file_tools["write_file"](db, file_path=file_path, content=content)
+
     # --- Register all tools ---
 
     registry.register("create_segment", create_segment, {
@@ -265,6 +285,57 @@ def register_service_tools(registry: ToolRegistry) -> None:
                 "segment_id": {"type": "string", "description": "Optional segment ID for custom gates"},
             },
             "required": ["rep_id"],
+        },
+    })
+
+    registry.register("read_file", read_file, {
+        "name": "read_file",
+        "description": "Read a file relative to the project root. Returns content, path, and size. Blocked for sensitive files (.env, credentials, .git/config). Truncated at 50KB.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "file_path": {"type": "string", "description": "Relative path from project root"},
+            },
+            "required": ["file_path"],
+        },
+    })
+
+    registry.register("list_files", list_files, {
+        "name": "list_files",
+        "description": "List files in a directory relative to project root. Supports optional glob pattern. Capped at 100 entries.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "directory": {"type": "string", "description": "Directory path relative to project root (default: root)"},
+                "pattern": {"type": "string", "description": "Glob pattern to filter files (e.g. '*.py')"},
+            },
+            "required": [],
+        },
+    })
+
+    registry.register("write_artifact", write_artifact, {
+        "name": "write_artifact",
+        "description": "Write a file under artifact directories (shows/, seasons/, corps/, docs/outputs/). Creates parent dirs. Path traversal blocked.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "file_path": {"type": "string", "description": "Relative path (must be under shows/, seasons/, corps/, or docs/outputs/)"},
+                "content": {"type": "string", "description": "File content to write"},
+            },
+            "required": ["file_path", "content"],
+        },
+    })
+
+    registry.register("write_file", write_file, {
+        "name": "write_file",
+        "description": "Write a file anywhere in the project (requires DSI_ENABLE_CODE_WRITES=1 env var). Blocked for backend/services, backend/models, backend/api, .git, .env.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "file_path": {"type": "string", "description": "Relative path from project root"},
+                "content": {"type": "string", "description": "File content to write"},
+            },
+            "required": ["file_path", "content"],
         },
     })
 

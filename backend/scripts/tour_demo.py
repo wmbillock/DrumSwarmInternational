@@ -33,6 +33,7 @@ def _write_pool(pool_dir: Path, agents: list[dict]) -> None:
                 "display_name": a["display_name"],
                 "primary_instrument": a["primary_instrument"],
                 "availability": a["availability"],
+                "trust_score": a["trust_score"],
             }
             for a in agents
         ]
