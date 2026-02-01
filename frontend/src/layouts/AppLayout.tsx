@@ -2,11 +2,17 @@ import { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { NavBar } from "../components/NavBar";
 import { SideNav } from "../components/SideNav";
+import { TelemetryPanel } from "../components/TelemetryPanel";
+import { CorpsThemeProvider } from "../contexts/CorpsThemeContext";
+import { useCorpsContext } from "../hooks/useCorpsContext";
 
-export function AppLayout() {
+function AppLayoutInner() {
   const [theme, setTheme] = useState<"dark" | "light">(() =>
     (localStorage.getItem("dci-theme") as "dark" | "light") || "dark"
   );
+
+  // Automatically manage corps theme based on route context
+  useCorpsContext();
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -16,12 +22,21 @@ export function AppLayout() {
   return (
     <div className="app">
       <NavBar theme={theme} onToggleTheme={() => setTheme(t => t === "dark" ? "light" : "dark")} />
-      <div className="app-body">
+      <div className="app-body app-body--3col">
         <SideNav />
         <main className="app-main">
           <Outlet />
         </main>
+        <TelemetryPanel />
       </div>
     </div>
+  );
+}
+
+export function AppLayout() {
+  return (
+    <CorpsThemeProvider>
+      <AppLayoutInner />
+    </CorpsThemeProvider>
   );
 }

@@ -11,6 +11,8 @@ const NAV_SECTIONS = [
   { to: "/design", label: "Design Room", icon: "DSN" },
   { to: "/history", label: "Corps History", icon: "HST" },
   { to: "/seance", label: "Seance (Legacy)", icon: "QRY" },
+  { to: "/competitions", label: "Competitions", icon: "CMP" },
+  { to: "/settings", label: "Settings", icon: "SYS" },
 ] as const;
 
 export function SideNav() {

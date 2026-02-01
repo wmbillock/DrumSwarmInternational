@@ -4,6 +4,7 @@ import { CommandCenter } from "./pages/CommandCenter";
 import { SwarmOverview } from "./pages/SwarmOverview";
 import { CorpsDeepDive } from "./pages/CorpsDeepDive";
 import { CorpsList } from "./pages/CorpsList";
+import { CorpsDetailV2 } from "./pages/CorpsDetailV2";
 import { RunsList } from "./pages/RunsList";
 import { RunDetail } from "./pages/RunDetail";
 import { AdminChat } from "./pages/AdminChat";
@@ -15,6 +16,9 @@ import { JudgingCritique } from "./pages/JudgingCritique";
 import { EvolutionTalentPool } from "./pages/EvolutionTalentPool";
 import { CorpsHistory } from "./pages/CorpsHistory";
 import { SeanceSession } from "./pages/SeanceSession";
+import { CompetitionsList } from "./pages/CompetitionsList";
+import { CompetitionDetail } from "./pages/CompetitionDetail";
+import { Settings } from "./pages/Settings";
 
 export const router = createBrowserRouter([
   {
@@ -23,8 +27,10 @@ export const router = createBrowserRouter([
       { path: "/", element: <CommandCenter /> },
       { path: "/shows", element: <SwarmOverview /> },
       { path: "/corps", element: <CorpsList /> },
-      { path: "/corps/:corpsId", element: <CorpsDeepDive /> },
-      { path: "/corps/:corpsId/:tab", element: <CorpsDeepDive /> },
+      { path: "/corps/:corpsId", element: <CorpsDetailV2 /> },
+      { path: "/corps/:corpsId/:tab", element: <CorpsDetailV2 /> },
+      { path: "/corps-legacy/:corpsId", element: <CorpsDeepDive /> },
+      { path: "/corps-legacy/:corpsId/:tab", element: <CorpsDeepDive /> },
       { path: "/runs", element: <RunsList /> },
       { path: "/runs/:runId", element: <RunDetail /> },
       { path: "/admin", element: <AdminChat /> },
@@ -39,6 +45,9 @@ export const router = createBrowserRouter([
       { path: "/history", element: <CorpsHistory /> },
       { path: "/history/:corpsId", element: <CorpsHistory /> },
       { path: "/seance-session/:seanceId", element: <SeanceSession /> },
+      { path: "/competitions", element: <CompetitionsList /> },
+      { path: "/competitions/:competitionId", element: <CompetitionDetail /> },
+      { path: "/settings", element: <Settings /> },
     ],
   },
 ]);

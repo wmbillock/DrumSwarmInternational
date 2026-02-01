@@ -98,12 +98,14 @@ def v1_get_corps(corps_id: str):
 # =========================================================================
 
 @router.get("/runs")
-def v1_list_runs():
-    """List all run manifests across seasons."""
+def v1_list_runs(corps_id: Optional[str] = None):
+    """List all run manifests across seasons. Optionally filter by corps_id."""
     root = _get_root()
     seasons_dir = root / "seasons"
     if not seasons_dir.exists():
         return []
+    if corps_id:
+        _validate_id(corps_id, "corps_id")
     runs = []
     for season_dir in seasons_dir.iterdir():
         if not season_dir.is_dir():
@@ -113,6 +115,8 @@ def v1_list_runs():
             continue
         for corps_dir in perf_root.iterdir():
             if not corps_dir.is_dir():
+                continue
+            if corps_id and corps_dir.name != corps_id:
                 continue
             for run_dir in corps_dir.iterdir():
                 manifest_path = run_dir / "manifest.yaml"
@@ -533,6 +537,63 @@ class CreateCompetitionRequest(BaseModel):
     season_id: str
     show_slug: str
     corps_ids: list[str]
+
+
+@router.get("/competitions")
+def v1_list_competitions():
+    """List all competitions (season-show pairs with registered corps)."""
+    root = _get_root()
+    seasons_dir = root / "seasons"
+    if not seasons_dir.exists():
+        return []
+    results = []
+    for season_dir in sorted(seasons_dir.iterdir()):
+        if not season_dir.is_dir():
+            continue
+        season_yaml = season_dir / "season.yaml"
+        if not season_yaml.is_file():
+            continue
+        season_data = yaml.safe_load(season_yaml.read_text())
+        season_id = season_data.get("season_id", season_dir.name)
+        from backend.services.season_persistence import list_registered_corps
+        corps_ids = list_registered_corps(season_dir)
+        # Find shows used in this season by scanning performances
+        show_slugs: set[str] = set()
+        perf_root = season_dir / "performances"
+        if perf_root.exists():
+            for corps_dir in perf_root.iterdir():
+                if not corps_dir.is_dir():
+                    continue
+                for run_dir in corps_dir.iterdir():
+                    manifest_path = run_dir / "manifest.yaml"
+                    if manifest_path.is_file():
+                        try:
+                            m = yaml.safe_load(manifest_path.read_text())
+                            if isinstance(m, dict) and m.get("show_slug"):
+                                show_slugs.add(m["show_slug"])
+                        except Exception:
+                            pass
+        # Also check standings for show_slug
+        standings_path = season_dir / "standings.yaml"
+        if standings_path.exists():
+            try:
+                st = yaml.safe_load(standings_path.read_text())
+                if isinstance(st, dict) and st.get("show_slug"):
+                    show_slugs.add(st["show_slug"])
+            except Exception:
+                pass
+        if not show_slugs:
+            show_slugs = {"unknown"}
+        for show_slug in show_slugs:
+            competition_id = f"{season_id}-{show_slug}"
+            results.append({
+                "competition_id": competition_id,
+                "season_id": season_id,
+                "show_slug": show_slug,
+                "corps_ids": corps_ids,
+                "status": "completed" if (season_dir / "standings.yaml").exists() else "ready",
+            })
+    return results
 
 
 @router.post("/competitions")
