@@ -65,11 +65,38 @@ class TestDesignNotes:
 
 
 class TestSynthesizePrompt:
-    def test_writes_placeholder(self, tmp_path):
+    def test_writes_content(self, tmp_path):
         show_dir = create_show("Test", tmp_path)
         synthesize_prompt(show_dir)
         content = (show_dir / "show_prompt.md").read_text()
         assert len(content) > 0
+
+    def test_has_required_sections(self, tmp_path):
+        show_dir = create_show("Test", tmp_path)
+        # Write a spec with a title
+        (show_dir / "spec.md").write_text("# My Great Show\n\nA show about something.\n")
+        synthesize_prompt(show_dir)
+        content = (show_dir / "show_prompt.md").read_text()
+        for section in ["Show Concept", "Musical Design", "Visual Design",
+                        "Guard Design", "General Effect", "Constraints",
+                        "Deliverables", "Evaluation Rubric"]:
+            assert f"## {section}" in content
+
+    def test_incorporates_spec_title(self, tmp_path):
+        show_dir = create_show("Test", tmp_path)
+        (show_dir / "spec.md").write_text("# Stellar Voyage\n\nA cosmic journey.\n")
+        synthesize_prompt(show_dir)
+        content = (show_dir / "show_prompt.md").read_text()
+        assert "Stellar Voyage" in content
+
+    def test_routes_tagged_notes(self, tmp_path):
+        show_dir = create_show("Test", tmp_path)
+        notes = "<!-- tags: music_writer -->\nBrass fanfare in measure 12.\n"
+        (show_dir / "design_notes.md").write_text(notes)
+        synthesize_prompt(show_dir)
+        content = (show_dir / "show_prompt.md").read_text()
+        assert "Brass fanfare in measure 12" in content
+        assert "## Musical Design" in content
 
 
 class TestStatus:
