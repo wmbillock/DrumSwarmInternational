@@ -224,3 +224,241 @@ export interface BanquetReport {
   what_failed: string[];
   improvements: string[];
 }
+
+// --- Workspace view models (filesystem-sourced) ---
+
+export interface RunManifest {
+  run_id: string;
+  show_slug: string;
+  corps_id: string;
+  season_id: string;
+  started_at: string;
+  completed_at?: string;
+  status: "running" | "completed" | "failed";
+  config: { max_iterations?: number; timeout?: number };
+  inputs?: Record<string, string>;
+  outputs?: string[];
+}
+
+export interface RunDetail extends RunManifest {
+  output: string;
+}
+
+export interface CorpsWorkspace {
+  corps_id: string;
+  display_name: string;
+  philosophy: string;
+  state: string;
+  history: CorpsPlacement[];
+  roster_size: number;
+}
+
+export interface CorpsPlacement {
+  season_id: string;
+  placement: number;
+  final_score: number;
+  notes: string;
+}
+
+// --- Design Room types ---
+
+export interface ShowSpec {
+  content: string;
+}
+
+export interface DesignMessage {
+  role: string;
+  tags: string[];
+  response: string;
+  spec_updates: {
+    decisions: string[];
+    open_questions: string[];
+    constraints: string[];
+  };
+}
+
+export interface SpecVersion {
+  version: number;
+  path: string;
+}
+
+// --- Judging & Critique types ---
+
+export interface JudgeTape {
+  rep_id: string;
+  segment_id: string | null;
+  segment_title: string | null;
+  segment_type: string | null;
+  rep_status: string;
+  captions: Record<string, { value: number; box: number; feedback: string | null }[]>;
+  composite: {
+    final_score: number;
+    needs_rework: boolean;
+    needs_escalation: boolean;
+  };
+  score_count: number;
+}
+
+export interface CritiqueFeedback {
+  judge_type: string;
+  score_value: number;
+  box: number;
+  feedback: string;
+  strengths: string[];
+  weaknesses: string[];
+  action_items: string[];
+}
+
+export interface CritiqueDetail {
+  rep_id: string;
+  overall_assessment: string;
+  needs_rework: boolean;
+  feedbacks: CritiqueFeedback[];
+}
+
+export interface CritiqueAction {
+  rep_id: string;
+  judge_type: string;
+  target_role: string;
+  score: number;
+  weaknesses: string[];
+  action_items: string[];
+  strengths: string[];
+}
+
+export interface CritiqueActionsResponse {
+  total_actions: number;
+  by_role: Record<string, CritiqueAction[]>;
+  actions: CritiqueAction[];
+}
+
+// --- Evolution & Talent Pool types ---
+
+export interface PerformerGenome {
+  performer_id: string;
+  name: string;
+  role_type: string;
+  status: string;
+  age: number;
+  experience_seasons: number;
+  trust_score: number;
+  specialties: string | null;
+  performance: {
+    total_sessions: number;
+    successful_sessions: number;
+    failed_sessions: number;
+    success_rate: number;
+    reps_completed: number;
+    reps_failed: number;
+    avg_score: number | null;
+    gupp_violations: number;
+  };
+  definition: {
+    definition_id: string;
+    role: string;
+    model_tier: string;
+    tools_allowed: string[];
+    version: number;
+    classification: string | null;
+    nickname: string | null;
+    system_prompt_length: number;
+    corps_id: string | null;
+  } | null;
+}
+
+export interface SelectionEvent {
+  id: string;
+  performer_id: string | null;
+  performer_name: string | null;
+  role_type: string;
+  entry_type: string;
+  corps_id: string | null;
+  session_id: string | null;
+  rep_id: string | null;
+  score: number | null;
+  trust_before: number | null;
+  trust_after: number | null;
+  details: string | null;
+  created_at: string | null;
+}
+
+export interface MutationLog {
+  id: string;
+  definition_id: string;
+  role: string;
+  nickname: string | null;
+  old_version: number;
+  new_version: number;
+  changes: Record<string, unknown>;
+  reason: string;
+  status: string;
+  approved_by: string | null;
+  created_at: string | null;
+}
+
+// --- Corps History & Seance types ---
+
+export interface HistoryIndexEntry {
+  entry_id: string;
+  season_id: string;
+  show_slug: string | null;
+  placement: number;
+  final_score: number;
+  artifacts: Record<string, string>;
+  runs: string[];
+}
+
+export interface HistoryIndex {
+  corps_id: string;
+  generated_at: string;
+  entries: HistoryIndexEntry[];
+}
+
+export interface ContextBinderItem {
+  path: string;
+  type: string;
+  loaded: boolean;
+}
+
+export interface SeanceSession {
+  seance_id: string;
+  corps_id: string;
+  entry_id: string;
+  season_id: string;
+  show_slug: string | null;
+  participant: string;
+  created_at: string;
+  status: "active" | "closed";
+  context_binder: ContextBinderItem[];
+}
+
+export interface SeanceMessageResponse {
+  role: string;
+  message: string;
+  seance_id: string;
+}
+
+export interface ArtifactPreview {
+  path: string;
+  content: string;
+  truncated: boolean;
+}
+
+export interface MutationSimulationResult {
+  definition_id: string;
+  role: string;
+  current_version: number;
+  proposed_version: number;
+  reason: string;
+  risk_level: string;
+  requires_approval: boolean;
+  impacts: {
+    field: string;
+    impact: string;
+    description: string;
+    risk: string;
+    [key: string]: unknown;
+  }[];
+  sandbox: boolean;
+  applied: boolean;
+}

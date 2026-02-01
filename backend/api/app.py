@@ -114,6 +114,26 @@ def get_db():
 
 app = FastAPI(title="DCI Swarm", version="0.1.0", lifespan=lifespan)
 
+# --- Workspace routes (filesystem readers) ---
+from backend.api.workspace_routes import router as workspace_router
+app.include_router(workspace_router)
+
+# --- Design Room routes ---
+from backend.api.design_room_routes import router as design_room_router
+app.include_router(design_room_router)
+
+# --- Judging & Critique routes ---
+from backend.api.judging_routes import router as judging_router
+app.include_router(judging_router)
+
+# --- Evolution & Talent Pool routes ---
+from backend.api.evolution_routes import router as evolution_router
+app.include_router(evolution_router)
+
+# --- Seance & Corps History routes ---
+from backend.api.seance_routes import router as seance_router
+app.include_router(seance_router)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[

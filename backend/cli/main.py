@@ -72,6 +72,18 @@ def build_parser() -> argparse.ArgumentParser:
     ci.add_argument("--plan", action="store_true", help="Preview writes without applying")
     ci.add_argument("--yes", action="store_true", help="Apply writes")
 
+    # corps history
+    ch = corps_sub.add_parser("history", help="Corps history index management")
+    ch_sub = ch.add_subparsers(dest="history_cmd")
+
+    chb = ch_sub.add_parser("build", help="Build history index for a corps")
+    chb.add_argument("corps_id", help="Corps ID")
+    chb.add_argument("--plan", action="store_true", help="Preview writes without applying")
+    chb.add_argument("--yes", action="store_true", help="Apply writes")
+
+    chl = ch_sub.add_parser("list", help="List history entries for a corps")
+    chl.add_argument("corps_id", help="Corps ID")
+
     # --- show ---
     show = sub.add_parser("show", help="Show management")
     show_sub = show.add_subparsers(dest="show_cmd")
@@ -187,6 +199,22 @@ def build_parser() -> argparse.ArgumentParser:
     dt.add_argument("--plan", action="store_true", help="Preview without applying")
     dt.add_argument("--yes", action="store_true", help="Apply")
 
+    # --- seance ---
+    seance = sub.add_parser("seance", help="Seance session management")
+    seance_sub = seance.add_subparsers(dest="seance_cmd")
+
+    ss_start = seance_sub.add_parser("start", help="Start a seance session from a history entry")
+    ss_start.add_argument("--corps", required=True, dest="corps_id", help="Corps ID")
+    ss_start.add_argument("--entry", required=True, dest="entry_id", help="History entry ID")
+    ss_start.add_argument("--plan", action="store_true", help="Preview writes without applying")
+    ss_start.add_argument("--yes", action="store_true", help="Apply writes")
+
+    ss_status = seance_sub.add_parser("status", help="Show seance session status")
+    ss_status.add_argument("seance_id", help="Seance ID")
+
+    ss_binder = seance_sub.add_parser("binder", help="Print resolved artifact list")
+    ss_binder.add_argument("seance_id", help="Seance ID")
+
     # --- doctor ---
     doc = sub.add_parser("doctor", help="Validate repo layout and environment")
     doc.add_argument("--json", action="store_true", dest="json_output", help="Machine-readable JSON output")
@@ -262,6 +290,28 @@ def main(argv=None):
     if args.command == "corps" and getattr(args, "corps_cmd", None) == "init":
         from backend.cli.commands.artifacts import cmd_corps_init
         cmd_corps_init(args)
+        return
+
+    if args.command == "corps" and getattr(args, "corps_cmd", None) == "history":
+        from backend.cli.commands.history import cmd_corps_history_build, cmd_corps_history_list
+        if getattr(args, "history_cmd", None) == "build":
+            cmd_corps_history_build(args)
+        elif getattr(args, "history_cmd", None) == "list":
+            cmd_corps_history_list(args)
+        else:
+            parser.parse_args(["corps", "history", "--help"])
+        return
+
+    if args.command == "seance":
+        from backend.cli.commands.seance_cmd import cmd_seance_start, cmd_seance_status, cmd_seance_binder
+        if getattr(args, "seance_cmd", None) == "start":
+            cmd_seance_start(args)
+        elif getattr(args, "seance_cmd", None) == "status":
+            cmd_seance_status(args)
+        elif getattr(args, "seance_cmd", None) == "binder":
+            cmd_seance_binder(args)
+        else:
+            parser.parse_args(["seance", "--help"])
         return
 
     if args.command == "show" and getattr(args, "show_cmd", None) in ("status", "approve"):

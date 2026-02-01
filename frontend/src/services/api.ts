@@ -1,6 +1,6 @@
 // API client for DCI Swarm backend
 
-import type { Show, AgentSession, Corps, CorpsMode, SegmentNode, WorkLogEntry, ChatMessage, Scoresheet, SystemHealth } from "../types";
+import type { Show, AgentSession, Corps, CorpsMode, SegmentNode, WorkLogEntry, ChatMessage, Scoresheet, SystemHealth, RunManifest, RunDetail, CorpsWorkspace, CorpsPlacement, ShowSpec, DesignMessage, SpecVersion, JudgeTape, CritiqueDetail, CritiqueActionsResponse, PerformerGenome, SelectionEvent, MutationLog, MutationSimulationResult, HistoryIndex, SeanceSession, SeanceMessageResponse, ArtifactPreview } from "../types";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -209,3 +209,81 @@ export const runBanquet = (corpsId: string) =>
 // Complete show
 export const completeShow = (id: string) =>
   request<any>(`/api/shows/${id}/complete`, { method: "POST" });
+
+// Workspace: Runs & Rehearsals
+export const getRuns = () => request<RunManifest[]>("/api/runs");
+export const getRunDetail = (runId: string) => request<RunDetail>(`/api/runs/${encodeURIComponent(runId)}`);
+
+// Workspace: Corps
+export const getCorpsWorkspaces = () => request<CorpsWorkspace[]>("/api/corps-workspace");
+export const getCorpsHistory = (corpsId: string) => request<CorpsPlacement[]>(`/api/corps-workspace/${encodeURIComponent(corpsId)}/history`);
+
+// Design Room
+export const createDesignShow = (title: string) =>
+  request<{ slug: string; path: string }>("/api/design/shows", {
+    method: "POST", body: JSON.stringify({ title }),
+  });
+export const getDesignSpec = (slug: string) =>
+  request<ShowSpec>(`/api/design/shows/${encodeURIComponent(slug)}/spec`);
+export const updateDesignSpec = (slug: string, content: string) =>
+  request<{ status: string }>(`/api/design/shows/${encodeURIComponent(slug)}/spec`, {
+    method: "PUT", body: JSON.stringify({ content }),
+  });
+export const sendDesignMessage = (slug: string, message: string, roleHint?: string) =>
+  request<DesignMessage>(`/api/design/shows/${encodeURIComponent(slug)}/conversation`, {
+    method: "POST", body: JSON.stringify({ message, role_hint: roleHint }),
+  });
+export const approveDesignSpec = (slug: string) =>
+  request<SpecVersion>(`/api/design/shows/${encodeURIComponent(slug)}/approve`, { method: "POST" });
+export const getDesignVersions = (slug: string) =>
+  request<{ versions: number[] }>(`/api/design/shows/${encodeURIComponent(slug)}/versions`);
+
+// Judging & Critique
+export const getJudgeTapes = (corpsId: string) =>
+  request<JudgeTape[]>(`/api/judging/corps/${corpsId}/tapes`);
+export const getJudgeTape = (corpsId: string, repId: string) =>
+  request<CritiqueDetail>(`/api/judging/corps/${corpsId}/tapes/${repId}`);
+export const getCritiqueActions = (corpsId: string) =>
+  request<CritiqueActionsResponse>(`/api/judging/corps/${corpsId}/actions`);
+export const exportJudgeTape = (corpsId: string, repId: string) =>
+  request<{ markdown: string; rep_id: string; corps_id: string }>(
+    `/api/judging/corps/${corpsId}/tapes/${repId}/export`
+  );
+
+// Evolution & Talent Pool
+export const getPerformerGenome = (performerId: string) =>
+  request<PerformerGenome>(`/api/evolution/performers/${performerId}/genome`);
+export const getSelectionEvents = (eventType?: string, limit = 50) =>
+  request<SelectionEvent[]>(`/api/evolution/events?limit=${limit}${eventType ? `&event_type=${eventType}` : ""}`);
+export const getMutations = (status?: string, limit = 50) =>
+  request<MutationLog[]>(`/api/evolution/mutations?limit=${limit}${status ? `&status=${status}` : ""}`);
+export const simulateMutation = (definitionId: string, changes: Record<string, unknown>, reason: string) =>
+  request<MutationSimulationResult>("/api/evolution/simulate-mutation", {
+    method: "POST", body: JSON.stringify({ definition_id: definitionId, changes, reason }),
+  });
+
+// Corps History & Seance
+export const getCorpsHistoryIndex = (corpsId: string) =>
+  request<HistoryIndex>(`/api/corps/${encodeURIComponent(corpsId)}/history-index`);
+export const createSeance = (corpsId: string, entryId: string) =>
+  request<SeanceSession>("/api/seances", {
+    method: "POST", body: JSON.stringify({ corps_id: corpsId, entry_id: entryId }),
+  });
+export const getSeance = (seanceId: string) =>
+  request<SeanceSession>(`/api/seances/${encodeURIComponent(seanceId)}`);
+export const getSeanceBinder = (seanceId: string) =>
+  request<{ seance_id: string; context_binder: SeanceSession["context_binder"] }>(
+    `/api/seances/${encodeURIComponent(seanceId)}/binder`
+  );
+export const getSeanceTranscript = (seanceId: string) =>
+  request<{ seance_id: string; transcript: string }>(
+    `/api/seances/${encodeURIComponent(seanceId)}/transcript`
+  );
+export const sendSeanceMessage = (seanceId: string, message: string, mode: "strict" | "relaxed" = "strict") =>
+  request<SeanceMessageResponse>(`/api/seances/${encodeURIComponent(seanceId)}/message`, {
+    method: "POST", body: JSON.stringify({ message, mode }),
+  });
+export const previewSeanceArtifact = (seanceId: string, path: string) =>
+  request<ArtifactPreview>(
+    `/api/seances/${encodeURIComponent(seanceId)}/artifact-preview?path=${encodeURIComponent(path)}`
+  );

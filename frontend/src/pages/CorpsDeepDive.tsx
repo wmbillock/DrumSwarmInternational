@@ -16,6 +16,7 @@ import { TheStand } from "../components/TheStand";
 import { TheChart } from "../components/TheChart";
 import { TheBooks } from "../components/TheBooks";
 import { TheSeason } from "../components/TheSeason";
+import { TheHistory } from "../components/TheHistory";
 
 function formatRole(role: string): string {
   return role.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
@@ -114,7 +115,7 @@ function SwarmControlPanel({ corpsId, onCommand }: { corpsId: string; onCommand:
   );
 }
 
-type TabKey = "command" | "roster" | "sheets" | "field" | "reps" | "tape" | "banquet" | "stand" | "chart" | "books" | "season";
+type TabKey = "command" | "roster" | "sheets" | "field" | "reps" | "tape" | "banquet" | "stand" | "chart" | "books" | "season" | "history";
 
 const TAB_LABELS: Record<TabKey, string> = {
   command: "Command Room",
@@ -128,6 +129,7 @@ const TAB_LABELS: Record<TabKey, string> = {
   chart: "Chart",
   books: "Books",
   season: "Season",
+  history: "History",
 };
 
 export function CorpsDeepDive() {
@@ -429,6 +431,7 @@ export function CorpsDeepDive() {
         {activeTab === "chart" && corpsId && <TheChart corpsId={corpsId} />}
         {activeTab === "books" && corpsId && <TheBooks corpsId={corpsId} />}
         {activeTab === "season" && <TheSeason />}
+        {activeTab === "history" && corpsId && <TheHistory corpsId={corpsId} />}
       </div>
     </div>
   );
