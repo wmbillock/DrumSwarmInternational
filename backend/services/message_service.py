@@ -101,6 +101,8 @@ ROLE_HIERARCHY = {
     "section_leader": {"horn_sergeant", "center_snare", "guard_captain", "brass_tech", "percussion_tech", "front_ensemble_tech", "guard_tech", "visual_tech", "performer"},
     # Performers — can only report up
     "performer": {"section_leader"},
+    # Timing & Penalties Judge — oversight and monitoring role
+    "timing_judge": {"executive_director", "drum_major"},
 }
 
 # System role can send to any role (used by subscriptions, metronome, etc.)
@@ -129,6 +131,7 @@ DIRECTIVE_ALLOWED_ROLES = {
     "guard_caption_head",
     "visual_caption_head",
     "drum_major",
+    "timing_judge",
 }
 
 
