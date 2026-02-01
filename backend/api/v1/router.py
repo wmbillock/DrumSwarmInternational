@@ -648,29 +648,20 @@ def v1_get_thread_messages(slug: str):
 
 _DESIGN_ROLE_PROMPTS = {
     "music_writer": (
-        "You are the Music Arranger for this show. You specialize in brass arrangements, "
-        "percussion writing, and musical pacing. Contribute specific musical ideas — key changes, "
-        "tempo progressions, instrument voicings, scoring decisions. Be concrete."
+        "You are the Music Arranger. Pitch a concrete musical idea in 1-2 sentences. "
+        "Name keys, tempos, instruments, dynamics. Don't ask questions — propose."
     ),
     "drill_writer": (
-        "You are the Drill Designer for this show. You specialize in visual design, "
-        "formations, transitions, and staging. Contribute specific visual ideas — formations, "
-        "movement patterns, staging concepts, spatial relationships. Be concrete."
+        "You are the Drill Designer. Pitch a concrete visual idea in 1-2 sentences. "
+        "Name formations, transitions, staging. Don't ask questions — propose."
     ),
     "choreographer": (
-        "You are the Guard Choreographer for this show. You specialize in color guard "
-        "choreography, equipment work, and dance. Contribute specific guard ideas — equipment "
-        "choices, choreographic moments, tosses, visual impact points. Be concrete."
+        "You are the Guard Choreographer. Pitch a concrete guard idea in 1-2 sentences. "
+        "Name equipment, tosses, choreographic moments. Don't ask questions — propose."
     ),
     "program_coordinator": (
-        "You are the Program Coordinator (lead designer) for this show. You run the design room "
-        "meeting. Your job is to FACILITATE discussion, not just respond. You should:\n"
-        "- Ask the user direct questions to draw out their vision\n"
-        "- Identify which areas need input from specialists (music, drill, guard)\n"
-        "- Synthesize ideas from the team into coherent design direction\n"
-        "- Challenge vague ideas — push for specifics\n"
-        "- Track what's been decided vs. what's still open\n"
-        "- When enough decisions are made, suggest updating the spec"
+        "You are the Program Coordinator (lead designer). Synthesize the director's input "
+        "into design direction. Be brief — 1-2 sentences. Only ask ONE question if truly needed."
     ),
 }
 
@@ -681,66 +672,55 @@ _DESIGN_ROLE_DISPLAY = {
     "program_coordinator": "Program Coordinator",
 }
 
-_DESIGN_SYSTEM_TEMPLATE = """You are a DCI show design staff member in a live Design Room meeting.
-You are having a real-time collaborative discussion with the show's director (the user) and other design staff.
+_DESIGN_SYSTEM_TEMPLATE = """You are a DCI show design staff member. Be BRIEF — 1-2 sentences max.
 
-YOUR ROLE: {role_prompt}
-
+ROLE: {role_prompt}
 SHOW: {slug}
+CURRENT SPEC: {spec_content}
 
-CURRENT SPEC (what's been decided so far):
-{spec_content}
-
-CONVERSATION SO FAR:
-{notes_content}
-
-REQUIRED SPEC SECTIONS (the spec needs all of these before it can be published):
-- ## Show Concept
-- ## Musical Design
-- ## Visual Design
-- ## Guard Design
-- ## General Effect
-- ## Deliverables
-- ## Evaluation Rubric
-
-INSTRUCTIONS:
-- Respond as your character in 2-5 sentences. Be specific and creative.
-- This is a LIVE DISCUSSION. Talk naturally — react to what was just said, build on ideas, push back respectfully.
-- If you need more information from the director, ask a SPECIFIC question (not generic).
-- When you have a design idea, pitch it with enthusiasm and detail.
-- If something another agent said concerns you, say so and explain why.
-- Do NOT just acknowledge or summarize. Contribute substantive creative ideas.
-- Keep driving toward a complete, publishable spec.
+RULES:
+- Contribute a SPECIFIC creative idea. No fluff, no summaries.
+- Do NOT ask questions unless absolutely critical. Propose, don't interrogate.
+- Build on what exists. If the spec already covers your area, refine rather than restart.
+- One idea per response. Be punchy.
 """
 
-_PC_MARSHAL_TEMPLATE = """You are the Program Coordinator running a Design Room meeting for show "{slug}".
+_PC_MARSHAL_TEMPLATE = """You are the Program Coordinator for show "{slug}".
 
 CURRENT SPEC:
 {spec_content}
 
-CONVERSATION SO FAR:
+RECENT CONVERSATION:
 {notes_content}
 
-REQUIRED SPEC SECTIONS:
-- ## Show Concept
-- ## Musical Design
-- ## Visual Design
-- ## Guard Design
-- ## General Effect
-- ## Deliverables
-- ## Evaluation Rubric
+Director just said: "{user_message}"
 
-The director (user) just said: "{user_message}"
+Respond in 1-2 sentences. Do ONE of these:
+- Synthesize their input into a clear design decision
+- Build on their idea with a concrete next step
+- Only ask a question if you genuinely can't proceed without it (max 1 question)
 
-Based on the message content and what's been discussed, identify which design staff should weigh in.
-Your job is to:
-1. React to the director's message — acknowledge their input, ask a follow-up question to sharpen the idea
-2. If specific expertise areas are relevant, call on those specialists by name
-3. Track progress: note what sections of the spec are covered vs still open
-4. Keep the energy up — this is a creative collaboration
+Do NOT recap what they said. Do NOT list what's still needed. Be action-oriented.
+"""
 
-Respond in 2-4 sentences as the Program Coordinator. Be direct and engaged.
-If calling on a specialist, say something like "Let me get [Music Arranger/Drill Designer/Guard Choreographer]'s take on this."
+_SPEC_UPDATE_TEMPLATE = """You are updating the show spec based on the design discussion.
+
+CURRENT SPEC:
+{spec_content}
+
+RECENT DESIGN CONVERSATION:
+{notes_content}
+
+REQUIRED SECTIONS:
+## Show Concept, ## Musical Design, ## Visual Design, ## Guard Design, ## General Effect, ## Deliverables, ## Evaluation Rubric
+
+Write the COMPLETE updated spec in markdown. Incorporate ALL design decisions from the conversation.
+- Keep existing content that's still valid
+- Add new sections for decisions just made
+- Fill in details from the discussion
+- Use professional DCI show design language
+- If a section hasn't been discussed yet, include a brief placeholder like "TBD — awaiting design input"
+- Output ONLY the spec markdown, no preamble
 """
 
 
@@ -886,6 +866,23 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
             "tags": tags,
             "response": fallback_text,
         })
+
+    # Auto-update the spec based on the conversation so far
+    if llm_client and responses:
+        try:
+            from backend.services.show_persistence import write_spec
+            notes_for_spec = notes_path.read_text() if notes_path.exists() else ""
+            if len(notes_for_spec) > 5000:
+                notes_for_spec = "...\n" + notes_for_spec[-5000:]
+            spec_prompt = _SPEC_UPDATE_TEMPLATE.format(
+                spec_content=spec_content,
+                notes_content=notes_for_spec,
+            )
+            updated_spec = _llm_chat(llm_client, spec_prompt, "Update the spec now.")
+            if updated_spec and len(updated_spec) > 50:
+                write_spec(show_dir, updated_spec)
+        except Exception:
+            pass  # Spec update is best-effort
 
     # Return backward-compatible single response + full responses array
     return {
