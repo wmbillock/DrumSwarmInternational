@@ -1,6 +1,8 @@
+import { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import { CorpsThemePicker } from "./CorpsThemePicker";
 import { SystemHealth } from "./SystemHealth";
+import * as v1 from "../services/v1";
 
 export function NavBar({
   theme,
@@ -9,6 +11,24 @@ export function NavBar({
   theme: "dark" | "light";
   onToggleTheme: () => void;
 }) {
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const loadUnreadCount = async () => {
+      try {
+        const result = await v1.getUnreadMessageCount();
+        setUnreadCount(result.unread_count || 0);
+      } catch (err) {
+        // Silently fail if API not available
+      }
+    };
+
+    loadUnreadCount();
+    const interval = setInterval(loadUnreadCount, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <header className="app-header">
       <NavLink to="/" className="app-title-link">
@@ -29,6 +49,12 @@ export function NavBar({
         </NavLink>
         <NavLink to="/seance" className={({ isActive }) => isActive ? "nav-active small" : "small"}>
           Seance
+        </NavLink>
+        <NavLink
+          to="/messages/inbox"
+          className={({ isActive }) => isActive ? "nav-active small" : "small"}
+        >
+          Messages {unreadCount > 0 && <span className="badge">{unreadCount}</span>}
         </NavLink>
       </nav>
       <SystemHealth />

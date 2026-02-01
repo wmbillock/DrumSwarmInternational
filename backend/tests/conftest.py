@@ -18,6 +18,7 @@ import backend.models.corps  # noqa: F401
 import backend.models.show  # noqa: F401
 import backend.models.work_log  # noqa: F401
 import backend.models.performer  # noqa: F401
+import backend.models.messaging_thread  # noqa: F401
 
 
 @pytest.fixture

@@ -108,7 +108,7 @@ export function TelemetryPanel() {
           <ul className="telemetry-run-list">
             {topScores.map((s) => (
               <li key={s.corps_id} className="telemetry-run-item">
-                <span className="mono">#{s.rank} {s.corps_id}</span>
+                <span className="mono">#{s.rank} {s.display_name || s.corps_id}</span>
                 <span className="show-score">{s.final_score.toFixed(2)}</span>
               </li>
             ))}

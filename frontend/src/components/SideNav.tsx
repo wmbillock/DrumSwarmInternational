@@ -9,6 +9,7 @@ const NAV_SECTIONS = [
   { to: "/judging", label: "Judging & Critique", icon: "JDG" },
   { to: "/templates", label: "Templates", icon: "TPL" },
   { to: "/design", label: "Design Room", icon: "DSN" },
+  { to: "/messages/inbox", label: "Messages", icon: "MSG" },
   { to: "/history", label: "Corps History", icon: "HST" },
   { to: "/seance", label: "Seance (Legacy)", icon: "QRY" },
   { to: "/competitions", label: "Competitions", icon: "CMP" },

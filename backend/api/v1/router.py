@@ -1433,6 +1433,35 @@ class CreateCompetitionRequest(BaseModel):
     corps_ids: list[str]
 
 
+# --- Messaging Request Models ---
+
+
+class MessagingCreateThreadRequest(BaseModel):
+    originator_role: str
+    subject: str
+    initial_message_body: str
+    initial_sender_name: Optional[str] = "Agent"
+    user_role: str  # Role of the user creating the thread (for permission check)
+
+
+class MessagingAddMessageRequest(BaseModel):
+    sender_type: str
+    sender_role: str
+    sender_name: str
+    body: str
+
+
+class MessagingMarkThreadCompleteRequest(BaseModel):
+    completed_by_user_id: str
+    completed_by_user_role: str  # Role of the user marking complete (for permission check)
+
+
+class MessagingBulkArchiveRequest(BaseModel):
+    thread_ids: list[str]
+    archived_by_user_id: str
+    archived_by_user_role: str  # Role of the user archiving (must be admin)
+
+
 def _parse_competition_id(competition_id: str, root: Path) -> tuple[str, str]:
     """Parse competition_id into (season_id, show_slug).
 

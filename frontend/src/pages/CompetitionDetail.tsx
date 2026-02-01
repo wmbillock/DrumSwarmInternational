@@ -44,7 +44,7 @@ function BreakdownRow({
     <>
       <tr className="clickable-row" onClick={toggle}>
         <td><strong>#{entry.rank}</strong></td>
-        <td>{entry.corps_id}</td>
+        <td>{entry.display_name || entry.corps_id}</td>
         <td className="show-score">{entry.final_score.toFixed(2)}</td>
         <td>{entry.raw_score.toFixed(2)}</td>
         <td><CaptionBars scores={entry.caption_scores} /></td>
@@ -126,7 +126,7 @@ function CaptionBreakdownTab({ results }: { results: v1.V1StandingEntry[] }) {
       <tbody>
         {results.map((r) => (
           <tr key={r.corps_id}>
-            <td>{r.corps_id}</td>
+            <td>{r.display_name || r.corps_id}</td>
             {CAPTION_ORDER.map((c) => (
               <td key={c}>{r.caption_scores[c]?.toFixed?.(1) ?? "—"}</td>
             ))}
@@ -149,17 +149,17 @@ function CompareTab({ results }: { results: v1.V1StandingEntry[] }) {
     <div>
       <div className="compare-selectors">
         <select value={leftId} onChange={(e) => setLeftId(e.target.value)}>
-          {results.map((r) => <option key={r.corps_id} value={r.corps_id}>{r.corps_id}</option>)}
+          {results.map((r) => <option key={r.corps_id} value={r.corps_id}>{r.display_name || r.corps_id}</option>)}
         </select>
         <span>vs</span>
         <select value={rightId} onChange={(e) => setRightId(e.target.value)}>
-          {results.map((r) => <option key={r.corps_id} value={r.corps_id}>{r.corps_id}</option>)}
+          {results.map((r) => <option key={r.corps_id} value={r.corps_id}>{r.display_name || r.corps_id}</option>)}
         </select>
       </div>
       {left && right && (
         <table className="data-table">
           <thead>
-            <tr><th>Caption</th><th>{left.corps_id}</th><th>{right.corps_id}</th><th>Diff</th></tr>
+            <tr><th>Caption</th><th>{left.display_name || left.corps_id}</th><th>{right.display_name || right.corps_id}</th><th>Diff</th></tr>
           </thead>
           <tbody>
             {CAPTION_ORDER.map((cap) => {
