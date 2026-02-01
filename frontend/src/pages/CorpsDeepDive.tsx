@@ -176,7 +176,7 @@ export function CorpsDeepDive() {
 
     // Find show for this corps
     try {
-      const shows = await api.listShows();
+      const shows = await v1.listShows();
       const s = shows.find((s: any) => s.corps_id === corpsId);
       if (s) {
         const fullShow = await api.getShow(s.id);
@@ -189,7 +189,7 @@ export function CorpsDeepDive() {
 
   const handleSendChat = async (content: string, toRole: string) => {
     if (!corpsId) return;
-    await api.sendChat(corpsId, content, toRole);
+    await v1.sendCorpsChat(corpsId, content, toRole);
     // Re-fetch chat history to pick up the sent message and any agent responses
     try {
       const history = await v1.getCorpsChatHistory(corpsId);

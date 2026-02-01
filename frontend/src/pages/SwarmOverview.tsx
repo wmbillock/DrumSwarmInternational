@@ -121,18 +121,18 @@ export function SwarmOverview() {
   };
 
   const handleCreateShow = async (title: string, desc?: string) => {
-    await api.createShow(title, desc);
+    await v1.createShow({ title, description: desc });
     refreshDashboard();
   };
 
   const handleDeleteShow = async (id: string) => {
     if (!confirm("Delete this show? This cannot be undone.")) return;
-    await api.deleteShow(id);
+    await v1.deleteShow(id);
     refreshDashboard();
   };
 
   const handleActivateShow = async (id: string) => {
-    await api.activateShow(id);
+    await v1.activateShow(id);
     refreshDashboard();
   };
 
@@ -145,7 +145,7 @@ export function SwarmOverview() {
     if (toDelete.length === 0) { alert("Nothing to clean up."); return; }
     if (!confirm(`Delete ${toDelete.length} old/duplicate shows?`)) return;
     for (const s of toDelete) {
-      try { await api.deleteShow(s.id); } catch {}
+      try { await v1.deleteShow(s.id); } catch {}
     }
     refreshDashboard();
   };

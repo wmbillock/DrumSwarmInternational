@@ -17,14 +17,14 @@ export function TheSeason() {
 
   const handleCreate = async () => {
     if (!newTitle.trim()) return;
-    await api.createShow(newTitle, newDesc || undefined);
+    await v1.createShow({ title: newTitle, description: newDesc || undefined });
     setNewTitle("");
     setNewDesc("");
     loadShows();
   };
 
   const handleActivate = async (id: string) => {
-    await api.activateShow(id);
+    await v1.activateShow(id);
     loadShows();
   };
 

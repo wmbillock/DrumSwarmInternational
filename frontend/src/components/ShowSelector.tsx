@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useShow } from "../contexts/ShowContext";
-import * as api from "../services/api";
+import * as v1 from "../services/v1";
 import type { Show } from "../types";
 
 export function ShowSelector() {
@@ -11,7 +11,7 @@ export function ShowSelector() {
 
   const handleCreate = async () => {
     if (!newTitle.trim()) return;
-    const show = (await api.createShow(newTitle.trim())) as Show;
+    const show = (await v1.createShow({ title: newTitle.trim() })) as Show;
     setNewTitle("");
     setCreating(false);
     await refreshShows();
@@ -20,7 +20,7 @@ export function ShowSelector() {
 
   const handleActivate = async () => {
     if (!activeShow) return;
-    const result = (await api.activateShow(activeShow.id)) as { id: string; status: string; corps_id: string };
+    const result = (await v1.activateShow(activeShow.id)) as { id: string; status: string; corps_id: string };
     await refreshShows();
     // Refresh the active show to get corps_id
     const updated = shows.find((s) => s.id === activeShow.id);
