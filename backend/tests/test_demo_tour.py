@@ -126,6 +126,26 @@ class TestDemoTourYes:
         assert len(standings["results"]) == 3
 
 
+class TestDemoTourHistoryTraceability:
+    def test_corps_history_includes_show_slug(self, tmp_path):
+        """Each history entry must record which show produced the placement."""
+        result = run_cli("demo", "tour", "--yes", "--seed", "1", root=str(tmp_path))
+        assert result.returncode == 0, result.stderr
+
+        for corps_dir in (tmp_path / "corps").iterdir():
+            if not corps_dir.is_dir():
+                continue
+            corps_data = yaml.safe_load((corps_dir / "corps.yaml").read_text())
+            for entry in corps_data.get("history", []):
+                assert entry.get("notes"), (
+                    f"History entry for {corps_data['corps_id']} season "
+                    f"{entry['season_id']} has empty notes — should contain show slug"
+                )
+                assert "tour-show" in entry["notes"], (
+                    f"Expected show slug in notes, got: {entry['notes']!r}"
+                )
+
+
 class TestDemoTourDeterministic:
     def test_deterministic_same_seed(self, tmp_path):
         """Two runs with same seed produce identical standings scores."""

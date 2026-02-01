@@ -188,7 +188,8 @@ def cmd_season_run_contest(args):
 
     for r in standings.results:
         corps_dir = root / "corps" / r.corps_id
-        record_corps_placement(corps_dir, season_id, r.rank, r.final_score)
+        record_corps_placement(corps_dir, season_id, r.rank, r.final_score,
+                               notes=f"show:{show_slug}")
 
     # Build roster_map and update reputations
     roster_map = {}
