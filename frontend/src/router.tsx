@@ -18,7 +18,9 @@ import { CorpsHistory } from "./pages/CorpsHistory";
 import { SeanceSession } from "./pages/SeanceSession";
 import { CompetitionsList } from "./pages/CompetitionsList";
 import { CompetitionDetail } from "./pages/CompetitionDetail";
+import { Seasons } from "./pages/Seasons";
 import { Settings } from "./pages/Settings";
+import { SystemHealth } from "./pages/SystemHealth";
 import MessageInbox from "./pages/MessageInbox";
 import MessageArchive from "./pages/MessageArchive";
 
@@ -49,8 +51,11 @@ export const router = createBrowserRouter([
       { path: "/seance-session/:seanceId", element: <SeanceSession /> },
       { path: "/competitions", element: <CompetitionsList /> },
       { path: "/competitions/:competitionId", element: <CompetitionDetail /> },
+      { path: "/seasons", element: <Seasons /> },
+      { path: "/seasons/:seasonId", element: <Seasons /> },
       { path: "/messages/inbox", element: <MessageInbox /> },
       { path: "/messages/archive", element: <MessageArchive /> },
+      { path: "/system", element: <SystemHealth /> },
       { path: "/settings", element: <Settings /> },
     ],
   },

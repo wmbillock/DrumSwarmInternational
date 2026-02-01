@@ -13,6 +13,7 @@ class CorpsStatus(str, enum.Enum):
     INITIALIZING = "initializing"
     WINTER_CAMPS = "winter_camps"  # Planning phase (replaces REHEARSAL)
     ON_TOUR = "on_tour"  # Autonomous execution (replaces TOUR)
+    READY_FOR_CONTEST = "ready_for_contest"  # Awaiting competition evaluation
     COMPLETED = "completed"
     DISBANDED = "disbanded"
 

@@ -376,6 +376,38 @@ def v1_get_corps(corps_id: str):
         raise HTTPException(404, f"Corps '{corps_id}' not found")
 
 
+@router.post("/corps/{corps_id}/ready-for-contest")
+def v1_ready_for_contest(corps_id: str):
+    """Transition a corps from ON_TOUR to READY_FOR_CONTEST."""
+    _validate_id(corps_id, "corps_id")
+    from backend.models.corps import Corps, CorpsStatus
+
+    db = _get_db_session()
+    try:
+        corps = db.get(Corps, corps_id)
+        if not corps:
+            raise HTTPException(404, f"Corps '{corps_id}' not found")
+        if corps.status != CorpsStatus.ON_TOUR:
+            raise HTTPException(
+                400,
+                f"Corps must be ON_TOUR to become READY_FOR_CONTEST (current: {corps.status.value})",
+            )
+        corps.status = CorpsStatus.READY_FOR_CONTEST
+        db.commit()
+        return {
+            "corps_id": corps.id,
+            "display_name": corps.name,
+            "state": corps.status.value,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Failed to transition corps: {e}")
+    finally:
+        db.close()
+
+
 # =========================================================================
 # RUNS
 # =========================================================================
@@ -1812,6 +1844,123 @@ def v1_get_corps_breakdown(competition_id: str, corps_id: str):
         "final_score": data.get("final_score", 0.0),
         "commentary": commentary,
     }
+
+
+class ContestEvaluateRequest(BaseModel):
+    season_id: str
+    show_slug: str
+
+
+@router.post("/contest/evaluate")
+def v1_contest_evaluate(req: ContestEvaluateRequest):
+    """Find all READY_FOR_CONTEST corps and run a competition between them.
+
+    After scoring, transitions each participating corps to COMPLETED.
+    """
+    from backend.models.corps import Corps, CorpsStatus
+    from backend.models.score import JudgeType
+    from backend.services.scoring_service import CompositeScore, DEFAULT_WEIGHTS
+    from backend.services.scoring_engine import compute_standings
+    from backend.services.yaml_util import atomic_write, safe_dump_yaml
+
+    root = _get_root()
+
+    season_dir = root / "seasons" / req.season_id
+    if not (season_dir / "season.yaml").exists():
+        raise HTTPException(404, f"Season '{req.season_id}' not found")
+
+    show_dir = root / "shows" / req.show_slug
+    if not (show_dir / "status.yaml").exists():
+        raise HTTPException(404, f"Show '{req.show_slug}' not found")
+
+    db = _get_db_session()
+    try:
+        ready_corps = db.query(Corps).filter(
+            Corps.status == CorpsStatus.READY_FOR_CONTEST
+        ).all()
+        if not ready_corps:
+            raise HTTPException(400, "No corps in READY_FOR_CONTEST state")
+
+        corps_ids = [c.id for c in ready_corps]
+
+        # Ensure performance directories exist
+        for cid in corps_ids:
+            perf_dir = season_dir / "performances" / cid
+            perf_dir.mkdir(parents=True, exist_ok=True)
+
+        # Score using existing stub logic
+        composites = {}
+        for cid in corps_ids:
+            caption_scores = _stub_caption_scores(cid, req.show_slug)
+            raw_total = sum(caption_scores[jt] * DEFAULT_WEIGHTS[jt] for jt in caption_scores)
+            composites[cid] = CompositeScore(
+                caption_scores=caption_scores,
+                raw_total=raw_total,
+                penalties_total=0.0,
+                final_score=raw_total,
+                needs_rework=False,
+                needs_escalation=False,
+            )
+
+        standings = compute_standings(req.season_id, DEFAULT_WEIGHTS, composites)
+
+        standings_data = {
+            "season_id": standings.season_id,
+            "generated_at": standings.generated_at,
+            "show_slug": req.show_slug,
+            "results": [
+                {
+                    "corps_id": r.corps_id,
+                    "rank": r.rank,
+                    "final_score": r.final_score,
+                    "raw_score": r.raw_score,
+                    "caption_scores": {jt.value: v for jt, v in r.caption_scores.items()},
+                }
+                for r in standings.results
+            ],
+        }
+        atomic_write(season_dir / "standings.yaml", safe_dump_yaml(standings_data))
+
+        # Write per-corps scores
+        for cid in corps_ids:
+            composite = composites[cid]
+            scores_data = {
+                "corps_id": cid,
+                "show_slug": req.show_slug,
+                "caption_scores": {jt.value: v for jt, v in composite.caption_scores.items()},
+                "raw_total": composite.raw_total,
+                "final_score": composite.final_score,
+            }
+            perf_dir = season_dir / "performances" / cid
+            atomic_write(perf_dir / "scores.yaml", safe_dump_yaml(scores_data))
+
+        # Transition all participating corps to COMPLETED
+        for c in ready_corps:
+            c.status = CorpsStatus.COMPLETED
+        db.commit()
+
+        # Record reputation for filesystem corps
+        from backend.services.reputation import record_corps_placement
+        for r in standings.results:
+            corps_dir = root / "corps" / r.corps_id
+            if corps_dir.exists():
+                record_corps_placement(
+                    corps_dir, req.season_id, r.rank, r.final_score,
+                    notes=f"show:{req.show_slug}",
+                )
+
+        return {
+            "status": "completed",
+            "corps_evaluated": len(corps_ids),
+            "standings": standings_data["results"],
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Contest evaluation failed: {e}")
+    finally:
+        db.close()
 
 
 def _stub_caption_scores(corps_id: str, show_slug: str) -> dict:

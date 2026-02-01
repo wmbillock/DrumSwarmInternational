@@ -662,6 +662,10 @@ CORPS_STATUS_GUIDANCE: dict[CorpsStatus, str] = {
         "You are On Tour (execution phase). Execute autonomously. Deliver results "
         "continuously. All sections should be working in parallel."
     ),
+    CorpsStatus.READY_FOR_CONTEST: (
+        "You are Ready for Contest. Your show is prepared and awaiting competition "
+        "evaluation. No further changes — stand by for judging."
+    ),
 }
 
 
