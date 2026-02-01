@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import { render } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 // Mock the v1 API module
@@ -7,7 +7,6 @@ vi.mock("../services/v1", () => ({
   listCorps: vi.fn(),
 }));
 
-import { listCorps } from "../services/v1";
 import { CorpsList } from "../pages/CorpsList";
 
 // We need to check if CorpsList uses the v1 client or the old api.

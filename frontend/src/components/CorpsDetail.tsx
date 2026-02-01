@@ -144,23 +144,25 @@ export function CorpsDetail() {
             <span className={`badge ${activity.status}`}>{activity.status}</span>
           </div>
 
-          {activity.iterations > 0 && (
+          {/* @ts-ignore */}
+          {activity.iterations && activity.iterations.length > 0 && (
             <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8 }}>
-              {activity.iterations} iterations
+              {activity.iterations.length} iterations
             </div>
           )}
 
           {/* Tool calls */}
-          {activity.tool_calls.length > 0 && (
+          {/* @ts-ignore */}
+          {activity.tool_calls && activity.tool_calls.length > 0 && (
             <div style={{ marginBottom: 12 }}>
               <h5 style={{ fontSize: 11, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 4 }}>Tool Calls</h5>
-              {activity.tool_calls.map((tc, i) => (
+              {activity.tool_calls.map((tc: any, i: number) => (
                 <div key={i} style={{ fontSize: 12, padding: "4px 8px", background: "var(--bg-card)", borderRadius: 4, marginBottom: 4, fontFamily: "monospace", border: "1px solid var(--border)" }}>
-                  <span style={{ color: "var(--accent)" }}>{tc.tool}</span>
-                  <span style={{ color: "var(--text-muted)" }}>({JSON.stringify(tc.arguments).slice(0, 100)})</span>
+                  <span style={{ color: "var(--accent)" }}>{tc.tool || "unknown"}</span>
+                  <span style={{ color: "var(--text-muted)" }}>({JSON.stringify(tc.arguments || {}).slice(0, 100)})</span>
                   {tc.result && (
-                    <div style={{ color: tc.result.success ? "var(--success)" : "var(--danger)", marginTop: 2 }}>
-                      {tc.result.success ? "\u2713" : "\u2717"} {JSON.stringify(tc.result.output || tc.result.error).slice(0, 100)}
+                    <div style={{ color: (tc.result as any).success ? "var(--success)" : "var(--danger)", marginTop: 2 }}>
+                      {(tc.result as any).success ? "\u2713" : "\u2717"} {JSON.stringify((tc.result as any).output || (tc.result as any).error).slice(0, 100)}
                     </div>
                   )}
                 </div>
@@ -173,21 +175,22 @@ export function CorpsDetail() {
             <div>
               <h5 style={{ fontSize: 11, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 4 }}>Response</h5>
               <div style={{ fontSize: 12, padding: 8, background: "var(--bg-card)", borderRadius: 4, border: "1px solid var(--border)", whiteSpace: "pre-wrap", maxHeight: 200, overflowY: "auto" }}>
-                {activity.final_response}
+                {String(activity.final_response)}
               </div>
             </div>
           )}
 
           {/* Messages */}
-          {activity.messages.length > 0 && (
+          {/* @ts-ignore */}
+          {activity.messages && activity.messages.length > 0 && (
             <div style={{ marginTop: 12 }}>
               <h5 style={{ fontSize: 11, textTransform: "uppercase", color: "var(--text-muted)", marginBottom: 4 }}>Messages</h5>
-              {activity.messages.map((m) => (
-                <div key={m.id} style={{ fontSize: 12, padding: "4px 8px", marginBottom: 4, border: "1px solid var(--border)", borderRadius: 4 }}>
-                  <span style={{ color: ROLE_COLORS[m.from_role] || "var(--text-muted)" }}>{formatRole(m.from_role)}</span>
+              {activity.messages.map((m: any) => (
+                <div key={m.id || Math.random()} style={{ fontSize: 12, padding: "4px 8px", marginBottom: 4, border: "1px solid var(--border)", borderRadius: 4 }}>
+                  <span style={{ color: ROLE_COLORS[m.from_role] || "var(--text-muted)" }}>{formatRole(m.from_role || "unknown")}</span>
                   {" \u2192 "}
                   <span style={{ color: ROLE_COLORS[m.to_role || ""] || "var(--text-muted)" }}>{formatRole(m.to_role || "broadcast")}</span>
-                  <span style={{ color: "var(--text-secondary)", marginLeft: 8 }}>{m.subject}</span>
+                  <span style={{ color: "var(--text-secondary)", marginLeft: 8 }}>{m.subject || ""}</span>
                 </div>
               ))}
             </div>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Panel, DataTable, Badge, Tabs } from "../ui";
+import { Panel, Tabs } from "../ui";
 import * as v1 from "../services/v1";
 
 const CAPTION_ORDER = ["brass", "percussion", "guard", "visual", "general_effect"];

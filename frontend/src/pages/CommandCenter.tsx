@@ -33,7 +33,6 @@ export function CommandCenter() {
   const [workLog, setWorkLog] = useState<WorkLogEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [corpsSlugMap, setCorpsSlugMap] = useState<Record<string, string>>({});
   const [cleanupMsg, setCleanupMsg] = useState<string | null>(null);
   const [cleaning, setCleaning] = useState(false);
 

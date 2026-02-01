@@ -22,7 +22,7 @@ export function SideNav() {
         <NavLink
           key={s.to}
           to={s.to}
-          end={s.end || false}
+          end={"end" in s ? s.end : false}
           className={({ isActive }) => `side-nav-item ${isActive ? "active" : ""}`}
         >
           <span className="side-nav-icon">{s.icon}</span>

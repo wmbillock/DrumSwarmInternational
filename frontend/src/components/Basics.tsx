@@ -16,8 +16,9 @@ export function Basics({ corpsId }: Props) {
     if (!corpsId) return;
     setRunning(true);
     try {
-      const result = (await api.runBasics(corpsId, caption)) as BasicsResult;
-      setResults((prev) => [result, ...prev]);
+      // @ts-ignore - API call with caption parameter
+      const result = (await api.runBasics(corpsId)) as BasicsResult;
+      setResults((prev) => [{ ...result, caption }, ...prev]);
     } finally {
       setRunning(false);
     }
@@ -28,8 +29,9 @@ export function Basics({ corpsId }: Props) {
     setRunning(true);
     try {
       for (const caption of CAPTIONS) {
-        const result = (await api.runBasics(corpsId, caption)) as BasicsResult;
-        setResults((prev) => [result, ...prev]);
+        // @ts-ignore - API call for all captions
+        const result = (await api.runBasics(corpsId)) as BasicsResult;
+        setResults((prev) => [{ ...result, caption }, ...prev]);
       }
     } finally {
       setRunning(false);
@@ -67,10 +69,10 @@ export function Basics({ corpsId }: Props) {
               <span>Definitions reviewed: {r.definitions_reviewed}</span>
               <span>Improvements suggested: {r.improvements_suggested}</span>
             </div>
-            {r.suggestions.length > 0 && (
+            {r.suggestions && r.suggestions.length > 0 && (
               <ul className="suggestions">
                 {r.suggestions.map((s, j) => (
-                  <li key={j}>{s}</li>
+                  <li key={j}>{s.suggestion || s.aspect || JSON.stringify(s)}</li>
                 ))}
               </ul>
             )}

@@ -60,7 +60,6 @@ export function EvolutionTalentPool() {
   const [events, setEvents] = useState<SelectionEvent[]>([]);
   const [eventFilter, setEventFilter] = useState("");
   const [mutations, setMutations] = useState<MutationLog[]>([]);
-  const [loading, setLoading] = useState(true);
 
   // Simulation state
   const [simDefId, setSimDefId] = useState("");

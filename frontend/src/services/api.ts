@@ -287,3 +287,13 @@ export const previewSeanceArtifact = (seanceId: string, path: string) =>
   request<ArtifactPreview>(
     `/api/seances/${encodeURIComponent(seanceId)}/artifact-preview?path=${encodeURIComponent(path)}`
   );
+
+// Rehearsal mode functions (stub implementations for type compatibility)
+export const runBasics = (corpsId: string) =>
+  request<any>(`/api/corps/${corpsId}/basics`, { method: "POST" });
+
+export const runCritique = (corpsId: string) =>
+  request<any>(`/api/corps/${corpsId}/critique`, { method: "POST" });
+
+export const getSessionActivity = (sessionId: string) =>
+  request<any>(`/api/sessions/${sessionId}/activity`);

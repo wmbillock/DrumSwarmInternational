@@ -174,8 +174,10 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   border-radius: 6px; color: var(--text-primary); font-size: 13px; width: 240px;
 }
 
-.dash-row { display: flex; gap: 24px; }
+.dash-row { display: flex; gap: 24px; width: 100%; }
 .flex-1 { flex: 1; min-width: 0; }
+.dash-row .dash-section { flex: 1; }
+.dash-row .dash-section h2 { margin-bottom: 12px; }
 
 /* Show Grid */
 .show-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; width: 100%; }
@@ -241,15 +243,18 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .classification-badge.dci_assigned { background: #2a2a2a; color: #8b949e; }
 
 /* Activity List */
-.activity-list { display: flex; flex-direction: column; gap: 2px; }
+.activity-list { display: flex; flex-direction: column; gap: 0; }
 .activity-row {
-  display: flex; align-items: center; gap: 8px; padding: 4px 8px;
-  font-size: 12px; font-family: monospace; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px; padding: 10px 0;
+  font-size: 12px; border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
 }
-.activity-type { color: var(--accent); min-width: 0; flex-shrink: 0; }
-.activity-role { color: var(--text-secondary); min-width: 0; flex-shrink: 0; }
+.activity-row:last-child { border-bottom: none; }
+.activity-row:hover { background: rgba(88, 166, 255, 0.05); }
+.activity-type { color: var(--accent); min-width: 70px; flex-shrink: 0; font-weight: 600; font-size: 11px; text-transform: uppercase; }
+.activity-role { color: var(--text-secondary); min-width: 80px; flex-shrink: 0; }
 .activity-detail { color: var(--text-muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.activity-time { color: var(--text-muted); min-width: 60px; text-align: right; }
+.activity-time { color: var(--text-muted); min-width: 60px; text-align: right; font-size: 11px; }
 
 /* ==================== SHOW DETAIL ==================== */
 .show-detail { display: flex; flex-direction: column; height: calc(100vh - 53px); }
@@ -399,7 +404,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .summary-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; font-weight: 500; letter-spacing: 0.5px; }
 
 /* Section labels */
-.section-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; margin: 16px 0 8px; letter-spacing: 0.5px; }
+.section-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; margin: 20px 0 12px; letter-spacing: 0.5px; font-weight: 600; }
 
 /* Header actions */
 .header-actions { display: flex; gap: 8px; }

@@ -12,8 +12,8 @@ export function useWebSocket(corpsId: string | null) {
   const [lastMessage, setLastMessage] = useState<WebSocketEvent | null>(null);
   const [events, setEvents] = useState<WebSocketEvent[]>([]);
   const reconnectAttempt = useRef(0);
-  const reconnectTimer = useRef<ReturnType<typeof setTimeout>>();
-  const heartbeatTimer = useRef<ReturnType<typeof setInterval>>();
+  const reconnectTimer = useRef<NodeJS.Timeout>();
+  const heartbeatTimer = useRef<NodeJS.Timeout>();
 
   const stopHeartbeat = useCallback(() => {
     if (heartbeatTimer.current) {

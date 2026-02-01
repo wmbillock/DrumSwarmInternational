@@ -13,7 +13,6 @@ export function ShowDetail({ corpsId, entry, onBack }: Props) {
   const navigate = useNavigate();
   const [seances, setSeances] = useState<v1.V1Seance[]>([]);
   const [preview, setPreview] = useState<{ path: string; content: string; truncated: boolean } | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
