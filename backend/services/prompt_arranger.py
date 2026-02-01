@@ -97,6 +97,14 @@ def assemble_prompt(role: str, context: Optional[dict] = None) -> str:
         if feedback:
             sections.append(feedback)
 
+    # Inject mode-specific instructions if a mode is set
+    mode = ctx.get("mode")
+    if mode:
+        mode_text = _load_component(mode)
+        if mode_text:
+            rendered_mode = _render_template(mode_text, ctx)
+            sections.append(rendered_mode)
+
     return "\n\n".join(sections)
 
 

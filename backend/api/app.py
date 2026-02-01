@@ -7,6 +7,7 @@ from typing import Optional
 
 from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -182,6 +183,13 @@ class ChatSend(BaseModel):
     content: str
     to_role: str = "executive_director"
 
+class CorpsModeSwitch(BaseModel):
+    mode: str  # design_room, show_mode, rehearsal_mode, judging, offseason_review
+
+class SeasonCreate(BaseModel):
+    name: str
+    year: Optional[int] = None
+
 
 # --- Show endpoints ---
 
@@ -302,6 +310,7 @@ def api_get_corps(corps_id: str, db: Session = Depends(get_db)):
         raise HTTPException(404, "Corps not found")
     return {"id": corps.id, "name": corps.name, "status": corps.status.value,
             "rehearsal_mode": corps.rehearsal_mode.value if corps.rehearsal_mode else None,
+            "mode": corps.mode.value if corps.mode else None,
             "theme_id": corps.theme_id, "mascot": corps.mascot,
             "uniform_concept": corps.uniform_concept}
 
@@ -812,6 +821,116 @@ def api_get_chat_history(corps_id: str, db: Session = Depends(get_db)):
         "created_at": m.created_at.isoformat() if m.created_at else None,
         "acknowledged_at": m.acknowledged_at.isoformat() if m.acknowledged_at else None,
     } for m in msgs]
+
+
+# --- SSE Chat Stream ---
+
+@app.post("/api/corps/{corps_id}/chat-stream")
+async def api_chat_stream(corps_id: str, data: ChatSend, db: Session = Depends(get_db)):
+    """Send a user message and stream agent responses via Server-Sent Events.
+
+    The endpoint:
+    1. Records the user message
+    2. Wakes the target agent
+    3. Streams new messages as SSE events until the agent finishes
+    """
+    import asyncio
+
+    from backend.models.message import Message, MessageType, MessagePriority
+    from backend.services.message_service import send_message
+
+    # Record the user message
+    msg = send_message(
+        db, corps_id=corps_id, from_role="user",
+        to_role=data.to_role, type=MessageType.DIRECTIVE,
+        subject=data.content[:100], body=data.content,
+        priority=MessagePriority.NORMAL,
+    )
+
+    # Broadcast user message
+    await manager.broadcast(corps_id, {
+        "type": "chat", "from_role": "user", "to_role": data.to_role,
+        "content": data.content, "message_id": msg.id,
+    })
+
+    # Wake target agent
+    tm = get_task_manager()
+    if tm:
+        session_id = tm.get_session_for_role(db, corps_id, data.to_role)
+        if session_id and not tm.is_active(session_id):
+            task_desc, snapshot = _build_chat_agent_context(
+                db, corps_id, data.to_role, data.content, session_id
+            )
+            tm.start_agent(
+                session_id=session_id,
+                task_description=task_desc,
+                corps_id=corps_id,
+                context_snapshot=snapshot,
+                reply_to_user=True,
+            )
+
+    # Track messages we've already sent
+    last_msg_count = db.query(Message).filter(Message.corps_id == corps_id).count()
+
+    async def event_stream():
+        """Poll for new messages and yield them as SSE events."""
+        yield f"data: {json.dumps({'type': 'connected', 'message_id': msg.id})}\n\n"
+
+        polls_without_new = 0
+        max_polls = 120  # ~60 seconds at 500ms intervals
+        nonlocal last_msg_count
+
+        for _ in range(max_polls):
+            await asyncio.sleep(0.5)
+            poll_db = SessionFactory()
+            try:
+                current_count = poll_db.query(Message).filter(Message.corps_id == corps_id).count()
+                if current_count > last_msg_count:
+                    new_msgs = (
+                        poll_db.query(Message)
+                        .filter(Message.corps_id == corps_id)
+                        .order_by(Message.created_at.desc())
+                        .limit(current_count - last_msg_count)
+                        .all()
+                    )
+                    new_msgs.reverse()
+                    last_msg_count = current_count
+
+                    for m in new_msgs:
+                        event_data = {
+                            "type": "message",
+                            "id": m.id,
+                            "from_role": m.from_role,
+                            "to_role": m.to_role,
+                            "content": m.body or m.subject,
+                            "created_at": m.created_at.isoformat() if m.created_at else None,
+                        }
+                        yield f"data: {json.dumps(event_data)}\n\n"
+                    polls_without_new = 0
+                else:
+                    polls_without_new += 1
+
+                # If the agent has been quiet for 10 seconds, check if it's still active
+                if polls_without_new >= 20:
+                    if tm:
+                        session_id = tm.get_session_for_role(poll_db, corps_id, data.to_role)
+                        if session_id and not tm.is_active(session_id):
+                            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+                            return
+            finally:
+                poll_db.close()
+
+        yield f"data: {json.dumps({'type': 'timeout'})}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 # --- Session Activity Log ---
@@ -1408,6 +1527,58 @@ async def api_heartbeat(db: Session = Depends(get_db)):
         "admin_agents_pinged": admin_agents_pinged,
         "corps_eds_pinged": corps_eds_pinged,
     }
+
+
+# --- System Health ---
+
+@app.get("/api/system-health")
+def api_system_health(db: Session = Depends(get_db)):
+    """Get swarm-wide health metrics for the overview dashboard."""
+    from backend.services.system_health import get_swarm_health
+    import dataclasses
+    health = get_swarm_health(db)
+    return dataclasses.asdict(health)
+
+
+# --- Corps Mode ---
+
+@app.post("/api/corps/{corps_id}/mode")
+async def api_switch_corps_mode(corps_id: str, data: CorpsModeSwitch, db: Session = Depends(get_db)):
+    """Switch a corps to a new operational mode."""
+    from backend.models.corps import CorpsMode
+    from backend.services.mode_manager import switch_mode, ModeError
+    try:
+        new_mode = CorpsMode(data.mode)
+        corps = switch_mode(db, corps_id, new_mode)
+        await manager.broadcast(corps_id, {
+            "type": "mode_switch",
+            "corps_id": corps_id,
+            "mode": new_mode.value,
+        })
+        return {"id": corps.id, "mode": corps.mode.value}
+    except ValueError:
+        raise HTTPException(400, f"Invalid mode: {data.mode}")
+    except ModeError as e:
+        raise HTTPException(400, str(e))
+
+
+# --- Seasons ---
+
+@app.post("/api/seasons")
+def api_create_season(data: SeasonCreate):
+    """Create a new season workspace."""
+    from pathlib import Path
+    from backend.services.season_persistence import create_season
+    import uuid
+    season_id = data.name.lower().replace(" ", "_")
+    if data.year:
+        season_id = f"{season_id}_{data.year}"
+    try:
+        base_dir = Path(".")
+        season_dir = create_season(base_dir, season_id, metadata={"name": data.name, "year": data.year})
+        return {"season_id": season_id, "path": str(season_dir), "name": data.name, "year": data.year}
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
 
 # --- Theme API ---

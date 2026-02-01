@@ -1,0 +1,127 @@
+# Lifecycle Transitions & Evolution Windows — Implementation Plan
+
+## Summary
+
+Add a `SeasonPhase` state machine that gates what mutations are allowed at each point in a season's lifecycle. Three phases: `show` (locked), `scoring` (corps state updates from standings), `offseason` (proposals created, applied only with explicit flag). Two new files + two test files. No existing files modified.
+
+## Season Phases
+
+```
+show → scoring → offseason → show (next season)
+```
+
+- **show**: All mutation blocked except logging. Corps state, roster, pool — frozen.
+- **scoring**: Corps state may transition based on standings (e.g. active→contending, active→stagnant). No roster/pool edits.
+- **offseason**: Proposals (markdown) can be created. Applying proposals requires explicit `apply=True` flag + validation. Retirement returns agents to pool availability.
+
+## New Files
+
+### 1. `backend/tests/test_lifecycle_transitions.py` (written FIRST)
+
+Tests organized by phase:
+
+**ShowPhase blocks mutation:**
+- `test_show_phase_blocks_corps_state_change` — calling `guarded_update_corps_state()` during `show` raises `PhaseViolation`
+- `test_show_phase_blocks_roster_change` — calling `guarded_assign_roster()` during `show` raises `PhaseViolation`
+- `test_show_phase_allows_read` — reading corps/roster works fine in any phase
+
+**Scoring phase updates corps from standings:**
+- `test_scoring_phase_promotes_top_corps` — corps ranked 1st with state `active` transitions to `contending`
+- `test_scoring_phase_demotes_bottom_corps` — corps ranked last below threshold transitions to `stagnant`
+- `test_scoring_phase_no_invalid_transitions` — won't attempt transitions not in `VALID_TRANSITIONS`
+
+**Offseason proposals:**
+- `test_offseason_creates_proposals_file` — `create_proposals()` writes `seasons/<id>/offseason/proposals.md`
+- `test_offseason_proposals_not_applied_without_flag` — `apply_proposals()` without `apply=True` raises `PhaseViolation`
+- `test_apply_proposals_with_flag_succeeds` — with `apply=True`, applies state changes
+- `test_apply_proposals_validates_transitions` — invalid transitions in proposals are rejected
+
+**Retirement returns agents to pool:**
+- `test_retirement_clears_roster` — retiring a corps empties its roster.yaml
+- `test_retirement_marks_agents_available` — agents from retired corps get `availability: active` in pool ledger
+
+### 2. `backend/tests/test_lifecycle_transitions_persistence.py` (written FIRST)
+
+- `test_proposals_file_round_trip` — create proposals file, read it back, content matches
+- `test_proposals_file_location` — file at `seasons/<id>/offseason/proposals.md`
+- `test_missing_proposals_raises` — loading from nonexistent season raises `FileNotFoundError`
+
+### 3. `backend/services/lifecycle_transitions.py`
+
+Core types and functions:
+
+```python
+class SeasonPhase(str, Enum):
+    SHOW = "show"
+    SCORING = "scoring"
+    OFFSEASON = "offseason"
+
+class PhaseViolation(Exception):
+    """Raised when an operation is attempted in the wrong phase."""
+
+# Standings-based transition rules
+PROMOTION_THRESHOLD_RANK = 3      # top N corps → contending
+DEMOTION_SCORE_THRESHOLD = 50.0   # below this → stagnant
+
+def require_phase(current: SeasonPhase, *allowed: SeasonPhase) -> None:
+    """Raise PhaseViolation if current phase not in allowed set."""
+
+def guarded_update_corps_state(phase: SeasonPhase, corps_dir: Path, new_state: str) -> None:
+    """Wraps corps_persistence.update_corps_state with phase gating."""
+
+def guarded_assign_roster(phase: SeasonPhase, corps_dir: Path, assignments: list[dict], pool_dir: Path) -> None:
+    """Wraps corps_persistence.assign_roster with phase gating."""
+
+def update_corps_from_standings(standings: Standings, corps_base_dir: Path) -> list[dict]:
+    """Scoring phase: transition corps state based on rank/score.
+    Returns list of {corps_id, old_state, new_state} for each transition made."""
+
+def retire_corps_and_release(corps_dir: Path, pool_dir: Path) -> list[str]:
+    """Retire corps, clear roster, mark released agents as available in pool.
+    Returns list of released agent_ids."""
+```
+
+### 4. `backend/services/offseason_proposals.py`
+
+```python
+def create_proposals(base_dir: Path, season_id: str, proposals: list[dict]) -> Path:
+    """Write seasons/<season_id>/offseason/proposals.md from structured proposal dicts.
+    Each proposal: {type: str, corps_id: str, description: str, changes: dict}"""
+
+def load_proposals(base_dir: Path, season_id: str) -> str:
+    """Read proposals.md content. Raises FileNotFoundError if missing."""
+
+def apply_proposals(
+    base_dir: Path, season_id: str, corps_base_dir: Path, pool_dir: Path,
+    apply: bool = False,
+) -> list[dict]:
+    """Parse and apply proposals. Raises PhaseViolation if apply=False.
+    Validates each proposed transition before applying.
+    Returns list of applied changes."""
+```
+
+## File Modification Summary
+
+| File | Action |
+|------|--------|
+| `backend/tests/test_lifecycle_transitions.py` | Create (tests first) |
+| `backend/tests/test_lifecycle_transitions_persistence.py` | Create (tests first) |
+| `backend/services/lifecycle_transitions.py` | Create |
+| `backend/services/offseason_proposals.py` | Create |
+
+No existing files modified.
+
+## Design Rationale
+
+- **`SeasonPhase` is passed as an argument**, not stored as global state — keeps functions pure and testable. The caller (orchestrator/CLI) is responsible for tracking current phase.
+- **`guarded_*` wrappers** — thin layer over existing `corps_persistence` functions. No duplication of write logic; just a phase check before delegating.
+- **Proposals as markdown** — matches the existing `lifecycle_rules.md` / `scorecard.md` pattern. Structured header with YAML front matter for machine-readability, prose body for human review.
+- **`apply=True` explicit flag** — prevents accidental application. Mirrors the preservation contract's "explicit command" requirement.
+- **Retirement releases agents** — updates pool ledger YAML to mark agents available. Reuses `_atomic_write` pattern. No DB writes (consistent with YAML persistence layer).
+- **Thresholds as module constants** — `PROMOTION_THRESHOLD_RANK` and `DEMOTION_SCORE_THRESHOLD` are easy to override in tests.
+
+## Verification
+
+```bash
+python -m pytest backend/tests/test_lifecycle_transitions.py backend/tests/test_lifecycle_transitions_persistence.py -v
+```
