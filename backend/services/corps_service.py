@@ -483,6 +483,87 @@ def return_to_camps(db: Session, corps_id: str) -> Corps:
     return corps
 
 
+def ready_for_contest(db: Session, corps_id: str) -> Corps:
+    """Signal readiness for contest evaluation — transition to READY_FOR_CONTEST.
+
+    This is a low-friction transition that signals intent to complete the season.
+    The corps must be ON_TOUR to use this transition.
+    Actual completion requires passing the evaluation gate via complete_corps().
+    """
+    corps = db.get(Corps, corps_id)
+    if corps is None:
+        raise CorpsError(f"Corps {corps_id} not found")
+    if corps.status != CorpsStatus.ON_TOUR:
+        raise CorpsError(
+            f"Cannot mark ready for contest from {corps.status.value}. "
+            "Corps must be ON_TOUR. Use 'go_on_tour' command first."
+        )
+    corps.status = CorpsStatus.READY_FOR_CONTEST
+    # Keep current rehearsal_mode unchanged
+    db.commit()
+    db.refresh(corps)
+    return corps
+
+
+def complete_corps(db: Session, corps_id: str) -> Corps:
+    """Complete the season — transition from READY_FOR_CONTEST to COMPLETED.
+
+    Validates readiness criteria before allowing completion:
+    - Corps must be in READY_FOR_CONTEST state
+    - Rehearsal mode must be at least FULL_ENSEMBLE
+    - All active show segments must be completed
+
+    Raises CorpsError if validation fails.
+    """
+    corps = db.get(Corps, corps_id)
+    if corps is None:
+        raise CorpsError(f"Corps {corps_id} not found")
+
+    if corps.status != CorpsStatus.READY_FOR_CONTEST:
+        raise CorpsError(
+            f"Cannot complete from {corps.status.value}. "
+            "Corps must be in READY_FOR_CONTEST state. "
+            "Use 'ready_for_contest' command first."
+        )
+
+    # Evaluation 1: Rehearsal proficiency
+    if corps.rehearsal_mode not in (RehearsalMode.FULL_ENSEMBLE, RehearsalMode.RUN_THROUGH):
+        raise CorpsError(
+            f"Corps must reach at least FULL_ENSEMBLE rehearsal mode to complete. "
+            f"Current mode: {corps.rehearsal_mode.value if corps.rehearsal_mode else 'none'}"
+        )
+
+    # Evaluation 2: Show segment completion
+    # Get all segments that belong to this corps (by finding segments assigned to corps agents)
+    from sqlalchemy import select, exists
+    incomplete_segments = (
+        db.query(Segment)
+        .join(Rep, Rep.segment_id == Segment.id)
+        .join(AgentSession, AgentSession.id == Rep.assigned_to)
+        .filter(AgentSession.corps_id == corps_id)
+        .filter(Segment.status.in_([
+            SegmentStatus.PENDING,
+            SegmentStatus.IN_PROGRESS,
+            SegmentStatus.REVIEW,
+            SegmentStatus.BLOCKED,
+            SegmentStatus.FAILED,
+        ]))
+        .count()
+    )
+
+    if incomplete_segments > 0:
+        raise CorpsError(
+            f"Cannot complete: {incomplete_segments} segment(s) are not yet completed. "
+            "Finish all show work before completing the season."
+        )
+
+    # All checks passed — complete the season
+    corps.status = CorpsStatus.COMPLETED
+    db.commit()
+    db.refresh(corps)
+    return corps
+
+
 # Legacy aliases for backward compatibility during transition
 start_tour = go_on_tour
 stop_tour = return_to_camps

@@ -11,7 +11,7 @@ Provides endpoints for ranking corps, agents, and performers based on:
 Uses metrics aggregates to compute scores and rankings.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Path
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone, timedelta
 from typing import List, Dict, Any, Optional
@@ -516,7 +516,7 @@ async def get_agent_scorecard(
 
 @router.get("/trends/{metric_type}", response_model=Dict[str, Any])
 async def get_metric_trends(
-    metric_type: str = Query(..., description="Metric type to analyze"),
+    metric_type: str = Path(..., description="Metric type to analyze"),
     period_days: int = Query(7, ge=1, le=90),
     corps_id: Optional[str] = Query(None, description="Optional corps filter")
 ):
