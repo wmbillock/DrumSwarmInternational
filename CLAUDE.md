@@ -156,7 +156,7 @@ Show lifecycle: `draft → needs_review → approved → published`
 1. **React hooks**: All hooks must be called before any early returns in components
 2. **Corps validation**: Corps may be DB-only (no filesystem `corps.yaml`). Always check DB as fallback.
 3. **SQLAlchemy 2.0**: Use `select().where().correlate()` not `db.query().filter().correlate()` inside `exists()`
-4. **Frontend API client**: Use `v1.ts` for all new code, not the legacy `api.ts`
+4. **Frontend API client**: Use `v1.ts` for all code. Legacy `api.ts` is fully deprecated — zero files import it.
 5. **Season ID parsing**: Season IDs can contain hyphens (e.g. `tour-s1`), so competition_id splitting must match against actual season directories
 
 ## Testing
@@ -200,7 +200,7 @@ cd frontend && npx tsc --noEmit             # TypeScript check
 
 ### Working (Complete Feature List)
 - 11+ active corps with full lifecycle management
-- V1 API router with 60+ endpoints
+- V1 API router with 90+ endpoints (all legacy endpoints migrated)
 - **Corps Lifecycle**: INITIALIZING → WINTER_CAMPS ⇄ ON_TOUR → READY_FOR_CONTEST ⇄ COMPLETED
 - **Messaging**: Threaded inbox, bulk archive with LLM summaries, searchable archive, permission enforcement
 - **Metrics & Scoring**: Composite scores, leaderboards, trend analysis, performance bottleneck detection
@@ -236,8 +236,13 @@ cd frontend && npx tsc --noEmit             # TypeScript check
   - Merges: 12/31 (39% rate, 0 conflicts) — normal backlog during ON_TOUR
   - System Status: 🟡 **WARNING** — continued monitoring recommended
 
+### ✅ Recently Completed (This Session)
+- **Legacy api.ts → v1.ts migration**: ✅ COMPLETE — All 27+ frontend files migrated, zero imports from api.ts remain
+  - Added 30+ new v1 backend endpoints (shows CRUD, judging, templates, seance, admin, sessions, evolution)
+  - All frontend pages now use typed v1 client exclusively
+- **LLM Multi-Provider Connector**: ✅ COMPLETE — SmartRouter, RetryingClient, OllamaClient, prompt caching
+- **UI Redesign (Phase 1-4)**: ✅ COMPLETE — All lifecycle pages built (ShowLibrary, SeasonWorkshop, TourDashboard, Finals, CompetitionLive, SeasonReview), 8-item SideNav, Field Commander Brutalism aesthetic (JetBrains Mono + IBM Plex Sans, stage colors)
+- **Font fix**: App.css body now uses design system variable (--font-body)
+
 ### Known Issues / Not Yet Working
-- **Frontend migration**: ~25 files still using legacy `api.ts` instead of v1 typed client
-  - Pages affected: CommandCenter, AdminChat, Templates, Performers, Seance, JudgingCritique, EvolutionTalentPool, CorpsDeepDive, SystemHealth (9 main pages)
-  - Requires endpoint analysis and careful refactoring per page
-- **2 test failures in test_v1_api.py**: Unrelated to this session (test expects empty DB but finds existing corps)
+- **2 test failures in test_v1_api.py**: Unrelated (test expects empty DB but finds existing corps)
