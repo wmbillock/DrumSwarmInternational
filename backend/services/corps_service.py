@@ -356,8 +356,20 @@ def initialize_corps(db: Session, corps_id: str, use_auditions: bool = True) -> 
                 if performer:
                     session.performer_id = performer.id
                     db.commit()
+                    logger.info("Performer %s (%s) assigned to %s in corps %s", performer.id, performer.name, role, corps_id)
+                else:
+                    logger.error("audition_for_role returned None for role %s in corps %s", role, corps_id)
             except Exception as exc:
-                logger.warning("Audition failed for role %s in corps %s: %s", role, corps_id, exc)
+                logger.error("Audition FAILED for role %s in corps %s: %s", role, corps_id, exc, exc_info=True)
+                # Retry once: try creating a performer directly
+                try:
+                    from backend.services.performer_service import create_performer
+                    performer = create_performer(db, role)
+                    session.performer_id = performer.id
+                    db.commit()
+                    logger.info("Retry succeeded: performer %s assigned to %s", performer.id, role)
+                except Exception as retry_exc:
+                    logger.error("Retry also failed for %s: %s", role, retry_exc)
 
         sessions[role] = session
 

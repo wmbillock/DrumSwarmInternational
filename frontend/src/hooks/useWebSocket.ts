@@ -12,13 +12,13 @@ export function useWebSocket(corpsId: string | null) {
   const [lastMessage, setLastMessage] = useState<WebSocketEvent | null>(null);
   const [events, setEvents] = useState<WebSocketEvent[]>([]);
   const reconnectAttempt = useRef(0);
-  const reconnectTimer = useRef<NodeJS.Timeout>();
-  const heartbeatTimer = useRef<NodeJS.Timeout>();
+  const reconnectTimer = useRef<NodeJS.Timeout | null>(null);
+  const heartbeatTimer = useRef<NodeJS.Timeout | null>(null);
 
   const stopHeartbeat = useCallback(() => {
     if (heartbeatTimer.current) {
-      clearInterval(heartbeatTimer.current);
-      heartbeatTimer.current = undefined;
+      clearInterval(heartbeatTimer.current as any);
+      heartbeatTimer.current = null;
     }
   }, []);
 
@@ -72,7 +72,9 @@ export function useWebSocket(corpsId: string | null) {
   useEffect(() => {
     connect();
     return () => {
-      clearTimeout(reconnectTimer.current);
+      if (reconnectTimer.current) {
+        clearTimeout(reconnectTimer.current as any);
+      }
       stopHeartbeat();
       wsRef.current?.close();
       setConnected(false);
