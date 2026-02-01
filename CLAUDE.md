@@ -219,7 +219,16 @@ cd frontend && npx tsc --noEmit             # TypeScript check
 - **System Health Dashboard**: Frontend page with real-time metrics
 - **Seasons & Standings UI**: Spec written, needs frontend implementation
 
+### Recently Fixed (This Session)
+- **Test Failures Fixed**: ✅
+  - test_system_health (5/5 tests passing)
+  - test_agents_overview (15/15 tests passing)
+  - Fixed: AgentDefinition.corps_id assignment in test setup
+  - Fixed: Removed incorrect session deduplication in agents-overview endpoint
+- **Scoreboards Router**: ✅ Included scoreboards.py router in app.py
+
 ### Known Issues / Not Yet Working
-- **Some frontend pages still use legacy `api.ts`** — ~25 files; most lack v1 endpoints yet
-- **3 pre-existing test failures** in test_system_health and test_agents_overview
-- **3 pre-existing test failures** in test_system_health and test_agents_overview
+- **Frontend migration**: ~25 files still using legacy `api.ts` instead of v1 typed client
+  - Pages affected: CommandCenter, AdminChat, Templates, Performers, Seance, JudgingCritique, EvolutionTalentPool, CorpsDeepDive, SystemHealth (9 main pages)
+  - Requires endpoint analysis and careful refactoring per page
+- **2 test failures in test_v1_api.py**: Unrelated to this session (test expects empty DB but finds existing corps)
