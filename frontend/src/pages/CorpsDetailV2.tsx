@@ -111,11 +111,32 @@ function OverviewTab({ corps, onStateChange }: { corps: v1.V1CorpsDetail; onStat
           <tbody>
             <tr><td className="cell-primary">ID</td><td className="mono">{corps.corps_id}</td></tr>
             <tr><td className="cell-primary">State</td><td>{corps.state}</td></tr>
+            {corps.mode && <tr><td className="cell-primary">Mode</td><td>{corps.mode.replace("_", " ")}</td></tr>}
+            {corps.rehearsal_mode && <tr><td className="cell-primary">Rehearsal</td><td>{corps.rehearsal_mode.replace("_", " ")}</td></tr>}
             <tr><td className="cell-primary">Roster Size</td><td>{corps.roster_size}</td></tr>
+            {corps.mascot && <tr><td className="cell-primary">Mascot</td><td>{corps.mascot}</td></tr>}
             <tr><td className="cell-primary">History Entries</td><td>{corps.history_count}</td></tr>
           </tbody>
         </table>
       </Panel>
+
+      {corps.current_show && (
+        <Panel title="Current Show" className="mt-16">
+          <table className="styled-table">
+            <tbody>
+              <tr><td className="cell-primary">Title</td><td><strong>{corps.current_show.title}</strong></td></tr>
+              <tr><td className="cell-primary">Status</td><td>
+                <Badge variant={corps.current_show.status === "active" ? "success" : corps.current_show.status === "completed" ? "info" : "default"}>
+                  {corps.current_show.status}
+                </Badge>
+              </td></tr>
+              {corps.current_show.description && (
+                <tr><td className="cell-primary">Description</td><td style={{ fontSize: 13, color: "var(--text-secondary)" }}>{corps.current_show.description}</td></tr>
+              )}
+            </tbody>
+          </table>
+        </Panel>
+      )}
 
       <Panel title="Lifecycle Controls" className="mt-16">
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>

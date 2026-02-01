@@ -320,6 +320,7 @@ def v1_get_corps(corps_id: str):
     # Fallback: query DB for this UUID
     try:
         from backend.models.corps import Corps
+        from backend.models.show import Show
         from backend.models.agent_session import AgentSession, SessionStatus
         db = _get_db_session()
         try:
@@ -330,6 +331,29 @@ def v1_get_corps(corps_id: str):
                 AgentSession.corps_id == corps_id,
                 AgentSession.status == SessionStatus.ACTIVE
             ).count()
+
+            # Find linked show
+            show_info = None
+            if corps.show_id:
+                show = db.get(Show, corps.show_id)
+                if show:
+                    show_info = {
+                        "show_id": show.id,
+                        "title": show.title,
+                        "status": show.status.value,
+                        "description": show.description,
+                    }
+            # Also check if any show references this corps
+            if not show_info:
+                show = db.query(Show).filter(Show.corps_id == corps_id).first()
+                if show:
+                    show_info = {
+                        "show_id": show.id,
+                        "title": show.title,
+                        "status": show.status.value,
+                        "description": show.description,
+                    }
+
             return {
                 "corps_id": corps.id,
                 "display_name": corps.name,
@@ -340,6 +364,8 @@ def v1_get_corps(corps_id: str):
                 "history": [],
                 "mascot": corps.mascot,
                 "mode": corps.mode.value if corps.mode else None,
+                "rehearsal_mode": corps.rehearsal_mode.value if corps.rehearsal_mode else None,
+                "current_show": show_info,
             }
         finally:
             db.close()

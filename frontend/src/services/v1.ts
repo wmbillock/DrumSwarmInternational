@@ -33,10 +33,21 @@ export interface V1Corps {
   state: string;
 }
 
+export interface V1ShowInfo {
+  show_id: string;
+  title: string;
+  status: string;
+  description?: string;
+}
+
 export interface V1CorpsDetail extends V1Corps {
   roster_size: number;
   history_count: number;
   history: V1Placement[];
+  mascot?: string;
+  mode?: string;
+  rehearsal_mode?: string;
+  current_show?: V1ShowInfo | null;
 }
 
 export interface V1Placement {
