@@ -463,7 +463,7 @@ def go_on_tour(db: Session, corps_id: str) -> Corps:
     corps = db.get(Corps, corps_id)
     if corps is None:
         raise CorpsError(f"Corps {corps_id} not found")
-    if corps.status not in (CorpsStatus.WINTER_CAMPS, CorpsStatus.ON_TOUR):
+    if corps.status not in (CorpsStatus.WINTER_CAMPS, CorpsStatus.ON_TOUR, CorpsStatus.READY_FOR_CONTEST):
         raise CorpsError(f"Cannot go on tour from {corps.status.value}")
     corps.status = CorpsStatus.ON_TOUR
     corps.rehearsal_mode = RehearsalMode.RUN_THROUGH

@@ -113,17 +113,25 @@ main() {
     fi
 
     # Process results: log summary, issue resume-hut to stalled corps, track failures
-    "${PYTHON}" << 'PYEOF' "${TICK_RESPONSE}" "${LOG_FILE}" "${ALERT_LOG}" "${FAILURE_TRACKER}" "${ALERT_THRESHOLD}" "${BACKEND_URL}" "${CORPS_TIMEOUT}"
+    export TICK_RESPONSE_JSON="${TICK_RESPONSE}"
+    export TICK_LOG_FILE="${LOG_FILE}"
+    export TICK_ALERT_LOG="${ALERT_LOG}"
+    export TICK_FAILURE_TRACKER="${FAILURE_TRACKER}"
+    export TICK_ALERT_THRESHOLD="${ALERT_THRESHOLD}"
+    export TICK_BACKEND_URL="${BACKEND_URL}"
+    export TICK_CORPS_TIMEOUT="${CORPS_TIMEOUT}"
+
+    "${PYTHON}" << 'PYEOF'
 import json, sys, os
 from datetime import datetime
 
-response = json.loads(sys.argv[1])
-log_file = sys.argv[2]
-alert_log = sys.argv[3]
-failure_file = sys.argv[4]
-alert_threshold = int(sys.argv[5])
-backend_url = sys.argv[6]
-corps_timeout = int(sys.argv[7])
+response = json.loads(os.environ['TICK_RESPONSE_JSON'])
+log_file = os.environ['TICK_LOG_FILE']
+alert_log = os.environ['TICK_ALERT_LOG']
+failure_file = os.environ['TICK_FAILURE_TRACKER']
+alert_threshold = int(os.environ['TICK_ALERT_THRESHOLD'])
+backend_url = os.environ['TICK_BACKEND_URL']
+corps_timeout = int(os.environ['TICK_CORPS_TIMEOUT'])
 
 def log(level, msg):
     ts = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
