@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import type { RunManifest } from "../types";
-import * as api from "../services/api";
+import * as v1 from "../services/v1";
+import type { V1Run } from "../services/v1";
 
 function timeAgo(ts?: string): string {
   if (!ts) return "";
@@ -24,12 +24,12 @@ function formatTimestamp(ts?: string): string {
 
 export function RunsList() {
   const navigate = useNavigate();
-  const [runs, setRuns] = useState<RunManifest[]>([]);
+  const [runs, setRuns] = useState<V1Run[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.getRuns()
+    v1.listRuns()
       .then(setRuns)
       .catch(e => setError(e instanceof Error ? e.message : "Failed to load runs"))
       .finally(() => setLoading(false));

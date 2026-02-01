@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import type { Show, AgentSession, ChatMessage, Scoresheet, CorpsMode } from "../types";
 import * as api from "../services/api";
+import * as v1 from "../services/v1";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { ModeIndicator } from "../components/ModeIndicator";
 import { useMode } from "../contexts/ModeContext";
@@ -86,7 +87,7 @@ function SwarmControlPanel({ corpsId, onCommand }: { corpsId: string; onCommand:
   const [lastResult, setLastResult] = useState<string | null>(null);
   const handleCommand = async (cmd: string) => {
     try {
-      const result = await api.executeCorpsCommand(corpsId, cmd);
+      const result = await v1.executeCorpsCommand(corpsId, cmd);
       setLastResult(`${result.command}: ${result.detail}`);
       onCommand(corpsId, cmd);
     } catch (e) {
@@ -158,7 +159,7 @@ export function CorpsDeepDive() {
 
     // Load corps info
     try {
-      const corps = await api.getCorps(corpsId);
+      const corps = await v1.getCorps(corpsId);
       setCorpsMode(corps.mode as CorpsMode | undefined);
       if (corpsId) refreshMode(corpsId);
     } catch {}
@@ -371,7 +372,7 @@ export function CorpsDeepDive() {
                               } catch {}
                             } else {
                               try {
-                                await api.executeCorpsCommand(corpsId, action.command);
+                                await v1.executeCorpsCommand(corpsId, action.command);
                                 loadData(true);
                               } catch {}
                             }

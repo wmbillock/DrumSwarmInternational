@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 import type { CorpsMode } from "../types";
 import * as api from "../services/api";
+import * as v1 from "../services/v1";
 
 interface ModeAction {
   label: string;
@@ -112,7 +113,7 @@ export function ModeProvider({ children }: { children: ReactNode }) {
 
   const refreshMode = useCallback(async (corpsId: string) => {
     try {
-      const corps = await api.getCorps(corpsId);
+      const corps = await v1.getCorps(corpsId);
       if (corps.mode) {
         setModeState(corps.mode as CorpsMode);
       }

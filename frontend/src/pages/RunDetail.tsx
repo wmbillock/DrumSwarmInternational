@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import type { RunDetail as RunDetailType } from "../types";
-import * as api from "../services/api";
+import * as v1 from "../services/v1";
+import type { V1RunDetail } from "../services/v1";
 
 function formatTimestamp(ts?: string): string {
   if (!ts) return "—";
@@ -15,13 +15,13 @@ function formatTimestamp(ts?: string): string {
 export function RunDetail() {
   const { runId } = useParams<{ runId: string }>();
   const navigate = useNavigate();
-  const [run, setRun] = useState<RunDetailType | null>(null);
+  const [run, setRun] = useState<V1RunDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!runId) return;
-    api.getRunDetail(runId)
+    v1.getRun(runId)
       .then(setRun)
       .catch(e => setError(e instanceof Error ? e.message : "Failed to load run"))
       .finally(() => setLoading(false));
