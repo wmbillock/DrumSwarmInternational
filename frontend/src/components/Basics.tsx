@@ -1,5 +1,5 @@
 import { useState } from "react";
-import * as api from "../services/api";
+import * as v1 from "../services/v1";
 import type { BasicsResult } from "../types";
 
 interface Props {
@@ -16,8 +16,7 @@ export function Basics({ corpsId }: Props) {
     if (!corpsId) return;
     setRunning(true);
     try {
-      // @ts-ignore - API call with caption parameter
-      const result = (await api.runBasics(corpsId)) as BasicsResult;
+      const result = (await v1.runBasics(corpsId, caption)) as BasicsResult;
       setResults((prev) => [{ ...result, caption }, ...prev]);
     } finally {
       setRunning(false);
@@ -29,8 +28,7 @@ export function Basics({ corpsId }: Props) {
     setRunning(true);
     try {
       for (const caption of CAPTIONS) {
-        // @ts-ignore - API call for all captions
-        const result = (await api.runBasics(corpsId)) as BasicsResult;
+        const result = (await v1.runBasics(corpsId, caption)) as BasicsResult;
         setResults((prev) => [{ ...result, caption }, ...prev]);
       }
     } finally {

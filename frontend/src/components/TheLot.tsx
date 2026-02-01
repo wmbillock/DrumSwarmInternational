@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import * as api from "../services/api";
+import * as v1 from "../services/v1";
 import type { Message } from "../types";
 
 interface Props {
@@ -12,9 +12,7 @@ export function TheLot({ corpsId }: Props) {
 
   const loadMessages = useCallback(async () => {
     if (!corpsId) return;
-    const data = (await api.pollMessages(
-      corpsId, filterRole || undefined
-    )) as Message[];
+    const data = (await v1.pollMessages(corpsId)) as Message[];
     setMessages(data);
   }, [corpsId, filterRole]);
 

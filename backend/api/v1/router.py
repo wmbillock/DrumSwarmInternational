@@ -3745,3 +3745,290 @@ def v1_mutations(limit: int = 50):
         } for e in entries]
     finally:
         db.close()
+
+
+# ---------------------------------------------------------------------------
+# Improvement: Basics, Critique, Banquet
+# ---------------------------------------------------------------------------
+
+@router.post("/corps/{corps_id}/basics/{caption}")
+def v1_run_basics(corps_id: str, caption: str):
+    """Run basics drill for a caption section."""
+    from backend.services.improvement import run_basics
+    db = _get_db_session()
+    try:
+        result = run_basics(db, corps_id, caption)
+        return result
+    finally:
+        db.close()
+
+
+@router.get("/reps/{rep_id}/critique")
+def v1_get_critique(rep_id: str):
+    """Get critique/feedback for a rep."""
+    from backend.models.reputation import Reputation
+    db = _get_db_session()
+    try:
+        rep = db.query(Reputation).filter(Reputation.id == rep_id).first()
+        if not rep:
+            raise HTTPException(404, "Rep not found")
+        return {
+            "id": rep.id,
+            "corps_id": rep.corps_id,
+            "agent_id": rep.agent_id,
+            "score": rep.score,
+            "critique": rep.critique,
+            "dimension": rep.dimension,
+            "created_at": rep.created_at.isoformat() if rep.created_at else None,
+        }
+    finally:
+        db.close()
+
+
+@router.get("/corps/{corps_id}/banquet")
+def v1_get_banquet(corps_id: str):
+    """Get banquet/awards data for a corps."""
+    from backend.models.reputation import Reputation
+    db = _get_db_session()
+    try:
+        reps = (
+            db.query(Reputation)
+            .filter(Reputation.corps_id == corps_id)
+            .order_by(Reputation.score.desc())
+            .limit(50)
+            .all()
+        )
+        return [{
+            "id": r.id,
+            "agent_id": r.agent_id,
+            "score": r.score,
+            "dimension": r.dimension,
+            "critique": r.critique,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        } for r in reps]
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Messages: Polling
+# ---------------------------------------------------------------------------
+
+@router.get("/corps/{corps_id}/messages/poll")
+def v1_poll_messages(corps_id: str, since: str = None):
+    """Poll for new messages since a timestamp."""
+    from backend.models.message import Message
+    db = _get_db_session()
+    try:
+        q = db.query(Message).filter(Message.corps_id == corps_id)
+        if since:
+            from datetime import datetime
+            q = q.filter(Message.created_at > datetime.fromisoformat(since))
+        messages = q.order_by(Message.created_at.asc()).limit(100).all()
+        return [{
+            "id": m.id,
+            "from_agent": m.from_agent,
+            "to_agent": m.to_agent,
+            "content": m.content,
+            "msg_type": m.msg_type,
+            "created_at": m.created_at.isoformat() if m.created_at else None,
+        } for m in messages]
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Shows: CRUD
+# ---------------------------------------------------------------------------
+
+@router.get("/shows")
+def v1_list_shows():
+    """List all shows from filesystem."""
+    from backend.services.show_persistence import list_shows
+    shows = list_shows()
+    return shows
+
+
+@router.post("/shows")
+def v1_create_show(payload: dict):
+    """Create a new show."""
+    from backend.services.show_persistence import create_show
+    slug = payload.get("slug") or payload.get("title", "untitled").lower().replace(" ", "-")
+    result = create_show(slug, payload.get("title", slug), payload.get("description", ""))
+    return result
+
+
+@router.post("/shows/{slug}/activate")
+def v1_activate_show(slug: str):
+    """Activate a show (spawn corps, begin immediately)."""
+    from backend.services.show_persistence import get_show
+    show = get_show(slug)
+    if not show:
+        raise HTTPException(404, "Show not found")
+    from backend.services.show_persistence import update_show_status
+    update_show_status(slug, "published")
+    return {"status": "activated", "slug": slug}
+
+
+@router.delete("/shows/{slug}")
+def v1_delete_show(slug: str):
+    """Delete/archive a show."""
+    import shutil
+    from pathlib import Path
+    show_dir = Path("shows") / slug
+    if not show_dir.exists():
+        raise HTTPException(404, "Show not found")
+    shutil.rmtree(show_dir)
+    return {"status": "deleted", "slug": slug}
+
+
+# ---------------------------------------------------------------------------
+# Judging: Tapes
+# ---------------------------------------------------------------------------
+
+@router.get("/judging/tapes")
+def v1_list_judging_tapes(corps_id: str = None, limit: int = 50):
+    """List judging tapes (score records)."""
+    from backend.models.reputation import Reputation
+    db = _get_db_session()
+    try:
+        q = db.query(Reputation)
+        if corps_id:
+            q = q.filter(Reputation.corps_id == corps_id)
+        tapes = q.order_by(Reputation.created_at.desc()).limit(limit).all()
+        return [{
+            "id": t.id,
+            "corps_id": t.corps_id,
+            "agent_id": t.agent_id,
+            "dimension": t.dimension,
+            "score": t.score,
+            "critique": t.critique,
+            "created_at": t.created_at.isoformat() if t.created_at else None,
+        } for t in tapes]
+    finally:
+        db.close()
+
+
+@router.get("/judging/tapes/{tape_id}")
+def v1_get_judging_tape(tape_id: str):
+    """Get a single judging tape."""
+    from backend.models.reputation import Reputation
+    db = _get_db_session()
+    try:
+        tape = db.query(Reputation).filter(Reputation.id == tape_id).first()
+        if not tape:
+            raise HTTPException(404, "Tape not found")
+        return {
+            "id": tape.id,
+            "corps_id": tape.corps_id,
+            "agent_id": tape.agent_id,
+            "dimension": tape.dimension,
+            "score": tape.score,
+            "critique": tape.critique,
+            "created_at": tape.created_at.isoformat() if tape.created_at else None,
+        }
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Templates
+# ---------------------------------------------------------------------------
+
+@router.get("/templates")
+def v1_list_templates():
+    """List available show templates."""
+    from pathlib import Path
+    import yaml
+    templates_dir = Path("templates")
+    if not templates_dir.exists():
+        return []
+    results = []
+    for t in templates_dir.iterdir():
+        if t.is_dir() and (t / "template.yaml").exists():
+            with open(t / "template.yaml") as f:
+                data = yaml.safe_load(f)
+            results.append({"id": t.name, **data})
+    return results
+
+
+@router.get("/templates/{template_id}")
+def v1_get_template(template_id: str):
+    """Get a single template."""
+    from pathlib import Path
+    import yaml
+    template_path = Path("templates") / template_id / "template.yaml"
+    if not template_path.exists():
+        raise HTTPException(404, "Template not found")
+    with open(template_path) as f:
+        data = yaml.safe_load(f)
+    return {"id": template_id, **data}
+
+
+@router.post("/templates/{template_id}/instantiate")
+def v1_instantiate_template(template_id: str, payload: dict):
+    """Create a new show from a template."""
+    from pathlib import Path
+    import yaml
+    import shutil
+    template_dir = Path("templates") / template_id
+    if not template_dir.exists():
+        raise HTTPException(404, "Template not found")
+    slug = payload.get("slug", template_id + "-instance")
+    show_dir = Path("shows") / slug
+    if show_dir.exists():
+        raise HTTPException(409, "Show already exists")
+    shutil.copytree(template_dir, show_dir)
+    status_path = show_dir / "status.yaml"
+    if status_path.exists():
+        with open(status_path) as f:
+            status = yaml.safe_load(f) or {}
+        status["status"] = "draft"
+        status["title"] = payload.get("title", slug)
+        with open(status_path, "w") as f:
+            yaml.dump(status, f)
+    return {"slug": slug, "status": "created"}
+
+
+# ---------------------------------------------------------------------------
+# Seance
+# ---------------------------------------------------------------------------
+
+@router.post("/seance/query")
+def v1_seance_query(payload: dict):
+    """Query the seance system (ED retrospective chat)."""
+    from backend.services.ed_chat import query_ed
+    corps_id = payload.get("corps_id")
+    question = payload.get("question", "")
+    if not corps_id or not question:
+        raise HTTPException(400, "corps_id and question required")
+    db = _get_db_session()
+    try:
+        result = query_ed(db, corps_id, question)
+        return result
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Admin
+# ---------------------------------------------------------------------------
+
+@router.get("/admin/corps")
+def v1_admin_list_corps():
+    """Admin view of all corps with full DB details."""
+    from backend.models.corps import Corps
+    db = _get_db_session()
+    try:
+        corps_list = db.query(Corps).all()
+        return [{
+            "id": c.id,
+            "name": c.name,
+            "status": c.status.value if c.status else None,
+            "mode": c.mode.value if c.mode else None,
+            "theme_id": c.theme_id,
+            "mascot": c.mascot,
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+        } for c in corps_list]
+    finally:
+        db.close()

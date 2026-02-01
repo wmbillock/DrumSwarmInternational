@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import * as api from "../services/api";
+import * as v1 from "../services/v1";
 import type { JudgeTape, CritiqueDetail, CritiqueActionsResponse } from "../types";
 
 function formatRole(role: string): string {
@@ -35,7 +36,7 @@ export function JudgingCritique() {
     setLoading(true);
     try {
       const [t, a] = await Promise.all([
-        api.getJudgeTapes(cid),
+        v1.listJudgingTapes(cid),
         api.getCritiqueActions(cid),
       ]);
       setTapes(t);
@@ -54,7 +55,7 @@ export function JudgingCritique() {
     setExportMd(null);
     if (!activeCorps) return;
     try {
-      const c = await api.getJudgeTape(activeCorps, repId);
+      const c = await v1.getJudgingTape(repId);
       setCritique(c);
     } catch { setCritique(null); }
   };

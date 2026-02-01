@@ -1,5 +1,5 @@
 import { useState } from "react";
-import * as api from "../services/api";
+import * as v1 from "../services/v1";
 
 export function Seance() {
   const [query, setQuery] = useState("");
@@ -10,7 +10,7 @@ export function Seance() {
     if (!query.trim()) return;
     setLoading(true);
     try {
-      const res = await api.querySeance(query);
+      const res = await v1.seanceQuery("", query);
       setResult(res);
     } catch (e: any) {
       setResult({ error: e.message });

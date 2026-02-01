@@ -1,5 +1,5 @@
 import { useState } from "react";
-import * as api from "../services/api";
+import * as v1 from "../services/v1";
 import type { CritiqueResult } from "../types";
 
 interface Props {
@@ -12,8 +12,7 @@ export function Critique({ corpsId }: Props) {
 
   const handleRun = async () => {
     if (!repId.trim() || !corpsId) return;
-    // @ts-ignore - API call signature
-    const data = (await api.runCritique(corpsId)) as CritiqueResult;
+    const data = (await v1.getCritique(repId)) as CritiqueResult;
     setResult(data);
   };
 

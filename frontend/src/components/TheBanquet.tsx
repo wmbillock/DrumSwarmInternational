@@ -1,5 +1,5 @@
 import { useState } from "react";
-import * as api from "../services/api";
+import * as v1 from "../services/v1";
 import type { BanquetReport } from "../types";
 
 interface Props {
@@ -11,7 +11,7 @@ export function TheBanquet({ corpsId }: Props) {
 
   const handleGenerate = async () => {
     if (!corpsId) return;
-    const data = (await api.runBanquet(corpsId)) as BanquetReport;
+    const data = (await v1.getBanquet(corpsId)) as BanquetReport;
     setReport(data);
   };
 

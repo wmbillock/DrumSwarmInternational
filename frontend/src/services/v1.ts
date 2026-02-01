@@ -795,3 +795,67 @@ export const getSelectionEvents = (performerId?: string, limit = 50, signal?: Ab
 export const getMutations = (limit = 50, signal?: AbortSignal) =>
   request<any[]>(`/api/v1/evolution/mutations?limit=${limit}`, { signal });
 
+// --- Improvement: Basics, Critique, Banquet ---
+
+export const runBasics = (corpsId: string, caption: string) =>
+  request<any>(`/api/v1/corps/${corpsId}/basics/${caption}`, { method: "POST" });
+
+export const getCritique = (repId: string, signal?: AbortSignal) =>
+  request<any>(`/api/v1/reps/${repId}/critique`, { signal });
+
+export const getBanquet = (corpsId: string, signal?: AbortSignal) =>
+  request<any[]>(`/api/v1/corps/${corpsId}/banquet`, { signal });
+
+// --- Messages: Polling ---
+
+export const pollMessages = (corpsId: string, since?: string, signal?: AbortSignal) => {
+  const params = since ? `?since=${encodeURIComponent(since)}` : "";
+  return request<any[]>(`/api/v1/corps/${corpsId}/messages/poll${params}`, { signal });
+};
+
+// --- Shows: CRUD ---
+
+export const listShows = (signal?: AbortSignal) =>
+  request<any[]>(`/api/v1/shows`, { signal });
+
+export const createShow = (payload: { slug?: string; title: string; description?: string }) =>
+  request<any>(`/api/v1/shows`, { method: "POST", body: JSON.stringify(payload) });
+
+export const activateShow = (slug: string) =>
+  request<any>(`/api/v1/shows/${slug}/activate`, { method: "POST" });
+
+export const deleteShow = (slug: string) =>
+  request<any>(`/api/v1/shows/${slug}`, { method: "DELETE" });
+
+// --- Judging ---
+
+export const listJudgingTapes = (corpsId?: string, limit = 50, signal?: AbortSignal) => {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (corpsId) params.set("corps_id", corpsId);
+  return request<any[]>(`/api/v1/judging/tapes?${params}`, { signal });
+};
+
+export const getJudgingTape = (tapeId: string, signal?: AbortSignal) =>
+  request<any>(`/api/v1/judging/tapes/${tapeId}`, { signal });
+
+// --- Templates ---
+
+export const listTemplates = (signal?: AbortSignal) =>
+  request<any[]>(`/api/v1/templates`, { signal });
+
+export const getTemplate = (templateId: string, signal?: AbortSignal) =>
+  request<any>(`/api/v1/templates/${templateId}`, { signal });
+
+export const instantiateTemplate = (templateId: string, payload: { slug?: string; title?: string }) =>
+  request<any>(`/api/v1/templates/${templateId}/instantiate`, { method: "POST", body: JSON.stringify(payload) });
+
+// --- Seance ---
+
+export const seanceQuery = (corpsId: string, question: string) =>
+  request<any>(`/api/v1/seance/query`, { method: "POST", body: JSON.stringify({ corps_id: corpsId, question }) });
+
+// --- Admin ---
+
+export const adminListCorps = (signal?: AbortSignal) =>
+  request<any[]>(`/api/v1/admin/corps`, { signal });
+

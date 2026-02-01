@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import * as api from "../services/api";
+import * as v1 from "../services/v1";
 
 function formatRole(name: string): string {
   return name.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
@@ -11,14 +11,14 @@ export function Templates() {
   const [msg, setMsg] = useState("");
 
   useEffect(() => {
-    api.getShowTemplates().then((data: any) => {
+    v1.listTemplates().then((data: any) => {
       setTemplates(Array.isArray(data) ? data : data?.templates || []);
     }).catch(() => setTemplates([]));
   }, []);
 
   const handleInstantiate = async (name: string) => {
     try {
-      await api.instantiateTemplate(name);
+      await v1.instantiateTemplate(name, {});
       setMsg(`Created show from template "${name}"`);
     } catch (e: any) {
       setMsg(`Error: ${e.message}`);
@@ -27,7 +27,7 @@ export function Templates() {
 
   const handleSelect = async (name: string) => {
     try {
-      const detail = await api.getShowTemplate(name);
+      const detail = await v1.getTemplate(name);
       setSelected(detail);
     } catch { setSelected(null); }
   };
