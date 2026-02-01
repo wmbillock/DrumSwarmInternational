@@ -4,33 +4,14 @@ Manages show workspaces on disk with design notes, prompts, and status tracking.
 Directory structure: shows/<slug>/design_notes.md + show_prompt.md + status.yaml
 """
 
-import os
 import re
-import tempfile
 from pathlib import Path
 
 import yaml
 
+from backend.services.yaml_util import atomic_write, safe_dump_yaml
+
 VALID_STATUSES = ("draft", "needs_review", "approved", "rejected")
-
-
-def _atomic_write(path: Path, content: str) -> None:
-    """Write content to path atomically via tmp+rename."""
-    fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
-    try:
-        os.write(fd, content.encode())
-        os.close(fd)
-        os.replace(tmp, path)
-    except BaseException:
-        try:
-            os.close(fd)
-        except OSError:
-            pass
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
 
 
 def slugify(title: str) -> str:
@@ -52,9 +33,9 @@ def create_show(title: str, base_dir: Path) -> Path:
             n += 1
         candidate = base_dir / f"{slug}-{n}"
     candidate.mkdir(parents=True)
-    _atomic_write(candidate / "status.yaml", yaml.dump({"status": "draft"}, default_flow_style=False))
-    _atomic_write(candidate / "design_notes.md", "")
-    _atomic_write(candidate / "show_prompt.md", "")
+    atomic_write(candidate / "status.yaml", safe_dump_yaml({"status": "draft"}))
+    atomic_write(candidate / "design_notes.md", "")
+    atomic_write(candidate / "show_prompt.md", "")
     return candidate
 
 
@@ -70,7 +51,7 @@ def update_status(show_dir: Path, new_status: str) -> None:
     show_dir = Path(show_dir)
     data = load_status(show_dir)
     data["status"] = new_status
-    _atomic_write(show_dir / "status.yaml", yaml.dump(data, default_flow_style=False))
+    atomic_write(show_dir / "status.yaml", safe_dump_yaml(data))
 
 
 def append_design_notes(show_dir: Path, text: str) -> None:
@@ -86,7 +67,7 @@ def append_design_notes(show_dir: Path, text: str) -> None:
 
 def synthesize_prompt(show_dir: Path) -> None:
     """Write a placeholder show_prompt.md."""
-    _atomic_write(Path(show_dir) / "show_prompt.md", "# Show Prompt\n\nTODO: Synthesize prompt from design notes.\n")
+    atomic_write(Path(show_dir) / "show_prompt.md", "# Show Prompt\n\nTODO: Synthesize prompt from design notes.\n")
 
 
 def check_field_ready(show_dir: Path) -> bool:

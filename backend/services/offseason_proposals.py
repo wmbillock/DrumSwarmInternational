@@ -9,6 +9,7 @@ from pathlib import Path
 
 import yaml
 
+from backend.services.yaml_util import safe_dump_yaml
 from backend.services.corps_persistence import (
     VALID_TRANSITIONS,
     load_corps,
@@ -55,7 +56,7 @@ def create_proposals_file(
             "description": p.description,
             "changes": p.changes,
         }
-        lines.append(yaml.dump(block, default_flow_style=False).rstrip())
+        lines.append(safe_dump_yaml(block).rstrip())
         lines.append("```\n")
 
     path.write_text("\n".join(lines))

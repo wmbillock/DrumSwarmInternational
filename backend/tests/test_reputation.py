@@ -1,7 +1,10 @@
 """Tests for the reputation/fitness update system."""
 
+import math
 import yaml
 from pathlib import Path
+
+import pytest
 
 from backend.services.scoring_engine import Standings, CorpsResult
 from backend.models.score import JudgeType
@@ -10,6 +13,7 @@ from backend.services.reputation import (
     apply_season_decay,
     release_agent,
     record_corps_placement,
+    _validate_score,
     MINIMUM_SAMPLE_THRESHOLD,
     SUCCESS_THRESHOLD,
     DECAY_RATE,
@@ -372,3 +376,158 @@ class TestDeterministicOutput:
 
         assert results[0]["trust_score"] == results[1]["trust_score"]
         assert results[0]["total_sessions"] == results[1]["total_sessions"]
+
+
+class TestDraftingSeesUpdatedTrust:
+    def test_drafting_sees_trust_after_reputation_update(self, tmp_path):
+        """update_reputations changes trust → draft_roster picks higher-trust agent."""
+        from backend.services.drafting import draft_roster, RoleRequirement
+
+        pool_dir = tmp_path / "pool"
+        # Two brass agents with same trust initially
+        agents = [
+            _make_agent_yaml(agent_id="a1", display_name="A1", primary_instrument="brass",
+                             trust_score=50.0, total_sessions=10),
+            _make_agent_yaml(agent_id="a2", display_name="A2", primary_instrument="brass",
+                             trust_score=50.0, total_sessions=10),
+        ]
+        _write_pool(pool_dir, agents)
+
+        # Give a1 a high score to boost trust
+        standings = _make_standings(results=[
+            CorpsResult(corps_id="corps-A", caption_scores={JudgeType.BRASS: 95.0},
+                        penalties_total=0.0, difficulty_coefficient=1.0,
+                        raw_score=95.0, final_score=95.0, rank=1),
+        ])
+        update_reputations(standings, pool_dir, {"corps-A": ["a1"]}, session_id="s1")
+
+        # Now draft — a1 should be preferred (higher trust)
+        result = draft_roster("c1", [RoleRequirement("brass", 1)], pool_dir)
+        assert result.summary["brass"] == ["a1"]
+
+    def test_drafting_sees_trust_after_decay(self, tmp_path):
+        """apply_season_decay changes trust → draft_roster reflects it."""
+        from backend.services.drafting import draft_roster, RoleRequirement
+
+        pool_dir = tmp_path / "pool"
+        agents = [
+            _make_agent_yaml(agent_id="a1", display_name="A1", primary_instrument="brass",
+                             trust_score=90.0, total_sessions=10),
+            _make_agent_yaml(agent_id="a2", display_name="A2", primary_instrument="brass",
+                             trust_score=89.0, total_sessions=10),
+        ]
+        _write_pool(pool_dir, agents)
+
+        # Before decay, a1 wins
+        result1 = draft_roster("c1", [RoleRequirement("brass", 1)], pool_dir)
+        assert result1.summary["brass"] == ["a1"]
+
+        # Apply heavy decay to verify trust changed in files
+        apply_season_decay(pool_dir, decay_rate=0.5, baseline=50.0)
+        a1 = _read_agent(pool_dir, "a1")
+        a2 = _read_agent(pool_dir, "a2")
+        # Both should have decayed toward 50
+        assert a1["trust_score"] < 90.0
+        assert a2["trust_score"] < 89.0
+
+
+class TestScoreValidation:
+    def test_performance_score_none_raises(self, tmp_path):
+        pool_dir = tmp_path / "pool"
+        agent = _make_agent_yaml(trust_score=50.0, total_sessions=5)
+        _write_pool(pool_dir, [agent])
+
+        standings = _make_standings(results=[
+            CorpsResult(corps_id="corps-A", caption_scores={},
+                        penalties_total=0.0, difficulty_coefficient=1.0,
+                        raw_score=0.0, final_score=None, rank=1),
+        ])
+        with pytest.raises(ValueError, match="Invalid performance_score"):
+            update_reputations(standings, pool_dir, {"corps-A": ["agent-001"]}, session_id="s1")
+
+    def test_performance_score_nan_raises(self, tmp_path):
+        pool_dir = tmp_path / "pool"
+        agent = _make_agent_yaml(trust_score=50.0, total_sessions=5)
+        _write_pool(pool_dir, [agent])
+
+        standings = _make_standings(results=[
+            CorpsResult(corps_id="corps-A", caption_scores={},
+                        penalties_total=0.0, difficulty_coefficient=1.0,
+                        raw_score=0.0, final_score=float("nan"), rank=1),
+        ])
+        with pytest.raises(ValueError, match="Invalid performance_score"):
+            update_reputations(standings, pool_dir, {"corps-A": ["agent-001"]}, session_id="s1")
+
+    def test_performance_score_out_of_range_raises(self, tmp_path):
+        pool_dir = tmp_path / "pool"
+        agent = _make_agent_yaml(trust_score=50.0, total_sessions=5)
+        _write_pool(pool_dir, [agent])
+
+        for bad_score in [150.0, -1.0]:
+            standings = _make_standings(results=[
+                CorpsResult(corps_id="corps-A", caption_scores={},
+                            penalties_total=0.0, difficulty_coefficient=1.0,
+                            raw_score=bad_score, final_score=bad_score, rank=1),
+            ])
+            with pytest.raises(ValueError, match="performance_score must be"):
+                update_reputations(standings, pool_dir, {"corps-A": ["agent-001"]}, session_id="s1")
+
+    def test_trust_clamped_to_range(self, tmp_path):
+        pool_dir = tmp_path / "pool"
+        # Agent with trust near 100, give a perfect score
+        agent = _make_agent_yaml(trust_score=99.0, total_sessions=100)
+        _write_pool(pool_dir, [agent])
+
+        standings = _make_standings(results=[
+            CorpsResult(corps_id="corps-A", caption_scores={},
+                        penalties_total=0.0, difficulty_coefficient=1.0,
+                        raw_score=100.0, final_score=100.0, rank=1),
+        ])
+        update_reputations(standings, pool_dir, {"corps-A": ["agent-001"]}, session_id="s1")
+
+        updated = _read_agent(pool_dir, "agent-001")
+        assert 0.0 <= updated["trust_score"] <= 100.0
+
+
+class TestIdempotency:
+    def test_idempotent_same_session_id(self, tmp_path):
+        pool_dir = tmp_path / "pool"
+        agent = _make_agent_yaml(trust_score=50.0, total_sessions=5)
+        _write_pool(pool_dir, [agent])
+
+        standings = _make_standings(results=[
+            CorpsResult(corps_id="corps-A", caption_scores={},
+                        penalties_total=0.0, difficulty_coefficient=1.0,
+                        raw_score=80.0, final_score=80.0, rank=1),
+        ])
+        roster_map = {"corps-A": ["agent-001"]}
+
+        update_reputations(standings, pool_dir, roster_map, session_id="session-X")
+        after_first = _read_agent(pool_dir, "agent-001")
+
+        update_reputations(standings, pool_dir, roster_map, session_id="session-X")
+        after_second = _read_agent(pool_dir, "agent-001")
+
+        assert after_first["trust_score"] == after_second["trust_score"]
+        assert after_first["total_sessions"] == after_second["total_sessions"]
+
+    def test_different_session_ids_both_apply(self, tmp_path):
+        pool_dir = tmp_path / "pool"
+        agent = _make_agent_yaml(trust_score=50.0, total_sessions=5)
+        _write_pool(pool_dir, [agent])
+
+        standings = _make_standings(results=[
+            CorpsResult(corps_id="corps-A", caption_scores={},
+                        penalties_total=0.0, difficulty_coefficient=1.0,
+                        raw_score=80.0, final_score=80.0, rank=1),
+        ])
+        roster_map = {"corps-A": ["agent-001"]}
+
+        update_reputations(standings, pool_dir, roster_map, session_id="session-1")
+        after_first = _read_agent(pool_dir, "agent-001")
+
+        update_reputations(standings, pool_dir, roster_map, session_id="session-2")
+        after_second = _read_agent(pool_dir, "agent-001")
+
+        assert after_second["total_sessions"] == after_first["total_sessions"] + 1
+        assert after_second["trust_score"] != after_first["trust_score"]

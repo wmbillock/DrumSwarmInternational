@@ -6,7 +6,7 @@ import yaml
 
 from backend.models.score import JudgeType
 from backend.services.scoring_engine import CorpsResult, Standings
-from backend.services.season_persistence import _atomic_write
+from backend.services.yaml_util import atomic_write, safe_dump_yaml
 
 
 def _corps_result_to_dict(result: CorpsResult) -> dict:
@@ -44,7 +44,7 @@ def save_standings(base_dir: Path, season_id: str, standings: Standings) -> Path
         "generated_at": standings.generated_at,
         "results": [_corps_result_to_dict(r) for r in standings.results],
     }
-    _atomic_write(path, yaml.dump(data, default_flow_style=False))
+    atomic_write(path, safe_dump_yaml(data))
     return path
 
 
@@ -68,7 +68,7 @@ def save_corps_scores(base_dir: Path, season_id: str, corps_id: str, result: Cor
     perf_dir = base_dir / "seasons" / season_id / "performances" / corps_id
     perf_dir.mkdir(parents=True, exist_ok=True)
     path = perf_dir / "scores.yaml"
-    _atomic_write(path, yaml.dump(_corps_result_to_dict(result), default_flow_style=False))
+    atomic_write(path, safe_dump_yaml(_corps_result_to_dict(result)))
     return path
 
 

@@ -5,11 +5,9 @@ performance directories.
 Directory structure: seasons/<season_id>/scorecard.md + lifecycle_rules.md + performances/
 """
 
-import os
-import tempfile
 from pathlib import Path
 
-import yaml
+from backend.services.yaml_util import atomic_write, safe_dump_yaml
 
 SCORECARD_TEMPLATE = """# Season Scorecard
 
@@ -30,25 +28,6 @@ TODO: Define season lifecycle rules.
 """
 
 
-def _atomic_write(path: Path, content: str) -> None:
-    """Write content to path atomically via tmp+rename."""
-    fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
-    try:
-        os.write(fd, content.encode())
-        os.close(fd)
-        os.replace(tmp, path)
-    except BaseException:
-        try:
-            os.close(fd)
-        except OSError:
-            pass
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
-
-
 def create_season(base_dir: Path, season_id: str, metadata: dict | None = None) -> Path:
     """Create a season workspace directory with scorecard and lifecycle rules.
 
@@ -61,10 +40,10 @@ def create_season(base_dir: Path, season_id: str, metadata: dict | None = None) 
         raise ValueError(f"Season '{season_id}' already exists at {season_dir}")
     season_dir.mkdir(parents=True)
     (season_dir / "performances").mkdir()
-    _atomic_write(season_dir / "scorecard.md", SCORECARD_TEMPLATE)
-    _atomic_write(season_dir / "lifecycle_rules.md", LIFECYCLE_RULES_TEMPLATE)
+    atomic_write(season_dir / "scorecard.md", SCORECARD_TEMPLATE)
+    atomic_write(season_dir / "lifecycle_rules.md", LIFECYCLE_RULES_TEMPLATE)
     meta = {"season_id": season_id, "metadata": metadata or {}}
-    _atomic_write(season_dir / "season.yaml", yaml.dump(meta, default_flow_style=False))
+    atomic_write(season_dir / "season.yaml", safe_dump_yaml(meta))
     return season_dir
 
 
@@ -77,6 +56,8 @@ def load_season(season_dir: Path) -> dict:
     for required in ("scorecard.md", "lifecycle_rules.md", "season.yaml"):
         if not (season_dir / required).exists():
             raise FileNotFoundError(f"Required file '{required}' missing in {season_dir}")
+
+    import yaml
     data = yaml.safe_load((season_dir / "season.yaml").read_text())
     data["registered_corps"] = list_registered_corps(season_dir)
     return data

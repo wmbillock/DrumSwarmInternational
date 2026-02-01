@@ -4,14 +4,13 @@ Converts Performer DB rows into human-readable YAML snapshots.
 The database remains the system of record; YAML files are generated views.
 """
 
-import os
-import tempfile
 from pathlib import Path
 
 import yaml
 from sqlalchemy.orm import Session
 
 from backend.models.performer import Performer, PerformerStatus
+from backend.services.yaml_util import atomic_write, safe_dump_yaml
 
 REQUIRED_FIELDS = ("agent_id", "display_name", "primary_instrument", "availability")
 
@@ -46,19 +45,6 @@ def validate_agent_dict(data: dict) -> None:
         raise ValueError(f"Missing required fields: {', '.join(missing)}")
 
 
-def _atomic_write(path: Path, content: str) -> None:
-    """Write content to path atomically via tmp+rename."""
-    fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
-    try:
-        os.write(fd, content.encode())
-        os.close(fd)
-        os.replace(tmp, path)
-    except BaseException:
-        os.close(fd) if not os.get_inheritable(fd) else None
-        os.unlink(tmp)
-        raise
-
-
 def export_talent_pool(db: Session, output_dir: Path) -> None:
     """Write ledger.yaml + agents/<id>.yaml for all non-retired performers."""
     output_dir = Path(output_dir)
@@ -71,7 +57,7 @@ def export_talent_pool(db: Session, output_dir: Path) -> None:
     for p in performers:
         d = performer_to_dict(p)
         validate_agent_dict(d)
-        _atomic_write(agents_dir / f"{d['agent_id']}.yaml", yaml.dump(d, default_flow_style=False))
+        atomic_write(agents_dir / f"{d['agent_id']}.yaml", safe_dump_yaml(d))
         ledger_entries.append({
             "agent_id": d["agent_id"],
             "display_name": d["display_name"],
@@ -79,7 +65,7 @@ def export_talent_pool(db: Session, output_dir: Path) -> None:
             "availability": d["availability"],
         })
 
-    _atomic_write(output_dir / "ledger.yaml", yaml.dump({"agents": ledger_entries}, default_flow_style=False))
+    atomic_write(output_dir / "ledger.yaml", safe_dump_yaml({"agents": ledger_entries}))
 
 
 def load_talent_pool(pool_dir: Path) -> dict:

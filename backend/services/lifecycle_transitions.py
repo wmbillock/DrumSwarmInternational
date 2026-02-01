@@ -8,7 +8,7 @@ no phase-tracking persistence in this module.
 import enum
 from pathlib import Path
 
-import yaml
+from backend.services.yaml_util import safe_dump_yaml
 
 from backend.services.corps_persistence import (
     VALID_TRANSITIONS,
@@ -119,8 +119,6 @@ def retire_corps_and_release(
     # Write release marker for downstream consumption
     pool_dir.mkdir(parents=True, exist_ok=True)
     marker = {"corps_id": corps_id, "released_agent_ids": released}
-    (pool_dir / "released_agents.yaml").write_text(
-        yaml.dump(marker, default_flow_style=False)
-    )
+    (pool_dir / "released_agents.yaml").write_text(safe_dump_yaml(marker))
 
     return released

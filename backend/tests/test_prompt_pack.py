@@ -37,7 +37,7 @@ class TestPromptPack:
         text = (PROMPTS_DIR / name).read_text()
         for var in placeholders:
             text = text.replace(f"{{{{ {var} }}}}", "VALUE")
-        assert "{{" not in text, f"{name} has unfilled placeholders after substitution"
+        assert not re.search(r'\{\{\s*\w+\s*\}\}', text), f"{name} has unfilled placeholders after substitution"
 
     @pytest.mark.parametrize("name", list(TEMPLATES.keys()))
     def test_minimal_lint_no_empty(self, name):

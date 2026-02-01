@@ -6,8 +6,6 @@ Pure YAML, no LLM, no DB writes. ``draft_roster`` is read-only;
 
 from __future__ import annotations
 
-import os
-import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -15,6 +13,7 @@ import yaml
 
 from backend.services.corps_persistence import assign_roster
 from backend.services.talent_pool import load_talent_pool
+from backend.services.yaml_util import atomic_write, safe_dump_yaml
 
 
 @dataclass
@@ -100,24 +99,6 @@ def draft_roster(
     return DraftResult(corps_id=corps_id, assignments=assignments, summary=summary)
 
 
-def _atomic_write(path: Path, content: str) -> None:
-    fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
-    try:
-        os.write(fd, content.encode())
-        os.close(fd)
-        os.replace(tmp, path)
-    except BaseException:
-        try:
-            os.close(fd)
-        except OSError:
-            pass
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
-
-
 def execute_draft(
     corps_id: str,
     requirements: list[RoleRequirement],
@@ -138,7 +119,7 @@ def execute_draft(
         agent_path = agents_dir / f"{agent_id}.yaml"
         agent_data = yaml.safe_load(agent_path.read_text())
         agent_data["availability"] = "assigned"
-        _atomic_write(agent_path, yaml.dump(agent_data, default_flow_style=False))
+        atomic_write(agent_path, safe_dump_yaml(agent_data))
 
     # Update ledger
     ledger_path = pool_dir / "ledger.yaml"
@@ -146,7 +127,7 @@ def execute_draft(
     for entry in ledger.get("agents", []):
         if entry["agent_id"] in drafted_ids:
             entry["availability"] = "assigned"
-    _atomic_write(ledger_path, yaml.dump(ledger, default_flow_style=False))
+    atomic_write(ledger_path, safe_dump_yaml(ledger))
 
     # Write roster
     assign_roster(corps_dir, result.assignments, pool_dir)
