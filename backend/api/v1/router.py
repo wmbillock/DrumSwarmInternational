@@ -1706,6 +1706,35 @@ def v1_get_competition_scores(competition_id: str):
     standings = yaml.safe_load(standings_path.read_text())
     standings["competition_id"] = competition_id
     standings["show_slug"] = _show_slug
+
+    # Resolve corps_id → display_name for each result
+    if "results" in standings:
+        corps_name_cache: dict[str, str] = {}
+        for result in standings["results"]:
+            cid = result.get("corps_id", "")
+            if cid not in corps_name_cache:
+                # Try filesystem
+                corps_yaml = root / "corps" / cid / "corps.yaml"
+                if corps_yaml.is_file():
+                    try:
+                        data = yaml.safe_load(corps_yaml.read_text())
+                        corps_name_cache[cid] = data.get("display_name", cid)
+                    except Exception:
+                        corps_name_cache[cid] = cid
+                else:
+                    # Try DB
+                    try:
+                        from backend.models.corps import Corps as CorpsModel
+                        db = _get_db_session()
+                        try:
+                            corps = db.get(CorpsModel, cid)
+                            corps_name_cache[cid] = corps.name if corps else cid
+                        finally:
+                            db.close()
+                    except Exception:
+                        corps_name_cache[cid] = cid
+            result["display_name"] = corps_name_cache[cid]
+
     return standings
 
 

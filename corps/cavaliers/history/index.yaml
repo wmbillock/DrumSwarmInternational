@@ -1,0 +1,14 @@
+corps_id: cavaliers
+generated_at: '2026-02-01T07:06:36.380215+00:00'
+entries:
+- entry_id: cavaliers-tour-s1
+  season_id: tour-s1
+  show_slug: asynchronous-messaging-system
+  placement: 4
+  final_score: 72.85
+  artifacts:
+    standings: seasons/tour-s1/standings.yaml
+    show_status: shows/asynchronous-messaging-system/status.yaml
+    design_notes: shows/asynchronous-messaging-system/design_notes.md
+    show_prompt: shows/asynchronous-messaging-system/show_prompt.md
+  runs: []

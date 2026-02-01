@@ -168,8 +168,12 @@ cd frontend && npx tsc --noEmit             # TypeScript check
 
 ## Current State (as of 2026-02-01)
 
+### ✅ Recently Fixed (This Session)
+- **Evolution & Talent Pool performer assignment**: Backfilled 786 legacy sessions with performers via audition — 100% of sessions now have performers
+- **System Health status endpoint**: Added health status calculation (ok/warning/error) based on agent and rep metrics; TelemetryPanel now shows meaningful status instead of UNKNOWN
+
 ### Working
-- 5 active corps (DB-only, filesystem corps deleted)
+- 5+ active corps (DB-only, filesystem corps deleted)
 - V1 API router with 39 routes
 - Design room has LLM-powered responses via shared Claude CLI client
 - Corps creation modal with auto-generated identity (name, mascot, colors)
@@ -177,12 +181,16 @@ cd frontend && npx tsc --noEmit             # TypeScript check
 - Competition pipeline fixed for hyphenated season IDs and DB-only corps
 - Corps detail page with lifecycle controls (go on tour, return to camps, rehearsal modes)
 - Corps History page switched to v1 API
+- Agent performer assignment and audition pipeline working for new corps
+- System health monitoring and swarm health aggregation
+
+### In Progress / Ready for Implementation
+- **Asynchronous-messaging-system show**: Spec fully locked and ready for backend + frontend implementation
+- **Caption-awards achievement system**: Spec drafted, design notes in progress
+- **Metronome-system-agent**: In progress
 
 ### Known Issues / Not Yet Working
-- **Evolution & Talent Pool page**: UI exists but drafting/audition pipeline not triggering — corps are not picking up performers
-- **Performer assignment**: `backend/services/talent_pool.py` and `backend/api/evolution_routes.py` need investigation
-- **System Health**: Shows "UNKNOWN" — health monitor not connected to meaningful status
 - **Design Room spec synthesis**: `synthesize_prompt()` in show_persistence.py is a placeholder
-- **Some frontend pages still use legacy `api.ts`** instead of `v1.ts` (CorpsDeepDive, CommandCenter, SwarmOverview, etc.)
+- **Some frontend pages still use legacy `api.ts`** instead of `v1.ts` (multiple components and pages)
 - **app.py is still monolithic** (~2000 lines) — legacy routes should be extracted to domain routers
 - **No Alembic migration workflow** for schema changes — still using `create_all` fallback
