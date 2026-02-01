@@ -877,23 +877,95 @@ def v1_get_corps_history(corps_id: str):
     except FileNotFoundError:
         pass
 
-    # Fallback: check DB, return empty index for DB-only corps
+    # Fallback: build history from filesystem scan for DB-only corps
     try:
         from backend.models.corps import Corps
         db = _get_db_session()
         try:
             corps = db.get(Corps, corps_id)
-            if corps:
-                return {
-                    "corps_id": corps_id,
-                    "generated_at": datetime.now(timezone.utc).isoformat(),
-                    "entries": [],
-                }
         finally:
             db.close()
+        if not corps:
+            raise HTTPException(404, f"Corps '{corps_id}' not found")
+    except HTTPException:
+        raise
     except Exception:
-        pass
-    raise HTTPException(404, f"Corps '{corps_id}' not found")
+        raise HTTPException(404, f"Corps '{corps_id}' not found")
+
+    # Scan seasons for performances/standings referencing this corps
+    from backend.services.corps_history import _probe_artifacts, _discover_runs
+    entries = []
+    seasons_dir = root / "seasons"
+    if seasons_dir.exists():
+        for season_dir in sorted(seasons_dir.iterdir()):
+            if not season_dir.is_dir():
+                continue
+            season_id = season_dir.name
+            # Check if this corps has any presence in this season
+            perf_dir = season_dir / "performances" / corps_id
+            standings_path = season_dir / "standings.yaml"
+            has_perf = perf_dir.is_dir()
+            has_standing = False
+            placement = 0
+            final_score = 0.0
+            show_slug = None
+
+            # Check standings for this corps
+            if standings_path.exists():
+                try:
+                    standings = yaml.safe_load(standings_path.read_text()) or {}
+                    for result in standings.get("results", []):
+                        if result.get("corps_id") == corps_id:
+                            has_standing = True
+                            placement = result.get("rank", 0)
+                            final_score = result.get("final_score", 0.0)
+                            break
+                except Exception:
+                    pass
+
+            # Check scores.yaml for show_slug
+            scores_path = perf_dir / "scores.yaml" if has_perf else None
+            if scores_path and scores_path.exists():
+                try:
+                    scores = yaml.safe_load(scores_path.read_text()) or {}
+                    show_slug = scores.get("show_slug")
+                except Exception:
+                    pass
+
+            # Discover show_slug from run manifests if not in scores
+            if not show_slug and has_perf:
+                runs = _discover_runs(root, corps_id, season_id)
+                for run_id in runs:
+                    manifest_path = season_dir / "performances" / corps_id / run_id / "manifest.yaml"
+                    if manifest_path.exists():
+                        try:
+                            m = yaml.safe_load(manifest_path.read_text()) or {}
+                            if m.get("show_slug"):
+                                show_slug = m["show_slug"]
+                                break
+                        except Exception:
+                            pass
+
+            if has_perf or has_standing:
+                entry_id = f"{corps_id}-{season_id}"
+                artifacts = _probe_artifacts(root, corps_id, season_id, show_slug)
+                runs = _discover_runs(root, corps_id, season_id)
+                entries.append({
+                    "entry_id": entry_id,
+                    "season_id": season_id,
+                    "show_slug": show_slug,
+                    "placement": placement,
+                    "final_score": final_score,
+                    "artifacts": artifacts,
+                    "runs": runs,
+                })
+
+    entries.sort(key=lambda e: e["entry_id"])
+    return {
+        "corps_id": corps_id,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "entries": entries,
+    }
 
 
 @router.post("/seances")
