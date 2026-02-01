@@ -475,7 +475,7 @@ export const searchArchive = (
   if (originatorRole) params.append("originator_role", originatorRole);
   params.append("limit", limit.toString());
   params.append("offset", offset.toString());
-  return request<{ threads: ArchivedThreadSummary[]; total: number }>(
+  return request<{ archived_threads: ArchivedThreadSummary[]; total: number }>(
     `/api/v1/messaging/archive?${params}`,
     { signal }
   );

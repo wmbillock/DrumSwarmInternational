@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import * as v1 from "../services/v1";
 import "../styles/MessageArchive.css";
 
@@ -22,7 +22,7 @@ export default function MessageArchive() {
         50,
         0
       );
-      setResults(result.threads || []);
+      setResults(result.archived_threads || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to search archive");
     } finally {

@@ -1958,7 +1958,7 @@ def v1_get_messaging_thread(thread_id: str):
 
 
 @router.post("/messaging/threads/{thread_id}/messages")
-def v1_add_messaging_thread_message(thread_id: str, req: AddMessageRequest):
+def v1_add_messaging_thread_message(thread_id: str, req: MessagingAddMessageRequest):
     """Add a message to an existing thread."""
     from backend.services.messaging_service import MessagingService
 
@@ -1994,7 +1994,7 @@ def v1_add_messaging_thread_message(thread_id: str, req: AddMessageRequest):
 
 @router.patch("/messaging/threads/{thread_id}")
 def v1_mark_messaging_thread_complete(
-    thread_id: str, req: MarkThreadCompleteRequest
+    thread_id: str, req: MessagingMarkThreadCompleteRequest
 ):
     """Mark a messaging thread as completed.
 
@@ -2133,7 +2133,7 @@ def v1_get_archived_messaging_thread(archived_thread_id: str):
 
 
 @router.post("/messaging/archive/bulk-archive")
-def v1_bulk_archive_messaging_threads(req: BulkArchiveRequest):
+def v1_bulk_archive_messaging_threads(req: MessagingBulkArchiveRequest):
     """Bulk-archive completed threads with LLM-generated summaries.
 
     Returns operation summary with count and metadata of archived threads.

@@ -1,23 +1,27 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useEffect, useState, useCallback } from "react";
 import * as v1 from "../services/v1";
 import "../styles/MessageInbox.css";
 
-interface ThreadWithPreview extends v1.MessagingThread {
-  unread?: boolean;
+interface ThreadListItem {
+  thread_id: string;
+  originator_role: string;
+  subject: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  message_count: number;
+  archive_candidate_at?: string | null;
 }
 
 export default function MessageInbox() {
-  const [threads, setThreads] = useState<ThreadWithPreview[]>([]);
+  const [threads, setThreads] = useState<ThreadListItem[]>([]);
   const [selectedThread, setSelectedThread] = useState<v1.MessagingThread | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("pending");
   const [replyContent, setReplyContent] = useState("");
   const [isReplying, setIsReplying] = useState(false);
-  const [userRole, setUserRole] = useState("admin"); // In real app, get from auth context
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [userRole] = useState("admin"); // In real app, get from auth context
 
   // Load threads
   useEffect(() => {
@@ -29,7 +33,7 @@ export default function MessageInbox() {
     setError("");
     try {
       const result = await v1.listMessagingThreads(statusFilter, undefined, 50, 0);
-      setThreads((result.threads || []) as ThreadWithPreview[]);
+      setThreads(result.threads || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load threads");
     } finally {
