@@ -10,7 +10,8 @@ from backend.services.llm_client import LLMClient
 
 logger = logging.getLogger(__name__)
 
-JUDGE_TYPES = list(JUDGE_TO_STAFF.keys())
+# Only competition judge types — exclude ad-hoc user types
+JUDGE_TYPES = [k for k in JUDGE_TO_STAFF.keys() if k not in ("user_feedback", "user")]
 
 
 def run_auto_critique(

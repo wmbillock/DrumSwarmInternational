@@ -137,7 +137,7 @@ def build_judge_context(
     corps = db.query(Corps).filter(Corps.id == corps_id).first()
     if corps:
         ctx.corps_metadata = {
-            "display_name": corps.display_name,
+            "display_name": corps.name,
             "status": corps.status.value if corps.status else "unknown",
             "theme": getattr(corps, "theme", None),
         }
@@ -146,7 +146,7 @@ def build_judge_context(
     logs = (
         db.query(WorkLog)
         .filter(WorkLog.corps_id == corps_id)
-        .order_by(WorkLog.created_at.desc())
+        .order_by(WorkLog.timestamp.desc())
         .limit(50)
         .all()
     )
@@ -154,7 +154,7 @@ def build_judge_context(
         {
             "role": log.role,
             "event_type": log.event_type,
-            "summary": log.summary[:200] if log.summary else "",
+            "summary": (log.details or "")[:200],
         }
         for log in logs
     ]
@@ -163,13 +163,13 @@ def build_judge_context(
     sessions = (
         db.query(AgentSession)
         .filter(AgentSession.corps_id == corps_id)
-        .order_by(AgentSession.created_at.desc())
+        .order_by(AgentSession.started_at.desc())
         .limit(20)
         .all()
     )
     ctx.agent_sessions = [
         {
-            "role": s.role,
+            "role": getattr(s, "role", "unknown"),
             "status": s.status.value if hasattr(s.status, "value") else str(s.status),
             "iterations": getattr(s, "iterations", 0),
         }
