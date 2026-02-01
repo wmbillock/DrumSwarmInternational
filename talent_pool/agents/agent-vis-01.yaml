@@ -1,0 +1,13 @@
+agent_id: agent-vis-01
+display_name: Visual 1
+primary_instrument: visual
+availability: active
+trust_score: 51.0
+total_sessions: 1
+successful_sessions: 1
+failed_sessions: 0
+experience_seasons: 2
+specialties:
+- staging
+seen_sessions:
+- tour-s1-tour-show-s1

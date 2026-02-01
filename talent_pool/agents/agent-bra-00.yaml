@@ -1,0 +1,13 @@
+agent_id: agent-bra-00
+display_name: Brass 0
+primary_instrument: brass
+availability: active
+trust_score: 67.0
+total_sessions: 1
+successful_sessions: 1
+failed_sessions: 0
+experience_seasons: 1
+specialties:
+- classical
+seen_sessions:
+- tour-s1-tour-show-s1

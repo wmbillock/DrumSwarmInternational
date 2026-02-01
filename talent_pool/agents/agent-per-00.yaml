@@ -1,0 +1,13 @@
+agent_id: agent-per-00
+display_name: Percussion 0
+primary_instrument: percussion
+availability: active
+trust_score: 64.0
+total_sessions: 1
+successful_sessions: 1
+failed_sessions: 0
+experience_seasons: 0
+specialties:
+- rudimental
+seen_sessions:
+- tour-s1-tour-show-s1

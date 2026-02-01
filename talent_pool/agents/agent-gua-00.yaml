@@ -1,0 +1,13 @@
+agent_id: agent-gua-00
+display_name: Guard 0
+primary_instrument: guard
+availability: active
+trust_score: 53.0
+total_sessions: 1
+successful_sessions: 1
+failed_sessions: 0
+experience_seasons: 1
+specialties:
+- sabre
+seen_sessions:
+- tour-s1-tour-show-s1

@@ -1,0 +1,23 @@
+season_id: tour-s1
+generated_at: '2026-02-01T02:42:46.775426+00:00'
+results:
+- corps_id: cavaliers
+  rank: 1
+  final_score: 78.4
+  raw_score: 78.4
+  caption_scores:
+    brass: 75
+    percussion: 80
+    guard: 73
+    visual: 72
+    general_effect: 88
+- corps_id: scouts
+  rank: 2
+  final_score: 72.5
+  raw_score: 72.5
+  caption_scores:
+    brass: 72
+    percussion: 76
+    guard: 61
+    visual: 88
+    general_effect: 70

@@ -1,1 +1,51 @@
-agents: []
+agents:
+- agent_id: agent-bra-00
+  display_name: Brass 0
+  primary_instrument: brass
+  availability: active
+  trust_score: 67.0
+- agent_id: agent-per-00
+  display_name: Percussion 0
+  primary_instrument: percussion
+  availability: active
+  trust_score: 64.0
+- agent_id: agent-gua-00
+  display_name: Guard 0
+  primary_instrument: guard
+  availability: active
+  trust_score: 53.0
+- agent_id: agent-vis-00
+  display_name: Visual 0
+  primary_instrument: visual
+  availability: active
+  trust_score: 68.0
+- agent_id: agent-gen-00
+  display_name: General_Effect 0
+  primary_instrument: general_effect
+  availability: active
+  trust_score: 55.0
+- agent_id: agent-bra-01
+  display_name: Brass 1
+  primary_instrument: brass
+  availability: active
+  trust_score: 50.0
+- agent_id: agent-per-01
+  display_name: Percussion 1
+  primary_instrument: percussion
+  availability: active
+  trust_score: 66.0
+- agent_id: agent-gua-01
+  display_name: Guard 1
+  primary_instrument: guard
+  availability: active
+  trust_score: 68.0
+- agent_id: agent-vis-01
+  display_name: Visual 1
+  primary_instrument: visual
+  availability: active
+  trust_score: 51.0
+- agent_id: agent-gen-01
+  display_name: General_Effect 1
+  primary_instrument: general_effect
+  availability: active
+  trust_score: 60.0

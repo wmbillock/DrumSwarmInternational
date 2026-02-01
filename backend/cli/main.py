@@ -181,8 +181,9 @@ def build_parser() -> argparse.ArgumentParser:
     demo = sub.add_parser("demo", help="Demo workflows")
     demo_sub = demo.add_subparsers(dest="demo_cmd")
     dt = demo_sub.add_parser("tour", help="Run full lifecycle tour")
-    dt.add_argument("--seed", type=int, default=1, help="Random seed (reserved)")
-    dt.add_argument("--corps-count", type=int, default=2, help="Number of corps (reserved)")
+    dt.add_argument("--seed", type=int, default=1, help="Deterministic seed")
+    dt.add_argument("--seasons", type=int, default=1, help="Number of seasons to simulate")
+    dt.add_argument("--corps-count", type=int, default=2, help="Number of corps")
     dt.add_argument("--plan", action="store_true", help="Preview without applying")
     dt.add_argument("--yes", action="store_true", help="Apply")
 

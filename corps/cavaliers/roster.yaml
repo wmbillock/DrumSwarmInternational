@@ -1,0 +1,12 @@
+corps_id: cavaliers
+assignments:
+- agent_id: agent-bra-01
+  role: brass
+- agent_id: agent-per-00
+  role: percussion
+- agent_id: agent-gua-00
+  role: guard
+- agent_id: agent-vis-01
+  role: visual
+- agent_id: agent-gen-00
+  role: general_effect

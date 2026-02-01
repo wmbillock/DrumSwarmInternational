@@ -1,0 +1,9 @@
+corps_id: scouts
+display_name: Scouts
+philosophy: Seed-1 philosophy
+state: active
+history:
+- season_id: tour-s1
+  placement: 2
+  final_score: 72.5
+  notes: ''
