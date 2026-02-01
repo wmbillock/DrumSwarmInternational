@@ -213,7 +213,10 @@ cd frontend && npx tsc --noEmit             # TypeScript check
 
 ### In Progress / Ready for Implementation
 - **Caption-awards achievement system**: Spec drafted (12 categories, 360 achievements), TDD framework ready
-- **Chat-test show**: Spec expanded with brass section, fanfare opening, guard choreography, evaluation rubric
+- **Chat-test show**: ✅ PERCUSSION ASSIGNMENT COMPLETE
+  - Rep 08741bf4-e594-4004-88bc-6bedbcdd268d assigned to Wayne Fortissimo (percussion_caption_head)
+  - Status: IN_PROGRESS (pending → assigned → in_progress)
+  - Task: Full percussion specification for fanfare opening (counts 1-32, geometric guard choreography)
 - **Let's Build Metrics show**: Dashboard visualization movement in progress
 - **Staff Marketplace**: Page exists, API endpoints defined (hiring, firing, career tracking)
 - **System Health Dashboard**: Frontend page with real-time metrics
@@ -226,6 +229,12 @@ cd frontend && npx tsc --noEmit             # TypeScript check
   - Fixed: AgentDefinition.corps_id assignment in test setup
   - Fixed: Removed incorrect session deduplication in agents-overview endpoint
 - **Scoreboards Router**: ✅ Included scoreboards.py router in app.py
+
+### Metronome Status (2026-02-01)
+- **Corps b8fb873a-77ff-41e0-865b-58b93c2065d6**:
+  - Reps reclaimed: 1 (self-healed by metronome — indicates potential async rep calculation race)
+  - Merges: 12/31 (39% rate, 0 conflicts) — normal backlog during ON_TOUR
+  - System Status: 🟡 **WARNING** — continued monitoring recommended
 
 ### Known Issues / Not Yet Working
 - **Frontend migration**: ~25 files still using legacy `api.ts` instead of v1 typed client
