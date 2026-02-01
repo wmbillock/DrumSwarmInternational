@@ -188,21 +188,24 @@ def issue_ten_hut(db: Session, corps_id: str) -> bool:
     Returns True if successful, False otherwise.
     """
     try:
-        # For now, we log the command. In a full implementation, this would
-        # send a message via the messaging system to the ED agent.
         logger.info(f"TEN-HUT: Waking corps {corps_id}")
+        from backend.models.message import MessageType, MessagePriority
+        from backend.services.message_service import send_message
 
-        # TODO: Integration with messaging system
-        # from backend.services.messaging_service import create_message
-        # create_message(
-        #     db=db,
-        #     sender_role="metronome",
-        #     recipient_role="executive_director",
-        #     subject=f"Ten-Hut: Wake Signal - {datetime.now(timezone.utc).isoformat()}",
-        #     body="The metronome has issued a wake signal. Acknowledge and resume work.",
-        #     corps_id=corps_id,
-        # )
-
+        send_message(
+            db=db,
+            corps_id=corps_id,
+            from_role="system",
+            to_role="executive_director",
+            type=MessageType.TEN_HUT,
+            subject="System Heartbeat — Ten-Hut",
+            body=(
+                f"TEN-HUT! Orchestrator wake signal at {datetime.now(timezone.utc).isoformat()}.\n\n"
+                f"Check status of all work in your corps. Ensure reps are progressing. "
+                f"Cascade to staff as needed."
+            ),
+            priority=MessagePriority.NORMAL,
+        )
         return True
     except Exception as e:
         logger.error(f"Failed to issue ten-hut to corps {corps_id}: {e}")
@@ -218,20 +221,28 @@ def issue_resume_hut(db: Session, corps_id: str, stalled_reps: list[str]) -> boo
         logger.info(
             f"RESUME-HUT: Alerting corps {corps_id} about {len(stalled_reps)} stalled reps"
         )
+        from backend.models.message import MessageType, MessagePriority
+        from backend.services.message_service import send_message
 
-        # TODO: Integration with messaging system
-        # from backend.services.messaging_service import create_message
-        # create_message(
-        #     db=db,
-        #     sender_role="metronome",
-        #     recipient_role="executive_director",
-        #     subject=f"Resume-Hut: Stalled Work Alert - {datetime.now(timezone.utc).isoformat()}",
-        #     body=f"The following reps have been stalled for >{STALLED_THRESHOLD_MINUTES} minutes:\n"
-        #          f"{', '.join(stalled_reps)}\n\n"
-        #          f"Please investigate and resume work.",
-        #     corps_id=corps_id,
-        # )
+        stalled_summary = ", ".join(stalled_reps[:10])
+        if len(stalled_reps) > 10:
+            stalled_summary += f" (and {len(stalled_reps) - 10} more)"
 
+        send_message(
+            db=db,
+            corps_id=corps_id,
+            from_role="system",
+            to_role="executive_director",
+            type=MessageType.RESUME_HUT,
+            subject="Resume-Hut — Stalled Work Detected",
+            body=(
+                f"RESUME-HUT! Stalled work detected at {datetime.now(timezone.utc).isoformat()}.\n\n"
+                f"Stalled reps: {stalled_summary}\n\n"
+                f"These reps have been pending for >{STALLED_THRESHOLD_MINUTES} minutes. "
+                f"Review and take action."
+            ),
+            priority=MessagePriority.HIGH,
+        )
         return True
     except Exception as e:
         logger.error(f"Failed to issue resume-hut to corps {corps_id}: {e}")
