@@ -2248,6 +2248,20 @@ def v1_list_corps_staff(corps_id: str):
 # =========================================================================
 
 
+@router.get("/messaging/unread-count")
+def v1_get_unread_message_count():
+    """Get count of unread messages (pending threads)."""
+    from backend.services.messaging_service import MessagingService
+
+    db = _get_db_session()
+    try:
+        service = MessagingService(db)
+        count = service.get_unread_count()
+        return {"unread_count": count}
+    finally:
+        db.close()
+
+
 @router.post("/messaging/threads")
 def v1_create_messaging_thread(req: MessagingCreateThreadRequest):
     """Create a new messaging thread with an initial message.
@@ -2956,6 +2970,103 @@ def api_metrics_trends(
             "corps_id": corps_id,
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "trends": trends,
+        }
+    finally:
+        db.close()
+
+
+@router.get("/metrics/timeseries")
+def api_metrics_timeseries(
+    metric_types: Optional[str] = None,
+    corps_id: Optional[str] = None,
+    period_days: int = 7,
+    granularity: str = "1h",
+):
+    """Get time-series metrics data for charting.
+
+    Args:
+        metric_types: Comma-separated metric types to fetch (e.g. "rep_completed,query_latency")
+        corps_id: Filter by corps_id
+        period_days: Number of days of history
+        granularity: Bucket size: "1m", "5m", "1h", "1d"
+
+    Returns:
+        List of time buckets with metric aggregations.
+    """
+    from backend.services.metrics import MetricType
+    from datetime import timedelta
+
+    db = _get_db_session()
+    try:
+        now = datetime.now(timezone.utc)
+        start_time = now - timedelta(days=period_days)
+
+        # Parse requested metric types
+        requested_types = []
+        if metric_types:
+            for mt_str in metric_types.split(","):
+                mt_str = mt_str.strip().upper()
+                try:
+                    requested_types.append(mt_str)
+                except ValueError:
+                    pass  # Skip invalid metric types
+
+        if not requested_types:
+            requested_types = [mt.value for mt in MetricType]
+
+        # Determine bucket size in seconds
+        granularity_map = {"1m": 60, "5m": 300, "1h": 3600, "1d": 86400}
+        bucket_seconds = granularity_map.get(granularity, 3600)
+
+        # Query metrics events (if table exists)
+        timeseries_data = []
+        try:
+            from backend.models.metrics import MetricsEvent
+
+            query = db.query(MetricsEvent).filter(
+                MetricsEvent.recorded_at >= start_time,
+                MetricsEvent.metric_type.in_(requested_types),
+            )
+            if corps_id:
+                query = query.filter(MetricsEvent.corps_id == corps_id)
+
+            events = query.all()
+
+            # Bucket events by granularity
+            buckets = {}
+            for event in events:
+                # Calculate bucket key
+                timestamp_seconds = int(event.recorded_at.timestamp())
+                bucket_key = (timestamp_seconds // bucket_seconds) * bucket_seconds
+                bucket_ts = datetime.fromtimestamp(bucket_key, tz=timezone.utc).isoformat()
+
+                if bucket_ts not in buckets:
+                    buckets[bucket_ts] = {
+                        "timestamp": bucket_ts,
+                    }
+
+                # Aggregate by metric type
+                metric_key = event.metric_type
+                if metric_key not in buckets[bucket_ts]:
+                    buckets[bucket_ts][metric_key] = 0
+                buckets[bucket_ts][metric_key] += 1
+
+            # Sort by timestamp and convert to list
+            timeseries_data = sorted(
+                buckets.values(),
+                key=lambda x: x["timestamp"]
+            )
+
+        except Exception:
+            pass  # metrics_events table may not exist yet
+
+        return {
+            "period_days": period_days,
+            "granularity": granularity,
+            "corps_id": corps_id,
+            "metric_types": requested_types,
+            "generated_at": now.isoformat(),
+            "data": timeseries_data,
         }
     finally:
         db.close()

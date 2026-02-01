@@ -24,6 +24,7 @@ import { SystemHealth } from "./pages/SystemHealth";
 import MessageInbox from "./pages/MessageInbox";
 import MessageArchive from "./pages/MessageArchive";
 import { StaffMarketplace } from "./pages/StaffMarketplace";
+import { ScoreboardsPage } from "./pages/ScoreboardsPage";
 
 export const router = createBrowserRouter([
   {
@@ -57,6 +58,7 @@ export const router = createBrowserRouter([
       { path: "/seasons/:seasonId", element: <Seasons /> },
       { path: "/messages/inbox", element: <MessageInbox /> },
       { path: "/messages/archive", element: <MessageArchive /> },
+      { path: "/scoreboards", element: <ScoreboardsPage /> },
       { path: "/system", element: <SystemHealth /> },
       { path: "/settings", element: <Settings /> },
     ],

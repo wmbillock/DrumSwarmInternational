@@ -63,51 +63,24 @@ const ScoreboardsPage: React.FC = () => {
   useEffect(() => {
     const fetchCorpsScores = async () => {
       try {
-        // TODO: Replace with actual API call
-        // const response = await fetch(`/api/v1/scoreboards/corps?limit=100`);
-        // const data = await response.json();
+        const response = await fetch(`/api/v1/metrics/scoreboard/corps?limit=100`);
+        const data = await response.json();
 
-        // Placeholder data
-        const mockData: CorpsScore[] = [
-          {
-            rank: 1,
-            corps_id: "8cd981ab-bbed-40bf-bf80-f41972dfc3cd",
-            corps_name: "The Mid Boca Raton Freelancers",
-            shows_completed: 8,
-            shows_total: 10,
-            show_completion_rate: 0.8,
-            avg_task_duration: 38.5,
-            task_success_rate: 0.98,
-            query_latency_p95: 95.2,
-            composite_score: 92.3,
-          },
-          {
-            rank: 2,
-            corps_id: "some-corps-2",
-            corps_name: "Phantom Regiment",
-            shows_completed: 7,
-            shows_total: 10,
-            show_completion_rate: 0.7,
-            avg_task_duration: 45.2,
-            task_success_rate: 0.95,
-            query_latency_p95: 125.5,
-            composite_score: 85.1,
-          },
-          {
-            rank: 3,
-            corps_id: "some-corps-3",
-            corps_name: "Madison Scouts",
-            shows_completed: 6,
-            shows_total: 10,
-            show_completion_rate: 0.6,
-            avg_task_duration: 52.3,
-            task_success_rate: 0.92,
-            query_latency_p95: 185.3,
-            composite_score: 78.5,
-          },
-        ];
+        // Transform API response to component format
+        const transformed: CorpsScore[] = (data.scoreboard || []).map((item: any) => ({
+          rank: item.rank,
+          corps_id: item.corps_id,
+          corps_name: item.corps_name,
+          shows_completed: item.completed_reps,
+          shows_total: item.total_reps,
+          show_completion_rate: item.completed_reps / Math.max(item.total_reps, 1),
+          avg_task_duration: 0,
+          task_success_rate: item.efficiency_score / 100,
+          query_latency_p95: 0,
+          composite_score: item.composite_score,
+        }));
 
-        setCorpsList(mockData);
+        setCorpsList(transformed);
         setLoading(false);
       } catch (error) {
         console.error("Failed to fetch corps scores:", error);
@@ -117,45 +90,22 @@ const ScoreboardsPage: React.FC = () => {
 
     const fetchAgentScores = async () => {
       try {
-        // TODO: Replace with actual API call
-        // const response = await fetch(`/api/v1/scoreboards/agents?limit=100`);
-        // const data = await response.json();
+        const response = await fetch(`/api/v1/metrics/scoreboard/agents?limit=100`);
+        const data = await response.json();
 
-        // Placeholder data
-        const mockData: AgentScore[] = [
-          {
-            rank: 1,
-            agent_role: "front_ensemble_tech",
-            agent_count: 5,
-            avg_session_duration: 1200,
-            sessions_completed: 25,
-            task_success_rate: 0.98,
-            avg_task_throughput: 12.5,
-            composite_score: 89.2,
-          },
-          {
-            rank: 2,
-            agent_role: "brass_caption_head",
-            agent_count: 3,
-            avg_session_duration: 1800,
-            sessions_completed: 18,
-            task_success_rate: 0.95,
-            avg_task_throughput: 8.3,
-            composite_score: 84.1,
-          },
-          {
-            rank: 3,
-            agent_role: "percussion_tech",
-            agent_count: 4,
-            avg_session_duration: 1500,
-            sessions_completed: 22,
-            task_success_rate: 0.92,
-            avg_task_throughput: 10.1,
-            composite_score: 81.5,
-          },
-        ];
+        // Transform API response to component format
+        const transformed: AgentScore[] = (data.leaderboard || []).map((item: any) => ({
+          rank: item.rank,
+          agent_role: item.role,
+          agent_count: 1,
+          avg_session_duration: 0,
+          sessions_completed: item.completed_sessions,
+          task_success_rate: (item.success_rate || 0) / 100,
+          avg_task_throughput: 0,
+          composite_score: item.success_rate || 0,
+        }));
 
-        setAgentsList(mockData);
+        setAgentsList(transformed);
       } catch (error) {
         console.error("Failed to fetch agent scores:", error);
       }
