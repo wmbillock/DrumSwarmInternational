@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import * as api from "../services/api";
+import * as v1 from "../services/v1";
 import type { PerformerGenome, SelectionEvent, MutationLog, MutationSimulationResult } from "../types";
 
 function formatRole(role: string): string {
@@ -69,19 +70,19 @@ export function EvolutionTalentPool() {
   const [simulating, setSimulating] = useState(false);
 
   useEffect(() => {
-    api.getPerformers().then(setPerformers).catch(() => setPerformers([]));
+    v1.listPerformers().then(setPerformers).catch(() => setPerformers([]));
   }, []);
 
   const loadEvents = async () => {
     try {
-      const e = await api.getSelectionEvents(eventFilter || undefined);
+      const e = await v1.getSelectionEvents(eventFilter || undefined);
       setEvents(e);
     } catch { setEvents([]); }
   };
 
   const loadMutations = async () => {
     try {
-      const m = await api.getMutations();
+      const m = await v1.getMutations();
       setMutations(m);
     } catch { setMutations([]); }
   };
@@ -93,7 +94,7 @@ export function EvolutionTalentPool() {
 
   const handleSelectPerformer = async (id: string) => {
     try {
-      const genome = await api.getPerformerGenome(id);
+      const genome = await v1.getPerformerGenome(id);
       setSelectedGenome(genome);
     } catch { setSelectedGenome(null); }
   };

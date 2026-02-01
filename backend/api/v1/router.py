@@ -3401,3 +3401,347 @@ def v1_get_scoresheet(corps_id: str):
         }
     finally:
         db.close()
+
+
+# ---------------------------------------------------------------------------
+# Performers
+# ---------------------------------------------------------------------------
+
+
+@router.get("/performers")
+def v1_list_performers(status: Optional[str] = None):
+    """List all performers with optional status filter."""
+    from backend.models.performer import Performer, PerformerStatus
+    from backend.services.performer_service import list_performers
+
+    ps = None
+    if status:
+        try:
+            ps = PerformerStatus(status)
+        except ValueError:
+            raise HTTPException(400, f"Invalid status: {status}")
+
+    db = _get_db_session()
+    try:
+        performers = list_performers(db, status=ps)
+        return [{
+            "id": p.id,
+            "name": p.name,
+            "role_type": p.role_type,
+            "trust_score": round(p.trust_score, 1),
+            "total_sessions": p.total_sessions,
+            "successful_sessions": p.successful_sessions,
+            "failed_sessions": p.failed_sessions,
+            "status": p.status.value,
+            "retirement_reason": p.retirement_reason,
+            "created_at": p.created_at.isoformat() if p.created_at else None,
+        } for p in performers]
+    finally:
+        db.close()
+
+
+@router.get("/performers/{performer_id}")
+def v1_get_performer(performer_id: str):
+    """Get performer detail."""
+    from backend.services.performer_service import get_performer
+
+    db = _get_db_session()
+    try:
+        p = get_performer(db, performer_id)
+        if not p:
+            raise HTTPException(404, "Performer not found")
+        return {
+            "id": p.id,
+            "name": p.name,
+            "role_type": p.role_type,
+            "trust_score": round(p.trust_score, 1),
+            "total_sessions": p.total_sessions,
+            "successful_sessions": p.successful_sessions,
+            "failed_sessions": p.failed_sessions,
+            "status": p.status.value,
+            "specialties": p.specialties,
+            "retirement_reason": p.retirement_reason,
+            "created_at": p.created_at.isoformat() if p.created_at else None,
+            "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+        }
+    finally:
+        db.close()
+
+
+@router.post("/performers/{performer_id}/retire")
+def v1_retire_performer(performer_id: str):
+    """Retire a performer."""
+    from backend.services.performer_service import retire_performer
+
+    db = _get_db_session()
+    try:
+        p = retire_performer(db, performer_id, reason="Manual retirement via API")
+        return {"id": p.id, "name": p.name, "status": p.status.value}
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    finally:
+        db.close()
+
+
+@router.get("/performers/{performer_id}/ledger")
+def v1_performer_ledger(performer_id: str):
+    """Get capability ledger entries for a performer."""
+    from backend.services.capability_ledger_service import get_entries_for_performer
+
+    db = _get_db_session()
+    try:
+        entries = get_entries_for_performer(db, performer_id)
+        return [{
+            "id": e.id,
+            "entry_type": e.entry_type.value,
+            "role_type": e.role_type,
+            "score": e.score,
+            "trust_before": e.trust_before,
+            "trust_after": e.trust_after,
+            "details": e.details,
+            "created_at": e.created_at.isoformat() if e.created_at else None,
+        } for e in entries]
+    finally:
+        db.close()
+
+
+@router.get("/performers/{performer_id}/stats")
+def v1_performer_stats(performer_id: str):
+    """Get aggregate stats from the capability ledger."""
+    from backend.services.capability_ledger_service import get_performer_stats
+
+    db = _get_db_session()
+    try:
+        return get_performer_stats(db, performer_id)
+    finally:
+        db.close()
+
+
+@router.get("/performers/{performer_id}/genome")
+def v1_performer_genome(performer_id: str):
+    """Get performer genome (evolution traits)."""
+    from backend.models.performer import Performer
+
+    db = _get_db_session()
+    try:
+        p = db.get(Performer, performer_id)
+        if not p:
+            raise HTTPException(404, "Performer not found")
+        return {
+            "id": p.id,
+            "name": p.name,
+            "role_type": p.role_type,
+            "trust_score": round(p.trust_score, 1),
+            "specialties": p.specialties,
+            "genome": p.genome if hasattr(p, "genome") else {},
+        }
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Segments
+# ---------------------------------------------------------------------------
+
+
+@router.get("/segments/{segment_id}")
+def v1_get_segment(segment_id: str):
+    """Get a segment by ID."""
+    from backend.services.segment_service import get_segment
+
+    db = _get_db_session()
+    try:
+        seg = get_segment(db, segment_id)
+        if not seg:
+            raise HTTPException(404, "Segment not found")
+        return {
+            "id": seg.id,
+            "type": seg.type.value,
+            "title": seg.title,
+            "status": seg.status.value,
+            "parent_id": seg.parent_id,
+            "caption": seg.caption,
+            "description": seg.description,
+        }
+    finally:
+        db.close()
+
+
+@router.get("/segments/{segment_id}/children")
+def v1_get_segment_children(segment_id: str):
+    """Get child segments of a given segment."""
+    from backend.services.segment_service import get_children
+
+    db = _get_db_session()
+    try:
+        children = get_children(db, segment_id)
+        return [{
+            "id": c.id,
+            "type": c.type.value,
+            "title": c.title,
+            "status": c.status.value,
+        } for c in children]
+    finally:
+        db.close()
+
+
+@router.get("/segments/{segment_id}/tree")
+def v1_get_segment_tree(segment_id: str):
+    """Get full segment tree with reps."""
+    from backend.services.segment_service import get_segment, get_children
+    from backend.services.rep_service import get_reps_for_segment
+
+    db = _get_db_session()
+    try:
+        def _build(sid):
+            seg = get_segment(db, sid)
+            if not seg:
+                return None
+            reps = get_reps_for_segment(db, sid)
+            ch = get_children(db, sid)
+            return {
+                "id": seg.id,
+                "type": seg.type.value,
+                "title": seg.title,
+                "description": seg.description,
+                "status": seg.status.value,
+                "caption": seg.caption,
+                "reps": [{
+                    "id": r.id,
+                    "status": r.status.value,
+                    "result": r.result,
+                    "error": r.error,
+                    "assigned_to": r.assigned_to,
+                } for r in reps],
+                "children": [_build(c.id) for c in ch],
+            }
+
+        tree = _build(segment_id)
+        if not tree:
+            raise HTTPException(404, "Segment not found")
+        return tree
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Metronome, Chat send, Templates, Judging, Evolution
+# ---------------------------------------------------------------------------
+
+
+@router.post("/corps/{corps_id}/chat")
+def v1_send_chat(corps_id: str, data: dict):
+    """Send a chat message to a corps agent."""
+    _validate_id(corps_id, "corps_id")
+    from backend.api.app import get_task_manager
+
+    content = data.get("content", "")
+    to_role = data.get("to_role", "executive_director")
+    if not content:
+        raise HTTPException(400, "content is required")
+
+    tm = get_task_manager()
+    if not tm:
+        raise HTTPException(503, "Task manager not available")
+
+    db = _get_db_session()
+    try:
+        # Record user message
+        from backend.models.message import Message, MessageType
+        msg = Message(
+            corps_id=corps_id,
+            type=MessageType.DIRECTIVE,
+            from_role="user",
+            to_role=to_role,
+            subject="User chat",
+            body=content,
+        )
+        db.add(msg)
+        db.commit()
+
+        # Find and trigger the target agent
+        session_id = tm.get_session_for_role(db, corps_id, to_role)
+        if session_id:
+            tm.start_agent(
+                session_id=session_id,
+                task_description=f"Respond to user message: {content[:200]}",
+            )
+
+        return {
+            "id": msg.id,
+            "status": "sent",
+            "to_role": to_role,
+        }
+    finally:
+        db.close()
+
+
+@router.post("/corps/{corps_id}/metronome/tick")
+def v1_metronome_tick(corps_id: str):
+    """Manual metronome tick for a corps."""
+    _validate_id(corps_id, "corps_id")
+    from backend.tools.metronome import tick
+
+    db = _get_db_session()
+    try:
+        result = tick(db, corps_id)
+        return {
+            "checked": result.checked,
+            "reclaimed": result.reclaimed,
+            "reclaimed_rep_ids": result.reclaimed_rep_ids,
+        }
+    finally:
+        db.close()
+
+
+@router.get("/evolution/selection-events")
+def v1_selection_events(performer_id: Optional[str] = None, limit: int = 50):
+    """Get selection/drafting events."""
+    from backend.models.performer import Performer
+
+    db = _get_db_session()
+    try:
+        # Selection events are stored in performer audit trail
+        # Return recent performer status changes as selection events
+        query = db.query(Performer)
+        if performer_id:
+            query = query.filter(Performer.id == performer_id)
+        performers = query.order_by(Performer.updated_at.desc()).limit(limit).all()
+        return [{
+            "performer_id": p.id,
+            "name": p.name,
+            "role_type": p.role_type,
+            "status": p.status.value,
+            "trust_score": round(p.trust_score, 1),
+            "updated_at": p.updated_at.isoformat() if p.updated_at else None,
+        } for p in performers]
+    finally:
+        db.close()
+
+
+@router.get("/evolution/mutations")
+def v1_mutations(limit: int = 50):
+    """Get recent mutation/ledger entries across all performers."""
+    from backend.models.capability_ledger import CapabilityLedgerEntry
+
+    db = _get_db_session()
+    try:
+        entries = (
+            db.query(CapabilityLedgerEntry)
+            .order_by(CapabilityLedgerEntry.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+        return [{
+            "id": e.id,
+            "performer_id": e.performer_id,
+            "entry_type": e.entry_type.value,
+            "role_type": e.role_type,
+            "score": e.score,
+            "trust_before": e.trust_before,
+            "trust_after": e.trust_after,
+            "details": e.details,
+            "created_at": e.created_at.isoformat() if e.created_at else None,
+        } for e in entries]
+    finally:
+        db.close()

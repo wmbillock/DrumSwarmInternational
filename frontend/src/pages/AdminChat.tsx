@@ -66,7 +66,7 @@ export function AdminChat() {
 
   const handleSend = async () => {
     if (!chatInput.trim() || !corpsId) return;
-    await api.sendChat(corpsId, chatInput.trim(), chatTarget);
+    await v1.sendCorpsChat(corpsId, chatInput.trim(), chatTarget);
     setChatInput("");
   };
 

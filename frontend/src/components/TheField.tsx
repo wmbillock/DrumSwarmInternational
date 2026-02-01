@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import * as api from "../services/api";
+import * as v1 from "../services/v1";
 import type { Segment } from "../types";
 
 interface Props {
@@ -20,10 +20,10 @@ export function TheField({ rootSegmentId }: Props) {
   const [root, setRoot] = useState<Segment | null>(null);
 
   const loadTree = useCallback(async (coordId: string) => {
-    const coord = (await api.getSegment(coordId)) as Segment;
+    const coord = (await v1.getSegment(coordId)) as Segment;
     setRoot(coord);
     const loadChildren = async (parentId: string) => {
-      const children = (await api.getSegmentChildren(parentId)) as Segment[];
+      const children = (await v1.getSegmentChildren(parentId)) as Segment[];
       setTree((prev) => new Map(prev).set(parentId, children));
       await Promise.all(children.map((c) => loadChildren(c.id)));
     };

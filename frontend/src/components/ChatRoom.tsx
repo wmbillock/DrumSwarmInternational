@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useShow } from "../contexts/ShowContext";
 import { useWebSocket } from "../hooks/useWebSocket";
-import { sendChat } from "../services/api"; // No v1 equivalent yet
 import * as v1 from "../services/v1";
 import type { ChatMessage, WebSocketEvent } from "../types";
 
@@ -148,7 +147,7 @@ export function ChatRoom() {
     }
 
     try {
-      await sendChat(corpsId, content, role);
+      await v1.sendCorpsChat(corpsId, content, role);
     } catch (e) {
       console.error("Failed to send chat:", e);
     }

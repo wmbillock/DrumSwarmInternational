@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import * as api from "../services/api";
+import * as v1 from "../services/v1";
 
 function formatRole(role: string): string {
   return role.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
@@ -28,15 +28,15 @@ export function Performers() {
   const [stats, setStats] = useState<any>(null);
 
   useEffect(() => {
-    api.getPerformers().then(setPerformers).catch(() => setPerformers([]));
+    v1.listPerformers().then(setPerformers).catch(() => setPerformers([]));
   }, []);
 
   const handleSelect = async (id: string) => {
     try {
       const [detail, led, st] = await Promise.all([
-        api.getPerformer(id),
-        api.getPerformerLedger(id).catch(() => []),
-        api.getPerformerStats(id).catch(() => null),
+        v1.getPerformer(id),
+        v1.getPerformerLedger(id).catch(() => []),
+        v1.getPerformerStats(id).catch(() => null),
       ]);
       setSelected(detail);
       setLedger(led);
@@ -45,8 +45,8 @@ export function Performers() {
   };
 
   const handleRetire = async (id: string) => {
-    await api.retirePerformer(id);
-    api.getPerformers().then(setPerformers);
+    await v1.retirePerformer(id);
+    v1.listPerformers().then(setPerformers);
     setSelected(null);
   };
 

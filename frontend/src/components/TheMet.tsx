@@ -1,5 +1,5 @@
 import { useState } from "react";
-import * as api from "../services/api";
+import * as v1 from "../services/v1";
 import type { MetronomeResult } from "../types";
 
 interface Props {
@@ -12,7 +12,7 @@ export function TheMet({ corpsId }: Props) {
 
   const handleTick = async () => {
     if (!corpsId) return;
-    const data = (await api.metronomeTick(corpsId)) as MetronomeResult;
+    const data = (await v1.metronomeTick(corpsId)) as MetronomeResult;
     setResult(data);
     setHistory((prev) => [data, ...prev.slice(0, 49)]);
   };

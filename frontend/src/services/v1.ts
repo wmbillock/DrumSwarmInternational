@@ -738,3 +738,60 @@ export const listDBShows = (signal?: AbortSignal) =>
     { signal },
   );
 
+// --- Performers ---
+
+export const listPerformers = (status?: string, signal?: AbortSignal) => {
+  const params = status ? `?status=${encodeURIComponent(status)}` : "";
+  return request<any[]>(`/api/v1/performers${params}`, { signal });
+};
+
+export const getPerformer = (id: string, signal?: AbortSignal) =>
+  request<any>(`/api/v1/performers/${id}`, { signal });
+
+export const retirePerformer = (id: string) =>
+  request<any>(`/api/v1/performers/${id}/retire`, { method: "POST" });
+
+export const getPerformerLedger = (id: string, signal?: AbortSignal) =>
+  request<any[]>(`/api/v1/performers/${id}/ledger`, { signal });
+
+export const getPerformerStats = (id: string, signal?: AbortSignal) =>
+  request<any>(`/api/v1/performers/${id}/stats`, { signal });
+
+export const getPerformerGenome = (id: string, signal?: AbortSignal) =>
+  request<any>(`/api/v1/performers/${id}/genome`, { signal });
+
+// --- Segments ---
+
+export const getSegment = (id: string, signal?: AbortSignal) =>
+  request<any>(`/api/v1/segments/${id}`, { signal });
+
+export const getSegmentChildren = (id: string, signal?: AbortSignal) =>
+  request<any[]>(`/api/v1/segments/${id}/children`, { signal });
+
+export const getSegmentTree = (id: string, signal?: AbortSignal) =>
+  request<any>(`/api/v1/segments/${id}/tree`, { signal });
+
+// --- Corps Chat (send) ---
+
+export const sendCorpsChat = (corpsId: string, content: string, toRole = "executive_director") =>
+  request<any>(`/api/v1/corps/${corpsId}/chat`, {
+    method: "POST",
+    body: JSON.stringify({ content, to_role: toRole }),
+  });
+
+// --- Metronome ---
+
+export const metronomeTick = (corpsId: string) =>
+  request<any>(`/api/v1/corps/${corpsId}/metronome/tick`, { method: "POST" });
+
+// --- Evolution ---
+
+export const getSelectionEvents = (performerId?: string, limit = 50, signal?: AbortSignal) => {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (performerId) params.set("performer_id", performerId);
+  return request<any[]>(`/api/v1/evolution/selection-events?${params}`, { signal });
+};
+
+export const getMutations = (limit = 50, signal?: AbortSignal) =>
+  request<any[]>(`/api/v1/evolution/mutations?limit=${limit}`, { signal });
+

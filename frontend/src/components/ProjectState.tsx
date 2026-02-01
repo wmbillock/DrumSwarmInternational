@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useShow } from "../contexts/ShowContext";
 import { useWebSocket } from "../hooks/useWebSocket";
-import { getSegmentChildren, getSegment } from "../services/api"; // No v1 equivalent for segments
 import * as v1 from "../services/v1";
 import type { AgentSession, Segment } from "../types";
 
@@ -71,8 +70,8 @@ export function ProjectState({ onSelectItem }: { onSelectItem?: (type: string, i
   }, [lastMessage, corpsId, rootCoordId]);
 
   async function loadCoordTree(coordId: string): Promise<CoordNode> {
-    const coord = (await getSegment(coordId)) as Segment;
-    const children = (await getSegmentChildren(coordId)) as Segment[];
+    const coord = (await v1.getSegment(coordId)) as Segment;
+    const children = (await v1.getSegmentChildren(coordId)) as Segment[];
     const childNodes = await Promise.all(children.map((c) => loadCoordTree(c.id)));
     return { coord, children: childNodes };
   }
