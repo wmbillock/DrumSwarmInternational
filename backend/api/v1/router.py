@@ -1829,34 +1829,9 @@ def _stub_caption_scores(corps_id: str, show_slug: str) -> dict:
 # ASYNCHRONOUS MESSAGING
 # =========================================================================
 
-class CreateThreadRequest(BaseModel):
-    originator_role: str
-    subject: str
-    initial_message_body: str
-    initial_sender_name: Optional[str] = "Agent"
-    user_role: str  # Role of the user creating the thread (for permission check)
-
-
-class AddMessageRequest(BaseModel):
-    sender_type: str
-    sender_role: str
-    sender_name: str
-    body: str
-
-
-class MarkThreadCompleteRequest(BaseModel):
-    completed_by_user_id: str
-    completed_by_user_role: str  # Role of the user marking complete (for permission check)
-
-
-class BulkArchiveRequest(BaseModel):
-    thread_ids: list[str]
-    archived_by_user_id: str
-    archived_by_user_role: str  # Role of the user archiving (must be admin)
-
 
 @router.post("/messaging/threads")
-def v1_create_messaging_thread(req: CreateThreadRequest):
+def v1_create_messaging_thread(req: MessagingCreateThreadRequest):
     """Create a new messaging thread with an initial message.
 
     Permission: Only EDs and PCs can create threads.
