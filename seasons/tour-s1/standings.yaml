@@ -1,18 +1,8 @@
 season_id: tour-s1
-generated_at: '2026-02-01T07:05:49.062634+00:00'
+generated_at: '2026-02-01T07:06:14.933747+00:00'
 results:
-- corps_id: scouts
-  rank: 1
-  final_score: 78.35
-  raw_score: 78.35
-  caption_scores:
-    brass: 77
-    percussion: 78
-    guard: 75
-    visual: 74
-    general_effect: 85
 - corps_id: 28548f25-186a-4f03-9399-e363d79350c7
-  rank: 2
+  rank: 1
   final_score: 75.7
   raw_score: 75.7
   caption_scores:
@@ -22,7 +12,7 @@ results:
     visual: 69
     general_effect: 63
 - corps_id: a70caca0-ad69-4ef8-977d-5db404e92420
-  rank: 3
+  rank: 2
   final_score: 75.10000000000001
   raw_score: 75.10000000000001
   caption_scores:
@@ -31,18 +21,8 @@ results:
     guard: 87
     visual: 86
     general_effect: 64
-- corps_id: cavaliers
-  rank: 4
-  final_score: 72.85
-  raw_score: 72.85
-  caption_scores:
-    brass: 75
-    percussion: 65
-    guard: 67
-    visual: 63
-    general_effect: 88
 - corps_id: c3b0e0b0-730a-4584-bbc3-c1c46c5d23e5
-  rank: 5
+  rank: 3
   final_score: 68.9
   raw_score: 68.9
   caption_scores:
@@ -52,7 +32,7 @@ results:
     visual: 70
     general_effect: 72
 - corps_id: de7cee88-dc45-40cf-8781-8e6fd93a4abe
-  rank: 6
+  rank: 4
   final_score: 66.35
   raw_score: 66.35
   caption_scores:
@@ -62,7 +42,7 @@ results:
     visual: 69
     general_effect: 68
 - corps_id: 25f14643-fa1a-413c-b6a2-65fb5f9d17e7
-  rank: 7
+  rank: 5
   final_score: 63.85
   raw_score: 63.85
   caption_scores:
