@@ -166,9 +166,9 @@ export function CorpsDeepDive() {
 
     // Load roster, chat, and scoresheet (independent of show)
     const [r, c, sc] = await Promise.allSettled([
-      api.getRoster(corpsId),
-      api.getChatHistory(corpsId),
-      api.getScoresheet(corpsId),
+      v1.getCorpsRoster(corpsId),
+      v1.getCorpsChatHistory(corpsId),
+      v1.getCorpsScoresheet(corpsId),
     ]);
     if (r.status === "fulfilled") setRoster(r.value);
     if (c.status === "fulfilled") setChatHistory(c.value);
@@ -192,7 +192,7 @@ export function CorpsDeepDive() {
     await api.sendChat(corpsId, content, toRole);
     // Re-fetch chat history to pick up the sent message and any agent responses
     try {
-      const history = await api.getChatHistory(corpsId);
+      const history = await v1.getCorpsChatHistory(corpsId);
       setChatHistory(history);
     } catch {}
   };
@@ -366,7 +366,7 @@ export function CorpsDeepDive() {
                             if (action.command.startsWith("mode:")) {
                               const newMode = action.command.slice(5) as CorpsMode;
                               try {
-                                await api.switchCorpsMode(corpsId, newMode);
+                                await v1.switchCorpsMode(corpsId, newMode);
                                 setCorpsMode(newMode);
                                 refreshMode(corpsId);
                               } catch {}

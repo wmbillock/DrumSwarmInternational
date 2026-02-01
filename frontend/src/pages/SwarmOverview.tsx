@@ -91,8 +91,8 @@ export function SwarmOverview() {
   const refreshDashboard = useCallback(async () => {
     const [s, a, l, c] = await Promise.allSettled([
       api.getShowsOverview(),
-      api.getAgentsOverview(),
-      api.getGlobalWorkLog(50),
+      v1.getAgentsOverview(),
+      v1.getGlobalWorkLog(50),
       v1.listCorps(),
     ]);
     if (s.status === "fulfilled") setShows(s.value);

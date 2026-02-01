@@ -48,6 +48,7 @@ export interface V1CorpsDetail extends V1Corps {
   history_count: number;
   history: V1Placement[];
   mascot?: string;
+  theme_id?: string;
   mode?: string;
   rehearsal_mode?: string;
   current_show?: V1ShowInfo | null;
@@ -691,4 +692,49 @@ export interface MessageAddRequest {
   sender_name: string;
   body: string;
 }
+
+// --- System & Overview ---
+
+export const getSystemHealth = (signal?: AbortSignal) =>
+  request<any>("/api/v1/system/health", { signal });
+
+export const getAgentsOverview = (signal?: AbortSignal) =>
+  request<any[]>("/api/v1/system/agents", { signal });
+
+export const getGlobalWorkLog = (limit = 100, eventType?: string, signal?: AbortSignal) => {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (eventType) params.set("event_type", eventType);
+  return request<any[]>(`/api/v1/system/work-log?${params}`, { signal });
+};
+
+// --- Corps Operations ---
+
+export const getCorpsWorkLog = (corpsId: string, limit = 100, eventType?: string, signal?: AbortSignal) => {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (eventType) params.set("event_type", eventType);
+  return request<any[]>(`/api/v1/corps/${corpsId}/work-log?${params}`, { signal });
+};
+
+export const getCorpsRoster = (corpsId: string, signal?: AbortSignal) =>
+  request<any[]>(`/api/v1/corps/${corpsId}/roster`, { signal });
+
+export const switchCorpsMode = (corpsId: string, mode: string) =>
+  request<{ corps_id: string; mode: string }>(`/api/v1/corps/${corpsId}/mode`, {
+    method: "PUT",
+    body: JSON.stringify({ mode }),
+  });
+
+export const getCorpsChatHistory = (corpsId: string, limit = 100, signal?: AbortSignal) =>
+  request<any[]>(`/api/v1/corps/${corpsId}/chat?limit=${limit}`, { signal });
+
+export const getCorpsScoresheet = (corpsId: string, signal?: AbortSignal) =>
+  request<any>(`/api/v1/corps/${corpsId}/scoresheet`, { signal });
+
+// --- Shows (DB-backed) ---
+
+export const listDBShows = (signal?: AbortSignal) =>
+  request<{ id: string; title: string; status: string; corps_id: string; description: string }[]>(
+    "/api/v1/shows",
+    { signal },
+  );
 

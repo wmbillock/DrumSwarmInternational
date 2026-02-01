@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useShow } from "../contexts/ShowContext";
 import { useWebSocket } from "../hooks/useWebSocket";
-import { getRoster, getSegmentChildren, getSegment } from "../services/api";
+import { getSegmentChildren, getSegment } from "../services/api"; // No v1 equivalent for segments
+import * as v1 from "../services/v1";
 import type { AgentSession, Segment } from "../types";
 
 const STATUS_ICONS: Record<string, string> = {
@@ -50,7 +51,7 @@ export function ProjectState({ onSelectItem }: { onSelectItem?: (type: string, i
   // Load roster
   useEffect(() => {
     if (!corpsId) { setRoster([]); return; }
-    getRoster(corpsId).then((data) => setRoster(data as AgentSession[])).catch(() => {});
+    v1.getCorpsRoster(corpsId).then((data) => setRoster(data as AgentSession[])).catch(() => {});
   }, [corpsId]);
 
   // Load segment tree
@@ -64,7 +65,7 @@ export function ProjectState({ onSelectItem }: { onSelectItem?: (type: string, i
     if (!lastMessage) return;
     const event = lastMessage as Record<string, unknown>;
     if (event.type === "segment_created" || event.type === "agent_status" || event.type === "rep_update") {
-      if (corpsId) getRoster(corpsId).then((d) => setRoster(d as AgentSession[])).catch(() => {});
+      if (corpsId) v1.getCorpsRoster(corpsId).then((d) => setRoster(d as AgentSession[])).catch(() => {});
       if (rootCoordId) loadCoordTree(rootCoordId).then(setCoordTree).catch(() => {});
     }
   }, [lastMessage, corpsId, rootCoordId]);

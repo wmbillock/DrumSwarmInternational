@@ -364,6 +364,7 @@ def v1_get_corps(corps_id: str):
                 "history_count": 0,
                 "history": [],
                 "mascot": corps.mascot,
+                "theme_id": corps.theme_id,
                 "mode": corps.mode.value if corps.mode else None,
                 "rehearsal_mode": corps.rehearsal_mode.value if corps.rehearsal_mode else None,
                 "current_show": show_info,
@@ -3127,6 +3128,276 @@ def api_metrics_timeseries(
             "metric_types": requested_types,
             "generated_at": now.isoformat(),
             "data": timeseries_data,
+        }
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# System Health & Overview
+# ---------------------------------------------------------------------------
+
+
+@router.get("/system/health")
+def v1_system_health():
+    """Get swarm-wide health metrics."""
+    from backend.services.system_health import get_swarm_health
+    import dataclasses
+    db = _get_db_session()
+    try:
+        health = get_swarm_health(db)
+        return dataclasses.asdict(health)
+    finally:
+        db.close()
+
+
+@router.get("/system/agents")
+def v1_agents_overview():
+    """Get all active agent sessions across all corps."""
+    from sqlalchemy.orm import joinedload
+    from backend.models.agent_session import AgentSession, SessionStatus
+    from backend.models.agent_definition import AgentDefinition
+    from backend.models.corps import Corps
+
+    db = _get_db_session()
+    try:
+        sessions = (
+            db.query(AgentSession)
+            .options(joinedload(AgentSession.definition))
+            .filter(AgentSession.status == SessionStatus.ACTIVE)
+            .all()
+        )
+
+        corps_ids = {s.corps_id for s in sessions if s.corps_id}
+        corps_map = {}
+        if corps_ids:
+            corps_records = db.query(Corps).filter(Corps.id.in_(corps_ids)).all()
+            corps_map = {c.id: c for c in corps_records}
+
+        return [{
+            "id": s.id,
+            "definition_id": s.definition_id,
+            "role": s.definition.role if s.definition else "unknown",
+            "nickname": s.definition.nickname if s.definition else None,
+            "classification": s.definition.classification.value if s.definition and s.definition.classification else None,
+            "model_tier": s.definition.model_tier.value if s.definition else "unknown",
+            "status": s.status.value,
+            "corps_id": s.corps_id,
+            "corps_name": corps_map[s.corps_id].name if s.corps_id and s.corps_id in corps_map else None,
+            "started_at": s.started_at.isoformat() if s.started_at else None,
+        } for s in sessions]
+    finally:
+        db.close()
+
+
+@router.get("/system/work-log")
+def v1_global_work_log(limit: int = 100, event_type: Optional[str] = None):
+    """Get work log across all corps."""
+    from backend.models.work_log import WorkLog
+    from backend.models.agent_session import AgentSession
+    from backend.models.agent_definition import AgentDefinition
+
+    db = _get_db_session()
+    try:
+        query = db.query(WorkLog)
+        if event_type:
+            query = query.filter(WorkLog.event_type == event_type)
+        logs = query.order_by(WorkLog.timestamp.desc()).limit(limit).all()
+
+        # Build nickname lookup
+        session_ids = {log.session_id for log in logs if log.session_id}
+        nicknames = {}
+        if session_ids:
+            sessions = db.query(AgentSession).filter(AgentSession.id.in_(session_ids)).all()
+            defn_ids = {s.definition_id for s in sessions if s.definition_id}
+            defns = {d.id: d for d in db.query(AgentDefinition).filter(AgentDefinition.id.in_(defn_ids)).all()} if defn_ids else {}
+            for s in sessions:
+                defn = defns.get(s.definition_id)
+                if defn and defn.nickname:
+                    nicknames[s.id] = defn.nickname
+
+        return [{
+            "id": log.id,
+            "session_id": log.session_id,
+            "corps_id": log.corps_id,
+            "role": log.role,
+            "nickname": nicknames.get(log.session_id),
+            "event_type": log.event_type,
+            "phase": log.phase,
+            "details": log.details,
+            "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+        } for log in logs]
+    finally:
+        db.close()
+
+
+@router.get("/corps/{corps_id}/work-log")
+def v1_corps_work_log(corps_id: str, limit: int = 100, event_type: Optional[str] = None):
+    """Get structured work log for a corps."""
+    _validate_id(corps_id, "corps_id")
+    from backend.models.work_log import WorkLog
+    from backend.models.agent_session import AgentSession
+    from backend.models.agent_definition import AgentDefinition
+
+    db = _get_db_session()
+    try:
+        query = db.query(WorkLog).filter(WorkLog.corps_id == corps_id)
+        if event_type:
+            query = query.filter(WorkLog.event_type == event_type)
+        logs = query.order_by(WorkLog.timestamp.desc()).limit(limit).all()
+
+        session_ids = {log.session_id for log in logs if log.session_id}
+        nicknames = {}
+        if session_ids:
+            sessions = db.query(AgentSession).filter(AgentSession.id.in_(session_ids)).all()
+            defn_ids = {s.definition_id for s in sessions if s.definition_id}
+            defns = {d.id: d for d in db.query(AgentDefinition).filter(AgentDefinition.id.in_(defn_ids)).all()} if defn_ids else {}
+            for s in sessions:
+                defn = defns.get(s.definition_id)
+                if defn and defn.nickname:
+                    nicknames[s.id] = defn.nickname
+
+        return [{
+            "id": log.id,
+            "session_id": log.session_id,
+            "corps_id": log.corps_id,
+            "role": log.role,
+            "nickname": nicknames.get(log.session_id),
+            "event_type": log.event_type,
+            "phase": log.phase,
+            "details": log.details,
+            "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+        } for log in logs]
+    finally:
+        db.close()
+
+
+@router.get("/corps/{corps_id}/roster")
+def v1_corps_roster(corps_id: str):
+    """Get agent roster for a corps."""
+    _validate_id(corps_id, "corps_id")
+    from backend.models.agent_session import AgentSession
+    from backend.models.agent_definition import AgentDefinition
+
+    db = _get_db_session()
+    try:
+        sessions = (
+            db.query(AgentSession)
+            .filter(AgentSession.corps_id == corps_id)
+            .all()
+        )
+        results = []
+        for s in sessions:
+            defn = db.get(AgentDefinition, s.definition_id) if s.definition_id else None
+            results.append({
+                "id": s.id,
+                "definition_id": s.definition_id,
+                "role": defn.role if defn else "unknown",
+                "nickname": defn.nickname if defn else None,
+                "model_tier": defn.model_tier.value if defn else "unknown",
+                "status": s.status.value,
+                "started_at": s.started_at.isoformat() if s.started_at else None,
+                "ended_at": s.ended_at.isoformat() if s.ended_at else None,
+            })
+        return results
+    finally:
+        db.close()
+
+
+@router.put("/corps/{corps_id}/mode")
+def v1_switch_corps_mode(corps_id: str, data: dict):
+    """Switch corps operational mode."""
+    _validate_id(corps_id, "corps_id")
+    from backend.models.corps import Corps, CorpsMode
+
+    mode_str = data.get("mode", "")
+    try:
+        new_mode = CorpsMode(mode_str)
+    except ValueError:
+        valid = [m.value for m in CorpsMode]
+        raise HTTPException(400, f"Invalid mode '{mode_str}'. Valid: {valid}")
+
+    db = _get_db_session()
+    try:
+        corps = db.get(Corps, corps_id)
+        if not corps:
+            raise HTTPException(404, f"Corps '{corps_id}' not found")
+        corps.mode = new_mode
+        db.commit()
+        return {"corps_id": corps_id, "mode": new_mode.value}
+    finally:
+        db.close()
+
+
+@router.get("/shows")
+def v1_list_shows():
+    """List all shows from the database."""
+    from backend.models.show import Show
+
+    db = _get_db_session()
+    try:
+        shows = db.query(Show).all()
+        return [{
+            "id": s.id,
+            "title": s.title,
+            "status": s.status.value,
+            "corps_id": s.corps_id,
+            "description": s.description,
+        } for s in shows]
+    finally:
+        db.close()
+
+
+@router.get("/corps/{corps_id}/chat")
+def v1_get_chat_history(corps_id: str, limit: int = 100):
+    """Get chat message history for a corps."""
+    _validate_id(corps_id, "corps_id")
+    from backend.models.message import Message
+
+    db = _get_db_session()
+    try:
+        messages = (
+            db.query(Message)
+            .filter(Message.corps_id == corps_id)
+            .order_by(Message.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+        return [{
+            "id": m.id,
+            "type": m.type.value if m.type else "directive",
+            "from_role": m.from_role,
+            "to_role": m.to_role,
+            "subject": m.subject,
+            "body": m.body,
+            "created_at": m.created_at.isoformat() if m.created_at else None,
+        } for m in reversed(messages)]
+    finally:
+        db.close()
+
+
+@router.get("/corps/{corps_id}/scoresheet")
+def v1_get_scoresheet(corps_id: str):
+    """Get latest scoresheet for a corps."""
+    _validate_id(corps_id, "corps_id")
+    from backend.models.scoresheet import Scoresheet
+
+    db = _get_db_session()
+    try:
+        scoresheet = (
+            db.query(Scoresheet)
+            .filter(Scoresheet.corps_id == corps_id)
+            .order_by(Scoresheet.created_at.desc())
+            .first()
+        )
+        if not scoresheet:
+            return {"corps_id": corps_id, "scores": {}, "total": 0}
+        return {
+            "corps_id": corps_id,
+            "id": scoresheet.id,
+            "scores": scoresheet.scores if isinstance(scoresheet.scores, dict) else {},
+            "total": scoresheet.total_score or 0,
+            "created_at": scoresheet.created_at.isoformat() if scoresheet.created_at else None,
         }
     finally:
         db.close()

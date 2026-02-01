@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import * as api from "../services/api";
+import * as v1 from "../services/v1";
 import type { Show } from "../types";
 
 export function TheSeason() {
@@ -8,7 +9,7 @@ export function TheSeason() {
   const [newDesc, setNewDesc] = useState("");
 
   const loadShows = useCallback(async () => {
-    const data = await api.listShows();
+    const data = await v1.listDBShows();
     setShows(data as Show[]);
   }, []);
 

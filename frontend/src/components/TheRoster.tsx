@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import * as api from "../services/api";
+import * as v1 from "../services/v1";
 import type { AgentSession } from "../types";
 
 interface Props {
@@ -29,7 +29,7 @@ export function TheRoster({ corpsId }: Props) {
 
   useEffect(() => {
     if (!corpsId) return;
-    api.getRoster(corpsId).then((data) => setRoster(data as AgentSession[]));
+    v1.getCorpsRoster(corpsId).then((data) => setRoster(data as AgentSession[]));
   }, [corpsId]);
 
   if (!corpsId) {

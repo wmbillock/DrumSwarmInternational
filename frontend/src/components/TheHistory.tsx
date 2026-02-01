@@ -1,15 +1,15 @@
 import { useState, useEffect } from "react";
-import type { CorpsPlacement } from "../types";
-import * as api from "../services/api";
+import * as v1 from "../services/v1";
+import type { V1HistoryEntry } from "../services/v1";
 
 export function TheHistory({ corpsId }: { corpsId: string }) {
-  const [history, setHistory] = useState<CorpsPlacement[]>([]);
+  const [history, setHistory] = useState<V1HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.getCorpsHistory(corpsId)
-      .then(setHistory)
+    v1.getCorpsHistory(corpsId)
+      .then(data => setHistory(data.entries || []))
       .catch(e => setError(e instanceof Error ? e.message : "Failed to load history"))
       .finally(() => setLoading(false));
   }, [corpsId]);
@@ -48,7 +48,7 @@ export function TheHistory({ corpsId }: { corpsId: string }) {
                 </span>
               </td>
               <td>{h.final_score.toFixed(2)}</td>
-              <td className="text-muted">{h.notes?.replace("show:", "") || "—"}</td>
+              <td className="text-muted">{h.show_slug || "—"}</td>
             </tr>
           ))}
         </tbody>

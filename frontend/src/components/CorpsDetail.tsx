@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useShow } from "../contexts/ShowContext";
 import { useWebSocket } from "../hooks/useWebSocket";
-import { getRoster, getSessionActivity } from "../services/api";
+import { getSessionActivity } from "../services/api";
+import { getCorpsRoster } from "../services/v1";
 import type { AgentSession, SessionActivity } from "../types";
 
 const ROLE_COLORS: Record<string, string> = {
@@ -59,12 +60,12 @@ export function CorpsDetail() {
 
   useEffect(() => {
     if (!corpsId) return;
-    getRoster(corpsId).then((d) => setRoster(d as AgentSession[])).catch(() => {});
+    getCorpsRoster(corpsId).then((d) => setRoster(d as AgentSession[])).catch(() => {});
   }, [corpsId]);
 
   useEffect(() => {
     if (!lastMessage) return;
-    if (corpsId) getRoster(corpsId).then((d) => setRoster(d as AgentSession[])).catch(() => {});
+    if (corpsId) getCorpsRoster(corpsId).then((d) => setRoster(d as AgentSession[])).catch(() => {});
   }, [lastMessage, corpsId]);
 
   useEffect(() => {

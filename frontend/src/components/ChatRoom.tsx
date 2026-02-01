@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useShow } from "../contexts/ShowContext";
 import { useWebSocket } from "../hooks/useWebSocket";
-import { sendChat, getChatHistory } from "../services/api";
+import { sendChat } from "../services/api"; // No v1 equivalent yet
+import * as v1 from "../services/v1";
 import type { ChatMessage, WebSocketEvent } from "../types";
 
 const ROLE_COLORS: Record<string, string> = {
@@ -47,7 +48,7 @@ export function ChatRoom() {
   // Load history on mount
   useEffect(() => {
     if (!corpsId) return;
-    getChatHistory(corpsId).then((data) => {
+    v1.getCorpsChatHistory(corpsId).then((data) => {
       setMessages(data as ChatMessage[]);
     }).catch(() => {});
   }, [corpsId]);

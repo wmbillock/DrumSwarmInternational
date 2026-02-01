@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import { useCorpsTheme } from "../contexts/CorpsThemeContext";
-import * as api from "../services/api";
+import * as v1 from "../services/v1";
 
 /**
  * Automatically manages corps theme based on current route context.
@@ -32,7 +32,7 @@ export function useCorpsContext() {
       }
 
       // Load corps info and apply its theme
-      api.getCorps(currentCorpsId)
+      v1.getCorps(currentCorpsId)
         .then((corps) => {
           if (corps.theme_id) {
             setCorpsTheme(corps.theme_id);

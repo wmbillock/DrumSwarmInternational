@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import type { SystemHealth as SystemHealthData } from "../types";
-import * as api from "../services/api";
+import * as v1 from "../services/v1";
 
 export function SystemHealth() {
   const [health, setHealth] = useState<SystemHealthData | null>(null);
 
   useEffect(() => {
-    api.getSystemHealth().then(setHealth).catch(() => {});
+    v1.getSystemHealth().then(setHealth).catch(() => {});
     const iv = setInterval(() => {
-      api.getSystemHealth().then(setHealth).catch(() => {});
+      v1.getSystemHealth().then(setHealth).catch(() => {});
     }, 15000);
     return () => clearInterval(iv);
   }, []);

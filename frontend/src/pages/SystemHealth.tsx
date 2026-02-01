@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { Panel } from "../ui";
-import { getSystemHealth } from "../services/api";
+import * as v1 from "../services/v1";
 import type { SystemHealth as SystemHealthData } from "../types";
 
 function statusColor(status: string): string {
@@ -58,7 +58,7 @@ export function SystemHealth() {
 
   const fetchHealth = useCallback(async () => {
     try {
-      const health = await getSystemHealth();
+      const health = await v1.getSystemHealth();
       setData(health);
       setError(null);
       setLastRefresh(new Date());

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { AgentSession, ChatMessage } from "../types";
 import * as api from "../services/api";
+import * as v1 from "../services/v1";
 import { useWebSocket } from "../hooks/useWebSocket";
 
 function formatRole(role: string): string {
@@ -36,7 +37,7 @@ export function AdminChat() {
     api.getAdminCorps().then(data => {
       setCorpsId(data.id);
       setRoster(data.roster);
-      api.getChatHistory(data.id).then(setChatHistory).catch(() => setChatHistory([]));
+      v1.getCorpsChatHistory(data.id).then(setChatHistory).catch(() => setChatHistory([]));
     }).catch(() => {});
   }, []);
 

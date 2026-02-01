@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Show, WorkLogEntry, SystemHealth } from "../types";
-import * as api from "../services/api";
 import * as v1 from "../services/v1";
 
 function timeAgo(ts?: string): string {
@@ -38,19 +37,14 @@ export function CommandCenter() {
 
   const refresh = useCallback(async () => {
     try {
-      const [h, s, l, c] = await Promise.allSettled([
-        api.getSystemHealth(),
-        api.getShowsOverview(),
-        api.getGlobalWorkLog(30),
-        v1.listCorps(),
+      const [h, s, l] = await Promise.allSettled([
+        v1.getSystemHealth(),
+        v1.listDBShows(),
+        v1.getGlobalWorkLog(30),
       ]);
       if (h.status === "fulfilled") setHealth(h.value);
       if (s.status === "fulfilled") setShows(s.value);
       if (l.status === "fulfilled") setWorkLog(l.value);
-      if (c.status === "fulfilled") {
-        // Build display_name → corps_id (filesystem slug) mapping
-        // Note: slugMap is no longer needed as we use corps_id directly
-      }
 
       const anyFailed = [h, s, l].some(r => r.status === "rejected");
       if (anyFailed) {
