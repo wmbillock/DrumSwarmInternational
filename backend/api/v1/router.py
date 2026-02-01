@@ -2832,21 +2832,24 @@ def api_metrics_bottlenecks(
         now = datetime.now(timezone.utc)
         cutoff = now - timedelta(days=period_days)
 
-        # Latency bottlenecks from metrics events
-        collector = MetricsCollector(db)
-        latency_types = [MetricType.QUERY_LATENCY, MetricType.TASK_LATENCY]
+        # Latency bottlenecks from metrics events (table may not exist yet)
         latency_bottlenecks = []
-        for lt in latency_types:
-            percs = collector.get_latency_percentiles(lt, start_time=cutoff, corps_id=corps_id)
-            if percs["count"] > 0:
-                latency_bottlenecks.append({
-                    "metric": lt.value,
-                    "count": percs["count"],
-                    "p50_ms": round(percs["p50"] or 0, 2),
-                    "p95_ms": round(percs["p95"] or 0, 2),
-                    "p99_ms": round(percs["p99"] or 0, 2),
-                    "max_ms": round(percs["max"] or 0, 2),
-                })
+        try:
+            collector = MetricsCollector(db)
+            latency_types = [MetricType.QUERY_LATENCY, MetricType.TASK_LATENCY]
+            for lt in latency_types:
+                percs = collector.get_latency_percentiles(lt, start_time=cutoff, corps_id=corps_id)
+                if percs["count"] > 0:
+                    latency_bottlenecks.append({
+                        "metric": lt.value,
+                        "count": percs["count"],
+                        "p50_ms": round(percs["p50"] or 0, 2),
+                        "p95_ms": round(percs["p95"] or 0, 2),
+                        "p99_ms": round(percs["p99"] or 0, 2),
+                        "max_ms": round(percs["max"] or 0, 2),
+                    })
+        except Exception:
+            pass  # metrics_events table may not exist yet
 
         # Session duration bottlenecks by role
         query = (
