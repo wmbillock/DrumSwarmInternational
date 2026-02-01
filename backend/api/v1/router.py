@@ -4,6 +4,7 @@ All business logic lives in backend/services/. These routes only translate
 HTTP ↔ service calls and enforce slug/id validation.
 """
 
+import logging
 import hashlib
 import json
 import os
@@ -16,6 +17,8 @@ from typing import Optional
 import yaml
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1")
 
@@ -56,7 +59,7 @@ def _get_db_session():
 
 
 @router.get("/corps")
-def v1_list_corps():
+def v1_list_corps(include_system: bool = False):
     """List all corps from filesystem workspaces + DB, deduplicated by display_name."""
     root = _get_root()
     corps_base = root / "corps"
@@ -78,6 +81,7 @@ def v1_list_corps():
                     "display_name": name,
                     "philosophy": data.get("philosophy", ""),
                     "state": data.get("state", "unknown"),
+                    "corps_type": data.get("corps_type", "competing"),
                 })
             except Exception:
                 continue
@@ -87,9 +91,12 @@ def v1_list_corps():
         from backend.models.corps import Corps, CorpsStatus
         db = _get_db_session()
         try:
-            db_corps = db.query(Corps).filter(
-                Corps.status != CorpsStatus.DISBANDED
-            ).all()
+            query = db.query(Corps).filter(Corps.status != CorpsStatus.DISBANDED)
+            if not include_system:
+                query = query.filter(
+                    (Corps.corps_type != "system") | (Corps.corps_type.is_(None))
+                )
+            db_corps = query.all()
             for c in db_corps:
                 if c.name not in seen_names:
                     seen_names.add(c.name)
@@ -98,6 +105,7 @@ def v1_list_corps():
                         "display_name": c.name,
                         "philosophy": "",
                         "state": c.status.value if c.status else "unknown",
+                        "corps_type": c.corps_type or "competing",
                     })
         finally:
             db.close()
@@ -1485,33 +1493,51 @@ def v1_list_seasons():
             continue
         data = yaml.safe_load(season_yaml.read_text())
         season_id = data.get("season_id", season_dir.name)
+        meta = data.get("metadata", {})
         results.append({
             "season_id": season_id,
+            "name": meta.get("name", season_id),
             "dir_name": season_dir.name,
-            "metadata": data.get("metadata", {}),
+            "metadata": meta,
         })
     return results
 
 
 class CreateSeasonRequest(BaseModel):
-    season_id: str
+    season_id: Optional[str] = None
+    name: Optional[str] = None
     metadata: Optional[dict] = None
+
+
+def _slugify(text: str) -> str:
+    """Convert a descriptive name to a filesystem-safe slug."""
+    slug = text.lower().strip()
+    slug = re.sub(r"[^a-z0-9]+", "-", slug)
+    slug = slug.strip("-")
+    return slug or "season"
 
 
 @router.post("/seasons")
 def v1_create_season(req: CreateSeasonRequest):
-    """Create a new season workspace."""
-    _validate_id(req.season_id, "season_id")
+    """Create a new season workspace. Provide name (auto-generates ID) or season_id directly."""
+    if not req.season_id and not req.name:
+        raise HTTPException(400, "Provide either 'name' or 'season_id'")
+    season_id = req.season_id or _slugify(req.name)
+    _validate_id(season_id, "season_id")
+    metadata = dict(req.metadata or {})
+    if req.name:
+        metadata["name"] = req.name
     root = _get_root()
     from backend.services.season_persistence import create_season
     try:
-        season_dir = create_season(root, req.season_id, req.metadata)
+        season_dir = create_season(root, season_id, metadata)
     except ValueError as e:
         raise HTTPException(409, str(e))
     return {
-        "season_id": req.season_id,
+        "season_id": season_id,
+        "name": req.name or season_id,
         "dir_name": season_dir.name,
-        "metadata": req.metadata or {},
+        "metadata": metadata,
     }
 
 
@@ -1525,6 +1551,8 @@ def v1_get_season(season_id: str):
         raise HTTPException(404, f"Season '{season_id}' not found")
     from backend.services.season_persistence import load_season
     data = load_season(season_dir)
+    meta = data.get("metadata", {})
+    data["name"] = meta.get("name", season_id)
     return data
 
 
@@ -1572,8 +1600,11 @@ def v1_register_season_corps(season_id: str, req: RegisterCorpsRequest):
             from backend.models.corps import Corps
             db = _get_db_session()
             try:
-                if not db.get(Corps, req.corps_id):
+                corps_obj = db.get(Corps, req.corps_id)
+                if not corps_obj:
                     raise HTTPException(404, f"Corps '{req.corps_id}' not found")
+                if getattr(corps_obj, 'corps_type', None) == 'system':
+                    raise HTTPException(400, f"System corps cannot be registered for seasons")
                 perf_dir = season_dir / "performances" / req.corps_id
                 perf_dir.mkdir(parents=True, exist_ok=True)
             finally:
@@ -1906,10 +1937,25 @@ def v1_run_competition(competition_id: str):
             record_corps_placement(corps_dir, season_id, r.rank, r.final_score,
                                    notes=f"show:{show_slug}")
 
+    # Auto-critique bottom 75% corps
+    auto_critique_summary = {}
+    try:
+        from backend.services.auto_critique import run_auto_critique
+        critique_db = _get_db_session()
+        try:
+            auto_critique_summary = run_auto_critique(
+                critique_db, competition_id, standings_data["results"], llm_client
+            )
+        finally:
+            critique_db.close()
+    except Exception as e:
+        logger.warning("Auto-critique failed: %s", e)
+
     return {
         "competition_id": competition_id,
         "status": "completed",
         "standings": standings_data["results"],
+        "auto_critique_summary": auto_critique_summary,
     }
 
 
@@ -2195,6 +2241,7 @@ def v1_start_critique(competition_id: str, req: StartCritiqueRequest):
             "conversation": session.conversation,
             "action_items": session.action_items,
             "created_at": str(session.created_at),
+            "is_automated": getattr(session, "is_automated", False),
         }
     finally:
         db.close()
@@ -2219,6 +2266,7 @@ def v1_get_critique(session_id: str):
             "conversation": session.conversation,
             "action_items": session.action_items,
             "created_at": str(session.created_at),
+            "is_automated": getattr(session, "is_automated", False),
         }
     finally:
         db.close()
@@ -2249,6 +2297,7 @@ def v1_send_critique_message(session_id: str, req: CritiqueMessageRequest):
             "conversation": session.conversation,
             "action_items": session.action_items,
             "created_at": str(session.created_at),
+            "is_automated": getattr(session, "is_automated", False),
         }
     except ValueError as e:
         raise HTTPException(400, str(e))
@@ -2278,9 +2327,88 @@ def v1_complete_critique(session_id: str):
             "action_items": session.action_items,
             "created_at": str(session.created_at),
             "completed_at": str(session.completed_at) if session.completed_at else None,
+            "is_automated": getattr(session, "is_automated", False),
         }
     except ValueError as e:
         raise HTTPException(400, str(e))
+    finally:
+        db.close()
+
+
+class CorpsFeedbackRequest(BaseModel):
+    feedback: str
+
+
+@router.post("/corps/{corps_id}/feedback")
+def v1_send_corps_feedback(corps_id: str, req: CorpsFeedbackRequest):
+    """Deliver user feedback as directive to corps ED via auto-completing critique session."""
+    _validate_id(corps_id, "corps_id")
+    from backend.services.critique_service import start_critique, complete_critique
+    from backend.api.app import get_task_manager
+    tm = get_task_manager()
+    llm_client = tm.llm_client if tm else None
+
+    db = _get_db_session()
+    try:
+        from backend.models.corps import Corps
+        corps = db.get(Corps, corps_id)
+        if not corps:
+            raise HTTPException(404, "Corps not found")
+
+        # Create a critique session with user feedback as the opening message
+        session = start_critique(
+            db, competition_id=f"feedback-{corps_id}",
+            corps_id=corps_id, judge_type="user_feedback",
+            llm_client=None,  # No LLM for opening — we use the user's feedback directly
+        )
+        # Replace the auto-generated opening with the user's feedback
+        session.conversation = [{"role": "judge", "content": req.feedback}]
+        db.commit()
+
+        # Auto-complete to extract action items
+        completed = complete_critique(db, session.id, llm_client=llm_client)
+        return {"status": "delivered", "session_id": completed.id}
+    finally:
+        db.close()
+
+
+@router.post("/corps/{corps_id}/ed-chat")
+def v1_start_ed_chat(corps_id: str):
+    """Start a multi-turn chat with the corps Executive Director."""
+    _validate_id(corps_id, "corps_id")
+    from backend.services.critique_service import start_critique
+    from backend.api.app import get_task_manager
+    tm = get_task_manager()
+    llm_client = tm.llm_client if tm else None
+
+    db = _get_db_session()
+    try:
+        from backend.models.corps import Corps
+        corps = db.get(Corps, corps_id)
+        if not corps:
+            raise HTTPException(404, "Corps not found")
+
+        session = start_critique(
+            db, competition_id=f"ed-chat-{corps_id}",
+            corps_id=corps_id, judge_type="user",
+            llm_client=llm_client,
+        )
+        # Override staff_role to executive_director
+        session.staff_role = "executive_director"
+        db.commit()
+        db.refresh(session)
+
+        return {
+            "id": session.id,
+            "competition_id": session.competition_id,
+            "corps_id": session.corps_id,
+            "judge_type": session.judge_type,
+            "staff_role": session.staff_role,
+            "status": session.status.value,
+            "conversation": session.conversation,
+            "action_items": session.action_items,
+            "created_at": str(session.created_at),
+        }
     finally:
         db.close()
 

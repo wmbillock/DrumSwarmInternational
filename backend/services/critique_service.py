@@ -22,6 +22,8 @@ JUDGE_TO_STAFF = {
     "general_effect": "program_coordinator",
     "ensemble_technique": "executive_director",
     "timing": "timing_judge",
+    "user_feedback": "executive_director",
+    "user": "executive_director",
 }
 
 
@@ -31,6 +33,7 @@ def start_critique(
     corps_id: str,
     judge_type: str,
     llm_client: Optional[LLMClient] = None,
+    is_automated: bool = False,
 ) -> CritiqueSession:
     """Initialize a critique session. Judge provides opening critique based on tape."""
     staff_role = JUDGE_TO_STAFF.get(judge_type, "program_coordinator")
@@ -69,6 +72,7 @@ def start_critique(
         judge_type=judge_type,
         staff_role=staff_role,
         conversation=conversation,
+        is_automated=is_automated,
     )
     db.add(session)
     db.commit()

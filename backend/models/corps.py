@@ -33,6 +33,11 @@ class RehearsalMode(str, enum.Enum):
     RUN_THROUGH = "run_through"  # Red-green-refactor: implement, test, deliver
 
 
+class CorpsType(str, enum.Enum):
+    COMPETING = "competing"
+    SYSTEM = "system"
+
+
 class Corps(Base):
     """The agent swarm instantiated for a show.
 
@@ -63,6 +68,7 @@ class Corps(Base):
     mode: Mapped[Optional[CorpsMode]] = mapped_column(
         Enum(CorpsMode, values_callable=lambda x: [e.value for e in x]), nullable=True
     )
+    corps_type: Mapped[Optional[str]] = mapped_column(String(20), default="competing")
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

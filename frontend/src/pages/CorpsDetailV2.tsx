@@ -189,6 +189,8 @@ function OverviewTab({ corps, onStateChange }: { corps: v1.V1CorpsDetail; onStat
         )}
       </Panel>
 
+      <FeedbackPanel corpsId={corps.corps_id} />
+
       {corps.philosophy && (
         <Panel title="Philosophy" className="mt-16">
           <p style={{ fontSize: 13, color: "var(--text-secondary)", fontStyle: "italic" }}>
@@ -197,6 +199,58 @@ function OverviewTab({ corps, onStateChange }: { corps: v1.V1CorpsDetail; onStat
         </Panel>
       )}
     </div>
+  );
+}
+
+function FeedbackPanel({ corpsId }: { corpsId: string }) {
+  const navigate = useNavigate();
+  const [feedback, setFeedback] = useState("");
+  const [sending, setSending] = useState(false);
+  const [result, setResult] = useState("");
+
+  const handleSend = async () => {
+    if (!feedback.trim()) return;
+    setSending(true);
+    setResult("");
+    try {
+      await v1.sendCorpsFeedback(corpsId, feedback.trim());
+      setResult("Feedback delivered to ED");
+      setFeedback("");
+    } catch (e: unknown) {
+      setResult(e instanceof Error ? e.message : "Failed to send");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleChat = async () => {
+    try {
+      const session = await v1.startEDChat(corpsId);
+      navigate(`/critique/ed-chat-${corpsId}/${corpsId}`);
+    } catch (e: unknown) {
+      setResult(e instanceof Error ? e.message : "Failed to start chat");
+    }
+  };
+
+  return (
+    <Panel title="Feedback" className="mt-16">
+      <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+        <textarea
+          value={feedback}
+          onChange={e => setFeedback(e.target.value)}
+          placeholder="Send feedback to the Executive Director..."
+          rows={3}
+          style={{ flex: 1, fontFamily: "var(--font-body)", fontSize: 13, padding: 8, background: "var(--bg-secondary)", border: "1px solid var(--border)", color: "var(--text-primary)", borderRadius: 4 }}
+        />
+      </div>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <button className="primary" onClick={handleSend} disabled={sending || !feedback.trim()}>
+          {sending ? "Sending..." : "Send to ED"}
+        </button>
+        <button onClick={handleChat}>Chat with ED</button>
+      </div>
+      {result && <div style={{ marginTop: 8, fontSize: 13, color: "var(--text-secondary)" }}>{result}</div>}
+    </Panel>
   );
 }
 

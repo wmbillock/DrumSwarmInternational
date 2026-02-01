@@ -22,7 +22,7 @@ export function CorpsList() {
   const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
-    v1.listCorps()
+    v1.listCorps(undefined, true)
       .then(setCorps)
       .catch(e => setError(e instanceof Error ? e.message : "Failed to load corps"))
       .finally(() => setLoading(false));
@@ -55,9 +55,9 @@ export function CorpsList() {
         <p className="empty">No corps found. Create one to get started.</p>
       )}
 
-      {corps.length > 0 && (
+      {corps.filter(c => c.corps_type !== "system").length > 0 && (
         <div className="corps-card-grid">
-          {corps.map(c => (
+          {corps.filter(c => c.corps_type !== "system").map(c => (
             <div key={c.corps_id} className="corps-list-card clickable" onClick={() => navigate(`/corps/${c.corps_id}`)}>
               <div className="corps-list-header">
                 <span className="corps-list-name">{c.display_name}</span>
@@ -67,6 +67,24 @@ export function CorpsList() {
             </div>
           ))}
         </div>
+      )}
+
+      {corps.filter(c => c.corps_type === "system").length > 0 && (
+        <details style={{ marginTop: 24 }}>
+          <summary style={{ cursor: "pointer", fontSize: 14, color: "var(--text-secondary)" }}>
+            System Corps ({corps.filter(c => c.corps_type === "system").length})
+          </summary>
+          <div className="corps-card-grid" style={{ marginTop: 8 }}>
+            {corps.filter(c => c.corps_type === "system").map(c => (
+              <div key={c.corps_id} className="corps-list-card clickable" onClick={() => navigate(`/corps/${c.corps_id}`)}>
+                <div className="corps-list-header">
+                  <span className="corps-list-name">{c.display_name}</span>
+                  <span className={`badge state-${c.state}`}>{STATE_LABELS[c.state] || c.state}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </details>
       )}
     </div>
   );

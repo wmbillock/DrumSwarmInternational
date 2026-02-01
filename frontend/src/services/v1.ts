@@ -34,6 +34,7 @@ export interface V1Corps {
   display_name: string;
   philosophy: string;
   state: string;
+  corps_type?: "competing" | "system";
 }
 
 export interface V1ShowInfo {
@@ -177,8 +178,8 @@ export interface CreateCompReq {
 
 // --- Corps ---
 
-export const listCorps = (signal?: AbortSignal) =>
-  request<V1Corps[]>("/api/v1/corps", { signal });
+export const listCorps = (signal?: AbortSignal, includeSystem = false) =>
+  request<V1Corps[]>(`/api/v1/corps${includeSystem ? "?include_system=true" : ""}`, { signal });
 
 export interface CorpsIdentity {
   name: string;
@@ -351,6 +352,7 @@ export const listCorpsCommands = (signal?: AbortSignal) =>
 
 export interface V1Season {
   season_id: string;
+  name?: string;
   dir_name: string;
   metadata: Record<string, unknown>;
 }
@@ -358,8 +360,8 @@ export interface V1Season {
 export const listSeasons = (signal?: AbortSignal) =>
   request<V1Season[]>("/api/v1/seasons", { signal });
 
-export const createSeason = (season_id: string, metadata?: Record<string, unknown>) =>
-  request<V1Season>("/api/v1/seasons", { method: "POST", body: JSON.stringify({ season_id, metadata }) });
+export const createSeason = (name: string) =>
+  request<V1Season>("/api/v1/seasons", { method: "POST", body: JSON.stringify({ name }) });
 
 export const getSeason = (id: string, signal?: AbortSignal) =>
   request<V1Season & { registered_corps?: string[] }>(`/api/v1/seasons/${id}`, { signal });
@@ -966,6 +968,7 @@ export interface V1CritiqueSession {
   conversation: Array<{ role: string; content: string }>;
   action_items: string;
   created_at: string;
+  is_automated?: boolean;
 }
 
 export const startCritique = (competitionId: string, corpsId: string, judgeType: string) =>
@@ -990,4 +993,17 @@ export const completeCritique = (sessionId: string) =>
 
 export const getAdaptationHistory = (corpsId: string, signal?: AbortSignal) =>
   request<any[]>(`/api/v1/corps/${corpsId}/adaptation-history`, { signal });
+
+// --- Ad-hoc Corps Feedback ---
+
+export const sendCorpsFeedback = (corpsId: string, feedback: string) =>
+  request<{ status: string; session_id: string }>(`/api/v1/corps/${corpsId}/feedback`, {
+    method: "POST",
+    body: JSON.stringify({ feedback }),
+  });
+
+export const startEDChat = (corpsId: string) =>
+  request<V1CritiqueSession>(`/api/v1/corps/${corpsId}/ed-chat`, {
+    method: "POST",
+  });
 

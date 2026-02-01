@@ -434,6 +434,9 @@ def get_or_create_admin_corps(db: Session) -> Corps:
         return admin
 
     admin = create_corps(db, name=ADMIN_CORPS_NAME, show_id=None)
+    admin.corps_type = "system"
+    db.commit()
+    db.refresh(admin)
     sessions: dict[str, AgentSession] = {}
     used_nicknames: set[str] = set()
 

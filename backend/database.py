@@ -51,6 +51,8 @@ def _apply_schema_patches(engine) -> None:
         ("scores", "rep_score", "FLOAT"),
         ("scores", "perf_score", "FLOAT"),
         # judges_tapes and critique_sessions are created by create_all
+        ("corps", "corps_type", "VARCHAR(20) DEFAULT 'competing'"),
+        ("critique_sessions", "is_automated", "BOOLEAN DEFAULT 0"),
     ]
 
     with engine.connect() as conn:
@@ -67,3 +69,10 @@ def _apply_schema_patches(engine) -> None:
                     logger.info("Added column %s.%s", table_name, column_name)
                 except Exception as e:
                     logger.warning("Failed to add column %s.%s: %s", table_name, column_name, e)
+
+        # Mark existing system corps (no show_id) as system type
+        try:
+            conn.execute(text("UPDATE corps SET corps_type = 'system' WHERE show_id IS NULL AND (corps_type IS NULL OR corps_type = 'competing')"))
+            conn.commit()
+        except Exception:
+            pass

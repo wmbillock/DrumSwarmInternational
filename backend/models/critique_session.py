@@ -35,6 +35,7 @@ class CritiqueSession(Base):
     )
     conversation: Mapped[list] = mapped_column(JSON, default=list)
     action_items: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_automated: Mapped[Optional[bool]] = mapped_column(default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

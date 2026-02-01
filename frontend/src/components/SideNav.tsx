@@ -10,6 +10,8 @@ const LIFECYCLE_ITEMS = [
 
 const UTILITY_ITEMS = [
   { to: "/corps", label: "Corps Garage", icon: "CRP" },
+  { to: "/scoreboards", label: "Scoreboards", icon: "SCR" },
+  { to: "/messages/inbox", label: "Messages", icon: "MSG" },
   { to: "/", label: "Command Center", icon: "CMD", end: true },
   { to: "/settings", label: "Settings", icon: "CFG" },
 ] as const;

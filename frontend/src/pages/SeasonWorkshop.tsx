@@ -15,7 +15,7 @@ export function SeasonWorkshop() {
   const [activeTab, setActiveTab] = useState("setup");
   const [corps, setCorps] = useState<v1.V1Corps[]>([]);
   const [showCreate, setShowCreate] = useState(false);
-  const [newSeasonId, setNewSeasonId] = useState("");
+  const [newSeasonName, setNewSeasonId] = useState("");
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
@@ -43,10 +43,10 @@ export function SeasonWorkshop() {
   }, [seasonId]);
 
   const handleCreateSeason = async () => {
-    if (!newSeasonId.trim()) return;
+    if (!newSeasonName.trim()) return;
     setCreating(true);
     try {
-      const s = await v1.createSeason(newSeasonId.trim());
+      const s = await v1.createSeason(newSeasonName.trim());
       setSeasons(prev => [...prev, s]);
       setNewSeasonId("");
       setShowCreate(false);
@@ -87,7 +87,7 @@ export function SeasonWorkshop() {
     ];
 
     const registeredCorps = detail.registered_corps || [];
-    const unregisteredCorps = corps.filter(c => !registeredCorps.includes(c.corps_id));
+    const unregisteredCorps = corps.filter(c => c.corps_type !== "system" && !registeredCorps.includes(c.corps_id));
 
     return (
       <div className="season-workshop">
@@ -95,7 +95,7 @@ export function SeasonWorkshop() {
         <div className="page-header">
           <button className="back-btn" onClick={() => navigate("/seasons")}>Back</button>
           <h1 className="page-title" style={{ marginBottom: 0 }}>
-            {detail.season_id}
+            {detail.name || detail.season_id}
           </h1>
         </div>
 
@@ -111,9 +111,9 @@ export function SeasonWorkshop() {
                 <span>{registeredCorps.length} corps registered</span>
               </div>
 
-              {detail.metadata && Object.keys(detail.metadata).length > 0 && (
+              {detail.metadata && Object.keys(detail.metadata).filter(k => k !== "name").length > 0 && (
                 <pre style={{ fontSize: "0.85rem", whiteSpace: "pre-wrap", marginBottom: 16 }}>
-                  {JSON.stringify(detail.metadata, null, 2)}
+                  {JSON.stringify(Object.fromEntries(Object.entries(detail.metadata).filter(([k]) => k !== "name")), null, 2)}
                 </pre>
               )}
             </Panel>
@@ -238,12 +238,12 @@ export function SeasonWorkshop() {
             <input
               className="library-search"
               style={{ width: 240 }}
-              placeholder="Season ID (e.g. tour-s1)..."
-              value={newSeasonId}
+              placeholder="Season name (e.g. Summer Tour 2026)..."
+              value={newSeasonName}
               onChange={e => setNewSeasonId(e.target.value)}
               autoFocus
             />
-            <button type="submit" className="primary" disabled={creating || !newSeasonId.trim()}>Create</button>
+            <button type="submit" className="primary" disabled={creating || !newSeasonName.trim()}>Create</button>
             <button type="button" onClick={() => setShowCreate(false)}>Cancel</button>
           </form>
         )}
@@ -253,9 +253,9 @@ export function SeasonWorkshop() {
         <DataTable<v1.V1Season & Record<string, unknown>>
           columns={[
             {
-              key: "season_id",
+              key: "name",
               label: "Season",
-              render: v => <span className="mono">{String(v)}</span>,
+              render: (v, row) => <span>{String(v || (row as v1.V1Season).season_id)}</span>,
             },
             {
               key: "status",
