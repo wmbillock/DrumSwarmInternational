@@ -134,6 +134,10 @@ app.include_router(evolution_router)
 from backend.api.seance_routes import router as seance_router
 app.include_router(seance_router)
 
+# --- V1 versioned API ---
+from backend.api.v1.router import router as v1_router
+app.include_router(v1_router)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -326,13 +330,24 @@ def api_get_admin_corps(db: Session = Depends(get_db)):
 def api_get_corps(corps_id: str, db: Session = Depends(get_db)):
     from backend.models.corps import Corps
     corps = db.get(Corps, corps_id)
-    if not corps:
-        raise HTTPException(404, "Corps not found")
-    return {"id": corps.id, "name": corps.name, "status": corps.status.value,
-            "rehearsal_mode": corps.rehearsal_mode.value if corps.rehearsal_mode else None,
-            "mode": corps.mode.value if corps.mode else None,
-            "theme_id": corps.theme_id, "mascot": corps.mascot,
-            "uniform_concept": corps.uniform_concept}
+    if corps:
+        return {"id": corps.id, "name": corps.name, "status": corps.status.value,
+                "rehearsal_mode": corps.rehearsal_mode.value if corps.rehearsal_mode else None,
+                "mode": corps.mode.value if corps.mode else None,
+                "theme_id": corps.theme_id, "mascot": corps.mascot,
+                "uniform_concept": corps.uniform_concept}
+    # Fallback: check filesystem workspace
+    root = Path(os.environ.get("DCI_PROJECT_ROOT", ".")).resolve()
+    corps_path = root / "corps" / corps_id / "corps.yaml"
+    if corps_path.is_file():
+        import yaml
+        data = yaml.safe_load(corps_path.read_text())
+        return {"id": data.get("corps_id", corps_id),
+                "name": data.get("display_name", corps_id),
+                "status": data.get("state", "unknown"),
+                "rehearsal_mode": None, "mode": None,
+                "theme_id": None, "mascot": None, "uniform_concept": None}
+    raise HTTPException(404, "Corps not found")
 
 
 @app.get("/api/corps/{corps_id}/theme")
@@ -416,22 +431,45 @@ def api_get_roster(corps_id: str, db: Session = Depends(get_db)):
         .filter(AgentSession.corps_id == corps_id)
         .all()
     )
-    result = []
-    for s in sessions:
-        defn = db.get(AgentDefinition, s.definition_id)
-        result.append({
-            "id": s.id,
-            "role": defn.role if defn else "unknown",
-            "nickname": defn.nickname if defn else None,
-            "model_tier": defn.model_tier.value if defn else "unknown",
-            "classification": defn.classification.value if defn and defn.classification else None,
-            "status": s.status.value,
-            "corps_id": s.corps_id,
-            "parent_session_id": s.parent_session_id,
-            "started_at": s.started_at.isoformat() if s.started_at else None,
-            "ended_at": s.ended_at.isoformat() if s.ended_at else None,
-        })
-    return result
+    if sessions:
+        result = []
+        for s in sessions:
+            defn = db.get(AgentDefinition, s.definition_id)
+            result.append({
+                "id": s.id,
+                "role": defn.role if defn else "unknown",
+                "nickname": defn.nickname if defn else None,
+                "model_tier": defn.model_tier.value if defn else "unknown",
+                "classification": defn.classification.value if defn and defn.classification else None,
+                "status": s.status.value,
+                "corps_id": s.corps_id,
+                "parent_session_id": s.parent_session_id,
+                "started_at": s.started_at.isoformat() if s.started_at else None,
+                "ended_at": s.ended_at.isoformat() if s.ended_at else None,
+            })
+        return result
+    # Fallback: check filesystem roster
+    root = Path(os.environ.get("DCI_PROJECT_ROOT", ".")).resolve()
+    roster_path = root / "corps" / corps_id / "roster.yaml"
+    if roster_path.is_file():
+        import yaml
+        roster = yaml.safe_load(roster_path.read_text())
+        return [
+            {
+                "id": f"{corps_id}-{a.get('role', 'unknown')}-{i}",
+                "role": a.get("role", "unknown"),
+                "nickname": a.get("nickname"),
+                "model_tier": a.get("model_tier", "unknown"),
+                "classification": a.get("classification"),
+                "status": a.get("status", "stopped"),
+                "corps_id": corps_id,
+                "parent_session_id": None,
+                "started_at": None,
+                "ended_at": None,
+            }
+            for i, a in enumerate(roster.get("assignments", []))
+        ]
+    return []
 
 
 # --- Segment endpoints ---
@@ -1190,6 +1228,7 @@ def api_agents_overview(db: Session = Depends(get_db)):
     """Get all active agent sessions across all corps with their definitions."""
     from backend.models.agent_session import AgentSession, SessionStatus
     from backend.models.agent_definition import AgentDefinition
+    from backend.models.corps import Corps
     sessions = (
         db.query(AgentSession)
         .outerjoin(AgentDefinition, AgentSession.definition_id == AgentDefinition.id)
@@ -1199,6 +1238,8 @@ def api_agents_overview(db: Session = Depends(get_db)):
     results = []
     for s in sessions:
         defn = db.get(AgentDefinition, s.definition_id)
+        # Look up Corps record to get corps_name
+        corps = db.get(Corps, s.corps_id) if s.corps_id else None
         results.append({
             "id": s.id,
             "role": defn.role if defn else "unknown",
@@ -1206,6 +1247,7 @@ def api_agents_overview(db: Session = Depends(get_db)):
             "model_tier": defn.model_tier.value if defn else "unknown",
             "status": s.status.value,
             "corps_id": s.corps_id,
+            "corps_name": corps.name if corps else None,
             "started_at": s.started_at.isoformat() if s.started_at else None,
         })
     return results
