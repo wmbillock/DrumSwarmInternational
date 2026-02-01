@@ -49,11 +49,7 @@ export function CommandCenter() {
       if (l.status === "fulfilled") setWorkLog(l.value);
       if (c.status === "fulfilled") {
         // Build display_name → corps_id (filesystem slug) mapping
-        const slugMap: Record<string, string> = {};
-        for (const corps of c.value) {
-          slugMap[corps.display_name] = corps.corps_id;
-        }
-        setCorpsSlugMap(slugMap);
+        // Note: slugMap is no longer needed as we use corps_id directly
       }
 
       const anyFailed = [h, s, l].some(r => r.status === "rejected");

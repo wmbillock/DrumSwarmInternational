@@ -70,7 +70,6 @@ export function EvolutionTalentPool() {
 
   useEffect(() => {
     api.getPerformers().then(setPerformers).catch(() => setPerformers([]));
-    setLoading(false);
   }, []);
 
   const loadEvents = async () => {

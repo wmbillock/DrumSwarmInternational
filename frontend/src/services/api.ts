@@ -294,6 +294,3 @@ export const runBasics = (corpsId: string) =>
 
 export const runCritique = (corpsId: string) =>
   request<any>(`/api/corps/${corpsId}/critique`, { method: "POST" });
-
-export const getSessionActivity = (sessionId: string) =>
-  request<any>(`/api/sessions/${sessionId}/activity`);
