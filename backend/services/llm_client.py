@@ -22,6 +22,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Optional
 
+from datetime import datetime, timezone
+
 from backend.models.agent_definition import ModelTier
 
 logger = logging.getLogger(__name__)
@@ -494,10 +496,10 @@ class OpenAIClient(LLMClient):
 
 
 class ChatGPTCLIClient(LLMClient):
-    """Runs agents via the ChatGPT CLI (if available)."""
+    """Runs agents via the Codex CLI or ChatGPT CLI (if available)."""
 
-    def __init__(self):
-        pass
+    def __init__(self, command: str = "chatgpt"):
+        self._command = command
 
     def chat(
         self,
@@ -516,10 +518,17 @@ class ChatGPTCLIClient(LLMClient):
             elif msg.role == "user":
                 user_content = msg.content
 
-        cmd = ["chatgpt"]
-        if system_prompt.strip():
-            cmd.extend(["--system", system_prompt.strip()])
-        cmd.append(user_content)
+        if self._command == "codex":
+            # Codex CLI: codex --quiet "<prompt>"
+            prompt = user_content
+            if system_prompt.strip():
+                prompt = system_prompt.strip() + "\n\n" + user_content
+            cmd = ["codex", "--quiet", prompt]
+        else:
+            cmd = ["chatgpt"]
+            if system_prompt.strip():
+                cmd.extend(["--system", system_prompt.strip()])
+            cmd.append(user_content)
 
         try:
             proc = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
@@ -527,9 +536,9 @@ class ChatGPTCLIClient(LLMClient):
                 return LLMResponse(content=f"Error: {proc.stderr.strip()}", stop_reason="error")
             return LLMResponse(content=proc.stdout.strip(), stop_reason="end_turn")
         except subprocess.TimeoutExpired:
-            return LLMResponse(content="Error: chatgpt CLI timed out", stop_reason="error")
+            return LLMResponse(content=f"Error: {self._command} CLI timed out", stop_reason="error")
         except FileNotFoundError:
-            return LLMResponse(content="Error: 'chatgpt' CLI not found", stop_reason="error")
+            return LLMResponse(content=f"Error: '{self._command}' CLI not found", stop_reason="error")
 
 
 class OllamaClient(LLMClient):
@@ -734,6 +743,26 @@ class RetryingClient(LLMClient):
         return last_response  # type: ignore[return-value]
 
 
+@dataclass
+class ProviderStats:
+    """Accumulated usage statistics for a single LLM provider."""
+    requests: int = 0
+    successes: int = 0
+    failures: int = 0
+    total_input_tokens: int = 0
+    total_output_tokens: int = 0
+    total_cached_tokens: int = 0
+
+
+@dataclass
+class FailoverEvent:
+    """Record of a failover from one provider to another."""
+    timestamp: str = ""
+    from_provider: str = ""
+    to_provider: str = ""
+    error_snippet: str = ""
+
+
 class SmartRouter(LLMClient):
     """Intelligent provider selection with failover chain.
 
@@ -743,7 +772,11 @@ class SmartRouter(LLMClient):
 
     Each provider is wrapped with RetryingClient (5 retries with exponential
     backoff). If a provider exhausts all retries, we fail over to the next one.
+
+    Tracks per-provider usage statistics and failover events for observability.
     """
+
+    MAX_FAILOVER_EVENTS = 50
 
     def __init__(self, providers: list[tuple[str, LLMClient]]):
         """
@@ -754,6 +787,9 @@ class SmartRouter(LLMClient):
         """
         self._providers = providers
         self.last_used_provider: str = ""
+        self._stats: dict[str, ProviderStats] = {name: ProviderStats() for name, _ in providers}
+        self._failover_events: list[FailoverEvent] = []
+        self._started_at: str = datetime.now(timezone.utc).isoformat()
 
     @property
     def supports_images(self) -> bool:
@@ -794,6 +830,17 @@ class SmartRouter(LLMClient):
                      if isinstance(c._client if isinstance(c, RetryingClient) else c, OllamaClient)]
             return cli + api + local
 
+    def _record_failover(self, from_provider: str, to_provider: str, error: str) -> None:
+        """Record a failover event, keeping only the most recent MAX_FAILOVER_EVENTS."""
+        self._failover_events.append(FailoverEvent(
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            from_provider=from_provider,
+            to_provider=to_provider,
+            error_snippet=error[:200],
+        ))
+        if len(self._failover_events) > self.MAX_FAILOVER_EVENTS:
+            self._failover_events = self._failover_events[-self.MAX_FAILOVER_EVENTS:]
+
     def chat(
         self,
         messages: list[LLMMessage],
@@ -807,20 +854,67 @@ class SmartRouter(LLMClient):
         if not ranked:
             return LLMResponse(content="Error: No LLM providers available", stop_reason="error")
 
+        prev_failed_name: Optional[str] = None
+        prev_error: str = ""
+
         for name, client in ranked:
             logger.debug("Trying LLM provider: %s", name)
+            if name in self._stats:
+                self._stats[name].requests += 1
+
             response = client.chat(messages, model_tier, tools, **kwargs)
+
             if response.stop_reason != "error":
                 self.last_used_provider = name
+                if name in self._stats:
+                    self._stats[name].successes += 1
+                    self._stats[name].total_input_tokens += response.input_tokens
+                    self._stats[name].total_output_tokens += response.output_tokens
+                    self._stats[name].total_cached_tokens += response.cached_tokens
+                if prev_failed_name is not None:
+                    self._record_failover(prev_failed_name, name, prev_error)
                 return response
+
+            if name in self._stats:
+                self._stats[name].failures += 1
             logger.warning("Provider %s failed, trying next: %s", name, response.content[:200])
+            prev_failed_name = name
+            prev_error = response.content[:200]
 
         # All providers failed
         self.last_used_provider = "none"
+        if prev_failed_name is not None:
+            self._record_failover(prev_failed_name, "none", "All providers exhausted")
         return LLMResponse(
             content="Error: All LLM providers exhausted after retries",
             stop_reason="error",
         )
+
+    def get_usage_stats(self) -> dict:
+        """Return accumulated usage statistics for all providers."""
+        from dataclasses import asdict
+
+        providers = []
+        for name, client in self._providers:
+            stats = self._stats.get(name, ProviderStats())
+            providers.append({
+                "name": name,
+                "capabilities": {
+                    "supports_images": client.supports_images,
+                    "supports_native_tools": client.supports_native_tools,
+                    "supports_caching": client.supports_caching,
+                },
+                "stats": asdict(stats),
+            })
+
+        return {
+            "active_provider": self.last_used_provider,
+            "started_at": self._started_at,
+            "providers": providers,
+            "failover_events": [asdict(e) for e in self._failover_events],
+            "total_requests": sum(s.requests for s in self._stats.values()),
+            "total_failures": sum(s.failures for s in self._stats.values()),
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -890,8 +984,12 @@ def build_llm_client() -> LLMClient:
         providers.append(("anthropic-api", AnthropicLLMClient()))
         logger.info("LLM provider available: Anthropic API")
 
-    # 3. ChatGPT CLI
-    if shutil.which("chatgpt"):
+    # 3. Codex CLI (OpenAI's agent CLI)
+    if shutil.which("codex"):
+        providers.append(("codex-cli", ChatGPTCLIClient(command="codex")))
+        logger.info("LLM provider available: Codex CLI")
+    # 3b. ChatGPT CLI (fallback if codex not found)
+    elif shutil.which("chatgpt"):
         providers.append(("chatgpt-cli", ChatGPTCLIClient()))
         logger.info("LLM provider available: ChatGPT CLI")
 

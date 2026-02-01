@@ -195,8 +195,8 @@ def write_summary(show_dir: Path, summary: str) -> None:
 
 
 def check_field_ready(show_dir: Path) -> bool:
-    """Return True if show status is approved."""
-    return load_status(show_dir)["status"] == "approved"
+    """Return True if show status is approved or published."""
+    return load_status(show_dir)["status"] in ("approved", "published")
 
 
 # ---------------------------------------------------------------------------

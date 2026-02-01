@@ -287,6 +287,7 @@ cmd_horns_up() {
     echo -e "  ${GREEN}resume-hut${NC}       Restart backend + frontend, keep TMUX alive"
     echo -e "  ${GREEN}dress-center${NC}     Alias for resume-hut"
     echo -e "  ${GREEN}drill${NC}            Run a calibration drill (agent swarm on a task)"
+    echo -e "  ${GREEN}install${NC}          Install skills, agents, plugins + detect LLMs"
     echo -e "  ${GREEN}swarm${NC}            DCI Swarm CLI (season, corps, show, mode, status, etc.)"
     echo -e "  ${GREEN}horns-up${NC}         Show this help"
     echo ""
@@ -331,6 +332,7 @@ case "${1:-horns-up}" in
     drill)           shift; cmd_drill "$@" ;;
     pool)            shift; activate_venv; cd "$PROJECT_ROOT"; python -m backend.cli.main pool "$@" ;;
     doctor)          shift; activate_venv; cd "$PROJECT_ROOT"; python -m backend.cli.main doctor "$@" ;;
+    install)         shift; exec bash "$PROJECT_ROOT/swarm-kit/install.sh" "$@" ;;
     swarm)           shift; activate_venv; cd "$PROJECT_ROOT"; python -m backend.cli.main "$@" ;;
     horns-up|-h|--help|help) cmd_horns_up ;;
     *)

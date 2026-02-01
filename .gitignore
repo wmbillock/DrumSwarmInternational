@@ -1,3 +1,6 @@
+# Swarm-kit generated
+swarm-kit/.llm-providers.yaml
+
 # Python
 __pycache__/
 *.py[cod]

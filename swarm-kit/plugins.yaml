@@ -1,0 +1,31 @@
+# DCI Swarm — Required and Recommended Claude Code Plugins
+#
+# These plugins extend Claude Code's capabilities for swarm orchestration.
+# Install with: ./dci install
+
+required:
+  - name: ralph-loop
+    source: claude-plugins-official
+    reason: Self-sustaining orchestration loops
+  - name: playwright
+    source: claude-plugins-official
+    reason: E2E browser testing and verification
+    project_scoped: true
+
+recommended:
+  - name: frontend-design
+    source: claude-plugins-official
+    reason: UI generation for design room
+    project_scoped: true
+  - name: context7
+    source: claude-plugins-official
+    reason: Up-to-date library documentation
+  - name: code-review
+    source: claude-plugins-official
+    reason: Parallel code review with confidence scoring
+  - name: feature-dev
+    source: claude-plugins-official
+    reason: Structured feature development workflow
+  - name: superpowers
+    source: claude-plugins-official
+    reason: Skill system for disciplined agent workflows

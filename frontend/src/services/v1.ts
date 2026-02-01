@@ -707,6 +707,9 @@ export const getSystemHealth = (signal?: AbortSignal) =>
 export const getAgentsOverview = (signal?: AbortSignal) =>
   request<any[]>("/api/v1/system/agents", { signal });
 
+export const getLLMUsage = (signal?: AbortSignal) =>
+  request<import("../types").LLMUsageResponse>("/api/v1/system/llm-usage", { signal });
+
 export const getGlobalWorkLog = (limit = 100, eventType?: string, signal?: AbortSignal) => {
   const params = new URLSearchParams({ limit: String(limit) });
   if (eventType) params.set("event_type", eventType);

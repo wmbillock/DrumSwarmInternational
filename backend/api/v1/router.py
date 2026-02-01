@@ -1959,6 +1959,76 @@ def v1_run_competition(competition_id: str):
     }
 
 
+@router.post("/competitions/{competition_id}/dispatch")
+async def v1_dispatch_competition(competition_id: str):
+    """Dispatch agents to execute the show prompt for a competition.
+
+    For each registered corps, finds the executive_director session and dispatches
+    it with the show_prompt.md as the task. This is the step that turns a competition
+    from "scored" to "actually executed by agents writing code."
+    """
+    root = _get_root()
+    season_id, show_slug = _parse_competition_id(competition_id, root)
+
+    season_dir = root / "seasons" / season_id
+    if not (season_dir / "season.yaml").exists():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+
+    show_dir = root / "shows" / show_slug
+    prompt_path = show_dir / "show_prompt.md"
+    if not prompt_path.exists() or prompt_path.stat().st_size == 0:
+        raise HTTPException(400, f"Show '{show_slug}' has no show_prompt.md — run Design Room first")
+
+    show_prompt = prompt_path.read_text()
+
+    from backend.services.season_persistence import list_registered_corps
+    corps_ids = list_registered_corps(season_dir)
+    if not corps_ids:
+        raise HTTPException(400, "No corps registered for this season")
+
+    from backend.api.app import get_task_manager
+    tm = get_task_manager()
+    if not tm:
+        raise HTTPException(503, "Task manager not initialized")
+
+    dispatched = []
+    skipped = []
+    for cid in corps_ids:
+        db = _get_db_session()
+        try:
+            ed_session = tm.get_session_for_role(db, cid, "executive_director")
+            if not ed_session:
+                skipped.append({"corps_id": cid, "reason": "no ED session found"})
+                continue
+            if tm.is_active(ed_session):
+                skipped.append({"corps_id": cid, "reason": "ED already active"})
+                continue
+
+            task_desc = (
+                f"COMPETITION DISPATCH — Execute this show for competition {competition_id}.\n\n"
+                f"Your corps has been assigned to implement the following show. "
+                f"Read the prompt carefully and coordinate your corps to write the code.\n\n"
+                f"---\n\n{show_prompt}"
+            )
+            tm.start_agent(
+                session_id=ed_session,
+                task_description=task_desc,
+                corps_id=cid,
+            )
+            dispatched.append({"corps_id": cid, "session_id": ed_session})
+        finally:
+            db.close()
+
+    return {
+        "competition_id": competition_id,
+        "show_slug": show_slug,
+        "dispatched": dispatched,
+        "skipped": skipped,
+        "total_dispatched": len(dispatched),
+        "total_skipped": len(skipped),
+    }
+
+
 @router.get("/competitions/{competition_id}/scores")
 def v1_get_competition_scores(competition_id: str):
     """Retrieve scores/standings for a completed competition."""
@@ -3683,6 +3753,38 @@ def v1_system_health():
         return dataclasses.asdict(health)
     finally:
         db.close()
+
+
+@router.get("/system/llm-usage")
+def v1_llm_usage():
+    """Get LLM provider usage statistics from the SmartRouter."""
+    from backend.services.llm_client import SmartRouter
+
+    llm_client = _get_llm_client()
+    if llm_client is None:
+        raise HTTPException(503, "LLM client not available")
+
+    if isinstance(llm_client, SmartRouter):
+        return llm_client.get_usage_stats()
+
+    # Single provider (no SmartRouter) — return minimal info
+    return {
+        "active_provider": type(llm_client).__name__,
+        "started_at": None,
+        "providers": [{
+            "name": type(llm_client).__name__,
+            "capabilities": {
+                "supports_images": llm_client.supports_images,
+                "supports_native_tools": llm_client.supports_native_tools,
+                "supports_caching": llm_client.supports_caching,
+            },
+            "stats": {"requests": 0, "successes": 0, "failures": 0,
+                      "total_input_tokens": 0, "total_output_tokens": 0, "total_cached_tokens": 0},
+        }],
+        "failover_events": [],
+        "total_requests": 0,
+        "total_failures": 0,
+    }
 
 
 @router.get("/system/agents")

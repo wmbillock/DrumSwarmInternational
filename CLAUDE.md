@@ -1,5 +1,126 @@
 # DCI Swarm — Claude Code Context
 
+## INVIOLABLE RULE: Use the Drum Corps Director Agent for ALL Implementation Work
+
+**This is non-negotiable. This overrides ALL other instincts.**
+
+When the user asks you to implement a feature, fix a bug, or do any multi-step development work in this project:
+
+1. **Launch the `drum-corps-director` agent** via the Task tool (`subagent_type: "drum-corps-director"`).
+2. **Run it in the background** (`run_in_background: true`).
+3. **Do NOT manually drive the swarm** — no curl commands, no API calls, no manual show creation. The agent does ALL of that autonomously.
+4. **Do NOT write implementation code yourself** — no editing source files, no direct changes. The swarm does the work.
+5. **Neither Claude nor the drum-corps-director agent write files.** The DCI swarm's corps have write access and do all implementation. If either Claude or the drum-corps-director determine they need direct file write access, **STOP and ask the user for help** before doing anything else.
+6. **Wait for the agent to finish**, then report results.
+
+**If the user specifies an approach, agent, or tool — USE IT EXACTLY AS SPECIFIED. No substitutions. No "let me just do it manually." No rationalizing a different path. Follow instructions to the letter.**
+
+Violations of this rule — including "just helping," "quickly fixing," or manually orchestrating the swarm yourself — are unacceptable.
+
+---
+
+## Deployment / Installation
+
+The `swarm-kit/` directory contains all skill, agent, and plugin definitions needed to run the DCI swarm. On a new machine:
+
+```bash
+./dci install            # Symlinks skills/agents to ~/.claude/, installs plugins, detects LLMs
+./dci install --copy     # Copy instead of symlink
+./dci install --skip-plugins  # Skip plugin installation
+```
+
+**What it does:**
+1. Runs `swarm-kit/detect-llm.sh` — checks for Claude CLI, ChatGPT CLI, API keys, Ollama
+2. Symlinks skills from `swarm-kit/skills/` to `~/.claude/skills/` (project stays source of truth)
+3. Symlinks agents from `swarm-kit/agents/` to `~/.claude/agents/`
+4. Installs required + recommended Claude Code plugins via `claude plugin install`
+
+**LLM requirements:** At least one provider must be available (Claude CLI preferred). Detection results are written to `swarm-kit/.llm-providers.yaml`.
+
+**Directory structure:**
+```
+swarm-kit/
+  skills/
+    swarm-orchestrator/SKILL.md   # Swarm lifecycle orchestration
+    dci-agent/SKILL.md            # Agent that submits all work to the swarm
+    dci-dogfooding/SKILL.md       # Live system verification
+  agents/
+    drum-corps-director.md        # Drum Corps Director agent definition
+  plugins.yaml                    # Required/recommended plugin manifest
+  detect-llm.sh                   # LLM provider detection script
+  install.sh                      # Installer script
+```
+
+---
+
+## Tooling Inventory
+
+Everything `./dci install` provisions, plus what's available when you open the project in Claude Code.
+
+### Skills (7)
+| Skill | Purpose |
+|-------|---------|
+| `swarm-orchestrator` | Drives the swarm through its full lifecycle (prompt → verified completion) |
+| `dci-agent` | Submits all implementation work to the swarm — never writes code directly |
+| `dci-dogfooding` | Exercises new features/endpoints against the live running swarm |
+| `dci-api-corps` | API actions for corps management (list, create, identity, lifecycle commands) |
+| `dci-api-shows` | API actions for shows and Design Room (create, design, lint, approve, publish) |
+| `dci-api-seasons` | API actions for seasons and competitions (create, register, run, score, recap) |
+| `dci-api-system` | API actions for system monitoring (health, LLM usage, agents overview, work log) |
+
+### Agents (1)
+| Agent | Purpose |
+|-------|---------|
+| `drum-corps-director` | Autonomous orchestrator — creates shows, runs seasons, evaluates results through the DCI swarm |
+
+### Plugins (7)
+| Plugin | Type | Purpose |
+|--------|------|---------|
+| `ralph-loop` | Required | Self-sustaining orchestration loops |
+| `playwright` | Required | E2E browser testing and verification |
+| `frontend-design` | Recommended | UI generation for design room |
+| `context7` | Recommended | Up-to-date library documentation |
+| `code-review` | Recommended | Parallel code review with confidence scoring |
+| `feature-dev` | Recommended | Structured feature development workflow |
+| `superpowers` | Recommended | Skill system for disciplined agent workflows |
+
+### CLI Commands (15 via `./dci`)
+| Command | Purpose |
+|---------|---------|
+| `ten-hut` | Full stack: backend + frontend + TMUX dashboard |
+| `parade-rest` | Shut everything down |
+| `mark-time` | TMUX dashboard session management |
+| `forward-march` | Backend only |
+| `company-front` | Frontend only |
+| `run-through` | Run pytest test suite |
+| `check-step` | Quick health/status check |
+| `set-the-field` | Initialize workspace (DB, dirs) |
+| `resume-hut` / `dress-center` | Resume stopped services |
+| `drill` | Run a calibration drill (agent swarm on a task) |
+| `pool` | Talent pool management |
+| `doctor` | Diagnose system issues |
+| `install` | Install skills, agents, plugins, detect LLMs |
+| `swarm` | DCI Swarm CLI (season, corps, show, mode, status) |
+| `horns-up` / `help` | Show help |
+
+### LLM Providers (5 detected)
+| Provider | Type | Priority |
+|----------|------|----------|
+| `claude-cli` | CLI | 1 (primary) |
+| `codex-cli` | CLI | 2 |
+| `anthropic-api` | API | 3 |
+| `ollama` | Local | 5 |
+| `cursor` | IDE | 6 (interactive only) |
+
+### What Happens When You Open the Project
+1. Claude Code reads `CLAUDE.md` and `docs/` for full context
+2. Skills from `~/.claude/skills/` are available via the Skill tool
+3. The `drum-corps-director` agent is available via the Task tool
+4. Plugins provide Playwright browser control, Context7 docs, code review, and feature dev workflows
+5. The `superpowers` plugin enforces skill discipline — skills are checked before every action
+
+---
+
 ## Session Initialization
 
 **On every new session in this project, you MUST:**

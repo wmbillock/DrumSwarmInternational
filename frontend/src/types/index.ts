@@ -507,3 +507,40 @@ export interface SessionActivity {
     detail: string;
   }>;
 }
+
+// --- LLM Usage types ---
+
+export interface LLMProviderStats {
+  requests: number;
+  successes: number;
+  failures: number;
+  total_input_tokens: number;
+  total_output_tokens: number;
+  total_cached_tokens: number;
+}
+
+export interface LLMProviderInfo {
+  name: string;
+  capabilities: {
+    supports_images: boolean;
+    supports_native_tools: boolean;
+    supports_caching: boolean;
+  };
+  stats: LLMProviderStats;
+}
+
+export interface LLMFailoverEvent {
+  timestamp: string;
+  from_provider: string;
+  to_provider: string;
+  error_snippet: string;
+}
+
+export interface LLMUsageResponse {
+  active_provider: string;
+  started_at: string | null;
+  providers: LLMProviderInfo[];
+  failover_events: LLMFailoverEvent[];
+  total_requests: number;
+  total_failures: number;
+}

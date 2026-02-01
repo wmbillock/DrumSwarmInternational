@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
+import { Tooltip } from "react-tooltip";
 import { NavBar } from "../components/NavBar";
 import { SideNav } from "../components/SideNav";
 import { TelemetryPanel } from "../components/TelemetryPanel";
@@ -29,6 +30,12 @@ function AppLayoutInner() {
         </main>
         <TelemetryPanel />
       </div>
+      <Tooltip
+        id="main"
+        place="top"
+        className="dci-tooltip"
+        classNameArrow="dci-tooltip-arrow"
+      />
     </div>
   );
 }

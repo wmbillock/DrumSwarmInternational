@@ -35,6 +35,25 @@ function getStatusLabel(status: string): string {
   return status.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 }
 
+function getNextAction(show: LibraryShow): { label: string; color: string; tooltip: string } {
+  switch (show.status) {
+    case "draft":
+      return { label: "\u2192 Open Design Room", color: "var(--text-muted)", tooltip: "This show needs design work. Open the Design Room to collaborate with AI staff." };
+    case "needs_review":
+      return { label: "\u2192 Review & Approve", color: "var(--warning)", tooltip: "The spec is ready for review. Approve it to move forward." };
+    case "approved":
+      return { label: "\u2192 Publish Show", color: "var(--accent)", tooltip: "Show is approved. Publish it to make it available for seasons." };
+    case "published":
+      return { label: "\u2192 Add to Season", color: "var(--success)", tooltip: "Show is published. Add it to a season to begin competitions." };
+    case "on_tour":
+      return { label: "\u2192 Monitor Tour", color: "var(--success)", tooltip: "Corps are performing this show. Monitor progress on the Tour page." };
+    case "completed":
+      return { label: "\u2713 Done", color: "var(--text-muted)", tooltip: "This show has been completed." };
+    default:
+      return { label: "", color: "var(--text-muted)", tooltip: "" };
+  }
+}
+
 export function ShowLibrary() {
   const navigate = useNavigate();
   const [shows, setShows] = useState<LibraryShow[]>([]);
@@ -165,75 +184,99 @@ export function ShowLibrary() {
       {/* Empty State */}
       {filtered.length === 0 && (
         <div className="show-library-empty">
-          <div className="show-library-empty-icon">∅</div>
+          <div className="show-library-empty-icon">&#8709;</div>
           <p className="show-library-empty-text">No shows match your filters</p>
         </div>
       )}
 
       {/* Grid */}
       <div className="show-library-grid">
-        {filtered.map(show => (
-          <div
-            key={show.slug}
-            className="show-library-card"
-            onClick={() => navigate(`/design/${show.slug}`)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                navigate(`/design/${show.slug}`);
-              }
-            }}
-          >
-            {/* Status indicator stripe */}
+        {filtered.map(show => {
+          const nextAction = getNextAction(show);
+          return (
             <div
-              className="show-library-card-stripe"
-              style={{ background: getStatusColor(show.status) }}
-            />
+              key={show.slug}
+              className="show-library-card"
+              onClick={() => navigate(`/design/${show.slug}`)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  navigate(`/design/${show.slug}`);
+                }
+              }}
+            >
+              {/* Status indicator stripe */}
+              <div
+                className="show-library-card-stripe"
+                style={{ background: getStatusColor(show.status) }}
+              />
 
-            {/* Card body */}
-            <div className="show-library-card-content">
-              {/* Title section */}
-              <div className="show-library-card-title-block">
-                <h3 className="show-library-card-title">
-                  {show.title || show.slug}
-                </h3>
-                <div className="show-library-card-status-badge" style={{
-                  borderColor: getStatusColor(show.status),
-                  color: getStatusColor(show.status),
-                }}>
-                  {getStatusLabel(show.status)}
+              {/* Card body */}
+              <div className="show-library-card-content">
+                {/* Title section */}
+                <div className="show-library-card-title-block">
+                  <h3 className="show-library-card-title">
+                    {show.title || show.slug}
+                  </h3>
+                  <div
+                    className="show-library-card-status-badge"
+                    style={{
+                      borderColor: getStatusColor(show.status),
+                      color: getStatusColor(show.status),
+                    }}
+                    data-tooltip-id="main"
+                    data-tooltip-content={`Status: ${getStatusLabel(show.status)}`}
+                  >
+                    {getStatusLabel(show.status)}
+                  </div>
                 </div>
-              </div>
 
-              {/* Summary */}
-              {show.summary && (
-                <p className="show-library-card-description" style={{ fontStyle: "italic", fontSize: 12 }}>
-                  {show.summary}
-                </p>
-              )}
+                {/* Summary */}
+                {show.summary && (
+                  <p className="show-library-card-description" style={{ fontStyle: "italic", fontSize: 12 }}>
+                    {show.summary}
+                  </p>
+                )}
 
-              {/* Description */}
-              {show.description && !show.summary && (
-                <p className="show-library-card-description">
-                  {show.description}
-                </p>
-              )}
+                {/* Description */}
+                {show.description && !show.summary && (
+                  <p className="show-library-card-description">
+                    {show.description}
+                  </p>
+                )}
 
-              {/* Metadata */}
-              <div className="show-library-card-meta">
-                <span className="show-library-meta-item">
-                  {show.has_spec ? "✓ SPEC" : "✗ NO SPEC"}
-                </span>
-                {show.priority && (
-                  <span className="show-library-meta-item">
-                    {show.priority.toUpperCase()}
+                {/* Metadata */}
+                <div className="show-library-card-meta">
+                  <span
+                    className="show-library-meta-item"
+                    data-tooltip-id="main"
+                    data-tooltip-content={show.has_spec ? "This show has a spec document defining requirements" : "No spec yet — open the Design Room to create one"}
+                  >
+                    {show.has_spec ? "\u2713 SPEC" : "\u2717 NO SPEC"}
                   </span>
+                  {show.priority && (
+                    <span className="show-library-meta-item">
+                      {show.priority.toUpperCase()}
+                    </span>
+                  )}
+                </div>
+
+                {/* Next Action Badge */}
+                {nextAction.label && (
+                  <div
+                    className="show-library-next-action"
+                    style={{ color: nextAction.color, borderColor: nextAction.color }}
+                    data-tooltip-id="main"
+                    data-tooltip-content={nextAction.tooltip}
+                  >
+                    {nextAction.label}
+                  </div>
                 )}
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

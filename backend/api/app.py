@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -74,6 +75,9 @@ async def lifespan(app: FastAPI):
     from backend.services.task_manager import TaskManager
 
     llm_client = build_llm_client()
+
+    # Enable agent code writes so competition dispatch can produce real implementations
+    os.environ.setdefault("DSI_ENABLE_CODE_WRITES", "1")
 
     registry = create_tool_registry()
     tool_executor = ToolExecutor(registry)
