@@ -50,11 +50,12 @@ body {
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 24px; background: var(--bg-secondary); border-bottom: 1px solid var(--border);
 }
-.app-title { font-size: 18px; font-weight: 600; }
+.app-title { font-size: 18px; font-weight: 600; margin: 0; }
+.app-title-link { text-decoration: none; color: var(--text-primary); }
 .header-nav { display: flex; gap: 4px; align-items: center; }
-.header-nav button { background: none; border: 1px solid transparent; color: var(--text-secondary); cursor: pointer; padding: 6px 12px; border-radius: 6px; font-size: 13px; }
-.header-nav button:hover { background: var(--bg-hover); color: var(--text-primary); }
-.header-nav button.nav-active { background: var(--bg-card); color: var(--accent); border-color: var(--border); font-weight: 600; }
+.header-nav a, .header-nav button { background: none; border: 1px solid transparent; color: var(--text-secondary); cursor: pointer; padding: 6px 12px; border-radius: 6px; font-size: 13px; text-decoration: none; font-weight: 400; }
+.header-nav a:hover, .header-nav button:hover { background: var(--bg-hover); color: var(--text-primary); }
+.header-nav a.nav-active, .header-nav button.nav-active { background: var(--bg-card); color: var(--accent); border-color: var(--border); font-weight: 600; }
 .header-controls { display: flex; gap: 8px; align-items: center; }
 
 .theme-toggle {
@@ -561,7 +562,6 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .danger { background: var(--danger) !important; color: white !important; border-color: var(--danger) !important; }
 
 /* ==================== NAV BAR ==================== */
-.app-title-link { text-decoration: none; color: inherit; }
 
 /* ==================== SYSTEM HEALTH BAR ==================== */
 .system-health-bar {
