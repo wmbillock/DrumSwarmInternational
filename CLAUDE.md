@@ -93,7 +93,8 @@ ED → PC → Design Staff → Caption Heads → Techs → Performers. Messages 
 ### Backend
 | File | Purpose |
 |------|---------|
-| `backend/api/app.py` (~2000 lines) | FastAPI app, legacy routes, WebSocket, corps commands, lifespan init |
+| `backend/api/app.py` (~250 lines) | FastAPI app, WebSocket, lifespan init, router inclusions |
+| `backend/api/legacy/` (9 routers) | Extracted legacy routes: shows, corps, segments, scoring, communication, system, performers, improvement, memory |
 | `backend/api/v1/router.py` (~1200 lines) | V1 API — corps, runs, design room, competitions, seasons, seances |
 | `backend/services/agent_runtime.py` | Agent execution loop with LLM + tools |
 | `backend/services/task_manager.py` | Async agent orchestration, metronome |
@@ -169,16 +170,13 @@ cd frontend && npx tsc --noEmit             # TypeScript check
 ## Current State (as of 2026-02-01)
 
 ### ✅ Recently Completed (This Session)
-- **Asynchronous Messaging System (Full Implementation)**:
-  - Backend: 5 service modules (messaging_service, messaging_permissions, messaging_summary_service) + 8 API endpoints
-  - Database: Thread, ThreadMessage, ArchivedThread models with SQLAlchemy ORM
-  - API: POST/GET/PATCH threads, message management, bulk-archive with LLM summaries, archive search
-  - Role-based permissions: ED/PC create, Admin archive/search, ED search (read-only)
-  - LLM summary generation with fallback (no LLM → deterministic summaries)
-  - Full-text search with relevance ranking (BM25 + recency + decision prominence)
-  - Frontend: MessageInbox + MessageArchive pages fully implemented with UI/UX
-  - Testing: 21 comprehensive tests covering all spec behaviors (100% pass rate)
-  - Archive timings: 14-day suggestion flag, 30-day auto-archive eligibility
+- **Metronome system agent**: Published, orchestrator messaging integration complete
+- **synthesize_prompt()**: Implemented — assembles show_prompt.md from spec + tagged design notes
+- **app.py extraction**: Monolith split into 9 domain routers under backend/api/legacy/ (2217→249 lines)
+- **Alembic migrations**: Schema fully synced, deprecated tables removed, workflow operational
+- **Frontend v1 migration**: RunDetail, RunsList, CorpsDeepDive, ModeContext migrated to v1.ts
+- **Show spec cleanup**: Removed duplicate directories, added specs to 4 pending shows
+- **Metrics services**: metrics.py, metrics_aggregation.py, metronome_heartbeat.py committed
 
 ### Working
 - 5+ active corps (DB-only, filesystem corps deleted)
@@ -195,10 +193,11 @@ cd frontend && npx tsc --noEmit             # TypeScript check
 
 ### In Progress / Ready for Implementation
 - **Caption-awards achievement system**: Spec drafted, design notes in progress
-- **Metronome-system-agent**: In progress
+- **Ready-for-Contest Lifecycle**: Spec written, design notes extensive, needs implementation
+- **Seasons & Standings UI**: Spec written, needs frontend implementation
+- **Staff Marketplace & Career Evolution**: Spec written, needs frontend implementation
+- **System Health Dashboard**: Spec written, needs frontend implementation
 
 ### Known Issues / Not Yet Working
-- **Design Room spec synthesis**: `synthesize_prompt()` in show_persistence.py is a placeholder
-- **Some frontend pages still use legacy `api.ts`** instead of `v1.ts` (multiple components and pages)
-- **app.py is still monolithic** (~2000 lines) — legacy routes should be extracted to domain routers
-- **No Alembic migration workflow** for schema changes — still using `create_all` fallback
+- **Some frontend pages still use legacy `api.ts`** — ~25 files still need migration (most lack v1 equivalents, need new v1 endpoints first)
+- **3 pre-existing test failures** in test_system_health and test_agents_overview (agent counting logic)
