@@ -8,8 +8,6 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-import yaml
-
 from backend.services.yaml_util import atomic_write, safe_dump_yaml, safe_load_yaml_dict
 
 VALID_STATUSES = ("draft", "needs_review", "approved", "rejected", "published", "on_tour", "completed")

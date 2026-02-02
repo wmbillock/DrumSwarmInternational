@@ -10,7 +10,6 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-import yaml
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -20,6 +19,7 @@ from backend.api.v1.helpers import (
     _get_db_session,
     _generate_color_scheme,
 )
+from backend.services.yaml_util import safe_load_yaml_dict
 from backend.api.v1.schemas import (
     GenerateIconRequest,
     CreateCorpsRequest,
@@ -99,7 +99,7 @@ def v1_list_corps(include_system: bool = False):
             if not corps_path.is_file():
                 continue
             try:
-                data = yaml.safe_load(corps_path.read_text())
+                data = safe_load_yaml_dict(corps_path.read_text())
                 name = data.get("display_name", corps_dir.name)
                 seen_names.add(name)
                 result.append({
@@ -109,7 +109,8 @@ def v1_list_corps(include_system: bool = False):
                     "state": data.get("state", "unknown"),
                     "corps_type": data.get("corps_type", "competing"),
                 })
-            except Exception:
+            except Exception as e:
+                logger.warning("Failed to read corps.yaml at %s: %s", corps_path, e)
                 continue
 
     # DB corps (merge, dedup by display_name)
@@ -132,6 +133,8 @@ def v1_list_corps(include_system: bool = False):
                         "philosophy": "",
                         "state": c.status.value if c.status else "unknown",
                         "corps_type": c.corps_type or "competing",
+                        "theme_id": c.theme_id,
+                        "mascot": c.mascot,
                     })
         finally:
             db.close()
@@ -291,11 +294,11 @@ def v1_get_corps(corps_id: str):
     root = _get_root()
     corps_path = root / "corps" / corps_id / "corps.yaml"
     if corps_path.is_file():
-        data = yaml.safe_load(corps_path.read_text())
+        data = safe_load_yaml_dict(corps_path.read_text())
         roster_path = root / "corps" / corps_id / "roster.yaml"
         roster_size = 0
         if roster_path.is_file():
-            roster = yaml.safe_load(roster_path.read_text())
+            roster = safe_load_yaml_dict(roster_path.read_text())
             roster_size = len(roster.get("assignments", []))
         history = data.get("history", [])
         return {
@@ -517,7 +520,7 @@ def v1_get_corps_history(corps_id: str):
             # Check standings for this corps
             if standings_path.exists():
                 try:
-                    standings = yaml.safe_load(standings_path.read_text()) or {}
+                    standings = safe_load_yaml_dict(standings_path.read_text())
                     for result in standings.get("results", []):
                         if result.get("corps_id") == corps_id:
                             has_standing = True
@@ -531,7 +534,7 @@ def v1_get_corps_history(corps_id: str):
             scores_path = perf_dir / "scores.yaml" if has_perf else None
             if scores_path and scores_path.exists():
                 try:
-                    scores = yaml.safe_load(scores_path.read_text()) or {}
+                    scores = safe_load_yaml_dict(scores_path.read_text())
                     show_slug = scores.get("show_slug")
                 except Exception:
                     pass
@@ -543,7 +546,7 @@ def v1_get_corps_history(corps_id: str):
                     manifest_path = season_dir / "performances" / corps_id / run_id / "manifest.yaml"
                     if manifest_path.exists():
                         try:
-                            m = yaml.safe_load(manifest_path.read_text()) or {}
+                            m = safe_load_yaml_dict(manifest_path.read_text())
                             if m.get("show_slug"):
                                 show_slug = m["show_slug"]
                                 break
@@ -588,7 +591,7 @@ def v1_list_corps_seances(corps_id: str):
         if not session_path.is_file():
             continue
         try:
-            data = yaml.safe_load(session_path.read_text())
+            data = safe_load_yaml_dict(session_path.read_text())
             if isinstance(data, dict) and data.get("corps_id") == corps_id:
                 results.append({
                     "seance_id": data.get("seance_id", sdir.name),

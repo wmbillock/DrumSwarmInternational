@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import * as v1 from "../services/v1";
 import { CorpsCreateModal } from "../components/CorpsCreateModal";
+import { CORPS_THEMES } from "../contexts/CorpsThemeContext";
 
 const STATE_LABELS: Record<string, string> = {
   initializing: "Initializing",
@@ -13,6 +14,24 @@ const STATE_LABELS: Record<string, string> = {
   active: "Active",
   contending: "Contending",
 };
+
+function luminance(hex: string): number {
+  const rgb = hex.replace("#", "").match(/.{2}/g);
+  if (!rgb) return 0;
+  const [r, g, b] = rgb.map(c => {
+    const v = parseInt(c, 16) / 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function getCorpsColors(c: v1.V1Corps): { primary: string; secondary: string; textColor: string } {
+  const theme = c.theme_id ? CORPS_THEMES[c.theme_id] : undefined;
+  const primary = theme?.primary || "var(--accent, #58a6ff)";
+  const secondary = theme?.secondary || "var(--bg-secondary, #1a1a2e)";
+  const textColor = theme?.secondary && luminance(theme.secondary) < 0.15 ? "#e0e0e0" : "#1a1a2e";
+  return { primary, secondary, textColor };
+}
 
 export function CorpsList() {
   const navigate = useNavigate();
@@ -29,6 +48,9 @@ export function CorpsList() {
   }, []);
 
   if (loading) return <div className="page-loading">Loading Corps...</div>;
+
+  const userCorps = corps.filter(c => c.corps_type !== "system");
+  const systemCorps = corps.filter(c => c.corps_type === "system");
 
   return (
     <div className="corps-list-page">
@@ -55,27 +77,42 @@ export function CorpsList() {
         <p className="empty">No corps found. Create one to get started.</p>
       )}
 
-      {corps.filter(c => c.corps_type !== "system").length > 0 && (
+      {userCorps.length > 0 && (
         <div className="corps-card-grid">
-          {corps.filter(c => c.corps_type !== "system").map(c => (
-            <div key={c.corps_id} className="corps-list-card clickable" onClick={() => navigate(`/corps/${c.corps_id}`)}>
-              <div className="corps-list-header">
-                <span className="corps-list-name">{c.display_name}</span>
-                <span className={`badge state-${c.state}`}>{STATE_LABELS[c.state] || c.state}</span>
+          {userCorps.map(c => {
+            const { primary, secondary, textColor } = getCorpsColors(c);
+            return (
+              <div
+                key={c.corps_id}
+                className="corps-list-card clickable"
+                onClick={() => navigate(`/corps/${c.corps_id}`)}
+                style={{
+                  borderLeft: `4px solid ${primary}`,
+                  background: secondary !== "var(--bg-secondary, #1a1a2e)"
+                    ? `${secondary}18`
+                    : undefined,
+                  color: textColor,
+                }}
+              >
+                <div className="corps-list-header">
+                  <span className="corps-list-name">{c.display_name}</span>
+                  <span className={`badge state-${c.state}`}>{STATE_LABELS[c.state] || c.state}</span>
+                </div>
+                {c.mascot && <p className="corps-list-mascot" style={{ fontSize: "0.8rem", opacity: 0.7, margin: "4px 0 0" }}>{c.mascot}</p>}
+                {c.philosophy && <p className="corps-list-philosophy">{c.philosophy}</p>}
               </div>
-              {c.philosophy && <p className="corps-list-philosophy">{c.philosophy}</p>}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
-      {corps.filter(c => c.corps_type === "system").length > 0 && (
+      {systemCorps.length > 0 && (
         <details style={{ marginTop: 24 }}>
           <summary style={{ cursor: "pointer", fontSize: 14, color: "var(--text-secondary)" }}>
-            System Corps ({corps.filter(c => c.corps_type === "system").length})
+            System Corps ({systemCorps.length})
           </summary>
           <div className="corps-card-grid" style={{ marginTop: 8 }}>
-            {corps.filter(c => c.corps_type === "system").map(c => (
+            {systemCorps.map(c => (
               <div key={c.corps_id} className="corps-list-card clickable" onClick={() => navigate(`/corps/${c.corps_id}`)}>
                 <div className="corps-list-header">
                   <span className="corps-list-name">{c.display_name}</span>

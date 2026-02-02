@@ -3,11 +3,11 @@
 from datetime import datetime, timezone
 from typing import Optional
 
-import yaml
 from fastapi import APIRouter, HTTPException
 
 from backend.api.v1.helpers import _get_root, _validate_id, _get_db_session
 from backend.api.v1.schemas import StartRunRequest
+from backend.services.yaml_util import safe_load_yaml_dict
 
 router = APIRouter(prefix="/api/v1")
 
@@ -38,7 +38,7 @@ def v1_list_runs(corps_id: Optional[str] = None):
                 if not manifest_path.is_file():
                     continue
                 try:
-                    manifest = yaml.safe_load(manifest_path.read_text())
+                    manifest = safe_load_yaml_dict(manifest_path.read_text())
                     if isinstance(manifest, dict) and "run_id" in manifest:
                         runs.append(manifest)
                 except Exception:
@@ -67,7 +67,7 @@ def v1_get_run(run_id: str):
             run_dir = corps_dir / run_id
             manifest_path = run_dir / "manifest.yaml"
             if manifest_path.is_file():
-                manifest = yaml.safe_load(manifest_path.read_text())
+                manifest = safe_load_yaml_dict(manifest_path.read_text())
                 output = ""
                 output_path = run_dir / "output.txt"
                 if output_path.is_file():

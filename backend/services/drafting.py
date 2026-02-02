@@ -9,11 +9,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import yaml
-
 from backend.services.corps_persistence import assign_roster
 from backend.services.talent_pool import load_talent_pool
-from backend.services.yaml_util import atomic_write, safe_dump_yaml
+from backend.services.yaml_util import atomic_write, safe_dump_yaml, safe_load_yaml_dict
 
 
 @dataclass
@@ -117,13 +115,13 @@ def execute_draft(
 
     for agent_id in drafted_ids:
         agent_path = agents_dir / f"{agent_id}.yaml"
-        agent_data = yaml.safe_load(agent_path.read_text())
+        agent_data = safe_load_yaml_dict(agent_path.read_text())
         agent_data["availability"] = "assigned"
         atomic_write(agent_path, safe_dump_yaml(agent_data))
 
     # Update ledger
     ledger_path = pool_dir / "ledger.yaml"
-    ledger = yaml.safe_load(ledger_path.read_text())
+    ledger = safe_load_yaml_dict(ledger_path.read_text(), {"agents": []})
     for entry in ledger.get("agents", []):
         if entry["agent_id"] in drafted_ids:
             entry["availability"] = "assigned"

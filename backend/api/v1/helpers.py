@@ -113,7 +113,7 @@ def _generate_color_scheme(seed: str) -> dict:
 
 def _parse_competition_id(competition_id: str, root: Path) -> tuple[str, str]:
     """Parse competition_id into (season_id, show_slug)."""
-    import yaml
+    from backend.services.yaml_util import safe_load_yaml_dict
     seasons_dir = root / "seasons"
     if seasons_dir.exists():
         season_names = sorted(
@@ -123,7 +123,7 @@ def _parse_competition_id(competition_id: str, root: Path) -> tuple[str, str]:
         for sdir_name in season_names:
             sdir = seasons_dir / sdir_name
             try:
-                data = yaml.safe_load((sdir / "season.yaml").read_text())
+                data = safe_load_yaml_dict((sdir / "season.yaml").read_text())
                 sid = data.get("season_id", sdir_name)
             except Exception:
                 sid = sdir_name

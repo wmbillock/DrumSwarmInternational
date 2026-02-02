@@ -69,6 +69,17 @@ export function SeasonWorkshop() {
     }
   };
 
+  const handleDeleteSeason = async (sid: string) => {
+    if (!confirm(`Delete season "${sid}"? This cannot be undone.`)) return;
+    try {
+      await v1.deleteSeason(sid);
+      setSeasons(prev => prev.filter(s => s.season_id !== sid));
+      if (seasonId === sid) navigate("/seasons");
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+
   if (loading) return <div className="page-loading">Loading seasons...</div>;
 
   const errorBanner = error ? (
@@ -92,11 +103,14 @@ export function SeasonWorkshop() {
     return (
       <div className="season-workshop">
         {errorBanner}
-        <div className="page-header">
-          <button className="back-btn" onClick={() => navigate("/seasons")}>Back</button>
-          <h1 className="page-title" style={{ marginBottom: 0 }}>
-            {detail.name || detail.season_id}
-          </h1>
+        <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button className="back-btn" onClick={() => navigate("/seasons")}>Back</button>
+            <h1 className="page-title" style={{ marginBottom: 0 }}>
+              {detail.name || detail.season_id}
+            </h1>
+          </div>
+          <button className="small danger" onClick={() => handleDeleteSeason(detail.season_id)}>Delete Season</button>
         </div>
 
         <Tabs items={tabs} active={activeTab} onChange={setActiveTab} />

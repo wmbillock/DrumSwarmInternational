@@ -109,7 +109,8 @@ def cmd_show_status_workspace(args) -> None:
         print(f"Show '{slug}' not found at {show_dir}", file=sys.stderr)
         sys.exit(1)
 
-    data = yaml.safe_load(status_file.read_text())
+    from backend.services.yaml_util import safe_load_yaml_dict
+    data = safe_load_yaml_dict(status_file.read_text())
     print(f"Show: {slug}")
     print(f"Status: {data.get('status', 'unknown')}")
 

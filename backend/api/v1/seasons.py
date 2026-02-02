@@ -1,10 +1,10 @@
 """V1 API — Seasons routes."""
 
-import yaml
 from fastapi import APIRouter, HTTPException
 
 from backend.api.v1.helpers import _get_root, _validate_id, _get_db_session, _slugify
 from backend.api.v1.schemas import CreateSeasonRequest, UpdateSeasonRequest, RegisterCorpsRequest
+from backend.services.yaml_util import safe_load_yaml_dict
 
 router = APIRouter(prefix="/api/v1")
 
@@ -23,7 +23,7 @@ def v1_list_seasons():
         season_yaml = season_dir / "season.yaml"
         if not season_yaml.is_file():
             continue
-        data = yaml.safe_load(season_yaml.read_text())
+        data = safe_load_yaml_dict(season_yaml.read_text())
         season_id = data.get("season_id", season_dir.name)
         meta = data.get("metadata", {})
         results.append({
@@ -83,7 +83,7 @@ def v1_update_season(season_id: str, req: UpdateSeasonRequest):
     season_yaml = season_dir / "season.yaml"
     if not season_yaml.is_file():
         raise HTTPException(404, f"Season '{season_id}' not found")
-    data = yaml.safe_load(season_yaml.read_text())
+    data = safe_load_yaml_dict(season_yaml.read_text())
     if req.metadata is not None:
         data["metadata"] = req.metadata
     from backend.services.yaml_util import atomic_write, safe_dump_yaml
@@ -124,3 +124,16 @@ def v1_register_season_corps(season_id: str, req: RegisterCorpsRequest):
             raise HTTPException(404, f"Corps '{req.corps_id}' not found")
 
     return {"status": "registered", "season_id": season_id, "corps_id": req.corps_id}
+
+
+@router.delete("/seasons/{season_id}")
+def v1_delete_season(season_id: str):
+    """Delete a season workspace."""
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    if not season_dir.exists():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+    import shutil
+    shutil.rmtree(season_dir)
+    return {"status": "deleted", "season_id": season_id}

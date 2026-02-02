@@ -8,11 +8,11 @@ import re
 from datetime import datetime, timezone
 from typing import Optional
 
-import yaml
 from fastapi import APIRouter, HTTPException
 
 from backend.api.v1.helpers import _shows_dir, _show_dir, _get_llm_client, _llm_chat
 from backend.api.v1.schemas import CreateThreadRequest, PostMessageRequest, UpdateSpecRequest
+from backend.services.yaml_util import safe_load_yaml_dict
 
 router = APIRouter(prefix="/api/v1")
 
@@ -136,7 +136,9 @@ def v1_create_thread(req: CreateThreadRequest):
     initial_spec = (
         f"---\nshow_slug: {slug}\nversion: 1\ncreated_at: \"{now}\"\n"
         f"approved_at: null\napproved_by: null\nroles_consulted: []\n---\n\n"
-        f"# {req.title}\n\n## Decisions\n\n## Open Questions\n\n## Constraints\n"
+        f"# {req.title}\n\n## Decisions\n\n_No decisions yet._\n\n"
+        f"## Open Questions\n\n_No open questions._\n\n"
+        f"## Constraints\n\n_No constraints defined._\n"
     )
     write_spec(show_dir, initial_spec)
     return {"slug": slug, "path": str(show_dir)}
@@ -153,12 +155,21 @@ def v1_list_threads():
         status_path = d / "status.yaml"
         if not status_path.exists():
             continue
-        status = yaml.safe_load(status_path.read_text())
+        status = safe_load_yaml_dict(status_path.read_text())
+        summary = status.get("summary", "")
+        if not summary:
+            spec_path = d / "spec.md"
+            if spec_path.exists():
+                for line in spec_path.read_text().splitlines():
+                    line = line.strip()
+                    if line.startswith("# ") and not line.startswith("---"):
+                        summary = line[2:].strip()
+                        break
         threads.append({
             "slug": d.name,
             "status": status.get("status", "unknown"),
             "has_spec": (d / "spec.md").exists(),
-            "summary": status.get("summary", ""),
+            "summary": summary,
         })
     return threads
 

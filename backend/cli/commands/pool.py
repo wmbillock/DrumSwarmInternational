@@ -60,7 +60,8 @@ def cmd_pool_list(args) -> None:
         print("Talent pool not initialized. Run: dci pool init --yes", file=sys.stderr)
         sys.exit(1)
 
-    data = yaml.safe_load(ledger.read_text())
+    from backend.services.yaml_util import safe_load_yaml_dict
+    data = safe_load_yaml_dict(ledger.read_text(), {"agents": []})
     agents = data.get("agents", [])
 
     instrument = getattr(args, "instrument", None)

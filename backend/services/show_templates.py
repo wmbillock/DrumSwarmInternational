@@ -8,12 +8,12 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-import yaml
 from sqlalchemy.orm import Session
 
 from backend.models.segment import SegmentType
 from backend.services.segment_service import create_segment
 from backend.services.rep_service import create_rep
+from backend.services.yaml_util import safe_load_yaml_dict
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ def load_template(name: str) -> dict:
     if not path.exists():
         raise FileNotFoundError(f"Show template '{name}' not found at {path}")
     with open(path) as f:
-        return yaml.safe_load(f)
+        return safe_load_yaml_dict(f.read())
 
 
 def create_show_from_template(

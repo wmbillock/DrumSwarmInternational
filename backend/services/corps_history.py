@@ -4,9 +4,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-import yaml
-
-from backend.services.yaml_util import atomic_write, safe_dump_yaml
+from backend.services.yaml_util import atomic_write, safe_dump_yaml, safe_load_yaml_dict
 
 
 def _parse_show_slug(notes: str) -> str | None:
@@ -51,7 +49,7 @@ def build_history_index(project_root: Path, corps_id: str) -> dict:
     """
     project_root = Path(project_root)
     corps_path = project_root / "corps" / corps_id / "corps.yaml"
-    corps = yaml.safe_load(corps_path.read_text())
+    corps = safe_load_yaml_dict(corps_path.read_text())
     history = corps.get("history", [])
 
     # Deduplicate: last entry per season wins
@@ -98,7 +96,7 @@ def load_history_index(project_root: Path, corps_id: str) -> dict:
     project_root = Path(project_root)
     index_path = project_root / "corps" / corps_id / "history" / "index.yaml"
     if index_path.exists():
-        return yaml.safe_load(index_path.read_text())
+        return safe_load_yaml_dict(index_path.read_text())
     return build_history_index(project_root, corps_id)
 
 

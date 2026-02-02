@@ -33,14 +33,14 @@ def generate_recap_sheet(
     """
     import os
     from pathlib import Path
-    import yaml
 
     if standings_data is None:
+        from backend.services.yaml_util import safe_load_yaml_dict
         root = Path(os.environ.get("DCI_ROOT", "."))
         standings_path = root / "seasons" / season_id / "standings.yaml"
         if not standings_path.exists():
             return []
-        standings_data = yaml.safe_load(standings_path.read_text())
+        standings_data = safe_load_yaml_dict(standings_path.read_text())
 
     rows = []
     for result in standings_data.get("results", []):

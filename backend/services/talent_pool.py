@@ -6,11 +6,10 @@ The database remains the system of record; YAML files are generated views.
 
 from pathlib import Path
 
-import yaml
 from sqlalchemy.orm import Session
 
 from backend.models.performer import Performer, PerformerStatus
-from backend.services.yaml_util import atomic_write, safe_dump_yaml
+from backend.services.yaml_util import atomic_write, safe_dump_yaml, safe_load_yaml_dict
 
 REQUIRED_FIELDS = ("agent_id", "display_name", "primary_instrument", "availability")
 
@@ -72,11 +71,11 @@ def export_talent_pool(db: Session, output_dir: Path) -> None:
 def load_talent_pool(pool_dir: Path) -> dict:
     """Read ledger.yaml, load each agent file, return structured dict."""
     pool_dir = Path(pool_dir)
-    ledger = yaml.safe_load((pool_dir / "ledger.yaml").read_text())
+    ledger = safe_load_yaml_dict((pool_dir / "ledger.yaml").read_text(), {"agents": []})
     agents = []
     for entry in ledger.get("agents", []):
         agent_path = pool_dir / "agents" / f"{entry['agent_id']}.yaml"
-        agents.append(yaml.safe_load(agent_path.read_text()))
+        agents.append(safe_load_yaml_dict(agent_path.read_text()))
     return {"agents": agents}
 
 

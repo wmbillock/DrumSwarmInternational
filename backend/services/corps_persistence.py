@@ -6,9 +6,7 @@ Directory structure: corps/<corps_id>/corps.yaml + roster.yaml
 
 from pathlib import Path
 
-import yaml
-
-from backend.services.yaml_util import atomic_write, safe_dump_yaml
+from backend.services.yaml_util import atomic_write, safe_dump_yaml, safe_load_yaml_dict
 
 REQUIRED_CORPS_FIELDS = ("corps_id", "display_name", "philosophy", "state")
 
@@ -68,13 +66,13 @@ def create_corps(corps_dir: Path, data: dict) -> None:
 def load_corps(corps_dir: Path) -> dict:
     """Read and return the corps dict from corps.yaml."""
     corps_dir = Path(corps_dir)
-    return yaml.safe_load((corps_dir / "corps.yaml").read_text())
+    return safe_load_yaml_dict((corps_dir / "corps.yaml").read_text())
 
 
 def load_roster(corps_dir: Path) -> dict:
     """Read and return the roster dict from roster.yaml."""
     corps_dir = Path(corps_dir)
-    return yaml.safe_load((corps_dir / "roster.yaml").read_text())
+    return safe_load_yaml_dict((corps_dir / "roster.yaml").read_text())
 
 
 def update_corps_state(corps_dir: Path, new_state: str) -> None:

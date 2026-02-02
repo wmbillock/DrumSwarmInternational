@@ -1,18 +1,18 @@
-"""full schema baseline
+"""full schema baseline from models
 
-Revision ID: 24ce3df3c76c
+Revision ID: 1bb647bf67c0
 Revises: 
-Create Date: 2026-01-31 02:19:04.356237
+Create Date: 2026-02-02 02:23:33.690772
 
 """
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-
+from sqlalchemy.dialects import sqlite
 
 # revision identifiers, used by Alembic.
-revision: str = '24ce3df3c76c'
+revision: str = '1bb647bf67c0'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -25,14 +25,30 @@ def upgrade() -> None:
     sa.Column('id', sa.String(length=36), nullable=False),
     sa.Column('role', sa.String(length=50), nullable=False),
     sa.Column('system_prompt', sa.Text(), nullable=False),
-    sa.Column('model_tier', sa.Enum('OPUS', 'SONNET', 'HAIKU', name='modeltier'), nullable=False),
+    sa.Column('model_tier', sa.Enum('opus', 'sonnet', 'haiku', name='modeltier'), nullable=False),
     sa.Column('tools_allowed', sa.Text(), nullable=False),
     sa.Column('version', sa.Integer(), nullable=False),
     sa.Column('modified_by', sa.String(length=36), nullable=True),
     sa.Column('nickname', sa.String(length=100), nullable=True),
+    sa.Column('classification', sa.Enum('performing_member', 'instructional_staff', 'administrative_staff', 'logistics', 'dci_assigned', name='agentclassification'), nullable=True),
     sa.Column('corps_id', sa.String(length=36), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('archived_threads',
+    sa.Column('id', sa.String(length=36), nullable=False),
+    sa.Column('original_thread_id', sa.String(length=36), nullable=False),
+    sa.Column('originator_role', sa.String(length=50), nullable=False),
+    sa.Column('subject', sa.String(length=255), nullable=False),
+    sa.Column('summary', sa.Text(), nullable=False),
+    sa.Column('message_count', sa.Integer(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('archived_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('archived_by', sa.String(length=36), nullable=False),
+    sa.Column('full_text', sa.Text(), nullable=False),
+    sa.Column('tags', sa.String(length=500), nullable=True),
+    sa.Column('decision', sa.Text(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('capability_ledger',
@@ -40,7 +56,7 @@ def upgrade() -> None:
     sa.Column('performer_id', sa.String(length=36), nullable=True),
     sa.Column('performer_name', sa.String(length=100), nullable=True),
     sa.Column('role_type', sa.String(length=50), nullable=False),
-    sa.Column('entry_type', sa.Enum('REP_COMPLETED', 'REP_FAILED', 'SESSION_COMPLETED', 'SESSION_FAILED', 'TRUST_CHANGE', 'RETIREMENT', 'GUPP_VIOLATION', name='ledgerentrytype'), nullable=False),
+    sa.Column('entry_type', sa.Enum('rep_completed', 'rep_failed', 'session_completed', 'session_failed', 'trust_change', 'retirement', 'gupp_violation', name='ledgerentrytype'), nullable=False),
     sa.Column('corps_id', sa.String(length=36), nullable=True),
     sa.Column('session_id', sa.String(length=36), nullable=True),
     sa.Column('rep_id', sa.String(length=36), nullable=True),
@@ -51,28 +67,63 @@ def upgrade() -> None:
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_table('coordinates',
+    op.create_table('caption_awards',
     sa.Column('id', sa.String(length=36), nullable=False),
-    sa.Column('parent_id', sa.String(length=36), nullable=True),
-    sa.Column('type', sa.Enum('SHOW', 'MOVEMENT', 'SET', 'COORDINATE', name='coordinatetype'), nullable=False),
-    sa.Column('title', sa.String(length=255), nullable=False),
-    sa.Column('description', sa.Text(), nullable=True),
-    sa.Column('status', sa.Enum('PENDING', 'IN_PROGRESS', 'REVIEW', 'COMPLETED', 'FAILED', 'BLOCKED', name='coordinatestatus'), nullable=False),
-    sa.Column('caption', sa.String(length=50), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.ForeignKeyConstraint(['parent_id'], ['coordinates.id'], ),
+    sa.Column('category', sa.Enum('brass_excellence', 'percussion_mastery', 'guard_artistry', 'visual_innovation', 'general_effect', 'endurance', 'velocity', 'collaboration', 'reliability', 'creativity', 'mentorship', 'comeback', name='awardcategory'), nullable=False),
+    sa.Column('tier', sa.Enum('bronze', 'silver', 'gold', 'platinum', 'diamond', name='awardtier'), nullable=False),
+    sa.Column('name', sa.String(length=200), nullable=False),
+    sa.Column('description', sa.Text(), nullable=False),
+    sa.Column('recipient_type', sa.Enum('corps', 'performer', 'staff', name='awardrecipienttype'), nullable=False),
+    sa.Column('recipient_id', sa.String(length=36), nullable=False),
+    sa.Column('recipient_name', sa.String(length=200), nullable=False),
+    sa.Column('corps_id', sa.String(length=36), nullable=True),
+    sa.Column('season_id', sa.String(length=100), nullable=True),
+    sa.Column('milestone_value', sa.Integer(), nullable=True),
+    sa.Column('awarded_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
+    with op.batch_alter_table('caption_awards', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_caption_awards_corps_id'), ['corps_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_caption_awards_recipient_id'), ['recipient_id'], unique=False)
+
     op.create_table('corps',
     sa.Column('id', sa.String(length=36), nullable=False),
     sa.Column('show_id', sa.String(length=36), nullable=True),
     sa.Column('name', sa.String(length=255), nullable=False),
-    sa.Column('status', sa.Enum('INITIALIZING', 'REHEARSAL', 'TOUR', 'COMPLETED', 'DISBANDED', name='corpsstatus'), nullable=False),
-    sa.Column('rehearsal_mode', sa.Enum('BASICS', 'SECTIONALS', 'FULL_ENSEMBLE', 'RUN_THROUGH', name='rehearsalmode'), nullable=True),
-    sa.Column('tour_mode', sa.Boolean(), nullable=False),
+    sa.Column('status', sa.Enum('initializing', 'winter_camps', 'on_tour', 'ready_for_contest', 'completed', 'disbanded', name='corpsstatus'), nullable=False),
+    sa.Column('rehearsal_mode', sa.Enum('basics', 'sectionals', 'full_ensemble', 'run_through', name='rehearsalmode'), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('theme_id', sa.String(length=50), nullable=True),
+    sa.Column('mascot', sa.String(length=100), nullable=True),
+    sa.Column('uniform_concept', sa.Text(), nullable=True),
+    sa.Column('mode', sa.Enum('design_room', 'show_mode', 'rehearsal_mode', 'judging', 'offseason_review', name='corpsmode'), nullable=True),
+    sa.Column('corps_type', sa.String(length=20), nullable=True),
+    sa.Column('caption_affinity', sa.String(length=50), nullable=True),
+    sa.Column('founding_definition', sa.Text(), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('critique_sessions',
+    sa.Column('id', sa.String(length=36), nullable=False),
+    sa.Column('competition_id', sa.String(length=100), nullable=False),
+    sa.Column('corps_id', sa.String(length=36), nullable=False),
+    sa.Column('judge_type', sa.String(length=50), nullable=False),
+    sa.Column('staff_role', sa.String(length=50), nullable=False),
+    sa.Column('status', sa.Enum('active', 'completed', name='critiquestatus'), nullable=False),
+    sa.Column('conversation', sqlite.JSON(), nullable=False),
+    sa.Column('action_items', sa.Text(), nullable=True),
+    sa.Column('is_automated', sa.Boolean(), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('completed_at', sa.DateTime(timezone=True), nullable=True),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('judges_tapes',
+    sa.Column('id', sa.String(length=36), nullable=False),
+    sa.Column('competition_id', sa.String(length=100), nullable=False),
+    sa.Column('corps_id', sa.String(length=36), nullable=False),
+    sa.Column('caption_feedbacks', sqlite.JSON(), nullable=False),
+    sa.Column('overall_assessment', sa.Text(), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('performers',
@@ -83,7 +134,9 @@ def upgrade() -> None:
     sa.Column('total_sessions', sa.Integer(), nullable=False),
     sa.Column('successful_sessions', sa.Integer(), nullable=False),
     sa.Column('failed_sessions', sa.Integer(), nullable=False),
-    sa.Column('status', sa.Enum('ACTIVE', 'PROBATION', 'RETIRED', name='performerstatus'), nullable=False),
+    sa.Column('status', sa.Enum('active', 'probation', 'retired', name='performerstatus'), nullable=False),
+    sa.Column('age', sa.Integer(), nullable=False),
+    sa.Column('experience_seasons', sa.Integer(), nullable=False),
     sa.Column('specialties', sa.Text(), nullable=True),
     sa.Column('retirement_reason', sa.Text(), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
@@ -94,13 +147,26 @@ def upgrade() -> None:
     with op.batch_alter_table('performers', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_performers_role_type'), ['role_type'], unique=False)
 
+    op.create_table('segments',
+    sa.Column('id', sa.String(length=36), nullable=False),
+    sa.Column('parent_id', sa.String(length=36), nullable=True),
+    sa.Column('type', sa.Enum('show', 'movement', 'set', 'segment', name='segmenttype'), nullable=False),
+    sa.Column('title', sa.String(length=255), nullable=False),
+    sa.Column('description', sa.Text(), nullable=True),
+    sa.Column('status', sa.Enum('pending', 'in_progress', 'review', 'completed', 'failed', 'blocked', name='segmentstatus'), nullable=False),
+    sa.Column('caption', sa.String(length=50), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.ForeignKeyConstraint(['parent_id'], ['segments.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
     op.create_table('shows',
     sa.Column('id', sa.String(length=36), nullable=False),
     sa.Column('title', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
-    sa.Column('status', sa.Enum('DRAFT', 'ACTIVE', 'COMPLETED', 'ARCHIVED', name='showstatus'), nullable=False),
+    sa.Column('status', sa.Enum('draft', 'active', 'completed', 'archived', name='showstatus'), nullable=False),
     sa.Column('corps_id', sa.String(length=36), nullable=True),
-    sa.Column('coordinate_root_id', sa.String(length=36), nullable=True),
+    sa.Column('segment_root_id', sa.String(length=36), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.PrimaryKeyConstraint('id')
@@ -127,7 +193,7 @@ def upgrade() -> None:
     sa.Column('definition_id', sa.String(length=36), nullable=False),
     sa.Column('corps_id', sa.String(length=36), nullable=False),
     sa.Column('parent_session_id', sa.String(length=36), nullable=True),
-    sa.Column('status', sa.Enum('ACTIVE', 'COMPLETED', 'FAILED', 'TIMED_OUT', name='sessionstatus'), nullable=False),
+    sa.Column('status', sa.Enum('active', 'completed', 'failed', 'timed_out', name='sessionstatus'), nullable=False),
     sa.Column('context_snapshot', sa.Text(), nullable=True),
     sa.Column('performer_id', sa.String(length=36), nullable=True),
     sa.Column('error', sa.Text(), nullable=True),
@@ -145,83 +211,113 @@ def upgrade() -> None:
     sa.Column('from_session_id', sa.String(length=36), nullable=True),
     sa.Column('to_role', sa.String(length=50), nullable=True),
     sa.Column('to_session_id', sa.String(length=36), nullable=True),
-    sa.Column('type', sa.Enum('HANDOFF', 'ESCALATION', 'FLAG', 'STATUS', 'DIRECTIVE', 'FEEDBACK', name='messagetype'), nullable=False),
-    sa.Column('priority', sa.Enum('CRITICAL', 'HIGH', 'NORMAL', 'LOW', name='messagepriority'), nullable=False),
+    sa.Column('type', sa.Enum('handoff', 'escalation', 'flag', 'status', 'directive', 'feedback', 'question', 'request', 'ten_hut', 'resume_hut', name='messagetype'), nullable=False),
+    sa.Column('priority', sa.Enum('critical', 'high', 'normal', 'low', name='messagepriority'), nullable=False),
     sa.Column('subject', sa.String(length=255), nullable=False),
     sa.Column('body', sa.Text(), nullable=True),
-    sa.Column('coordinate_id', sa.String(length=36), nullable=True),
+    sa.Column('segment_id', sa.String(length=36), nullable=True),
     sa.Column('acknowledged_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.ForeignKeyConstraint(['coordinate_id'], ['coordinates.id'], ),
+    sa.ForeignKeyConstraint(['segment_id'], ['segments.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('problems',
     sa.Column('id', sa.String(length=36), nullable=False),
-    sa.Column('coordinate_id', sa.String(length=36), nullable=False),
+    sa.Column('segment_id', sa.String(length=36), nullable=False),
     sa.Column('corps_id', sa.String(length=36), nullable=False),
     sa.Column('reported_by_role', sa.String(length=50), nullable=False),
     sa.Column('reported_by_session_id', sa.String(length=36), nullable=True),
-    sa.Column('severity', sa.Enum('LOW', 'MEDIUM', 'HIGH', 'CRITICAL', name='problemseverity'), nullable=False),
-    sa.Column('status', sa.Enum('OPEN', 'ACKNOWLEDGED', 'RESOLVED', name='problemstatus'), nullable=False),
+    sa.Column('severity', sa.Enum('low', 'medium', 'high', 'critical', name='problemseverity'), nullable=False),
+    sa.Column('status', sa.Enum('open', 'acknowledged', 'resolved', name='problemstatus'), nullable=False),
     sa.Column('title', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
     sa.Column('resolution', sa.Text(), nullable=True),
     sa.Column('resolved_by_role', sa.String(length=50), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('resolved_at', sa.DateTime(timezone=True), nullable=True),
-    sa.ForeignKeyConstraint(['coordinate_id'], ['coordinates.id'], ),
+    sa.ForeignKeyConstraint(['segment_id'], ['segments.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('reps',
     sa.Column('id', sa.String(length=36), nullable=False),
-    sa.Column('coordinate_id', sa.String(length=36), nullable=False),
+    sa.Column('segment_id', sa.String(length=36), nullable=False),
     sa.Column('assigned_to', sa.String(length=36), nullable=True),
-    sa.Column('status', sa.Enum('PENDING', 'ASSIGNED', 'IN_PROGRESS', 'REVIEW', 'COMPLETED', 'FAILED', name='repstatus'), nullable=False),
+    sa.Column('status', sa.Enum('pending', 'assigned', 'in_progress', 'review', 'completed', 'failed', name='repstatus'), nullable=False),
     sa.Column('result', sa.Text(), nullable=True),
     sa.Column('error', sa.Text(), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.ForeignKeyConstraint(['coordinate_id'], ['coordinates.id'], ),
+    sa.ForeignKeyConstraint(['segment_id'], ['segments.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('subscriptions',
     sa.Column('id', sa.String(length=36), nullable=False),
-    sa.Column('coordinate_id', sa.String(length=36), nullable=False),
+    sa.Column('segment_id', sa.String(length=36), nullable=False),
     sa.Column('subscriber_role', sa.String(length=50), nullable=False),
     sa.Column('subscriber_session_id', sa.String(length=36), nullable=True),
     sa.Column('corps_id', sa.String(length=36), nullable=False),
-    sa.Column('event_type', sa.Enum('REP_COMPLETED', 'REP_FAILED', 'REP_ASSIGNED', 'COORDINATE_COMPLETED', 'COORDINATE_FAILED', 'PROBLEM_POSTED', 'PROBLEM_RESOLVED', name='eventtype'), nullable=False),
+    sa.Column('event_type', sa.Enum('rep_completed', 'rep_failed', 'rep_assigned', 'segment_completed', 'segment_failed', 'problem_posted', 'problem_resolved', name='eventtype'), nullable=False),
     sa.Column('active', sa.Boolean(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.ForeignKeyConstraint(['coordinate_id'], ['coordinates.id'], ),
+    sa.ForeignKeyConstraint(['segment_id'], ['segments.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('messaging_threads',
+    sa.Column('id', sa.String(length=36), nullable=False),
+    sa.Column('corps_id', sa.String(length=36), nullable=True),
+    sa.Column('initiator_agent_id', sa.String(length=36), nullable=True),
+    sa.Column('originator_role', sa.Enum('executive_director', 'program_coordinator', 'caption_head', 'tech', 'music_writer', name='originatorrole'), nullable=False),
+    sa.Column('subject', sa.String(length=255), nullable=False),
+    sa.Column('status', sa.Enum('pending', 'completed', name='threadstatus'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('viewed_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('completed_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('completed_by', sa.String(length=36), nullable=True),
+    sa.Column('archive_candidate_at', sa.DateTime(timezone=True), nullable=True),
+    sa.ForeignKeyConstraint(['corps_id'], ['corps.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['initiator_agent_id'], ['agent_sessions.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('penalties',
     sa.Column('id', sa.String(length=36), nullable=False),
     sa.Column('corps_id', sa.String(length=36), nullable=False),
     sa.Column('rep_id', sa.String(length=36), nullable=True),
-    sa.Column('coordinate_id', sa.String(length=36), nullable=True),
-    sa.Column('type', sa.Enum('TIMING', 'BUDGET', 'RULE', name='penaltytype'), nullable=False),
+    sa.Column('segment_id', sa.String(length=36), nullable=True),
+    sa.Column('type', sa.Enum('timing', 'budget', 'rule', name='penaltytype'), nullable=False),
     sa.Column('amount', sa.Float(), nullable=False),
     sa.Column('reason', sa.Text(), nullable=False),
     sa.Column('issued_by', sa.String(length=50), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.ForeignKeyConstraint(['coordinate_id'], ['coordinates.id'], ),
     sa.ForeignKeyConstraint(['rep_id'], ['reps.id'], ),
+    sa.ForeignKeyConstraint(['segment_id'], ['segments.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('scores',
     sa.Column('id', sa.String(length=36), nullable=False),
     sa.Column('rep_id', sa.String(length=36), nullable=True),
-    sa.Column('coordinate_id', sa.String(length=36), nullable=True),
+    sa.Column('segment_id', sa.String(length=36), nullable=True),
     sa.Column('corps_id', sa.String(length=36), nullable=False),
-    sa.Column('judge_type', sa.Enum('BRASS', 'PERCUSSION', 'GUARD', 'VISUAL', 'GENERAL_EFFECT', 'TIMING', name='judgetype'), nullable=False),
+    sa.Column('judge_type', sa.Enum('brass', 'percussion', 'guard', 'visual', 'general_effect', 'ensemble_technique', 'timing', name='judgetype'), nullable=False),
     sa.Column('value', sa.Float(), nullable=False),
+    sa.Column('rep_score', sa.Float(), nullable=True),
+    sa.Column('perf_score', sa.Float(), nullable=True),
     sa.Column('box', sa.Integer(), nullable=False),
     sa.Column('feedback', sa.Text(), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
-    sa.ForeignKeyConstraint(['coordinate_id'], ['coordinates.id'], ),
     sa.ForeignKeyConstraint(['rep_id'], ['reps.id'], ),
+    sa.ForeignKeyConstraint(['segment_id'], ['segments.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('thread_messages',
+    sa.Column('id', sa.String(length=36), nullable=False),
+    sa.Column('thread_id', sa.String(length=36), nullable=False),
+    sa.Column('sender_type', sa.Enum('user', 'agent', name='sendertype'), nullable=False),
+    sa.Column('sender_role', sa.String(length=50), nullable=False),
+    sa.Column('sender_name', sa.String(length=255), nullable=False),
+    sa.Column('body', sa.Text(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.ForeignKeyConstraint(['thread_id'], ['messaging_threads.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     # ### end Alembic commands ###
@@ -230,8 +326,10 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Downgrade schema."""
     # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_table('thread_messages')
     op.drop_table('scores')
     op.drop_table('penalties')
+    op.drop_table('messaging_threads')
     op.drop_table('subscriptions')
     op.drop_table('reps')
     op.drop_table('problems')
@@ -245,12 +343,20 @@ def downgrade() -> None:
 
     op.drop_table('work_logs')
     op.drop_table('shows')
+    op.drop_table('segments')
     with op.batch_alter_table('performers', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_performers_role_type'))
 
     op.drop_table('performers')
+    op.drop_table('judges_tapes')
+    op.drop_table('critique_sessions')
     op.drop_table('corps')
-    op.drop_table('coordinates')
+    with op.batch_alter_table('caption_awards', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_caption_awards_recipient_id'))
+        batch_op.drop_index(batch_op.f('ix_caption_awards_corps_id'))
+
+    op.drop_table('caption_awards')
     op.drop_table('capability_ledger')
+    op.drop_table('archived_threads')
     op.drop_table('agent_definitions')
     # ### end Alembic commands ###

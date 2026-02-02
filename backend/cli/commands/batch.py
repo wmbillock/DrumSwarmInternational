@@ -1,8 +1,7 @@
 """Batch command: execute scripted YAML workflows."""
 
-import yaml
-
 from backend.cli.output import print_info, print_success, print_error, print_json
+from backend.services.yaml_util import safe_load_yaml_dict
 
 
 def cmd_batch(client, args):
@@ -11,12 +10,9 @@ def cmd_batch(client, args):
 
     try:
         with open(script_path) as f:
-            workflow = yaml.safe_load(f)
+            workflow = safe_load_yaml_dict(f.read())
     except FileNotFoundError:
         print_error(f"Script not found: {script_path}")
-        return
-    except yaml.YAMLError as e:
-        print_error(f"Invalid YAML: {e}")
         return
 
     if not isinstance(workflow, dict) or "steps" not in workflow:

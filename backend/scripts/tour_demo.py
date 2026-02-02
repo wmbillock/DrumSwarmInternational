@@ -11,8 +11,7 @@ import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 
-import yaml
-
+from backend.services.yaml_util import safe_load_yaml_dict
 from backend.models.score import JudgeType
 from backend.services.corps_persistence import create_corps, load_roster, update_corps_state
 from backend.services.drafting import RoleRequirement, execute_draft
@@ -285,7 +284,7 @@ def run_deterministic_tour(
     for agent in agents:
         agent_path = pool_dir / "agents" / f"{agent['agent_id']}.yaml"
         if agent_path.exists():
-            data = yaml.safe_load(agent_path.read_text())
+            data = safe_load_yaml_dict(agent_path.read_text())
             recap_lines.append(
                 f"  {data['agent_id']}: trust={data['trust_score']:.4f} "
                 f"sessions={data.get('total_sessions', 0)}"

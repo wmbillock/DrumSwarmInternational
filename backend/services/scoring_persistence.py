@@ -2,11 +2,9 @@
 
 from pathlib import Path
 
-import yaml
-
 from backend.models.score import JudgeType
 from backend.services.scoring_engine import CorpsResult, Standings
-from backend.services.yaml_util import atomic_write, safe_dump_yaml
+from backend.services.yaml_util import atomic_write, safe_dump_yaml, safe_load_yaml_dict
 
 
 def _corps_result_to_dict(result: CorpsResult) -> dict:
@@ -54,7 +52,7 @@ def load_standings(base_dir: Path, season_id: str) -> Standings:
     path = base_dir / "seasons" / season_id / "standings.yaml"
     if not path.exists():
         raise FileNotFoundError(f"Standings not found: {path}")
-    data = yaml.safe_load(path.read_text())
+    data = safe_load_yaml_dict(path.read_text())
     return Standings(
         season_id=data["season_id"],
         results=[_dict_to_corps_result(r) for r in data["results"]],
@@ -78,5 +76,5 @@ def load_corps_scores(base_dir: Path, season_id: str, corps_id: str) -> CorpsRes
     path = base_dir / "seasons" / season_id / "performances" / corps_id / "scores.yaml"
     if not path.exists():
         raise FileNotFoundError(f"Corps scores not found: {path}")
-    data = yaml.safe_load(path.read_text())
+    data = safe_load_yaml_dict(path.read_text())
     return _dict_to_corps_result(data)

@@ -4,12 +4,15 @@ All endpoints read YAML/markdown from disk and return JSON.
 They use the same persistence modules as the CLI.
 """
 
+import logging
 import os
 from pathlib import Path
 
-import yaml
 from fastapi import APIRouter, HTTPException
 
+from backend.services.yaml_util import safe_load_yaml_dict
+
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -48,10 +51,11 @@ def api_list_runs():
                 if not manifest_path.is_file():
                     continue
                 try:
-                    manifest = yaml.safe_load(manifest_path.read_text())
+                    manifest = safe_load_yaml_dict(manifest_path.read_text())
                     if isinstance(manifest, dict) and "run_id" in manifest:
                         runs.append(manifest)
-                except Exception:
+                except Exception as e:
+                    logger.warning("Failed to read manifest %s: %s", manifest_path, e)
                     continue
 
     # Sort by started_at descending (most recent first)
@@ -80,7 +84,7 @@ def api_get_run_detail(run_id: str):
             manifest_path = run_dir / "manifest.yaml"
             if manifest_path.is_file():
                 try:
-                    manifest = yaml.safe_load(manifest_path.read_text())
+                    manifest = safe_load_yaml_dict(manifest_path.read_text())
                 except Exception:
                     raise HTTPException(status_code=500, detail="Failed to read manifest")
 
@@ -116,11 +120,11 @@ def api_list_corps_workspaces():
         if not corps_path.is_file():
             continue
         try:
-            data = yaml.safe_load(corps_path.read_text())
+            data = safe_load_yaml_dict(corps_path.read_text())
             roster_path = corps_dir / "roster.yaml"
             roster_size = 0
             if roster_path.is_file():
-                roster = yaml.safe_load(roster_path.read_text())
+                roster = safe_load_yaml_dict(roster_path.read_text())
                 roster_size = len(roster.get("assignments", []))
             result.append({
                 "corps_id": data.get("corps_id", corps_dir.name),
@@ -130,7 +134,8 @@ def api_list_corps_workspaces():
                 "history": data.get("history", []),
                 "roster_size": roster_size,
             })
-        except Exception:
+        except Exception as e:
+            logger.warning("Failed to read corps workspace %s: %s", corps_path, e)
             continue
     return result
 
@@ -144,7 +149,7 @@ def api_get_corps_history(corps_id: str):
         raise HTTPException(status_code=404, detail=f"Corps '{corps_id}' not found")
 
     try:
-        data = yaml.safe_load(corps_path.read_text())
+        data = safe_load_yaml_dict(corps_path.read_text())
     except Exception:
         raise HTTPException(status_code=500, detail="Failed to read corps.yaml")
 

@@ -310,6 +310,15 @@ class TestSeance:
         (show_dir / "status.yaml").write_text(yaml.dump({"status": "completed"}))
         (show_dir / "spec.md").write_text("# Past Show\n")
 
+        # Create season dir structure so build_history_index finds entries
+        scores_dir = project_root / "seasons" / "s1" / "performances" / "blue-devils"
+        scores_dir.mkdir(parents=True, exist_ok=True)
+        (scores_dir / "scores.yaml").write_text(yaml.dump({
+            "corps_id": "blue-devils",
+            "final_score": 85.0,
+            "placement": 1,
+        }))
+
         # Create seances directory
         (project_root / "seances").mkdir(exist_ok=True)
         return corps_id

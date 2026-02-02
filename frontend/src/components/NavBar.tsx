@@ -35,17 +35,16 @@ export function NavBar({
         <h1 className="app-title">DCI Swarm</h1>
       </NavLink>
       <nav className="header-nav">
-        <NavLink to="/" end className={({ isActive }) => isActive ? "nav-active small" : "small"}>Command Center</NavLink>
         <NavLink to="/corps" className={({ isActive }) => isActive ? "nav-active small" : "small"}>Corps</NavLink>
         <NavLink to="/shows" className={({ isActive }) => isActive ? "nav-active small" : "small"}>Shows</NavLink>
-        <NavLink to="/seasons" className={({ isActive }) => isActive ? "nav-active small" : "small"}>Seasons</NavLink>
-        <NavLink to="/scoreboards" className={({ isActive }) => isActive ? "nav-active small" : "small"}>Scoreboards</NavLink>
-        <NavLink to="/performers" className={({ isActive }) => isActive ? "nav-active small" : "small"}>Performers</NavLink>
-        <NavLink to="/seance" className={({ isActive }) => isActive ? "nav-active small" : "small"}>Seance</NavLink>
+        <NavLink to="/design" className={({ isActive }) => isActive ? "nav-active small" : "small"}>Design Room</NavLink>
+        <NavLink to="/seasons" className={({ isActive }) => isActive ? "nav-active small" : "small"}>DCI Office</NavLink>
+        <NavLink to="/scoreboards" className={({ isActive }) => isActive ? "nav-active small" : "small"}>Performance Stats</NavLink>
+        <NavLink to="/system" className={({ isActive }) => isActive ? "nav-active small" : "small"}>System</NavLink>
         <NavLink to="/messages/inbox" className={({ isActive }) => isActive ? "nav-active small" : "small"}>
           Messages{unreadCount > 0 && <span className="badge">{unreadCount}</span>}
         </NavLink>
-        <NavLink to="/system" className={({ isActive }) => isActive ? "nav-active small" : "small"}>System</NavLink>
+        <NavLink to="/" end className={({ isActive }) => isActive ? "nav-active small" : "small"}>Command Center</NavLink>
       </nav>
       <SystemHealth />
       <div className="header-controls">

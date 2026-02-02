@@ -7,8 +7,6 @@ human-readable, machine-parseable, git-diffable.
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
-import yaml
-
 from backend.services.yaml_util import safe_dump_yaml
 from backend.services.corps_persistence import (
     VALID_TRANSITIONS,
@@ -79,7 +77,10 @@ def load_proposals(base_dir: Path, season_id: str) -> list[Proposal]:
             yaml_lines = []
         elif line.strip() == "```" and in_yaml:
             in_yaml = False
-            block = yaml.safe_load("\n".join(yaml_lines))
+            from backend.services.yaml_util import safe_load_yaml_dict
+            block = safe_load_yaml_dict("\n".join(yaml_lines))
+            if not block:
+                continue
             proposals.append(Proposal(
                 proposal_type=block["proposal_type"],
                 corps_id=block["corps_id"],

@@ -46,6 +46,8 @@ export interface V1Corps {
   philosophy: string;
   state: string;
   corps_type?: "competing" | "system";
+  theme_id?: string;
+  mascot?: string;
 }
 
 export interface V1ShowInfo {
@@ -379,6 +381,9 @@ export const getSeason = (id: string, signal?: AbortSignal) =>
 
 export const registerSeasonCorps = (seasonId: string, corpsId: string) =>
   request<{ status: string }>(`/api/v1/seasons/${seasonId}/corps`, { method: "POST", body: JSON.stringify({ corps_id: corpsId }) });
+
+export const deleteSeason = (seasonId: string) =>
+  request<{ status: string }>(`/api/v1/seasons/${seasonId}`, { method: "DELETE" });
 
 // --- Messaging ---
 

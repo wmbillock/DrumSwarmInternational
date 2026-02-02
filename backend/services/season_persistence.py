@@ -7,7 +7,7 @@ Directory structure: seasons/<season_id>/scorecard.md + lifecycle_rules.md + per
 
 from pathlib import Path
 
-from backend.services.yaml_util import atomic_write, safe_dump_yaml
+from backend.services.yaml_util import atomic_write, safe_dump_yaml, safe_load_yaml_dict
 
 SCORECARD_TEMPLATE = """# Season Scorecard
 
@@ -81,8 +81,7 @@ def load_season(season_dir: Path) -> dict:
         if not (season_dir / required).exists():
             raise FileNotFoundError(f"Required file '{required}' missing in {season_dir}")
 
-    import yaml
-    data = yaml.safe_load((season_dir / "season.yaml").read_text())
+    data = safe_load_yaml_dict((season_dir / "season.yaml").read_text())
     data["registered_corps"] = list_registered_corps(season_dir)
     return data
 

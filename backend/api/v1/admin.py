@@ -39,7 +39,8 @@ def v1_admin_cleanup():
             s.ended_at = now
 
         orphan_corps = db.query(Corps).filter(
-            Corps.status.in_([CorpsStatus.INITIALIZING, CorpsStatus.WINTER_CAMPS]),
+            Corps.status == CorpsStatus.INITIALIZING,
+            Corps.founding_definition.is_(None),
             ~exists(
                 select(AgentSession.id).where(
                     AgentSession.corps_id == Corps.id,

@@ -105,6 +105,17 @@ export function ShowLibrary() {
     review: shows.filter(s => s.status === "needs_review").length,
   };
 
+  const handleDeleteShow = async (slug: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm(`Delete show "${slug}"? This cannot be undone.`)) return;
+    try {
+      await v1.deleteShow(slug);
+      setShows(prev => prev.filter(s => s.slug !== slug));
+    } catch (err: any) {
+      console.error("Failed to delete show:", err);
+    }
+  };
+
   if (loading) return <div className="page-loading">Loading show library...</div>;
 
   return (
@@ -262,17 +273,28 @@ export function ShowLibrary() {
                   )}
                 </div>
 
-                {/* Next Action Badge */}
-                {nextAction.label && (
-                  <div
-                    className="show-library-next-action"
-                    style={{ color: nextAction.color, borderColor: nextAction.color }}
+                {/* Next Action + Delete */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  {nextAction.label && (
+                    <div
+                      className="show-library-next-action"
+                      style={{ color: nextAction.color, borderColor: nextAction.color }}
+                      data-tooltip-id="main"
+                      data-tooltip-content={nextAction.tooltip}
+                    >
+                      {nextAction.label}
+                    </div>
+                  )}
+                  <button
+                    className="small danger"
+                    style={{ fontSize: "0.7rem", padding: "2px 8px", opacity: 0.6 }}
+                    onClick={(e) => handleDeleteShow(show.slug, e)}
                     data-tooltip-id="main"
-                    data-tooltip-content={nextAction.tooltip}
+                    data-tooltip-content="Delete this show permanently"
                   >
-                    {nextAction.label}
-                  </div>
-                )}
+                    Delete
+                  </button>
+                </div>
               </div>
             </div>
           );

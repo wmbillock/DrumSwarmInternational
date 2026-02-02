@@ -8,8 +8,7 @@ import os
 from pathlib import Path
 from typing import Optional
 
-import yaml
-
+from backend.services.yaml_util import safe_load_yaml_dict
 
 PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 MANIFESTS_DIR = PROMPTS_DIR / "manifests"
@@ -41,7 +40,7 @@ def load_manifest(role: str) -> Optional[dict]:
     if not path.exists():
         return None
     with open(path) as f:
-        return yaml.safe_load(f)
+        return safe_load_yaml_dict(f.read())
 
 
 def assemble_prompt(role: str, context: Optional[dict] = None) -> str:

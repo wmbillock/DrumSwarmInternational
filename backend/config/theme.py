@@ -10,8 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-import yaml
-
+from backend.services.yaml_util import safe_load_yaml_dict
 
 @dataclass
 class CommandDef:
@@ -69,7 +68,7 @@ def load_theme(name: str) -> SwarmTheme:
         raise FileNotFoundError(f"Theme '{name}' not found at {path}")
 
     with open(path) as f:
-        data = yaml.safe_load(f)
+        data = safe_load_yaml_dict(f.read())
 
     return SwarmTheme(
         name=data.get("name", name),

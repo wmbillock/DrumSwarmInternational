@@ -8,8 +8,6 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-import yaml
-
 logger = logging.getLogger(__name__)
 
 CONFIG_PATH = Path(__file__).parent.parent / "config" / "mcp_tools.yaml"
@@ -20,7 +18,8 @@ def load_mcp_config() -> dict:
     if not CONFIG_PATH.exists():
         return {}
     with open(CONFIG_PATH) as f:
-        return yaml.safe_load(f) or {}
+        from backend.services.yaml_util import safe_load_yaml_dict
+        return safe_load_yaml_dict(f.read())
 
 
 def register_mcp_tools(registry, config: Optional[dict] = None) -> int:

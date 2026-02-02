@@ -9,7 +9,7 @@ router = APIRouter(prefix="/api/v1")
 def v1_list_templates():
     """List available show templates."""
     from pathlib import Path
-    import yaml
+    from backend.services.yaml_util import safe_load_yaml_dict
     templates_dir = Path("templates")
     if not templates_dir.exists():
         return []
@@ -17,7 +17,7 @@ def v1_list_templates():
     for t in templates_dir.iterdir():
         if t.is_dir() and (t / "template.yaml").exists():
             with open(t / "template.yaml") as f:
-                data = yaml.safe_load(f)
+                data = safe_load_yaml_dict(f.read())
             results.append({"id": t.name, **data})
     return results
 
@@ -26,12 +26,12 @@ def v1_list_templates():
 def v1_get_template(template_id: str):
     """Get a single template."""
     from pathlib import Path
-    import yaml
+    from backend.services.yaml_util import safe_load_yaml_dict
     template_path = Path("templates") / template_id / "template.yaml"
     if not template_path.exists():
         raise HTTPException(404, "Template not found")
     with open(template_path) as f:
-        data = yaml.safe_load(f)
+        data = safe_load_yaml_dict(f.read())
     return {"id": template_id, **data}
 
 
@@ -39,8 +39,8 @@ def v1_get_template(template_id: str):
 def v1_instantiate_template(template_id: str, payload: dict):
     """Create a new show from a template."""
     from pathlib import Path
-    import yaml
     import shutil
+    from backend.services.yaml_util import safe_dump_yaml, safe_load_yaml_dict
     template_dir = Path("templates") / template_id
     if not template_dir.exists():
         raise HTTPException(404, "Template not found")
@@ -52,9 +52,9 @@ def v1_instantiate_template(template_id: str, payload: dict):
     status_path = show_dir / "status.yaml"
     if status_path.exists():
         with open(status_path) as f:
-            status = yaml.safe_load(f) or {}
+            status = safe_load_yaml_dict(f.read())
         status["status"] = "draft"
         status["title"] = payload.get("title", slug)
         with open(status_path, "w") as f:
-            yaml.dump(status, f)
+            f.write(safe_dump_yaml(status))
     return {"slug": slug, "status": "created"}

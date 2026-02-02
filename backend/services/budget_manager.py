@@ -13,8 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-import yaml
-
+from backend.services.yaml_util import safe_load_yaml_dict
 logger = logging.getLogger(__name__)
 
 CONFIG_PATH = Path(__file__).parent.parent / "config" / "budget.yaml"
@@ -63,7 +62,7 @@ class BudgetManager:
         raw: dict = {}
         if CONFIG_PATH.exists():
             with open(CONFIG_PATH) as f:
-                raw = yaml.safe_load(f) or {}
+                raw = safe_load_yaml_dict(f.read())
 
         g = raw.get("global", {})
         c = raw.get("corps", {})

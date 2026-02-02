@@ -8,10 +8,8 @@ Deterministic, pure YAML, no DB writes.
 import math
 from pathlib import Path
 
-import yaml
-
 from backend.services.scoring_engine import Standings
-from backend.services.yaml_util import atomic_write, safe_dump_yaml
+from backend.services.yaml_util import atomic_write, safe_dump_yaml, safe_load_yaml_dict
 
 MINIMUM_SAMPLE_THRESHOLD = 3
 DECAY_RATE = 0.05
@@ -37,7 +35,7 @@ def _clamp(value, lo=0.0, hi=100.0):
 
 
 def _load_agent(pool_dir: Path, agent_id: str) -> dict:
-    return yaml.safe_load((pool_dir / "agents" / f"{agent_id}.yaml").read_text())
+    return safe_load_yaml_dict((pool_dir / "agents" / f"{agent_id}.yaml").read_text())
 
 
 def _save_agent(pool_dir: Path, agent: dict) -> None:
@@ -48,7 +46,7 @@ def _save_agent(pool_dir: Path, agent: dict) -> None:
 def _sync_ledger_entry(pool_dir: Path, agent_id: str, updates: dict) -> None:
     """Update fields for agent_id in ledger.yaml."""
     ledger_path = pool_dir / "ledger.yaml"
-    ledger = yaml.safe_load(ledger_path.read_text())
+    ledger = safe_load_yaml_dict(ledger_path.read_text(), {"agents": []})
     for entry in ledger.get("agents", []):
         if entry["agent_id"] == agent_id:
             entry.update(updates)
@@ -128,7 +126,7 @@ def apply_season_decay(
 ) -> None:
     """Decay all active agents' trust toward baseline."""
     pool_dir = Path(pool_dir)
-    ledger = yaml.safe_load((pool_dir / "ledger.yaml").read_text())
+    ledger = safe_load_yaml_dict((pool_dir / "ledger.yaml").read_text(), {"agents": []})
 
     for entry in ledger.get("agents", []):
         if entry.get("availability") != "active":
@@ -160,7 +158,7 @@ def record_corps_placement(
     """Append placement entry to corps.yaml history list."""
     corps_dir = Path(corps_dir)
     corps_path = corps_dir / "corps.yaml"
-    corps = yaml.safe_load(corps_path.read_text())
+    corps = safe_load_yaml_dict(corps_path.read_text())
 
     if "history" not in corps:
         corps["history"] = []

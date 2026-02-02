@@ -9,10 +9,10 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-import yaml
 from sqlalchemy.orm import Session
 
-from backend.models.corps import Corps
+from backend.models.corps import Corps, CorpsStatus
+from backend.services.yaml_util import safe_load_yaml_dict
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ def seed_founding_corps(db: Session, corps_dir: Optional[Path] = None) -> list[C
     created = []
     for path in yaml_files:
         try:
-            data = yaml.safe_load(path.read_text())
+            data = safe_load_yaml_dict(path.read_text())
             if not data or not data.get("name"):
                 logger.warning("Skipping %s: missing 'name' field", path.name)
                 continue
@@ -63,6 +63,10 @@ def seed_founding_corps(db: Session, corps_dir: Optional[Path] = None) -> list[C
                 theme_id=data.get("theme_id", "default"),
                 mascot=mascot_name,
             )
+
+            # Founding corps are regular user corps, ready for use
+            corps.status = CorpsStatus.WINTER_CAMPS
+            corps.corps_type = "competing"
 
             # Store extended fields
             visual = data.get("visual_identity", {})

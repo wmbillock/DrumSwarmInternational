@@ -8,10 +8,8 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-import yaml
-
 from backend.services.corps_history import get_history_entry
-from backend.services.yaml_util import atomic_write, safe_dump_yaml
+from backend.services.yaml_util import atomic_write, safe_dump_yaml, safe_load_yaml_dict
 
 REQUIRED_ARTIFACTS = {"standings"}
 
@@ -88,7 +86,7 @@ def load_session(project_root: Path, seance_id: str) -> dict:
     session_path = sdir / "session.yaml"
     if not session_path.exists():
         raise FileNotFoundError(f"Seance session not found: {seance_id}")
-    return yaml.safe_load(session_path.read_text())
+    return safe_load_yaml_dict(session_path.read_text())
 
 
 def append_transcript(project_root: Path, seance_id: str, role: str, message: str) -> None:
@@ -128,6 +126,6 @@ def close_session(project_root: Path, seance_id: str) -> None:
     project_root = Path(project_root)
     sdir = _session_dir(project_root, seance_id)
     session_path = sdir / "session.yaml"
-    session = yaml.safe_load(session_path.read_text())
+    session = safe_load_yaml_dict(session_path.read_text())
     session["status"] = "closed"
     atomic_write(session_path, safe_dump_yaml(session))
