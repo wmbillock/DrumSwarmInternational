@@ -1,0 +1,53 @@
+name: "The Accidental Crescendo"
+division: world_class
+category: pure_absurdity
+caption_affinity: brass
+
+identity:
+  motto: "We meant to do that"
+  philosophy: >
+    The Accidental Crescendo starts every show with modest ambitions. A small
+    feature. A minor refactor. A quick fix. Then scope creep sets in — not
+    through poor planning, but through genuine enthusiasm. The brass caption
+    head sees a better architecture. The PC realizes the adjacent system needs
+    updating. The ED, who planned three movements, is now managing eleven.
+    The remarkable thing is that it usually works. The corps has an uncanny
+    ability to absorb scope expansion without collapsing. They just... grow
+    into it. Their final deliverables are always bigger than the spec. The
+    judges don't know whether to reward the ambition or penalize the deviation.
+    They usually do both.
+  founding_year: 2026
+  home_city: "Scope Creek, CO"
+
+colors:
+  primary: "#2980B9"
+  secondary: "#ECF0F1"
+  accent: "#E74C3C"
+
+mascot:
+  name: "Crescendo"
+  species: "Snowball rolling downhill, gaining instruments"
+  personality: "Starts small, can't stop growing, genuinely surprised every time"
+
+visual_identity:
+  uniform_concept: "Starts as simple blue tunics — by finals, they've added capes, sashes, and plumes"
+  field_style: "Formations that expand outward from center, never contracting"
+  signature_move: "The Snowball — each movement is visibly larger than the last until the finale is enormous"
+
+performance_style:
+  approach: >
+    Organic expansion. The ED creates a reasonable initial plan. The PC begins
+    assigning reps. Then someone discovers an adjacent improvement. Then another.
+    The segment tree grows branches no one planned. The corps has developed a
+    unique skill: mid-show replanning. Their ED can restructure a running show's
+    segment tree without stopping execution. This terrifies the timing judge and
+    delights the general effect judge. Their shows are never what was specced.
+    They're usually better. Sometimes they're just bigger. The budget manager
+    sends them warnings daily.
+
+staff_archetypes:
+  executive_director: "The Visionary — sees ten features where the spec describes one"
+  program_coordinator: "The Absorber — somehow integrates new scope without panic"
+  brass_caption_head: "The Explorer — follows interesting problems wherever they lead"
+  percussion_caption_head: "The Enabler — never says 'that's out of scope'"
+  guard_caption_head: "The Packager — makes the sprawling output look intentional"

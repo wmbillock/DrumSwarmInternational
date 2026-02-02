@@ -2629,14 +2629,9 @@ def v1_contest_evaluate(req: ContestEvaluateRequest):
 
 
 def _stub_caption_scores(corps_id: str, show_slug: str) -> dict:
-    """Deterministic scores per caption, seeded from corps_id + show_slug."""
-    from backend.models.score import JudgeType
-    scores = {}
-    for jtype in [JudgeType.BRASS, JudgeType.PERCUSSION, JudgeType.GUARD,
-                  JudgeType.VISUAL, JudgeType.GENERAL_EFFECT]:
-        seed = hashlib.sha256(f"{corps_id}:{show_slug}:{jtype.value}".encode()).hexdigest()
-        scores[jtype] = (int(seed[:8], 16) % 30) + 60
-    return scores
+    """Deterministic fallback scores. Delegates to shared utility."""
+    from backend.services.scoring_utils import stub_caption_scores
+    return stub_caption_scores(corps_id, show_slug)
 
 
 # =========================================================================
@@ -3983,10 +3978,12 @@ def v1_work_log_analysis(corps_id: str):
 
 @router.get("/corps/{corps_id}/roster")
 def v1_corps_roster(corps_id: str):
-    """Get agent roster for a corps."""
+    """Get agent roster for a corps with performer data."""
     _validate_id(corps_id, "corps_id")
     from backend.models.agent_session import AgentSession
-    from backend.models.agent_definition import AgentDefinition
+    from backend.models.agent_definition import AgentDefinition, ROLE_CLASSIFICATIONS, AgentClassification
+    from backend.models.performer import Performer
+    from datetime import datetime, timezone
 
     db = _get_db_session()
     try:
@@ -3998,17 +3995,146 @@ def v1_corps_roster(corps_id: str):
         results = []
         for s in sessions:
             defn = db.get(AgentDefinition, s.definition_id) if s.definition_id else None
+            performer = db.get(Performer, s.performer_id) if s.performer_id else None
+            role = defn.role if defn else "unknown"
+
+            # Classify into staff group
+            classification = ROLE_CLASSIFICATIONS.get(role)
+            if classification == AgentClassification.ADMINISTRATIVE:
+                group = "Administrative Staff"
+            elif classification == AgentClassification.INSTRUCTIONAL:
+                group = "Instructional Staff"
+            elif classification == AgentClassification.PERFORMING:
+                group = "Performing Members"
+            else:
+                group = "Other"
+
+            # Calculate tenure
+            tenure_days = None
+            if s.started_at:
+                tenure_days = (datetime.now(timezone.utc) - s.started_at).days
+
             results.append({
-                "id": s.id,
+                "session_id": s.id,
                 "definition_id": s.definition_id,
-                "role": defn.role if defn else "unknown",
+                "role": role,
                 "nickname": defn.nickname if defn else None,
                 "model_tier": defn.model_tier.value if defn else "unknown",
                 "status": s.status.value,
+                "group": group,
                 "started_at": s.started_at.isoformat() if s.started_at else None,
                 "ended_at": s.ended_at.isoformat() if s.ended_at else None,
+                "tenure_days": tenure_days,
+                "performer_id": s.performer_id,
+                "performer_name": performer.name if performer else None,
+                "performer_trust_score": performer.trust_score if performer else None,
+                "performer_status": performer.status.value if performer else None,
+                "performer_total_sessions": performer.total_sessions if performer else None,
+                "performer_successful_sessions": performer.successful_sessions if performer else None,
             })
+
+        # Sort: Administrative > Instructional > Performing, then by role name
+        group_order = {"Administrative Staff": 0, "Instructional Staff": 1, "Performing Members": 2, "Other": 3}
+        results.sort(key=lambda r: (group_order.get(r["group"], 99), r["role"]))
         return results
+    finally:
+        db.close()
+
+
+@router.post("/corps/{corps_id}/roster/hire")
+def v1_corps_hire(corps_id: str, data: dict):
+    """Hire a performer from the talent pool into this corps."""
+    _validate_id(corps_id, "corps_id")
+    performer_id = data.get("performer_id")
+    role = data.get("role")
+    if not performer_id or not role:
+        raise HTTPException(400, "performer_id and role are required")
+
+    from backend.models.performer import Performer, PerformerStatus
+    from backend.models.agent_session import AgentSession
+    from backend.models.agent_definition import AgentDefinition
+
+    db = _get_db_session()
+    try:
+        performer = db.get(Performer, performer_id)
+        if not performer:
+            raise HTTPException(404, f"Performer '{performer_id}' not found")
+        if performer.status != PerformerStatus.ACTIVE:
+            raise HTTPException(400, f"Performer is {performer.status.value}, cannot hire")
+
+        # Find an unassigned session for this role in the corps
+        session = (
+            db.query(AgentSession)
+            .join(AgentDefinition, AgentSession.definition_id == AgentDefinition.id)
+            .filter(
+                AgentSession.corps_id == corps_id,
+                AgentDefinition.role == role,
+                AgentSession.performer_id.is_(None),
+            )
+            .first()
+        )
+        if not session:
+            raise HTTPException(400, f"No open slot for role '{role}' in this corps")
+
+        session.performer_id = performer.id
+        db.commit()
+        return {"status": "hired", "performer_id": performer.id, "session_id": session.id, "role": role}
+    finally:
+        db.close()
+
+
+@router.post("/corps/{corps_id}/roster/dismiss")
+def v1_corps_dismiss(corps_id: str, data: dict):
+    """Dismiss a performer back to the talent pool."""
+    _validate_id(corps_id, "corps_id")
+    session_id = data.get("session_id")
+    if not session_id:
+        raise HTTPException(400, "session_id is required")
+
+    from backend.models.agent_session import AgentSession
+
+    db = _get_db_session()
+    try:
+        session = db.get(AgentSession, session_id)
+        if not session or session.corps_id != corps_id:
+            raise HTTPException(404, "Session not found in this corps")
+        if not session.performer_id:
+            raise HTTPException(400, "No performer assigned to this session")
+
+        performer_id = session.performer_id
+        session.performer_id = None
+        db.commit()
+        return {"status": "dismissed", "performer_id": performer_id, "session_id": session_id}
+    finally:
+        db.close()
+
+
+@router.post("/corps/{corps_id}/roster/fire")
+def v1_corps_fire(corps_id: str, data: dict):
+    """Fire a staff member — releases performer back to marketplace with reduced trust."""
+    _validate_id(corps_id, "corps_id")
+    session_id = data.get("session_id")
+    if not session_id:
+        raise HTTPException(400, "session_id is required")
+
+    from backend.models.agent_session import AgentSession
+    from backend.models.performer import Performer
+
+    db = _get_db_session()
+    try:
+        session = db.get(AgentSession, session_id)
+        if not session or session.corps_id != corps_id:
+            raise HTTPException(404, "Session not found in this corps")
+        if not session.performer_id:
+            raise HTTPException(400, "No performer assigned to this session")
+
+        performer = db.get(Performer, session.performer_id)
+        performer_id = session.performer_id
+        session.performer_id = None
+        if performer:
+            performer.trust_score = max(0, performer.trust_score - 10.0)
+        db.commit()
+        return {"status": "fired", "performer_id": performer_id, "session_id": session_id}
     finally:
         db.close()
 
@@ -5831,3 +5957,124 @@ def v1_send_message(corps_id: str, data: MessageCreateV1Request):
         raise HTTPException(400, str(e))
     finally:
         db.close()
+
+
+# ---------------------------------------------------------------------------
+# Budget & Process Monitoring
+# ---------------------------------------------------------------------------
+
+
+@router.get("/system/budget")
+def get_budget():
+    """Return budget tracking stats and configuration."""
+    from backend.services.budget_manager import get_budget_manager
+    return get_budget_manager().get_stats()
+
+
+@router.get("/system/processes")
+def get_processes():
+    """Return process registry stats."""
+    from backend.services.process_registry import get_process_registry
+    return get_process_registry().get_stats()
+
+
+# ---------------------------------------------------------------------------
+# CI / Testing / Coverage
+# ---------------------------------------------------------------------------
+
+
+@router.get("/ci/status")
+def get_ci_status():
+    """Get current CI watcher status."""
+    from backend.services.ci_watcher import get_ci_watcher
+    return get_ci_watcher().get_status()
+
+
+@router.post("/ci/run")
+def trigger_ci_run():
+    """Manually trigger a CI run (full test suite + coverage)."""
+    from backend.services.ci_watcher import get_ci_watcher
+    import threading
+    watcher = get_ci_watcher()
+
+    def _run():
+        watcher.run_manual(trigger="api_request")
+
+    threading.Thread(target=_run, daemon=True).start()
+    return {"status": "started", "message": "CI run triggered"}
+
+
+# ---------------------------------------------------------------------------
+# Caption Awards / Achievements
+# ---------------------------------------------------------------------------
+
+
+@router.get("/awards")
+def list_awards(recipient_id: Optional[str] = None, corps_id: Optional[str] = None, category: Optional[str] = None):
+    """List caption awards with optional filters."""
+    from backend.models.caption_award import CaptionAward, AwardCategory
+
+    db = _get_db_session()
+    try:
+        q = db.query(CaptionAward)
+        if recipient_id:
+            q = q.filter(CaptionAward.recipient_id == recipient_id)
+        if corps_id:
+            q = q.filter(CaptionAward.corps_id == corps_id)
+        if category:
+            try:
+                q = q.filter(CaptionAward.category == AwardCategory(category))
+            except ValueError:
+                raise HTTPException(400, f"Invalid category: {category}")
+        awards = q.order_by(CaptionAward.awarded_at.desc()).limit(100).all()
+        return [{
+            "id": a.id,
+            "category": a.category.value,
+            "tier": a.tier.value,
+            "name": a.name,
+            "description": a.description,
+            "recipient_type": a.recipient_type.value,
+            "recipient_id": a.recipient_id,
+            "recipient_name": a.recipient_name,
+            "corps_id": a.corps_id,
+            "milestone_value": a.milestone_value,
+            "awarded_at": a.awarded_at.isoformat() if a.awarded_at else None,
+        } for a in awards]
+    finally:
+        db.close()
+
+
+@router.post("/awards/check/{corps_id}")
+def check_awards(corps_id: str):
+    """Manually trigger achievement check for all performers in a corps."""
+    _validate_id(corps_id, "corps_id")
+    from backend.models.agent_session import AgentSession
+    from backend.models.performer import Performer
+    from backend.services.achievement_detector import check_performer_achievements
+
+    db = _get_db_session()
+    try:
+        sessions = db.query(AgentSession).filter(
+            AgentSession.corps_id == corps_id,
+            AgentSession.performer_id.isnot(None),
+        ).all()
+        total_awarded = 0
+        for s in sessions:
+            performer = db.get(Performer, s.performer_id)
+            if performer:
+                awards = check_performer_achievements(db, performer.id, performer.name, corps_id)
+                total_awarded += len(awards)
+        return {"checked": len(sessions), "awards_granted": total_awarded}
+    finally:
+        db.close()
+
+
+@router.get("/ci/coverage/{show_slug}")
+def get_show_coverage(show_slug: str):
+    """Get coverage report for a completed show (used in scoring/judging)."""
+    _validate_id(show_slug, "show_slug")
+    from backend.services.ci_watcher import get_ci_watcher
+    data = get_ci_watcher().get_coverage_for_show(show_slug)
+    if data is None:
+        raise HTTPException(404, f"No coverage data for show '{show_slug}'")
+    return data

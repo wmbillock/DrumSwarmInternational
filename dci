@@ -116,11 +116,55 @@ cmd_parade_rest() {
     tmux kill-session -t "${DCI_SESSION:-dci-swarm}" 2>/dev/null && \
         log_info "TMUX dashboard dismissed" || true
 
-    # Kill backend/frontend
+    # Kill by port
     kill_port "$BACKEND_PORT" && log_info "Backend off the field" || true
     kill_port 5173 && log_info "Frontend off the field" || true
 
+    # Kill orphaned agent processes (claude --print spawned by llm_client)
+    pkill -f 'claude.*--print' 2>/dev/null && log_info "Orphaned claude agents dismissed" || true
+    pkill -f 'python -m pytest' 2>/dev/null && log_info "Orphaned test runs dismissed" || true
+
+    # Wait for graceful shutdown, then force-kill stragglers
+    sleep 2
+    kill_port "$BACKEND_PORT" 2>/dev/null || true
+    kill_port 5173 2>/dev/null || true
+
+    # Clean PID registry if present
+    rm -f /tmp/dci-swarm-pids.json 2>/dev/null
+
     log_info "Corps at rest. Dismissed."
+    echo ""
+}
+
+cmd_stand_down() {
+    echo ""
+    echo -e "${RED}${BOLD}  STAND DOWN — NUCLEAR CLEANUP${NC}"
+    echo ""
+    log_warn "Killing ALL DCI-related processes (except this shell and Claude Code)..."
+
+    # Get our own PID chain to avoid suicide
+    local my_pid=$$
+    local my_ppid=$PPID
+
+    # Kill TMUX
+    tmux kill-session -t "${DCI_SESSION:-dci-swarm}" 2>/dev/null || true
+
+    # Kill ports
+    kill_port "$BACKEND_PORT" 2>/dev/null || true
+    kill_port 5173 2>/dev/null || true
+
+    # Kill all claude --print processes (agent spawns, NOT Claude Code)
+    pkill -9 -f 'claude.*--print' 2>/dev/null || true
+
+    # Kill orphaned python/node from this project
+    pkill -9 -f "uvicorn backend" 2>/dev/null || true
+    pkill -9 -f "python -m pytest" 2>/dev/null || true
+    pkill -9 -f "python -m backend" 2>/dev/null || true
+
+    # Clean PID registry
+    rm -f /tmp/dci-swarm-pids.json 2>/dev/null
+
+    log_info "All clear. Field is empty."
     echo ""
 }
 
@@ -286,6 +330,7 @@ cmd_horns_up() {
     echo -e "  ${GREEN}set-the-field${NC}    Initialize the database schema"
     echo -e "  ${GREEN}resume-hut${NC}       Restart backend + frontend, keep TMUX alive"
     echo -e "  ${GREEN}dress-center${NC}     Alias for resume-hut"
+    echo -e "  ${GREEN}stand-down${NC}       Nuclear cleanup — kill ALL DCI processes"
     echo -e "  ${GREEN}drill${NC}            Run a calibration drill (agent swarm on a task)"
     echo -e "  ${GREEN}install${NC}          Install skills, agents, plugins + detect LLMs"
     echo -e "  ${GREEN}swarm${NC}            DCI Swarm CLI (season, corps, show, mode, status, etc.)"
@@ -329,6 +374,7 @@ case "${1:-horns-up}" in
     check-step)      cmd_check_step ;;
     set-the-field)   cmd_set_the_field ;;
     resume-hut|dress-center) cmd_resume_hut ;;
+    stand-down)      cmd_stand_down ;;
     drill)           shift; cmd_drill "$@" ;;
     pool)            shift; activate_venv; cd "$PROJECT_ROOT"; python -m backend.cli.main pool "$@" ;;
     doctor)          shift; activate_venv; cd "$PROJECT_ROOT"; python -m backend.cli.main doctor "$@" ;;

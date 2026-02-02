@@ -334,13 +334,50 @@ async def search_archive(
             ArchivedThread.archived_at <= end_date,
         )
 
-    # Order by relevance (most recent first for now)
-    # TODO: Implement BM25-style ranking:
-    # rank = (BM25_score × 0.5) + (recency_boost × 0.3) + (tag_match × 0.15) + (decision_boost × 0.05)
-    stmt = stmt.order_by(ArchivedThread.archived_at.desc()).limit(limit)
-
+    # BM25-inspired ranking: fetch candidates then sort in Python.
+    # For small result sets this is fine; for large-scale, migrate to FTS5.
+    stmt = stmt.limit(limit * 3)  # over-fetch for re-ranking
     result = db.execute(stmt)
-    return list(result.scalars().all())
+    candidates = list(result.scalars().all())
+
+    if query and candidates:
+        import math
+        from datetime import datetime, timezone
+
+        query_terms = query.lower().split()
+        now = datetime.now(timezone.utc)
+
+        def _score(thread: ArchivedThread) -> float:
+            # Term frequency in searchable text
+            text = " ".join(filter(None, [
+                thread.summary or "", thread.full_text or "",
+                thread.subject or "", thread.tags or "",
+            ])).lower()
+            tf = sum(text.count(t) for t in query_terms)
+            doc_len = max(len(text.split()), 1)
+            # Simplified BM25: k1=1.5, b=0.75, assume avg_dl=200
+            k1, b, avg_dl = 1.5, 0.75, 200
+            bm25 = (tf * (k1 + 1)) / (tf + k1 * (1 - b + b * doc_len / avg_dl))
+
+            # Recency boost: exponential decay over 30 days
+            age_days = (now - (thread.archived_at or now)).total_seconds() / 86400
+            recency = math.exp(-age_days / 30)
+
+            # Tag match boost
+            tags = (thread.tags or "").lower()
+            tag_hits = sum(1 for t in query_terms if t in tags)
+            tag_score = tag_hits / max(len(query_terms), 1)
+
+            # Decision marker boost (check for decision-related keywords in summary)
+            decision_keywords = {"decision", "decided", "approved", "rejected", "resolved"}
+            summary_lower = (thread.summary or "").lower()
+            decision_boost = 0.05 if any(kw in summary_lower for kw in decision_keywords) else 0.0
+
+            return bm25 * 0.5 + recency * 0.3 + tag_score * 0.15 + decision_boost
+
+        candidates.sort(key=_score, reverse=True)
+
+    return candidates[:limit]
 
 
 async def get_unread_count(db: Session) -> int:

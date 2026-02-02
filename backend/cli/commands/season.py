@@ -77,14 +77,9 @@ def cmd_season_register_corps(args):
 
 
 def _stub_caption_scores(corps_id: str, show_slug: str) -> dict:
-    """Deterministic scores per caption, seeded from corps_id + show_slug."""
-    from backend.models.score import JudgeType
-    scores = {}
-    for jtype in [JudgeType.BRASS, JudgeType.PERCUSSION, JudgeType.GUARD,
-                  JudgeType.VISUAL, JudgeType.GENERAL_EFFECT]:
-        seed = hashlib.sha256(f"{corps_id}:{show_slug}:{jtype.value}".encode()).hexdigest()
-        scores[jtype] = (int(seed[:8], 16) % 30) + 60  # 60-89
-    return scores
+    """Deterministic fallback scores. Delegates to shared utility."""
+    from backend.services.scoring_utils import stub_caption_scores
+    return stub_caption_scores(corps_id, show_slug)
 
 
 def cmd_season_run_contest(args):

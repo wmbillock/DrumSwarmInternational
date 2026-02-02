@@ -214,6 +214,17 @@ class TaskManager:
             logger.warning("Session %s already has an active task", session_id)
             return
 
+        # Budget gate check
+        try:
+            from backend.services.budget_manager import get_budget_manager
+            bm = get_budget_manager()
+            allowed, reason = bm.can_start_session(session_id, corps_id)
+            if not allowed:
+                logger.warning("Budget gate denied session %s: %s", session_id, reason)
+                return
+        except Exception:
+            pass  # budget check is best-effort
+
         # Singleton guard: check if this role already has a running task in this corps
         role, nickname = self._get_agent_identity(session_id)
         if role in self.SINGLETON_ROLES:

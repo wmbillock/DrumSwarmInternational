@@ -224,6 +224,13 @@ Available tools:
 """
 
     def __init__(self, max_budget_usd: Optional[float] = None):
+        # Auto-inject from budget config if not explicitly set
+        if max_budget_usd is None:
+            try:
+                from backend.services.budget_manager import get_budget_manager
+                max_budget_usd = get_budget_manager().config.max_session_spend_usd
+            except Exception:
+                pass
         self.max_budget_usd = max_budget_usd
         self._project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         self._active_sessions: set[str] = set()  # session IDs that have been initialized
@@ -336,18 +343,30 @@ Available tools:
 
         try:
             from backend.services.runtime_config import get_runtime_config
+            from backend.services.process_registry import get_process_registry
             _effective_timeout = get_runtime_config()["timeout"]
+            _registry = get_process_registry()
 
-            proc = subprocess.run(
+            proc = subprocess.Popen(
                 cmd,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
-                timeout=_effective_timeout,
                 cwd=self._project_root,
             )
+            _registry.register(proc.pid)
+            try:
+                stdout, stderr = proc.communicate(timeout=_effective_timeout)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
+                _registry.unregister(proc.pid)
+                return LLMResponse(content=f"Error: Claude CLI timed out after {_effective_timeout}s", stop_reason="error")
+            finally:
+                _registry.unregister(proc.pid)
 
             if proc.returncode != 0:
-                error_msg = proc.stderr.strip() or f"claude CLI exited with code {proc.returncode}"
+                error_msg = stderr.strip() or f"claude CLI exited with code {proc.returncode}"
                 # If --session-id failed because it already exists (server restarted
                 # but CLI still has the session), retry with --resume
                 if "already in use" in error_msg and is_new_session and session_id:
@@ -368,15 +387,25 @@ Available tools:
                     if self.max_budget_usd:
                         resume_cmd.extend(["--max-budget-usd", str(self.max_budget_usd)])
                     resume_cmd.append(user_content)
-                    proc = subprocess.run(
+                    proc2 = subprocess.Popen(
                         resume_cmd,
-                        capture_output=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
                         text=True,
-                        timeout=_effective_timeout,
                         cwd=self._project_root,
                     )
-                    if proc.returncode != 0:
-                        error_msg = proc.stderr.strip() or f"claude CLI exited with code {proc.returncode}"
+                    _registry.register(proc2.pid)
+                    try:
+                        stdout, stderr = proc2.communicate(timeout=_effective_timeout)
+                    except subprocess.TimeoutExpired:
+                        proc2.kill()
+                        proc2.wait()
+                        _registry.unregister(proc2.pid)
+                        return LLMResponse(content=f"Error: Claude CLI timed out after {_effective_timeout}s", stop_reason="error")
+                    finally:
+                        _registry.unregister(proc2.pid)
+                    if proc2.returncode != 0:
+                        error_msg = stderr.strip() or f"claude CLI exited with code {proc2.returncode}"
                         return LLMResponse(content=f"Error: {error_msg}", stop_reason="error")
                     # Resume succeeded, mark this session as active for future calls
                     should_add_to_active = True
@@ -388,7 +417,7 @@ Available tools:
                 self._active_sessions.add(session_id)
 
             # Parse JSON output from claude CLI
-            raw_content = proc.stdout.strip()
+            raw_content = stdout.strip()
             try:
                 data = _json.loads(raw_content)
                 content = data.get("result", data.get("content", raw_content))
@@ -410,8 +439,6 @@ Available tools:
                 stop_reason="tool_use" if tool_calls else "end_turn",
             )
 
-        except subprocess.TimeoutExpired:
-            return LLMResponse(content=f"Error: Claude CLI timed out after {_effective_timeout}s", stop_reason="error")
         except FileNotFoundError:
             return LLMResponse(content="Error: 'claude' CLI not found in PATH", stop_reason="error")
 
@@ -657,6 +684,77 @@ class OllamaClient(LLMClient):
             return LLMResponse(content=f"Error: Ollama request failed — {e}", stop_reason="error")
 
 
+class GHCopilotCLIClient(LLMClient):
+    """Runs prompts via GitHub Copilot CLI (`gh copilot`).
+
+    No session persistence or native tool support. Tools are embedded
+    in the system prompt using the same XML protocol as ClaudeCLIClient.
+    """
+
+    def chat(
+        self,
+        messages: list[LLMMessage],
+        model_tier: ModelTier,
+        tools: Optional[list[dict]] = None,
+        **kwargs,
+    ) -> LLMResponse:
+        import subprocess
+
+        system_prompt = ""
+        user_content = ""
+        for msg in messages:
+            if msg.role == "system":
+                system_prompt += msg.content + "\n"
+            elif msg.role == "user":
+                user_content = msg.content
+
+        # Build full prompt (gh copilot takes a single prompt string)
+        prompt = user_content
+        if tools:
+            system_prompt += "\n" + ClaudeCLIClient.TOOL_PROTOCOL + ClaudeCLIClient._format_tools_for_prompt(tools)
+        if system_prompt.strip():
+            prompt = system_prompt.strip() + "\n\n" + user_content
+
+        cmd = ["gh", "copilot", "suggest", "-t", "shell", prompt]
+
+        try:
+            from backend.services.process_registry import get_process_registry
+            registry = get_process_registry()
+
+            proc = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            registry.register(proc.pid)
+            try:
+                stdout, stderr = proc.communicate(timeout=600)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
+                registry.unregister(proc.pid)
+                return LLMResponse(content="Error: gh copilot timed out after 600s", stop_reason="error")
+            finally:
+                registry.unregister(proc.pid)
+
+            if proc.returncode != 0:
+                return LLMResponse(content=f"Error: {stderr.strip()}", stop_reason="error")
+
+            content = stdout.strip()
+            if tools:
+                text_content, tool_calls = ClaudeCLIClient._parse_tool_calls(content)
+                return LLMResponse(
+                    content=text_content,
+                    tool_calls=tool_calls,
+                    stop_reason="tool_use" if tool_calls else "end_turn",
+                )
+            return LLMResponse(content=content, stop_reason="end_turn")
+
+        except FileNotFoundError:
+            return LLMResponse(content="Error: 'gh' CLI not found in PATH", stop_reason="error")
+
+
 class MockLLMClient(LLMClient):
     """Test double for LLM calls. Records calls and returns scripted responses."""
 
@@ -873,6 +971,19 @@ class SmartRouter(LLMClient):
                     self._stats[name].total_cached_tokens += response.cached_tokens
                 if prev_failed_name is not None:
                     self._record_failover(prev_failed_name, name, prev_error)
+                # Record spend in budget manager
+                try:
+                    from backend.services.budget_manager import get_budget_manager
+                    bm = get_budget_manager()
+                    bm.record_spend(
+                        provider=name,
+                        input_tokens=response.input_tokens,
+                        output_tokens=response.output_tokens,
+                        session_id=kwargs.get("session_id"),
+                        corps_id=kwargs.get("corps_id"),
+                    )
+                except Exception:
+                    pass  # budget tracking is best-effort
                 return response
 
             if name in self._stats:
@@ -979,7 +1090,17 @@ def build_llm_client() -> LLMClient:
         providers.append(("claude-cli", ClaudeCLIClient()))
         logger.info("LLM provider available: Claude CLI")
 
-    # 2. Anthropic API (highest priority for complex requests)
+    # 2. GitHub Copilot CLI
+    if shutil.which("gh"):
+        import subprocess as _sp
+        try:
+            _sp.run(["gh", "copilot", "--help"], capture_output=True, timeout=5)
+            providers.append(("gh-copilot-cli", GHCopilotCLIClient()))
+            logger.info("LLM provider available: GitHub Copilot CLI")
+        except Exception:
+            pass
+
+    # 3. Anthropic API (highest priority for complex requests)
     if os.environ.get("ANTHROPIC_API_KEY"):
         providers.append(("anthropic-api", AnthropicLLMClient()))
         logger.info("LLM provider available: Anthropic API")

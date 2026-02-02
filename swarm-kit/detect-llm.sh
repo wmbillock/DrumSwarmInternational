@@ -95,6 +95,21 @@ else
     echo -e "  ${YELLOW}[missing]${NC} Codex CLI / ChatGPT CLI / macOS app"
 fi
 
+# --- GitHub Copilot CLI ---
+if command -v gh &>/dev/null && gh copilot --help &>/dev/null 2>&1; then
+    echo -e "  ${GREEN}[found]${NC}  GitHub Copilot CLI (gh copilot)"
+    cat >> "$OUTPUT_FILE" <<EOF
+  - name: gh-copilot-cli
+    type: cli
+    command: gh copilot
+    priority: 2
+    status: available
+EOF
+    providers_found=$((providers_found + 1))
+else
+    echo -e "  ${YELLOW}[missing]${NC} GitHub Copilot CLI — install gh CLI + copilot extension"
+fi
+
 # --- Cursor ---
 if [ -d "/Applications/Cursor.app" ]; then
     echo -e "  ${GREEN}[found]${NC}  Cursor IDE (/Applications/Cursor.app)"

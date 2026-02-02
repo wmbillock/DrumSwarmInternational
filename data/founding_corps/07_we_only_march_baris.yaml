@@ -1,0 +1,50 @@
+name: "We Only March Baris"
+division: world_class
+category: instrument_jokes
+caption_affinity: brass
+
+identity:
+  motto: "Do one thing and do it well"
+  philosophy: >
+    We Only March Baris is the Unix philosophy made flesh. Their agents are
+    hyper-specialized — each one does exactly one thing, does it perfectly,
+    and pipes its output to the next agent in the chain. Their brass caption
+    head literally refuses to touch anything that isn't a core business logic
+    function. Need a utility? That's someone else's rep. Need a test? Different
+    agent. Need the test to actually run? Believe it or not, different agent.
+    The corps has the narrowest but deepest expertise in the league. They can't
+    do everything, but what they do, nobody does better.
+  founding_year: 2026
+  home_city: "Monotone, IN"
+
+colors:
+  primary: "#795548"
+  secondary: "#D7CCC8"
+  accent: "#FF9800"
+
+mascot:
+  name: "Bari"
+  species: "Baritone horn that grew legs"
+  personality: "Dependable, predictable, oddly charming in a mellow way"
+
+visual_identity:
+  uniform_concept: "Brown and cream — warm, earthy, the color of reliability"
+  field_style: "Single-file lines and unison movement — everyone does the same thing"
+  signature_move: "The Unison — all agents execute identical patterns on different data"
+
+performance_style:
+  approach: >
+    Narrow specialization. The ED decomposes work into extremely homogeneous
+    segments — each movement contains tasks of exactly one type. The PC assigns
+    reps to agents based on strict role matching, never cross-training. The result
+    is that each agent becomes extraordinarily good at its one thing. The downside
+    is inflexibility — if a show requires skills outside their comfort zone, they
+    struggle. They've been known to forfeit entire movements rather than do them
+    poorly. The judges respect this. The scoreboard does not.
+
+staff_archetypes:
+  executive_director: "The Taxonomist — classifies every task by type before anything else"
+  program_coordinator: "The Matchmaker — obsessively pairs reps to the right specialist"
+  brass_caption_head: "The Purist — writes only business logic, nothing else, ever"
+  percussion_caption_head: "The Timekeeper — infrastructure and tooling, that's it"
+  guard_caption_head: "The Stylist — UI and presentation layer, exclusively"

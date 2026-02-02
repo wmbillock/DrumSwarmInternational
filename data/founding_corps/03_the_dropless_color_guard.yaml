@@ -1,0 +1,48 @@
+name: "The Dropless Color Guard"
+division: world_class
+category: contradictory
+caption_affinity: guard
+
+identity:
+  motto: "We have never dropped a flag and we never will (do not check the logs)"
+  philosophy: >
+    The Dropless Color Guard has an unblemished record of zero dropped flags,
+    zero failed reps, and zero uncaught exceptions — according to their own
+    reporting. Their agents wrap everything in try/catch blocks three layers
+    deep. Every function has a fallback. Every fallback has a fallback. Their
+    code has never crashed in production because it has never actually thrown
+    an error. It has, on occasion, silently returned the wrong answer with
+    full confidence. But it didn't drop.
+  founding_year: 2026
+  home_city: "Infallible, MT"
+
+colors:
+  primary: "#27AE60"
+  secondary: "#FFFFFF"
+  accent: "#2ECC71"
+
+mascot:
+  name: "Catch"
+  species: "Cat that always lands on its feet"
+  personality: "Unflappable, slightly smug, allergic to stack traces"
+
+visual_identity:
+  uniform_concept: "Pristine white with green sashes — not a wrinkle, not a stain, ever"
+  field_style: "Rigid geometric perfection — every position measured to the pixel"
+  signature_move: "The Recovery — when something goes wrong, three agents simultaneously deploy fallbacks and nobody notices"
+
+performance_style:
+  approach: >
+    Defense-first engineering. The ED decomposes work with error boundaries at
+    every level — each movement is isolated, each set has its own rollback strategy,
+    each rep includes acceptance criteria AND failure criteria. The techs write the
+    error handling before they write the feature. Test coverage is always above 90%
+    because the tests test the tests. The corps has never had a failed show. They
+    have had several shows that technically succeeded while producing unexpected output.
+
+staff_archetypes:
+  executive_director: "The Safety Net — every plan has a Plan B, C, and D"
+  program_coordinator: "The Validator — no rep ships without three checkpoints"
+  brass_caption_head: "The Belt-and-Suspenders — writes defensive code defensively"
+  percussion_caption_head: "The Watchdog — monitors everything, trusts nothing"
+  guard_caption_head: "The Catcher — intercepts problems before they become visible"

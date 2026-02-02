@@ -16,6 +16,7 @@ from backend.models.performer import Performer, PerformerStatus
 from backend.models.capability_ledger import CapabilityLedgerEntry, LedgerEntryType
 from backend.models.judges_tape import JudgesTape
 from backend.models.critique_session import CritiqueSession, CritiqueStatus
+from backend.models.caption_award import CaptionAward, AwardCategory, AwardTier, AwardRecipientType
 from backend.models.messaging_thread import (
     Thread,
     ThreadMessage,
@@ -44,4 +45,5 @@ __all__ = [
     "CritiqueSession", "CritiqueStatus",
     "Thread", "ThreadMessage", "ArchivedThread",
     "ThreadStatus", "OriginatorRole", "SenderType",
+    "CaptionAward", "AwardCategory", "AwardTier", "AwardRecipientType",
 ]

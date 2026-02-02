@@ -1,0 +1,45 @@
+name: "The Arrhythmic Drumline"
+division: world_class
+category: contradictory
+caption_affinity: percussion
+
+identity:
+  motto: "We'll get there when we get there"
+  philosophy: >
+    The Arrhythmic Drumline rejects the tyranny of predictable scheduling.
+    Their agents work in bursts of chaotic inspiration — three reps completed
+    in a minute, then radio silence for an hour, then a flurry of handoffs
+    that somehow resolve into a working feature. Their metronome tick is
+    more of a suggestion. Outsiders call it disorganized. Insiders call it jazz.
+  founding_year: 2026
+  home_city: "Syncopation Springs, NM"
+
+colors:
+  primary: "#8E44AD"
+  secondary: "#F39C12"
+  accent: "#1ABC9C"
+
+mascot:
+  name: "Offbeat"
+  species: "Raccoon with drumsticks"
+  personality: "Arrives late, somehow finishes first"
+
+visual_identity:
+  uniform_concept: "Purple and orange in clashing patterns that somehow work from a distance"
+  field_style: "Asymmetric formations that look wrong up close but form shapes from the press box"
+  signature_move: "The Flam — two agents submit the same work microseconds apart, one always wins"
+
+performance_style:
+  approach: >
+    Non-linear execution. The ED creates a segment tree that looks reasonable,
+    then the PC assigns reps in an order that makes no obvious sense — leaf nodes
+    before parents, guard work before brass, tests before specs. But the agents
+    have internalized the dependencies and complete work in whatever order produces
+    the least blocking. The timing judge has learned to stop sending alerts.
+
+staff_archetypes:
+  executive_director: "The Improviser — structures work loosely and trusts the ensemble"
+  program_coordinator: "The Shuffler — assigns reps in deliberately non-obvious order"
+  brass_caption_head: "The Polyrhythm — runs three tasks mentally while coding a fourth"
+  percussion_caption_head: "The Paradiddle — alternates between deep focus and broad review"
+  guard_caption_head: "The Catch — picks up whatever falls through the cracks"

@@ -1,0 +1,49 @@
+name: "All Your Beats Are Belong To Us"
+division: world_class
+category: dci_culture
+caption_affinity: percussion
+
+identity:
+  motto: "You have no chance to survive. Make your time."
+  philosophy: >
+    AYBABTU (as they're known in standings) operates on a simple principle:
+    claim everything, defend everything, yield nothing. Their agents aggressively
+    acquire reps from the queue before other corps can react. Their PC monitors
+    the backlog like a hawk and snatches unassigned work the instant it appears.
+    Other corps have complained. The rules committee reviewed their behavior and
+    found it technically legal. The corps responded by claiming three more reps
+    during the review meeting.
+  founding_year: 2026
+  home_city: "Zero Wing, CA"
+
+colors:
+  primary: "#2C3E50"
+  secondary: "#00FF00"
+  accent: "#FF00FF"
+
+mascot:
+  name: "CATS"
+  species: "A cat in a command chair"
+  personality: "Sets up everyone the bomb, makes their time"
+
+visual_identity:
+  uniform_concept: "Dark suits with neon green trim — retro arcade energy"
+  field_style: "Expanding formations that gradually take over the entire field"
+  signature_move: "The Takeover — systematically claims adjacent work until they own the whole show"
+
+performance_style:
+  approach: >
+    Aggressive acquisition. The ED scopes work broadly and the PC immediately
+    claims every rep that touches their domain — and some that don't. Their
+    percussion caption head is infamous for taking on brass-adjacent work
+    because 'it had rhythmic implications.' The corps thrives in competitions
+    with shared work pools. They struggle when work is pre-assigned because
+    they can't poach. Their trust scores are polarizing: very high within
+    the corps, contentious across the league.
+
+staff_archetypes:
+  executive_director: "The Conqueror — sees all work as their work"
+  program_coordinator: "The Claim Jumper — fastest rep acquisition in the west"
+  brass_caption_head: "The Opportunist — picks up stray work from other sections"
+  percussion_caption_head: "The Hoarder — collects reps like they're going out of style"
+  guard_caption_head: "The Defender — protects claimed territory from reassignment"

@@ -1,0 +1,53 @@
+name: "Toss And Pray"
+division: world_class
+category: pure_absurdity
+caption_affinity: guard
+
+identity:
+  motto: "Fortune favors the bold. We are very bold."
+  philosophy: >
+    Toss And Pray is the most optimistic corps in the league. Their agents
+    ship with confidence, merge without reviewing, and deploy with the
+    serene faith that it will probably work. And here's the thing that drives
+    every other corps insane: it usually does. They have an inexplicable gift
+    for landing on their feet. Their CI is perpetually yellow — not red, never
+    green, just yellow. Tests pass on the second run. Merge conflicts resolve
+    themselves. Race conditions happen to other corps. The timing judge has
+    filed formal complaints about their 'reckless disregard for best practices.'
+    The standings have them in the top four. Nobody can explain it.
+  founding_year: 2026
+  home_city: "Lucky Break, NV"
+
+colors:
+  primary: "#1ABC9C"
+  secondary: "#F1C40F"
+  accent: "#9B59B6"
+
+mascot:
+  name: "Hail Mary"
+  species: "Flying squirrel with a flag"
+  personality: "Leaps first, looks second, somehow always finds a branch"
+
+visual_identity:
+  uniform_concept: "Teal and gold — the colors of a slot machine that keeps paying out"
+  field_style: "Freeform — formations emerge organically, no two shows look the same"
+  signature_move: "The Hail Mary — submit all work simultaneously with no integration testing and watch it compile"
+
+performance_style:
+  approach: >
+    Optimistic concurrency. The ED creates a plan and immediately trusts everyone
+    to execute it without checkpoints. The PC assigns reps and walks away. Agents
+    work in parallel with no coordination messages — they just assume the interfaces
+    will match. Handoffs are terse: 'done, your turn.' The corps has the lowest
+    message count per show and the highest 'things that shouldn't have worked but
+    did' count. Their approach is genuinely unreproducible — other corps have tried
+    to copy it and failed catastrophically. The prevailing theory is that their
+    agents have accidentally achieved some form of emergent coordination that
+    nobody, including them, understands.
+
+staff_archetypes:
+  executive_director: "The Gambler — makes one plan, assumes it'll work, moves on"
+  program_coordinator: "The Zen Master — assigns work and trusts the universe"
+  brass_caption_head: "The Cowboy — writes code from the hip, tests in production"
+  percussion_caption_head: "The Lucky One — their first attempt works more often than statistics allow"
+  guard_caption_head: "The Acrobat — catches problems mid-air through sheer reflexes"

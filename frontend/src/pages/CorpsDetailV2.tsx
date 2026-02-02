@@ -6,6 +6,7 @@ import * as v1 from "../services/v1";
 
 const TAB_ITEMS = [
   { key: "overview", label: "Overview" },
+  { key: "roster", label: "Roster" },
   { key: "runs", label: "Runs" },
   { key: "shows", label: "Shows" },
   { key: "history", label: "History" },
@@ -68,6 +69,9 @@ export function CorpsDetailV2() {
       <div style={{ marginTop: 16 }}>
         {activeTab === "overview" && (
           <OverviewTab corps={corps} onStateChange={refreshCorps} />
+        )}
+        {activeTab === "roster" && (
+          <RosterTab corpsId={corpsId!} />
         )}
         {activeTab === "runs" && (
           <RunsTab runs={runs} navigate={navigate} />
@@ -355,6 +359,94 @@ function HistoryTab({ corps, history, corpsId }: { corps: v1.V1CorpsDetail; hist
       {corps.history.length === 0 && (!history || history.entries.length === 0) && (
         <p className="empty">No history available for {corpsId}</p>
       )}
+    </div>
+  );
+}
+
+
+interface RosterMember {
+  session_id: string;
+  role: string;
+  nickname: string | null;
+  model_tier: string;
+  status: string;
+  group: string;
+  tenure_days: number | null;
+  performer_id: string | null;
+  performer_name: string | null;
+  performer_trust_score: number | null;
+  performer_status: string | null;
+  performer_total_sessions: number | null;
+  performer_successful_sessions: number | null;
+}
+
+function RosterTab({ corpsId }: { corpsId: string }) {
+  const [roster, setRoster] = useState<RosterMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionMsg, setActionMsg] = useState("");
+
+  const loadRoster = useCallback(() => {
+    v1.fetchV1<RosterMember[]>(`/corps/${corpsId}/roster`)
+      .then(setRoster)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [corpsId]);
+
+  useEffect(() => { loadRoster(); }, [loadRoster]);
+
+  const handleAction = async (action: string, sessionId: string) => {
+    setActionMsg("");
+    try {
+      await v1.fetchV1(`/corps/${corpsId}/roster/${action}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId }),
+      });
+      setActionMsg(`${action} successful`);
+      loadRoster();
+    } catch (e: unknown) {
+      setActionMsg(e instanceof Error ? e.message : "Action failed");
+    }
+  };
+
+  if (loading) return <p>Loading roster...</p>;
+
+  const groups = ["Administrative Staff", "Instructional Staff", "Performing Members", "Other"];
+
+  return (
+    <div>
+      {actionMsg && <div className="info-banner" style={{ marginBottom: 12 }}>{actionMsg}</div>}
+      {groups.map((group) => {
+        const members = roster.filter((m) => m.group === group);
+        if (members.length === 0) return null;
+        return (
+          <Panel key={group} title={group} className="mt-16">
+            <DataTable<RosterMember & Record<string, unknown>>
+              columns={[
+                { key: "role", label: "Role", render: (v) => String(v).replace(/_/g, " ") },
+                { key: "nickname", label: "Nickname" },
+                { key: "performer_name", label: "Performer" },
+                { key: "performer_trust_score", label: "Trust", render: (v) => v != null ? Number(v).toFixed(1) : "-" },
+                { key: "status", label: "Status", render: (v) => <Badge variant={v === "active" ? "success" : "default"}>{String(v)}</Badge> },
+                { key: "tenure_days", label: "Tenure", render: (v) => v != null ? `${v}d` : "-" },
+                { key: "session_id", label: "Actions", render: (_v, row) => (
+                  <span style={{ display: "flex", gap: 4 }}>
+                    {(row as RosterMember).performer_id && (
+                      <>
+                        <button className="btn-sm" onClick={() => handleAction("dismiss", (row as RosterMember).session_id)}>Dismiss</button>
+                        <button className="btn-sm btn-danger" onClick={() => handleAction("fire", (row as RosterMember).session_id)}>Fire</button>
+                      </>
+                    )}
+                  </span>
+                )},
+              ]}
+              data={members as (RosterMember & Record<string, unknown>)[]}
+              emptyMessage="No members"
+            />
+          </Panel>
+        );
+      })}
+      {roster.length === 0 && <p className="empty">No roster data available</p>}
     </div>
   );
 }

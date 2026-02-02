@@ -74,5 +74,5 @@ def _apply_schema_patches(engine) -> None:
         try:
             conn.execute(text("UPDATE corps SET corps_type = 'system' WHERE show_id IS NULL AND (corps_type IS NULL OR corps_type = 'competing')"))
             conn.commit()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Corps type backfill skipped: %s", e)

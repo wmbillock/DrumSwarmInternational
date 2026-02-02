@@ -76,7 +76,16 @@ class AutoScaler:
             event.set()
 
     def adjust_limits(self) -> int:
-        """Adjust concurrency limits based on system resources. Returns new limit."""
+        """Adjust concurrency limits based on system resources and budget. Returns new limit."""
+        # Apply budget-based cap
+        try:
+            from backend.services.budget_manager import get_budget_manager
+            budget_cap = get_budget_manager().config.max_concurrent_processes
+            if budget_cap < self.config.max_concurrency:
+                self.config.max_concurrency = budget_cap
+        except Exception:
+            pass
+
         try:
             import psutil
             cpu = psutil.cpu_percent(interval=0.1)
@@ -98,6 +107,15 @@ class AutoScaler:
             pass  # psutil not installed, keep current limits
         except Exception:
             logger.exception("AutoScaler: error adjusting limits")
+
+        # Check process registry threshold
+        try:
+            from backend.services.process_registry import get_process_registry
+            warning = get_process_registry().check_threshold()
+            if warning:
+                logger.warning("AutoScaler: %s", warning)
+        except Exception:
+            pass
 
         return self._current_limit
 

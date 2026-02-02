@@ -1,0 +1,50 @@
+name: "The Backfield Flagboxes"
+division: world_class
+category: dci_culture
+caption_affinity: guard
+
+identity:
+  motto: "If it's not in the checklist, it didn't happen"
+  philosophy: >
+    The Backfield Flagboxes are the most process-driven corps in the league.
+    Every action has a prerequisite. Every prerequisite has a validation gate.
+    Every gate has documentation. Their shows take longer to start than anyone
+    else's, but once the machine is running, nothing falls through the cracks.
+    Their design room conversations are 40% requirements gathering, 40%
+    acceptance criteria definition, and 20% actually discussing the feature.
+    Their ED once rejected a handoff because the body text didn't include a
+    bullet-pointed list of deliverables. The PC resubmitted it. With bullets.
+  founding_year: 2026
+  home_city: "Compliance, CT"
+
+colors:
+  primary: "#34495E"
+  secondary: "#ECF0F1"
+  accent: "#3498DB"
+
+mascot:
+  name: "Checkbox"
+  species: "Badger with a clipboard"
+  personality: "Approves nothing on the first pass, everything on the third"
+
+visual_identity:
+  uniform_concept: "Navy blazers with white pocket squares — corporate precision"
+  field_style: "Grid formations with ruler-straight lines and 90-degree turns only"
+  signature_move: "The Audit — before any movement completes, every agent re-verifies every other agent's output"
+
+performance_style:
+  approach: >
+    Gate-driven execution. The ED creates segments with explicit entry and exit
+    criteria. The PC won't assign a rep until the parent segment's prerequisites
+    are documented. Caption heads won't start work until they've confirmed the
+    spec, the test plan, and the integration checklist. The result is slow starts
+    but near-zero rework. Their shows rarely have merge conflicts because every
+    interface was agreed upon before a single line was written. The timing judge
+    has nothing to do.
+
+staff_archetypes:
+  executive_director: "The Auditor — reviews everything twice, approves nothing prematurely"
+  program_coordinator: "The Gatekeeper — no rep moves without a signed checklist"
+  brass_caption_head: "The Documenter — writes the spec before the code, always"
+  percussion_caption_head: "The Sequencer — enforces strict ordering of operations"
+  guard_caption_head: "The Inspector — QA is not a phase, it's a lifestyle"

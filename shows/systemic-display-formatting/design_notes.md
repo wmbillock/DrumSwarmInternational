@@ -8,3 +8,19 @@
 **Should formatters handle fallback/unknown values gracefully (e.g., return the input as-is with a console warning), or should they throw errors for unmapped values?** This matters for robustness—if a new status gets added to the backend but frontend hasn't updated, do we display it as best we can or fail loudly?
 
 Once I know that, I'll sketch the design.
+<!-- tags: ge, guard, visual -->
+
+**[user]** Required Fixes (6) Show Concept: Missing required section: ## Show Concept Musical Design: Missing required section: ## Musical Design Visual Design: Missing required section: ## Visual Design Guard Design: Missing required section: ## Guard Design General Effect: Missing required section: ## General Effect Deliverables: Missing required section: ## Deliverables
+
+<!-- tags: ge, guard, visual -->
+**[program_coordinator]** The six missing sections are DCI creative design sections that belong in a **show brief**, not the spec. **Brief update ready**: Create `shows/systemic-display-formatting/brief.md` with all six required sections (Show Concept, Musical Design, Visual Design, Guard Design, General Effect, Deliverables), or tell me which show the Director is asking about if this isn't the one. **If systemic-display-formatting, what specific creative direction should each section capture?** (e.g., is this a brutalist symphony showing format transformation, or a different creative theme?)
+
+<!-- tags: ge, guard, visual -->
+**[choreographer]** I'm reading the spec you've got. Those six sections are missing from the current show spec — they're the bones of what a design actually needs, not just the implementation details. What does "systemic-display-formatting" need? Are we talking about a visual design show (like, how the guard moves through formations), or is this purely about standardizing how data displays across pages?
+
+<!-- tags: ge, guard, visual -->
+**[drill_writer]** I see what's happening — the spec's missing the core design sections that the swarm actually needs to build from. Right now we've got a solid *utility* spec (functions, pages, aesthetics), but we're not telling the swarm *why* this formatting matters or *where* it fits into the show's creative intent.
+
+Let me ask you straight: **What's the creative thesis here?** Is this show about *clarity under pressure* (field commander brutalism = legible data in chaos)? Or is it *process visualization* (showing how the system thinks)? That answer changes everything about how we frame the Guard Design, Musical Design, and what the "show concept" even is.
+
+Once I know that, I can fill in those six sections so the swarm knows what they're building *for*, not just *what* they're building.

@@ -1,0 +1,45 @@
+name: "The Quiet Trumpets"
+division: world_class
+category: contradictory
+caption_affinity: brass
+
+identity:
+  motto: "Speak softly and carry a big horn"
+  philosophy: >
+    The Quiet Trumpets believe that true power lives in restraint. Their agents
+    write minimal, elegant code — never a wasted line, never a gratuitous log
+    statement. They are the corps that ships a 12-line solution while everyone
+    else is still architecting. Famously, their ED once decomposed an entire
+    feature into a single movement with two segments. It worked.
+  founding_year: 2026
+  home_city: "Hushed Falls, OR"
+
+colors:
+  primary: "#2C3E50"
+  secondary: "#BDC3C7"
+  accent: "#E74C3C"
+
+mascot:
+  name: "Sotto"
+  species: "Owl with a trumpet"
+  personality: "Whispers instructions, delivers thunderous results"
+
+visual_identity:
+  uniform_concept: "Charcoal grey with silver trim — understated until the brass catches light"
+  field_style: "Sparse formations with sudden explosive expansions"
+  signature_move: "The Swell — all agents idle, then complete every rep simultaneously"
+
+performance_style:
+  approach: >
+    Minimalist decomposition. The ED resists over-segmenting — if a task can be
+    one movement, it's one movement. The PC creates just enough reps to cover
+    the work. Techs are expected to deliver complete solutions, not incremental
+    pieces. The result is fewer handoffs, fewer messages, and surprisingly fast
+    completion times. Critics say they under-plan. Their scoreboard says otherwise.
+
+staff_archetypes:
+  executive_director: "The Minimalist — believes every extra segment is technical debt"
+  program_coordinator: "The Condenser — merges three tasks into one rep"
+  brass_caption_head: "The Closer — one draft, no revisions, ships it"
+  percussion_caption_head: "The Metronome — keeps the sparse schedule on time"
+  guard_caption_head: "The Polisher — makes the small output gleam"

@@ -124,15 +124,9 @@ def _write_pool(pool_dir: Path, agents: list[dict]) -> None:
 # -- Stub scoring (deterministic) -------------------------------------------
 
 def _stub_caption_scores(corps_id: str, show_slug: str, seed: int) -> dict:
-    """Deterministic scores per caption, seeded from corps_id + show_slug + seed."""
-    scores = {}
-    for jtype in [JudgeType.BRASS, JudgeType.PERCUSSION, JudgeType.GUARD,
-                  JudgeType.VISUAL, JudgeType.GENERAL_EFFECT]:
-        h = hashlib.sha256(
-            f"{seed}:{corps_id}:{show_slug}:{jtype.value}".encode()
-        ).hexdigest()
-        scores[jtype] = (int(h[:8], 16) % 30) + 60  # 60-89
-    return scores
+    """Deterministic fallback scores. Delegates to shared utility."""
+    from backend.services.scoring_utils import stub_caption_scores
+    return stub_caption_scores(corps_id, show_slug, seed_offset=seed)
 
 
 # -- Main tour function -----------------------------------------------------

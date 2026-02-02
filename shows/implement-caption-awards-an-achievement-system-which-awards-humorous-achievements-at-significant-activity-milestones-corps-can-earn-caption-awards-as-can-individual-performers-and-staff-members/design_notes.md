@@ -151,3 +151,19 @@ Let me reframe: **We have the Show Concept locked. Now we need to draft the rema
 **Once we lock those 5 sections, I'll synthesize them into a coherent *Deliverables & Evaluation Rubric* that a corps can execute against.**
 
 **Who's ready to draft their section first?**
+<!-- tags: admin -->
+
+**[user]** Ok, let's capture all this in some prompts
+
+<!-- tags: admin -->
+**[program_coordinator]** I hear you. We have the **Show Concept locked**, but we're missing the 5 design spec sections that agents need to execute against. Let me nail down what each section should prompt for, then we synthesize into the full Swarm Prompt.
+
+**Here's what's ready to prompt:**
+
+1. **Musical Design** — "What sonic/harmonic/tempo principles trigger achievements? (e.g., key modulations, harmonic complexity thresholds, unexpected tempo shifts)"
+2. **Visual Design (Drill)** — "What spatial formations, timing precision, and visual vocabulary define achievement-worthy behavior?"
+3. **Guard Design** — "What weapon handling techniques, visual storytelling, and precision moments earn achievements?"
+4. **General Effect** — "How do we frame achievements as *story beats* in the show's narrative arc—not just technical metrics?"
+5. **Deliverables & Evaluation Rubric** — (I synthesize the above 4 into pass/fail criteria + achievement detection rules)
+
+**One quick question before I draft the prompts:** Should each design section produce a **bullet-point reference list** (e.g., "10 harmonic principles that trigger Music achievements") or a **prose narrative** describing the philosophy? That shapes how agents ideate against it.

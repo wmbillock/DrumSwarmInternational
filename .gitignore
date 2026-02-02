@@ -27,6 +27,7 @@ frontend/dist/
 *.db
 *.sqlite
 *.sqlite3
+*.db-journal
 
 # OS
 .DS_Store
@@ -34,6 +35,9 @@ Thumbs.db
 
 # pytest
 .pytest_cache/
+
+# CI watcher output
+.ci/
 
 # Environment
 .env

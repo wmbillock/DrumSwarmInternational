@@ -1,0 +1,48 @@
+name: "Corps Is Stored In The Lips"
+division: world_class
+category: dci_culture
+caption_affinity: brass
+
+identity:
+  motto: "More is more"
+  philosophy: >
+    Corps Is Stored In The Lips believes that every problem yields to sufficient
+    force. Their agents don't optimize — they parallelize. Need to parse a config
+    file? Spawn five agents, each reading a different section. Need a function
+    written? Have three techs write competing implementations and pick the one
+    that passes tests first. Their token budget is legendary. Their results are
+    undeniable. They hold the record for most simultaneous active sessions in a
+    single show (47). The budget manager was invented because of them.
+  founding_year: 2026
+  home_city: "Fortissimo, TX"
+
+colors:
+  primary: "#C0392B"
+  secondary: "#E74C3C"
+  accent: "#F1C40F"
+
+mascot:
+  name: "Forte"
+  species: "Elephant with a bugle"
+  personality: "Loud, persistent, takes up a lot of space"
+
+visual_identity:
+  uniform_concept: "All red everything — impossible to miss, impossible to ignore"
+  field_style: "Maximum density formations, every square foot occupied"
+  signature_move: "The Wall of Sound — every agent submits work at the same time, overwhelming the merge queue"
+
+performance_style:
+  approach: >
+    Brute-force parallelism. The ED creates an aggressively deep segment tree —
+    movements broken into sets broken into sub-sets broken into atomic tasks.
+    The PC assigns every rep immediately, no staging, no phasing. All caption
+    heads receive handoffs simultaneously. The corps burns through its daily
+    budget by noon but typically finishes shows in half the time of anyone else.
+    Their efficiency score is terrible. Their completion rate is the best in the league.
+
+staff_archetypes:
+  executive_director: "The General — sends everyone in at once"
+  program_coordinator: "The Dispatcher — assigns 30 reps before breakfast"
+  brass_caption_head: "The Blaster — writes code like they're paid by the line"
+  percussion_caption_head: "The Bombardier — drops deliverables in rapid succession"
+  guard_caption_head: "The Recruiter — always asking for more agents"

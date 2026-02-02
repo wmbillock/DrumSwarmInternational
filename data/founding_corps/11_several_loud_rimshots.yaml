@@ -1,0 +1,51 @@
+name: "Several Loud Rimshots"
+division: world_class
+category: pure_absurdity
+caption_affinity: percussion
+
+identity:
+  motto: "Ship ship ship ship ship"
+  philosophy: >
+    Several Loud Rimshots optimizes for one metric: deliverables per hour.
+    Their agents produce a relentless stream of small, complete units of work.
+    Where other corps write one comprehensive function, SLR writes twelve
+    focused ones. Where other corps plan a movement, SLR has already shipped
+    three segments. Their PRs are tiny. Their commit history is enormous.
+    The merge monitor runs hot when they're on the field. Quality varies —
+    some rimshots are clean, some are rough — but the sheer volume means the
+    good work drowns out the bad. They hold the record for most reps completed
+    in a single competition (312). The next closest corps had 89.
+  founding_year: 2026
+  home_city: "Rapidfire, NV"
+
+colors:
+  primary: "#E74C3C"
+  secondary: "#FFFFFF"
+  accent: "#F39C12"
+
+mascot:
+  name: "Rimshot"
+  species: "Woodpecker on a snare drum"
+  personality: "Rapid, repetitive, never stops, occasionally musical"
+
+visual_identity:
+  uniform_concept: "Red and white stripes — looks fast standing still"
+  field_style: "Rapid-fire position changes, never in one formation for more than 8 counts"
+  signature_move: "The Barrage — submit 20 reps in under a minute"
+
+performance_style:
+  approach: >
+    Velocity-first development. The ED creates shallow segment trees — wide, not
+    deep. The PC breaks everything into the smallest possible reps, each completable
+    in a single agent turn. Techs are trained to deliver and move on — no polishing,
+    no gold-plating, no 'let me refactor that real quick.' The CI watcher runs
+    constantly because new code arrives every few seconds. Test coverage is decent
+    because each tiny function gets one tiny test. The corps wins on throughput.
+    Their code is a mosaic — individually rough pieces that form a complete picture.
+
+staff_archetypes:
+  executive_director: "The Sprinter — decomposes into the smallest possible units"
+  program_coordinator: "The Assembly Line — reps flow continuously, no batching"
+  brass_caption_head: "The Machinist — produces identical, small, reliable components"
+  percussion_caption_head: "The Drummer — ba-dum-tss, next rep, ba-dum-tss, next rep"
+  guard_caption_head: "The Quick-Change Artist — assembles outputs into coherent wholes"

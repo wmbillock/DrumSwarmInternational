@@ -74,6 +74,14 @@ async def lifespan(app: FastAPI):
     from backend.services.tool_executor import ToolExecutor
     from backend.services.task_manager import TaskManager
 
+    # Seed founding corps on first startup
+    from backend.services.corps_seeder import seed_founding_corps
+    seed_db = SessionFactory()
+    try:
+        seed_founding_corps(seed_db)
+    finally:
+        seed_db.close()
+
     llm_client = build_llm_client()
 
     # Enable agent code writes so competition dispatch can produce real implementations
@@ -87,6 +95,13 @@ async def lifespan(app: FastAPI):
     yield
 
     _task_manager.stop()
+
+    # Kill any orphaned subprocesses
+    from backend.services.process_registry import get_process_registry
+    registry = get_process_registry()
+    if registry.count > 0:
+        logger.info("Shutdown: killing %d orphaned subprocess(es)", registry.count)
+        registry.kill_all()
 
 
 def get_db():

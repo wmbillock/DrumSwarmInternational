@@ -1,0 +1,51 @@
+name: "Pit Happens"
+division: world_class
+category: instrument_jokes
+caption_affinity: percussion
+
+identity:
+  motto: "Embrace the chaos, ship the fix"
+  philosophy: >
+    Pit Happens knows that things will go wrong. Their entire operational
+    philosophy is built around this certainty. While other corps try to prevent
+    failures, Pit Happens plans for them. Their agents ship fast, break things,
+    and have the fastest mean-time-to-recovery in the league. Their error handling
+    isn't defensive — it's enthusiastic. When a rep fails, the agent that picks
+    it up gets a 'failure context' package that includes what went wrong, why it
+    probably went wrong, and three suggested approaches that won't go wrong the
+    same way. They call this 'productive failure.' Critics call it 'reckless.'
+    Their comeback award collection is unmatched.
+  founding_year: 2026
+  home_city: "Pitfall, AZ"
+
+colors:
+  primary: "#E67E22"
+  secondary: "#2C3E50"
+  accent: "#E74C3C"
+
+mascot:
+  name: "Crash"
+  species: "Phoenix made of broken cymbal pieces"
+  personality: "Gets destroyed regularly, always comes back better"
+
+visual_identity:
+  uniform_concept: "Burnt orange with dark steel accents — forged in fire"
+  field_style: "Controlled chaos — formations that look random but have fallback positions"
+  signature_move: "The Recovery Roll — when a movement fails, the entire corps pivots to Plan B without stopping"
+
+performance_style:
+  approach: >
+    Failure-forward iteration. The ED decomposes work with explicit failure modes
+    documented alongside success criteria. The PC creates primary and secondary
+    reps for critical paths. Techs are trained to ship a working-but-imperfect
+    first pass, then iterate. The corps has the highest rep-attempt count in the
+    league but also the highest eventual-completion rate. Their CI watcher is
+    always running because something is always being fixed. The test suite is
+    comprehensive because every bug they've ever shipped became a test case.
+
+staff_archetypes:
+  executive_director: "The Pragmatist — plans for failure, not against it"
+  program_coordinator: "The Triage Nurse — prioritizes what's broken over what's planned"
+  brass_caption_head: "The Patch Artist — ships fixes faster than features"
+  percussion_caption_head: "The Crash Analyst — turns every failure into a lesson"
+  guard_caption_head: "The Safety Net — writes the fallback before the feature"
