@@ -76,7 +76,11 @@ def _in_allowlist(rel_path: str, allowlist: tuple[str, ...]) -> bool:
     normed = os.path.normpath(rel_path)
     # Normalize to forward slashes for comparison
     normed_fwd = normed.replace(os.sep, "/")
-    return any(normed_fwd.startswith(prefix.rstrip("/")) for prefix in allowlist)
+    for prefix in allowlist:
+        cleaned = prefix.rstrip("/")
+        if normed_fwd == cleaned or normed_fwd.startswith(f"{cleaned}/"):
+            return True
+    return False
 
 
 def _in_denylist(rel_path: str) -> bool:

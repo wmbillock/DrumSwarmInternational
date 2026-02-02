@@ -13,7 +13,7 @@ def client(tmp_path, monkeypatch):
     """TestClient backed by tmp_path as project root."""
     monkeypatch.setenv("DCI_PROJECT_ROOT", str(tmp_path))
     (tmp_path / "shows").mkdir()
-    from backend.api.v1.router import router
+    from backend.api.v1.design import router
     from fastapi import FastAPI
     app = FastAPI()
     app.include_router(router)

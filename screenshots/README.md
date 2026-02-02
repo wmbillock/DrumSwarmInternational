@@ -1,0 +1,1 @@
+For images you find in this folder, examine the image, figure out what the bug is, and add a fix. When the fix is recorded into the swarm and completed, move the image to the SEEN_AND_FIXED folder with a .md summary of what you did.

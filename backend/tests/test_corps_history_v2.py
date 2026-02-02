@@ -28,10 +28,12 @@ def project_root(tmp_path):
 @pytest.fixture
 def client(project_root):
     os.environ["DCI_PROJECT_ROOT"] = str(project_root)
-    from backend.api.v1.router import router
+    from backend.api.v1.corps import router as corps_router
+    from backend.api.v1.seances import router as seances_router
     from fastapi import FastAPI
     app = FastAPI()
-    app.include_router(router)
+    app.include_router(corps_router)
+    app.include_router(seances_router)
     yield TestClient(app)
     os.environ.pop("DCI_PROJECT_ROOT", None)
 

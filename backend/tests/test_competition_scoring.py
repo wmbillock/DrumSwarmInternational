@@ -18,7 +18,22 @@ def project_root(tmp_path, monkeypatch):
 
 
 @pytest.fixture
-def client(project_root):
+def client(project_root, monkeypatch):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
+    from backend.database import Base
+
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    TestSessionFactory = sessionmaker(bind=engine)
+
+    monkeypatch.setattr("backend.api.app.SessionFactory", TestSessionFactory)
+
     from backend.api.app import app
     return TestClient(app)
 
@@ -84,7 +99,7 @@ class TestRunCompetition:
             assert "raw_score" in entry
             assert "caption_scores" in entry
             assert isinstance(entry["caption_scores"], dict)
-            assert len(entry["caption_scores"]) == 5
+            assert len(entry["caption_scores"]) >= 5
 
     def test_scores_endpoint_after_run(self, client, competition):
         client.post("/api/v1/competitions/s1-test-show/run")

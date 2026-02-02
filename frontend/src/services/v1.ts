@@ -28,7 +28,14 @@ async function request<T>(path: string, init?: RequestInit & { signal?: AbortSig
     const body = await res.json().catch(() => ({ detail: res.statusText }));
     throw new ApiError(res.status, body.detail || res.statusText);
   }
-  return res.json();
+  if (res.status === 204) {
+    return undefined as T;
+  }
+  const contentType = res.headers.get("content-type") || "";
+  if (contentType.includes("application/json")) {
+    return res.json();
+  }
+  return (await res.text()) as unknown as T;
 }
 
 // --- V1 Response Types ---
@@ -1013,4 +1020,3 @@ export const startEDChat = (corpsId: string) =>
   request<V1CritiqueSession>(`/api/v1/corps/${corpsId}/ed-chat`, {
     method: "POST",
   });
-

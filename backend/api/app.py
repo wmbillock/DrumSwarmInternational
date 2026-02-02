@@ -136,42 +136,44 @@ app.include_router(evolution_router)
 from backend.api.seance_routes import router as seance_router
 app.include_router(seance_router)
 
-# --- V1 versioned API ---
-from backend.api.v1.router import router as v1_router
-app.include_router(v1_router)
+# --- V1 versioned API (domain routers) ---
+from backend.api.v1.corps import router as v1_corps_router
+from backend.api.v1.design import router as v1_design_router
+from backend.api.v1.competitions import router as v1_competitions_router
+from backend.api.v1.messaging import router as v1_messaging_router
+from backend.api.v1.seasons import router as v1_seasons_router
+from backend.api.v1.runs import router as v1_runs_router
+from backend.api.v1.seances import router as v1_seances_router
+from backend.api.v1.shows import router as v1_shows_router
+from backend.api.v1.performers import router as v1_performers_router
+from backend.api.v1.system import router as v1_system_router
+from backend.api.v1.segments import router as v1_segments_router
+from backend.api.v1.reps import router as v1_reps_router
+from backend.api.v1.metrics import router as v1_metrics_router
+from backend.api.v1.critique import router as v1_critique_router
+from backend.api.v1.evolution import router as v1_evolution_router
+from backend.api.v1.admin import router as v1_admin_router
+from backend.api.v1.judging import router as v1_judging_router
+from backend.api.v1.self_improvement import router as v1_self_improvement_router
+from backend.api.v1.agents import router as v1_agents_router
+from backend.api.v1.staff import router as v1_staff_router
+from backend.api.v1.templates import router as v1_templates_router
+from backend.api.v1.ci import router as v1_ci_router
+from backend.api.v1.awards import router as v1_awards_router
+from backend.api.v1.misc import router as v1_misc_router
+from backend.api.v1.scoreboards import router as v1_scoreboards_router
 
-from backend.api.v1.scoreboards import router as scoreboards_router
-app.include_router(scoreboards_router)
+for _r in [
+    v1_corps_router, v1_design_router, v1_competitions_router, v1_messaging_router,
+    v1_seasons_router, v1_runs_router, v1_seances_router, v1_shows_router,
+    v1_performers_router, v1_system_router, v1_segments_router, v1_reps_router,
+    v1_metrics_router, v1_critique_router, v1_evolution_router, v1_admin_router,
+    v1_judging_router, v1_self_improvement_router, v1_agents_router, v1_staff_router,
+    v1_templates_router, v1_ci_router, v1_awards_router, v1_misc_router,
+    v1_scoreboards_router,
+]:
+    app.include_router(_r)
 
-# --- Legacy routes (extracted from app.py) ---
-from backend.api.legacy.shows_routes import router as shows_router
-app.include_router(shows_router)
-
-from backend.api.legacy.corps_routes import router as corps_router
-app.include_router(corps_router)
-
-from backend.api.legacy.segments_routes import router as segments_router
-app.include_router(segments_router)
-
-from backend.api.legacy.scoring_routes import router as scoring_router
-app.include_router(scoring_router)
-
-from backend.api.legacy.communication_routes import router as communication_router
-from backend.services.chat_service import build_chat_agent_context  # noqa: F401 — re-export
-_build_chat_agent_context = build_chat_agent_context  # noqa: F841 — backward-compatible alias for tests
-app.include_router(communication_router)
-
-from backend.api.legacy.system_routes import router as system_router
-app.include_router(system_router)
-
-from backend.api.legacy.performers_routes import router as performers_router
-app.include_router(performers_router)
-
-from backend.api.legacy.improvement_routes import router as improvement_router
-app.include_router(improvement_router)
-
-from backend.api.legacy.memory_routes import router as memory_router
-app.include_router(memory_router)
 
 app.add_middleware(
     CORSMiddleware,

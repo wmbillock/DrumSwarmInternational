@@ -67,7 +67,7 @@ def client(db_engine, monkeypatch):
 
     # Override both the Depends(get_db) path and the V1 _get_db_session() path
     app.dependency_overrides[get_db] = override_get_db
-    monkeypatch.setattr("backend.api.v1.router._get_db_session", lambda: TestingSession())
+    monkeypatch.setattr("backend.api.app.SessionFactory", lambda: TestingSession())
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()

@@ -168,6 +168,12 @@ class TestWriteArtifact:
         # Original file untouched
         assert (project / "backend" / "services" / "corps_service.py").read_text() == "# service\n"
 
+    def test_write_similar_prefix_blocked(self, project, db):
+        tools = _get_tools(project)
+        result = tools["write_artifact"](db, file_path="shows_backup/notes.md", content="nope")
+        assert "error" in result
+        assert not (project / "shows_backup" / "notes.md").exists()
+
     def test_write_traversal_blocked(self, project, db):
         tools = _get_tools(project)
         result = tools["write_artifact"](db, file_path="shows/../../etc/passwd", content="bad")

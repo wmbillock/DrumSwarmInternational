@@ -26,6 +26,58 @@ MAX_AUTO_RETRIES = 3
 AUTO_RETRY_ROLES = {"executive_director", "program_coordinator", "drum_major"}
 
 
+def _segment_ids_under_root(db, root_id: str) -> list[str]:
+    """Collect segment IDs under a root segment (including root)."""
+    from backend.models.segment import Segment
+
+    if not root_id:
+        return []
+    seen: set[str] = set()
+    stack = [root_id]
+    ordered: list[str] = []
+    while stack:
+        sid = stack.pop()
+        if sid in seen:
+            continue
+        seen.add(sid)
+        ordered.append(sid)
+        children = db.query(Segment.id).filter(Segment.parent_id == sid).all()
+        stack.extend([row[0] for row in children])
+    return ordered
+
+
+def _count_reps_for_show(db, root_id: str) -> dict | None:
+    """Count reps by status for a show segment tree."""
+    from backend.models.rep import Rep, RepStatus
+
+    segment_ids = _segment_ids_under_root(db, root_id)
+    if not segment_ids:
+        return None
+
+    reps = db.query(Rep).filter(Rep.segment_id.in_(segment_ids)).all()
+    if not reps:
+        return None
+
+    counts = {
+        "pending": 0,
+        "in_progress": 0,
+        "completed": 0,
+        "failed": 0,
+        "total": 0,
+    }
+    for rep in reps:
+        counts["total"] += 1
+        if rep.status == RepStatus.PENDING:
+            counts["pending"] += 1
+        elif rep.status == RepStatus.IN_PROGRESS:
+            counts["in_progress"] += 1
+        elif rep.status == RepStatus.COMPLETED:
+            counts["completed"] += 1
+        elif rep.status == RepStatus.FAILED:
+            counts["failed"] += 1
+    return counts
+
+
 class TaskManager:
     """Manages background agent tasks keyed by session_id."""
 
@@ -168,9 +220,13 @@ class TaskManager:
                 met = r["metronome"]
                 merge = r["merge"]
                 if met["reclaimed"] > 0 or merge["conflicts"] > 0 or met.get("idle_kicked", 0) > 0:
-                    judge_session = self.get_session_for_role(
-                        self._session_factory(), corps_id, "timing_judge"
-                    )
+                    db = self._session_factory()
+                    try:
+                        judge_session = self.get_session_for_role(
+                            db, corps_id, "timing_judge"
+                        )
+                    finally:
+                        db.close()
                     if judge_session and not self.is_active(judge_session):
                         health_summary = (
                             f"Metronome tick results for corps {corps_id}:\n"
@@ -475,22 +531,19 @@ class TaskManager:
                     completed_count = sum(1 for s in sessions if s.status == SessionStatus.COMPLETED)
                     failed_count = sum(1 for s in sessions if s.status == SessionStatus.FAILED)
 
-                    # Count reps by status
-                    # Get reps for this corps via segments
+                    # Count reps by status for this corps' segment tree
                     from backend.models.show import Show
                     show = db.query(Show).filter(Show.corps_id == corps.id).first()
                     rep_summary = ""
                     if show and show.segment_root_id:
-                        all_reps = db.query(Rep).all()
-                        corps_reps = [r for r in all_reps if r.segment_id]
-                        pending_reps = sum(1 for r in corps_reps if r.status == RepStatus.PENDING)
-                        in_progress_reps = sum(1 for r in corps_reps if r.status == RepStatus.IN_PROGRESS)
-                        completed_reps = sum(1 for r in corps_reps if r.status == RepStatus.COMPLETED)
-                        failed_reps = sum(1 for r in corps_reps if r.status == RepStatus.FAILED)
-                        rep_summary = (
-                            f"    Reps: {pending_reps} pending, {in_progress_reps} in-progress, "
-                            f"{completed_reps} completed, {failed_reps} failed"
-                        )
+                        rep_counts = _count_reps_for_show(db, show.segment_root_id)
+                        if rep_counts:
+                            rep_summary = (
+                                f"    Reps: {rep_counts['pending']} pending, "
+                                f"{rep_counts['in_progress']} in-progress, "
+                                f"{rep_counts['completed']} completed, "
+                                f"{rep_counts['failed']} failed"
+                            )
 
                     lines.append(
                         f"  Corps '{corps.name}' ({corps.id[:8]}...) [{corps.status.value}]:\n"

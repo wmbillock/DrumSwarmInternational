@@ -4,8 +4,8 @@ primary_instrument: guard
 availability: active
 trust_score: 68.0
 total_sessions: 1
-successful_sessions: 1
-failed_sessions: 0
+successful_sessions: 0
+failed_sessions: 1
 experience_seasons: 1
 specialties:
 - sabre

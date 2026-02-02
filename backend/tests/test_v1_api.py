@@ -27,16 +27,19 @@ def project_root(tmp_path, monkeypatch):
 def client(project_root, monkeypatch):
     """TestClient against the FastAPI app with DCI_PROJECT_ROOT set."""
     from sqlalchemy import create_engine
-    from sqlalchemy.orm import Session
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
     from backend.database import Base
 
-    engine = create_engine("sqlite:///:memory:")
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     Base.metadata.create_all(engine)
+    TestSessionFactory = sessionmaker(bind=engine)
 
-    def _test_session():
-        return Session(engine)
-
-    monkeypatch.setattr("backend.api.v1.router._get_db_session", _test_session)
+    monkeypatch.setattr("backend.api.app.SessionFactory", TestSessionFactory)
 
     from backend.api.app import app
     return TestClient(app)

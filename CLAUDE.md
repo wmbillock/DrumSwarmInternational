@@ -215,8 +215,9 @@ ED → PC → Design Staff → Caption Heads → Techs → Performers. Messages 
 | File | Purpose |
 |------|---------|
 | `backend/api/app.py` (~250 lines) | FastAPI app, WebSocket, lifespan init, router inclusions |
-| `backend/api/legacy/` (9 routers) | Extracted legacy routes: shows, corps, segments, scoring, communication, system, performers, improvement, memory |
-| `backend/api/v1/router.py` (~1200 lines) | V1 API — corps, runs, design room, competitions, seasons, seances |
+| `backend/api/v1/` (25 domain routers) | V1 API split by domain: corps, design, competitions, messaging, seasons, runs, seances, shows, performers, system, segments, reps, metrics, critique, evolution, admin, judging, self_improvement, agents, staff, templates, ci, awards, misc, scoreboards |
+| `backend/api/v1/helpers.py` | Shared utilities: `_get_root`, `_validate_id`, `_get_db_session`, `_get_llm_client`, etc. |
+| `backend/api/v1/schemas.py` | 27 Pydantic request models for all V1 endpoints |
 | `backend/services/agent_runtime.py` | Agent execution loop with LLM + tools |
 | `backend/services/task_manager.py` | Async agent orchestration, metronome |
 | `backend/services/llm_client.py` | LLM abstraction: ClaudeCLIClient, ChatGPTCLIClient, AnthropicLLMClient, Mock |
@@ -290,95 +291,35 @@ cd frontend && npx tsc --noEmit             # TypeScript check
 
 ## Current State (as of 2026-02-01)
 
-### ✅ Recently Completed (This Session)
-- **Design Room Prompt Rewrite**: ✅ COMPLETE
-  - All design staff prompts rewritten to orient toward Brief + Swarm Prompt deliverables
-  - Spec auto-update template now includes ## Swarm Prompt section
-  - Dogfooded: PC and Music Arranger responses reference Brief sections and prompt readiness
-- **Legacy → V1 API Consolidation (Phase 1-2)**: ✅ COMPLETE
-  - 40+ legacy-only endpoints ported to V1 (corps commands, heartbeat, metronome, segments/reps, scoring, theme, self-improvement, memory, messages)
-  - `_build_chat_agent_context` extracted to `backend/services/chat_service.py`
-  - All production callers migrated: frontend v1.ts, CLI client.py, all scripts (metronome, heartbeat, monitoring)
-  - Zero legacy paths remain in production code
-  - Legacy routes kept as deprecated backward-compat for tests (tests rely on legacy response shapes)
-  - V1 router now has 130+ endpoints
+### ✅ Post-Zero-State Cleanup (Completed This Session)
+
+- **Phase A: Git Tag** — Tagged `v0.0.0-zero-state` at commit `588b04e`
+- **Phase B: V1 Router Split** — Split monolithic `router.py` (6,080 lines) into 25 domain routers:
+  - `backend/api/v1/helpers.py` — shared utilities (`_get_root`, `_validate_id`, `_get_db_session`, etc.)
+  - `backend/api/v1/schemas.py` — 27 Pydantic request models
+  - 25 domain routers: corps, design, competitions, messaging, seasons, runs, seances, shows, performers, system, segments, reps, metrics, critique, evolution, admin, judging, self_improvement, agents, staff, templates, ci, awards, misc, scoreboards
+  - `backend/api/v1/router.py` is now a backward-compat shim re-exporting from helpers
+- **Phase C: Legacy Router Removal** — Deleted all 9 legacy routers (`backend/api/legacy/` removed entirely)
+  - Migrated 5 test files from legacy endpoints to V1 paths and response shapes
+  - Patched `SessionFactory` in test fixtures for proper DB isolation
+  - Fixed `_build_chat_agent_context` imports → `backend.services.chat_service`
+  - Fixed `_shows_base_dir()` to respect `DCI_PROJECT_ROOT` env var
+- **Phase D: Segment Tree Filtering** — Bug was in deleted legacy code; V1 endpoints use proper parent_id filtering
+- **Phase E: Show Prompt Synthesis** — Synthesized `show_prompt.md` for 2 shows with spec+design_notes content
+- **Phase F: Run Execution Wiring** — `POST /api/v1/runs` now attempts `task_manager.start_agent()` with stub fallback
 
 ### ✅ Previously Completed
-- **Ready-for-Contest Lifecycle**: ✅ COMPLETE
-  - Backend: ready_for_contest() and complete_corps() with validation gates
-  - V1 API: /ready-for-contest, /return-to-tour, /complete endpoints
-  - Legacy routes: Command handlers for all three transitions
-  - Frontend: Lifecycle buttons on CorpsDetailV2 for ON_TOUR → READY_FOR_CONTEST → COMPLETED flow
-  - Allows rework: Can return from READY_FOR_CONTEST → ON_TOUR
-- **Asynchronous Messaging System**: ✅ COMPLETE
-  - Database schema: message threads, messages, archive tables
-  - Backend: MessagingService, MessagingPermissions, SummaryService
-  - V1 API: Thread CRUD, message endpoints, bulk-archive, search
-  - Frontend: MessageInbox, MessageArchive pages with full lifecycle
-  - LLM Integration: Async summary generation for archived threads
-- **Scoreboards & Metrics**: ✅ COMPLETE
-  - Backend: Corps/Agent/Performer ranking endpoints with composite scoring
-  - Frontend: ScoreboardsPage with tabs, sorting, detail drill-down
-  - Integration: Full metrics aggregation with latency, throughput, reliability
-- **Metronome System**: ✅ COMPLETE (Earlier)
-  - Cron script (scripts/metronome/tick.sh) with lock file concurrency
-  - Orchestrator with ten-hut/resume-hut messaging integration
-  - Status gathering and RED FLAG alerting
-- **Other Earlier Work**:
-  - synthesize_prompt() — spec + design notes → show_prompt.md
-  - app.py extraction (2217→249 lines, 9 domain routers)
-  - Alembic migrations operational
-  - Frontend v1 API migration (RunDetail, RunsList, CorpsDeepDive)
-  - Evolution & Talent Pool fixed (786 sessions backfilled with performers)
-  - System health status calculation (ok/warning/error)
+- Design Room prompt rewrite, Legacy→V1 API consolidation, Ready-for-Contest lifecycle
+- Asynchronous messaging system, Scoreboards & Metrics, Metronome system
+- Frontend v1.ts migration, LLM multi-provider connector, UI redesign (Field Commander Brutalism)
+- synthesize_prompt(), app.py extraction, Alembic migrations, Evolution & Talent Pool
 
-### Working (Complete Feature List)
-- 11+ active corps with full lifecycle management
-- V1 API router with 130+ endpoints (all legacy endpoints ported, production callers migrated)
-- **Corps Lifecycle**: INITIALIZING → WINTER_CAMPS ⇄ ON_TOUR → READY_FOR_CONTEST ⇄ COMPLETED
-- **Messaging**: Threaded inbox, bulk archive with LLM summaries, searchable archive, permission enforcement
-- **Metrics & Scoring**: Composite scores, leaderboards, trend analysis, performance bottleneck detection
-- **Metronome**: 5-minute heartbeat, corps liveness monitoring, stalled work recovery
-- **Design Room**: LLM-powered collaboration with role-based routing, Brief/Swarm Prompt deliverables, spec synthesis
-- **Rehearsal Modes**: BASICS → SECTIONALS → FULL_ENSEMBLE → RUN_THROUGH with auto-progression
-- **Agent System**: Full role hierarchy (ED → PC → Designers → Caption Heads → Techs), performer assignment, audition pipeline
-- **Seasons & Competitions**: Season management, competition registration, standings calculation
-- **System Health**: Real-time monitoring with status indicators (ok/warning/error)
+### Architecture
+- **V1 API**: 25 domain routers in `backend/api/v1/`, ~165 routes total
+- **Non-legacy routers**: workspace_routes, design_room_routes, judging_routes, evolution_routes, seance_routes (still in `backend/api/`)
+- **app.py**: ~180 lines — lifespan, WebSocket, CORS, router inclusions only
+- **No legacy routes remain** — all test and production code uses V1 endpoints
 
-### In Progress / Ready for Implementation
-- **Caption-awards achievement system**: Spec drafted (12 categories, 360 achievements), TDD framework ready
-- **Chat-test show**: ✅ PERCUSSION ASSIGNMENT COMPLETE
-  - Rep 08741bf4-e594-4004-88bc-6bedbcdd268d assigned to Wayne Fortissimo (percussion_caption_head)
-  - Status: IN_PROGRESS (pending → assigned → in_progress)
-  - Task: Full percussion specification for fanfare opening (counts 1-32, geometric guard choreography)
-- **Let's Build Metrics show**: Dashboard visualization movement in progress
-- **Staff Marketplace**: Page exists, API endpoints defined (hiring, firing, career tracking)
-- **System Health Dashboard**: Frontend page with real-time metrics
-- **Seasons & Standings UI**: Spec written, needs frontend implementation
-
-### Recently Fixed (This Session)
-- **Test Failures Fixed**: ✅
-  - test_system_health (5/5 tests passing)
-  - test_agents_overview (15/15 tests passing)
-  - Fixed: AgentDefinition.corps_id assignment in test setup
-  - Fixed: Removed incorrect session deduplication in agents-overview endpoint
-- **Scoreboards Router**: ✅ Included scoreboards.py router in app.py
-
-### Metronome Status (2026-02-01)
-- **Corps b8fb873a-77ff-41e0-865b-58b93c2065d6**:
-  - Reps reclaimed: 1 (self-healed by metronome — indicates potential async rep calculation race)
-  - Merges: 12/31 (39% rate, 0 conflicts) — normal backlog during ON_TOUR
-  - System Status: 🟡 **WARNING** — continued monitoring recommended
-
-### ✅ Recently Completed (This Session)
-- **Legacy api.ts → v1.ts migration**: ✅ COMPLETE — All 27+ frontend files migrated, zero imports from api.ts remain
-  - Added 30+ new v1 backend endpoints (shows CRUD, judging, templates, seance, admin, sessions, evolution)
-  - All frontend pages now use typed v1 client exclusively
-- **LLM Multi-Provider Connector**: ✅ COMPLETE — SmartRouter, RetryingClient, OllamaClient, prompt caching
-- **UI Redesign (Phase 1-4)**: ✅ COMPLETE — All lifecycle pages built (ShowLibrary, SeasonWorkshop, TourDashboard, Finals, CompetitionLive, SeasonReview), 8-item SideNav, Field Commander Brutalism aesthetic (JetBrains Mono + IBM Plex Sans, stage colors)
-- **Font fix**: App.css body now uses design system variable (--font-body)
-
-### Known Issues / Not Yet Working
-- **2 test failures in test_v1_api.py / test_agents_overview.py**: Tests expect empty DB but find existing corps
-- **Legacy routes still registered in app.py**: 9 legacy routers kept for test backward-compat — tests use legacy response shapes (id vs slug). Remove once tests updated.
-- **6 pre-existing test failures**: test_cli_run (4 timeouts), test_runtime_config (2 env override)
+### Known Issues
+- **8 pre-existing test failures**: test_competition_scoring (4, missing corps table in judge_service), test_coverage_boost (1, autoscaler assertion), test_judging_routes (1), test_show_persistence (1), test_v1_api competitions (1)
+- **Scoresheet model missing**: `backend.models.scoresheet` does not exist; V1 scoresheet endpoint returns empty data with debug log

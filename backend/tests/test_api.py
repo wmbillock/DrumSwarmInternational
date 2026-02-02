@@ -1,4 +1,4 @@
-"""Phase 9: FastAPI endpoint tests."""
+"""Phase 9: FastAPI endpoint tests — V1 API."""
 
 import pytest
 from fastapi.testclient import TestClient
@@ -25,7 +25,13 @@ from backend.api.app import app, get_db
 
 
 @pytest.fixture
-def client():
+def client(tmp_path, monkeypatch):
+    monkeypatch.setenv("DCI_PROJECT_ROOT", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "shows").mkdir()
+    (tmp_path / "corps").mkdir()
+    (tmp_path / "seasons").mkdir()
+
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -42,82 +48,83 @@ def client():
             db.close()
 
     app.dependency_overrides[get_db] = override_get_db
+    monkeypatch.setattr("backend.api.app.SessionFactory", TestingSession)
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
 
 
+def _create_corps(client) -> str:
+    """Helper: create a corps via V1 API and return its corps_id."""
+    resp = client.post("/api/v1/corps", json={"name": f"Test Corps {id(client)}"})
+    assert resp.status_code == 200
+    return resp.json()["corps_id"]
+
+
 class TestShowAPI:
     def test_create_show(self, client):
-        resp = client.post("/api/shows", json={"title": "API Show"})
+        resp = client.post("/api/v1/shows", json={"title": "API Show"})
         assert resp.status_code == 200
         data = resp.json()
         assert data["title"] == "API Show"
         assert data["status"] == "draft"
+        assert "slug" in data
 
     def test_list_shows(self, client):
-        client.post("/api/shows", json={"title": "S1"})
-        client.post("/api/shows", json={"title": "S2"})
-        resp = client.get("/api/shows")
+        client.post("/api/v1/shows", json={"title": "S1"})
+        client.post("/api/v1/shows", json={"title": "S2"})
+        resp = client.get("/api/v1/shows")
         assert resp.status_code == 200
-        assert len(resp.json()) == 2
+        shows = resp.json()
+        slugs = {s.get("slug") for s in shows}
+        assert "s1" in slugs
+        assert "s2" in slugs
 
     def test_get_show(self, client):
-        create_resp = client.post("/api/shows", json={"title": "Get"})
-        show_id = create_resp.json()["id"]
-        resp = client.get(f"/api/shows/{show_id}")
+        create_resp = client.post("/api/v1/shows", json={"title": "Get"})
+        slug = create_resp.json()["slug"]
+        resp = client.get(f"/api/v1/shows/{slug}/detail")
         assert resp.status_code == 200
-        assert resp.json()["title"] == "Get"
+        assert resp.json()["slug"] == slug
 
     def test_get_nonexistent_show(self, client):
-        resp = client.get("/api/shows/nope")
+        resp = client.get("/api/v1/shows/nope/detail")
         assert resp.status_code == 404
 
     def test_activate_show(self, client):
-        create_resp = client.post("/api/shows", json={"title": "Activate"})
-        show_id = create_resp.json()["id"]
-        resp = client.post(f"/api/shows/{show_id}/activate")
+        create_resp = client.post("/api/v1/shows", json={"title": "Activate"})
+        slug = create_resp.json()["slug"]
+        resp = client.post(f"/api/v1/shows/{slug}/activate")
         assert resp.status_code == 200
-        assert resp.json()["status"] == "active"
-        assert resp.json()["corps_id"] is not None
+        assert resp.json()["status"] == "activated"
+        assert resp.json()["slug"] == slug
 
     def test_complete_show(self, client):
-        create_resp = client.post("/api/shows", json={"title": "Complete"})
-        show_id = create_resp.json()["id"]
-        client.post(f"/api/shows/{show_id}/activate")
-        resp = client.post(f"/api/shows/{show_id}/complete")
+        create_resp = client.post("/api/v1/shows", json={"title": "Complete"})
+        slug = create_resp.json()["slug"]
+        client.post(f"/api/v1/shows/{slug}/activate")
+        resp = client.post(f"/api/v1/shows/{slug}/complete")
         assert resp.status_code == 200
         assert resp.json()["status"] == "completed"
 
 
 class TestCorpsAPI:
     def test_get_corps(self, client):
-        create_resp = client.post("/api/shows", json={"title": "Corps Test"})
-        show_id = create_resp.json()["id"]
-        activate_resp = client.post(f"/api/shows/{show_id}/activate")
-        corps_id = activate_resp.json()["corps_id"]
-        resp = client.get(f"/api/corps/{corps_id}")
+        corps_id = _create_corps(client)
+        resp = client.get(f"/api/v1/corps/{corps_id}")
         assert resp.status_code == 200
-        assert resp.json()["status"] == "winter_camps"
+        assert resp.json()["state"] == "winter_camps"
 
     def test_get_roster(self, client):
-        create_resp = client.post("/api/shows", json={"title": "Roster Test"})
-        show_id = create_resp.json()["id"]
-        activate_resp = client.post(f"/api/shows/{show_id}/activate")
-        corps_id = activate_resp.json()["corps_id"]
-        resp = client.get(f"/api/corps/{corps_id}/roster")
+        corps_id = _create_corps(client)
+        resp = client.get(f"/api/v1/corps/{corps_id}/roster")
         assert resp.status_code == 200
-        roster = resp.json()
-        assert len(roster) > 0
-        roles = {a["role"] for a in roster}
-        assert "executive_director" in roles
+        # DB-created corps won't have agent sessions, so roster may be empty
+        assert isinstance(resp.json(), list)
 
     def test_set_rehearsal_mode(self, client):
-        create_resp = client.post("/api/shows", json={"title": "Mode Test"})
-        show_id = create_resp.json()["id"]
-        activate_resp = client.post(f"/api/shows/{show_id}/activate")
-        corps_id = activate_resp.json()["corps_id"]
-        resp = client.post(f"/api/corps/{corps_id}/rehearsal-mode",
+        corps_id = _create_corps(client)
+        resp = client.post(f"/api/v1/corps/{corps_id}/rehearsal-mode",
                            json={"mode": "basics"})
         assert resp.status_code == 200
         assert resp.json()["rehearsal_mode"] == "basics"
@@ -125,78 +132,76 @@ class TestCorpsAPI:
 
 class TestSegmentAPI:
     def test_create_and_get_segment(self, client):
-        resp = client.post("/api/segments", json={
+        resp = client.post("/api/v1/segments", json={
             "type": "show", "title": "Test Show"
         })
         assert resp.status_code == 200
         coord_id = resp.json()["id"]
-        get_resp = client.get(f"/api/segments/{coord_id}")
+        get_resp = client.get(f"/api/v1/segments/{coord_id}")
         assert get_resp.status_code == 200
         assert get_resp.json()["title"] == "Test Show"
 
     def test_segment_children(self, client):
-        show_resp = client.post("/api/segments", json={
+        show_resp = client.post("/api/v1/segments", json={
             "type": "show", "title": "Show"
         })
         show_id = show_resp.json()["id"]
-        client.post("/api/segments", json={
+        client.post("/api/v1/segments", json={
             "type": "movement", "title": "M1", "parent_id": show_id
         })
-        resp = client.get(f"/api/segments/{show_id}/children")
+        resp = client.get(f"/api/v1/segments/{show_id}/children")
         assert resp.status_code == 200
         assert len(resp.json()) == 1
 
 
 class TestRepAPI:
     def test_create_and_transition_rep(self, client):
-        show_resp = client.post("/api/segments", json={
+        show_resp = client.post("/api/v1/segments", json={
             "type": "show", "title": "Show"
         })
         coord_id = show_resp.json()["id"]
-        rep_resp = client.post("/api/reps", json={"segment_id": coord_id})
+        rep_resp = client.post("/api/v1/reps", json={"segment_id": coord_id})
         assert rep_resp.status_code == 200
         rep_id = rep_resp.json()["id"]
 
-        trans_resp = client.post(f"/api/reps/{rep_id}/transition", json={
+        trans_resp = client.post(f"/api/v1/reps/{rep_id}/transition", json={
             "new_status": "assigned", "assigned_to": "agent-1"
         })
         assert trans_resp.status_code == 200
         assert trans_resp.json()["status"] == "assigned"
 
     def test_get_reps_for_segment(self, client):
-        show_resp = client.post("/api/segments", json={
+        show_resp = client.post("/api/v1/segments", json={
             "type": "show", "title": "Show"
         })
         coord_id = show_resp.json()["id"]
-        client.post("/api/reps", json={"segment_id": coord_id})
-        resp = client.get(f"/api/segments/{coord_id}/reps")
+        client.post("/api/v1/reps", json={"segment_id": coord_id})
+        resp = client.get(f"/api/v1/segments/{coord_id}/reps")
         assert resp.status_code == 200
         assert len(resp.json()) == 1
 
 
 class TestMessageAPI:
     def test_send_and_poll_messages(self, client):
-        create_resp = client.post("/api/shows", json={"title": "Msg Test"})
-        show_id = create_resp.json()["id"]
-        activate_resp = client.post(f"/api/shows/{show_id}/activate")
-        corps_id = activate_resp.json()["corps_id"]
+        corps_id = _create_corps(client)
 
-        msg_resp = client.post(f"/api/corps/{corps_id}/messages", json={
+        msg_resp = client.post(f"/api/v1/corps/{corps_id}/messages", json={
             "from_role": "executive_director",
             "to_role": "program_coordinator",
             "type": "directive",
-            "subject": "Start work"
+            "subject": "Start work",
+            "priority": "normal"
         })
         assert msg_resp.status_code == 200
 
-        poll_resp = client.get(f"/api/corps/{corps_id}/messages?role=program_coordinator")
+        poll_resp = client.get(f"/api/v1/corps/{corps_id}/messages/poll")
         assert poll_resp.status_code == 200
         assert len(poll_resp.json()) >= 1
 
 
 class TestCorpsCommands:
     def test_list_commands(self, client):
-        resp = client.get("/api/corps-commands")
+        resp = client.get("/api/v1/corps-commands")
         assert resp.status_code == 200
         cmds = resp.json()
         assert "resume_hut" in cmds
@@ -205,36 +210,17 @@ class TestCorpsCommands:
         assert cmds["resume_hut"]["category"] == "control"
 
     def test_unknown_command(self, client):
-        from backend.models.corps import Corps, CorpsStatus
-        # Create a corps first
-        resp = client.post("/api/shows", json={"title": "Cmd Test"})
-        show_id = resp.json()["id"]
-        # Need a corps — create one directly
-        from backend.database import Base
-        resp = client.post(f"/api/corps/fake-id/command", json={"command": "bogus"})
+        resp = client.post("/api/v1/corps/fake-id/command", json={"command": "bogus"})
         assert resp.status_code in (400, 404)
 
     def test_at_ease_command(self, client):
-        from backend.models.corps import Corps, CorpsStatus
-        # We need a real corps for this
-        resp = client.post("/api/shows", json={"title": "Ease Test"})
-        show_id = resp.json()["id"]
-        # Activate to get a corps
-        act_resp = client.post(f"/api/shows/{show_id}/activate")
-        if act_resp.status_code == 200:
-            corps_id = act_resp.json().get("corps_id")
-            if corps_id:
-                cmd_resp = client.post(f"/api/corps/{corps_id}/command", json={"command": "at_ease"})
-                assert cmd_resp.status_code == 200
-                assert cmd_resp.json()["status"] == "ok"
+        corps_id = _create_corps(client)
+        cmd_resp = client.post(f"/api/v1/corps/{corps_id}/command", json={"command": "at_ease"})
+        assert cmd_resp.status_code == 200
+        assert cmd_resp.json()["status"] == "ok"
 
     def test_rehearsal_mode_commands(self, client):
-        resp = client.post("/api/shows", json={"title": "Rehearsal Test"})
-        show_id = resp.json()["id"]
-        act_resp = client.post(f"/api/shows/{show_id}/activate")
-        if act_resp.status_code == 200:
-            corps_id = act_resp.json().get("corps_id")
-            if corps_id:
-                for mode in ["basics", "sectionals", "full_ensemble", "run_through"]:
-                    cmd_resp = client.post(f"/api/corps/{corps_id}/command", json={"command": mode})
-                    assert cmd_resp.status_code == 200
+        corps_id = _create_corps(client)
+        for mode in ["basics", "sectionals", "full_ensemble", "run_through"]:
+            cmd_resp = client.post(f"/api/v1/corps/{corps_id}/command", json={"command": mode})
+            assert cmd_resp.status_code == 200

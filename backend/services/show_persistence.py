@@ -176,6 +176,17 @@ def synthesize_prompt(show_dir: Path) -> None:
         deliverables.append("- Completed show design with all sections finalized\n- Performance-ready prompt for agent execution")
     parts.append("\n".join(deliverables))
 
+    # Evaluation Rubric
+    parts.append("\n\n## Evaluation Rubric\n")
+    rubric = []
+    if spec:
+        rubric_match = re.search(r"##\s+Evaluation Rubric\s*\n(.*?)(?=\n##|\Z)", spec, re.DOTALL)
+        if rubric_match:
+            rubric.append(rubric_match.group(1).strip())
+    if not rubric:
+        rubric.append("- Judges will evaluate musical performance, visual execution, guard work, and general effect\n- Scores are 0-100 per caption with composite weighting")
+    parts.append("\n".join(rubric))
+
     parts.append("\n")
     atomic_write(show_dir / "show_prompt.md", "\n".join(parts))
 
@@ -273,6 +284,10 @@ def list_spec_versions(show_dir: Path) -> list[int]:
 
 def _shows_base_dir() -> Path:
     """Return the project-level shows/ directory."""
+    import os
+    root = os.environ.get("DCI_PROJECT_ROOT", "")
+    if root:
+        return Path(root) / "shows"
     return Path("shows")
 
 

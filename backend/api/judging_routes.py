@@ -19,6 +19,7 @@ CAPTION_TO_ROLE = {
     "guard": "guard_caption_head",
     "visual": "visual_caption_head",
     "general_effect": "program_coordinator",
+    "ensemble_technique": "program_coordinator",
     "timing": "timing_judge",
 }
 

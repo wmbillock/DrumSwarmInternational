@@ -1,5 +1,5 @@
 # Tour Recap (seed=1, seasons=1, corps=2)
-Generated: 2026-02-01T18:51:05.491698+00:00
+Generated: 2026-02-02T04:14:12.910812+00:00
 
 ## Pool: 10 agents initialized
 
@@ -12,8 +12,8 @@ Generated: 2026-02-01T18:51:05.491698+00:00
 ## Show: tour-show-s1 (approved)
 
 ## Season tour-s1
-  #1 cavaliers: 66.76
-  #2 scouts: 61.49
+  #1 cavaliers: 62.35
+  #2 scouts: 59.86
 
 ## Final Agent Trust Scores
   agent-bra-00: trust=67.0000 sessions=1

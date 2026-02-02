@@ -32,18 +32,18 @@ class MessagingPermissions:
 
     @staticmethod
     def can_mark_thread_complete(
-        user_role: str, thread_originator_role: str, is_message_receiver: bool
+        user_role: str, thread_originator_role: str, is_originator: bool
     ) -> bool:
         """Check if user can mark a thread complete.
 
-        ✅ User (human admin) who received the message — primary authority
-        ✅ Original sender (ED/PC) can mark complete
+        ✅ Admin can mark complete
+        ✅ Original sender (ED/PC) can mark complete if they are the actor
         ❌ Other agents cannot mark threads complete
 
         Args:
             user_role: The role of the user attempting the action
             thread_originator_role: The role of the thread's originator
-            is_message_receiver: Whether the user received/is assigned to the thread
+            is_originator: Whether the user is the thread originator
         """
         user = UserRole(user_role) if isinstance(user_role, str) else user_role
         originator = (
@@ -52,12 +52,12 @@ class MessagingPermissions:
             else thread_originator_role
         )
 
-        # Human admin (user) who received the message has primary authority
-        if is_message_receiver and user == UserRole.ADMIN:
+        # Admin has primary authority
+        if user == UserRole.ADMIN:
             return True
 
-        # Original sender (ED/PC) can suggest completion
-        if originator in [UserRole.EXECUTIVE_DIRECTOR, UserRole.PROGRAM_COORDINATOR]:
+        # Originator (ED/PC) can mark their own thread complete
+        if is_originator and originator in [UserRole.EXECUTIVE_DIRECTOR, UserRole.PROGRAM_COORDINATOR]:
             return True
 
         return False
