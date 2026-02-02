@@ -46,7 +46,7 @@ export function Finals() {
 
       <div className="competition-grid">
         {allSeasons.map(s => {
-          const status = (s.metadata as Record<string, unknown>)?.status as string || "unknown";
+          const status = (s.metadata as Record<string, unknown>)?.status as string || "planning";
           return (
             <div
               key={s.season_id}

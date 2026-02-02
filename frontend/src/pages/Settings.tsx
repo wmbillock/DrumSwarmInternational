@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Panel } from "../ui";
+import * as v1 from "../services/v1";
 
 interface SystemConfig {
   [key: string]: unknown;
@@ -8,13 +9,12 @@ interface SystemConfig {
 export function Settings() {
   const [config, setConfig] = useState<SystemConfig | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    const base = import.meta.env.VITE_API_URL || "http://localhost:8000";
-    fetch(`${base}/api/system-health`)
-      .then((r) => r.json())
+    v1.getSystemHealth()
       .then(setConfig)
-      .catch(() => setConfig({}))
+      .catch(() => { setConfig(null); setError(true); })
       .finally(() => setLoading(false));
   }, []);
 
@@ -24,9 +24,23 @@ export function Settings() {
     <div className="page-content">
       <h2 className="page-title">System Settings</h2>
       <Panel title="Runtime Configuration">
-        <div className="code-block">
-          <pre>{JSON.stringify(config, null, 2)}</pre>
-        </div>
+        {error ? (
+          <p className="text-muted">Unable to load system health data. Is the backend running?</p>
+        ) : config && Object.keys(config).length > 0 ? (
+          <table className="styled-table">
+            <thead><tr><th>Key</th><th>Value</th></tr></thead>
+            <tbody>
+              {Object.entries(config).map(([k, val]) => (
+                <tr key={k}>
+                  <td className="cell-primary">{k}</td>
+                  <td className="mono">{typeof val === "object" ? JSON.stringify(val) : String(val ?? "—")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="text-muted">No configuration data available.</p>
+        )}
       </Panel>
       <Panel title="Environment" className="mt-16">
         <table className="styled-table">

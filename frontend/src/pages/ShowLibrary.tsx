@@ -50,7 +50,7 @@ function getNextAction(show: LibraryShow): { label: string; color: string; toolt
     case "completed":
       return { label: "\u2713 Done", color: "var(--text-muted)", tooltip: "This show has been completed." };
     default:
-      return { label: "", color: "var(--text-muted)", tooltip: "" };
+      return { label: `Status: ${status}`, color: "var(--text-muted)", tooltip: `Current status: ${status}` };
   }
 }
 

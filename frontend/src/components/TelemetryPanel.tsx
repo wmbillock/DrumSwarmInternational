@@ -18,11 +18,7 @@ export function TelemetryPanel() {
   useEffect(() => {
     const ac = new AbortController();
 
-    fetch(
-      `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/api/system-health`,
-      { signal: ac.signal }
-    )
-      .then((r) => r.json())
+    v1.getSystemHealth(ac.signal)
       .then(setHealth)
       .catch(() => {});
 
@@ -30,7 +26,7 @@ export function TelemetryPanel() {
       .then((runs) => setRecentRuns(runs.slice(0, 5)))
       .catch(() => {});
 
-    v1.listCorps(ac.signal)
+    v1.listCorps(ac.signal, true)
       .then((corps) => setCorpsCount(corps.length))
       .catch(() => {});
 

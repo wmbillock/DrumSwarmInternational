@@ -10,7 +10,7 @@ from pathlib import Path
 
 import yaml
 
-from backend.services.yaml_util import atomic_write, safe_dump_yaml
+from backend.services.yaml_util import atomic_write, safe_dump_yaml, safe_load_yaml_dict
 
 VALID_STATUSES = ("draft", "needs_review", "approved", "rejected", "published", "on_tour", "completed")
 
@@ -42,7 +42,7 @@ def create_show(title: str, base_dir: Path) -> Path:
 
 def load_status(show_dir: Path) -> dict:
     """Read and return status dict from status.yaml."""
-    return yaml.safe_load((Path(show_dir) / "status.yaml").read_text())
+    return safe_load_yaml_dict((Path(show_dir) / "status.yaml").read_text(), {"status": "draft"})
 
 
 def update_status(show_dir: Path, new_status: str) -> None:
@@ -247,7 +247,7 @@ def approve_spec(show_dir: Path) -> dict:
     if content.startswith("---"):
         parts = content.split("---", 2)
         if len(parts) >= 3:
-            fm = yaml.safe_load(parts[1]) or {}
+            fm = safe_load_yaml_dict(parts[1])
             fm["approved_at"] = now
             fm["approved_by"] = "user"
             fm["version"] = version
@@ -301,7 +301,7 @@ def list_shows() -> list[dict]:
         status_file = d / "status.yaml"
         if not d.is_dir() or not status_file.exists():
             continue
-        data = yaml.safe_load(status_file.read_text()) or {}
+        data = safe_load_yaml_dict(status_file.read_text())
         spec_text = read_spec(d)
         title = d.name
         if spec_text:
@@ -325,7 +325,7 @@ def get_show(slug: str) -> dict | None:
     status_file = show_dir / "status.yaml"
     if not show_dir.exists() or not status_file.exists():
         return None
-    data = yaml.safe_load(status_file.read_text()) or {}
+    data = safe_load_yaml_dict(status_file.read_text())
     spec_text = read_spec(show_dir)
     title = slug
     if spec_text:

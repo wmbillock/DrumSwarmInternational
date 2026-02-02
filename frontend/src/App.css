@@ -767,6 +767,17 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .styled-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
 .styled-table tr:hover { background: var(--bg-hover); }
 .styled-table .cell-primary { font-weight: 500; color: var(--text-primary); }
+/* Standings table (scoreboards) */
+.standings-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.standings-table th {
+  text-align: left; padding: 8px 12px; font-size: 11px; text-transform: uppercase;
+  color: var(--text-muted); border-bottom: 2px solid var(--border); letter-spacing: 0.5px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.standings-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.standings-table tr:hover { background: var(--bg-hover); }
+.standings-table tr.clickable { cursor: pointer; }
+
 .trust-score { font-weight: 600; color: var(--accent); }
 .dim { color: var(--text-muted); font-style: italic; }
 .table-wrapper { overflow-x: auto; }
