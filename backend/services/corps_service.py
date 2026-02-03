@@ -387,6 +387,33 @@ def initialize_corps(db: Session, corps_id: str, use_auditions: bool = True) -> 
     return sessions
 
 
+def get_staffing_status(db: Session, corps_id: str) -> dict:
+    """Return staffing progress for a corps."""
+    from backend.models.agent_definition import AgentDefinition
+
+    roles = [r for r, _, _ in CORPS_HIERARCHY]
+    total_roles = len(roles)
+    defs = (
+        db.query(AgentDefinition)
+        .filter(AgentDefinition.corps_id == corps_id)
+        .all()
+    )
+    hired_roles = {d.role for d in defs if d.role in roles}
+    hired = len(hired_roles)
+
+    current_role = None
+    for role in roles:
+        if role not in hired_roles:
+            current_role = role
+            break
+
+    return {
+        "total_roles": total_roles,
+        "hired": hired,
+        "current_role": current_role,
+    }
+
+
 ADMIN_CORPS_NAME = "Critique"
 
 ADMIN_HIERARCHY = [

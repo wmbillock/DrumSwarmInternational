@@ -1,34 +1,27 @@
 import { useState, useEffect } from "react";
 import * as v1 from "../services/v1";
-
-function formatRole(role: string): string {
-  return role.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-}
-
-function timeAgo(ts?: string): string {
-  if (!ts) return "";
-  const diff = Date.now() - new Date(ts).getTime();
-  if (diff < 60000) return "just now";
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-  return `${Math.floor(diff / 86400000)}d ago`;
-}
-
-const STATUS_LABELS: Record<string, string> = { active: "Active", retired: "Retired" };
-
-function StatusBadge({ status }: { status: string }) {
-  const label = STATUS_LABELS[status] || status;
-  return <span className={`badge ${status}`}>{label}</span>;
-}
+import { Badge, DataTable } from "../ui";
+import { formatRole, formatStatus, formatTimestamp } from "../utils/formatters";
 
 export function Performers() {
   const [performers, setPerformers] = useState<any[]>([]);
   const [selected, setSelected] = useState<any>(null);
   const [ledger, setLedger] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadPerformers = () => {
+    setError(null);
+    v1.listPerformers()
+      .then(setPerformers)
+      .catch((e) => {
+        setPerformers([]);
+        setError(e instanceof Error ? e.message : "Failed to load performers");
+      });
+  };
 
   useEffect(() => {
-    v1.listPerformers().then(setPerformers).catch(() => setPerformers([]));
+    loadPerformers();
   }, []);
 
   const handleSelect = async (id: string) => {
@@ -52,27 +45,34 @@ export function Performers() {
 
   return (
     <div className="page-content">
-      <h2>Performers</h2>
-      <div className="table-wrapper">
-        <table className="styled-table">
-          <thead><tr><th>Name</th><th>Role</th><th>Trust</th><th>Status</th><th>Sessions</th></tr></thead>
-          <tbody>
-            {performers.map((p: any) => (
-              <tr key={p.id} onClick={() => handleSelect(p.id)} className="clickable">
-                <td className="cell-primary">{p.name || p.id.slice(0, 8)}</td>
-                <td>{formatRole(p.role_type || "")}</td>
-                <td><span className="trust-score">{p.trust_score ?? "-"}</span></td>
-                <td><StatusBadge status={p.status || "active"} /></td>
-                <td>{p.total_sessions ?? 0}</td>
-              </tr>
-            ))}
-            {performers.length === 0 && <tr><td colSpan={5} className="dim">No performers yet.</td></tr>}
-          </tbody>
-        </table>
+      <div className="page-header">
+        <h2 className="page-title">Performers</h2>
       </div>
+      <DataTable<any>
+        columns={[
+          { key: "id", label: "Name", render: (v, row) => (
+            <span className="cell-primary" title={String(v)}>
+              {row.name || `Performer • ${String(v).slice(0, 8)}`}
+            </span>
+          ) },
+          { key: "role_type", label: "Role", render: (v) => formatRole(String(v || "")) },
+          { key: "trust_score", label: "Trust", render: (v) => <span className="trust-score">{v ?? "-"}</span> },
+          { key: "status", label: "Status", render: (v) => <Badge>{formatStatus(String(v || "active"))}</Badge> },
+          { key: "total_sessions", label: "Sessions", render: (v) => String(v ?? 0) },
+        ]}
+        data={performers}
+        onRowClick={(row) => handleSelect(row.id)}
+        emptyMessage="No performers yet."
+      />
+      {error && (
+        <div className="error-banner" style={{ marginTop: 8 }}>
+          {error}
+          <button className="small" style={{ marginLeft: 8 }} onClick={loadPerformers}>Retry</button>
+        </div>
+      )}
       {selected && (
         <div className="detail-panel">
-          <h3>{selected.name || selected.id.slice(0, 8)}</h3>
+          <h3 title={selected.id}>{selected.name || `Performer • ${selected.id.slice(0, 8)}`}</h3>
           <p className="dim" style={{ marginBottom: 8 }}>{formatRole(selected.role_type || "")}</p>
           <button className="small danger" onClick={() => handleRetire(selected.id)}>Retire</button>
           {stats && (
@@ -85,20 +85,19 @@ export function Performers() {
           {ledger.length > 0 && (
             <>
               <h4>Capability Ledger</h4>
-              <div className="table-wrapper">
-                <table>
-                  <thead><tr><th>Capability</th><th>Level</th><th>Updated</th></tr></thead>
-                  <tbody>
-                    {ledger.map((entry: any, i: number) => (
-                      <tr key={i}>
-                        <td>{entry.capability || entry.tool_name || "-"}</td>
-                        <td>{entry.level ?? entry.score ?? "-"}</td>
-                        <td>{entry.updated_at ? timeAgo(entry.updated_at) : "-"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <DataTable<any>
+                columns={[
+                  { key: "capability", label: "Capability", render: (_v, row) => row.capability || row.tool_name || "-" },
+                  { key: "level", label: "Level", render: (_v, row) => String(row.level ?? row.score ?? "-") },
+                  { key: "updated_at", label: "Updated", render: (v) => (
+                    <span title={v ? formatTimestamp(String(v)).title : ""}>
+                      {v ? formatTimestamp(String(v)).label : "-"}
+                    </span>
+                  ) },
+                ]}
+                data={ledger}
+                emptyMessage="No capability ledger entries."
+              />
             </>
           )}
         </div>

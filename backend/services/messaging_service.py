@@ -281,7 +281,7 @@ class MessagingService:
         total = self.db.scalar(count_stmt) or 0
 
         if search_query:
-            # Simple full-text search: match in subject, summary, or full_text
+            # Full-text search: match in subject, summary, or full_text
             search_pattern = f"%{search_query}%"
             stmt = stmt.where(
                 or_(
@@ -290,15 +290,42 @@ class MessagingService:
                     ArchivedThread.full_text.ilike(search_pattern),
                 )
             )
+            # Over-fetch and re-rank in Python (BM25-ish + recency + tags + decision)
+            stmt = stmt.limit(limit * 3).offset(offset)
+            candidates = list(self.db.scalars(stmt).all())
+            if candidates:
+                import math
+                from datetime import datetime, timezone
 
-        # Order by: decision_boost, recency, then by ID
-        # Archives with decisions rank higher; recent archives rank higher
-        stmt = stmt.order_by(
-            (ArchivedThread.decision.isnot(None)).desc(),
-            ArchivedThread.archived_at.desc(),
-            ArchivedThread.id,
-        ).limit(limit).offset(offset)
+                query_terms = search_query.lower().split()
+                now = datetime.now(timezone.utc)
 
+                def _score(thread: ArchivedThread) -> float:
+                    text = " ".join(filter(None, [
+                        thread.summary or "", thread.full_text or "",
+                        thread.subject or "", thread.tags or "",
+                    ])).lower()
+                    tf = sum(text.count(t) for t in query_terms)
+                    doc_len = max(len(text.split()), 1)
+                    k1, b, avg_dl = 1.5, 0.75, 200
+                    bm25 = (tf * (k1 + 1)) / (tf + k1 * (1 - b + b * doc_len / avg_dl))
+
+                    age_days = (now - (thread.archived_at or now)).total_seconds() / 86400
+                    recency = math.exp(-age_days / 30)
+
+                    tags_text = (thread.tags or "").lower()
+                    tag_hits = sum(1 for t in query_terms if t in tags_text)
+                    tag_score = tag_hits / max(len(query_terms), 1)
+
+                    decision_boost = 0.05 if thread.decision else 0.0
+
+                    return bm25 * 0.5 + recency * 0.3 + tag_score * 0.15 + decision_boost
+
+                candidates.sort(key=_score, reverse=True)
+                return candidates[:limit], total
+
+        # Default ordering by recency when no search query
+        stmt = stmt.order_by(ArchivedThread.archived_at.desc(), ArchivedThread.id).limit(limit).offset(offset)
         threads = list(self.db.scalars(stmt).all())
         return threads, total
 

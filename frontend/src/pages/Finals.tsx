@@ -2,22 +2,34 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import * as v1 from "../services/v1";
 import { Badge } from "../ui";
+import { formatStatus, slugToTitle } from "../utils/formatters";
 
 export function Finals() {
   const navigate = useNavigate();
   const [seasons, setSeasons] = useState<v1.V1Season[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshToken, setRefreshToken] = useState(0);
 
   useEffect(() => {
     const ac = new AbortController();
+    setError(null);
     v1.listSeasons(ac.signal)
       .then(setSeasons)
-      .catch(() => {})
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load seasons"))
       .finally(() => setLoading(false));
     return () => ac.abort();
-  }, []);
+  }, [refreshToken]);
 
   if (loading) return <div className="page-loading">Loading finals...</div>;
+  if (error) {
+    return (
+      <div className="page-error">
+        <div className="error-banner">{error}</div>
+        <button className="secondary" onClick={() => setRefreshToken(t => t + 1)}>Retry</button>
+      </div>
+    );
+  }
 
   const completedSeasons = seasons.filter(s => {
     const status = (s.metadata as Record<string, unknown>)?.status as string;
@@ -26,8 +38,10 @@ export function Finals() {
   const allSeasons = seasons;
 
   return (
-    <div className="finals-page">
-      <h1 className="page-title">Finals</h1>
+    <div className="page-content finals-page">
+      <div className="page-header">
+        <h1 className="page-title">Finals</h1>
+      </div>
 
       <div className="summary-bar">
         <div className="summary-stat">
@@ -53,12 +67,10 @@ export function Finals() {
               className="competition-card"
               onClick={() => navigate(`/finals/${s.season_id}`)}
             >
-              <h3>{s.season_id}</h3>
-              <Badge variant={
-                status === "completed" ? "success"
-                : status === "touring" ? "warning"
-                : "default"
-              }>{status}</Badge>
+              <h3 title={s.season_id}>{slugToTitle(s.season_id)}</h3>
+              <Badge variant={status === "completed" ? "success" : status === "touring" ? "warning" : "default"}>
+                {formatStatus(status)}
+              </Badge>
             </div>
           );
         })}

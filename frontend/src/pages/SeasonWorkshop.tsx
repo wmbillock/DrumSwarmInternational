@@ -1,25 +1,30 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Panel, Badge, DataTable, Tabs } from "../ui";
 import type { TabItem } from "../ui";
 import * as v1 from "../services/v1";
+import { formatStatus, slugToTitle } from "../utils/formatters";
 
 export function SeasonWorkshop() {
   const navigate = useNavigate();
   const { seasonId } = useParams<{ seasonId?: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [seasons, setSeasons] = useState<v1.V1Season[]>([]);
   const [detail, setDetail] = useState<(v1.V1Season & { registered_corps?: string[] }) | null>(null);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState("setup");
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "setup");
   const [corps, setCorps] = useState<v1.V1Corps[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [newSeasonName, setNewSeasonId] = useState("");
   const [creating, setCreating] = useState(false);
+  const [refreshToken, setRefreshToken] = useState(0);
 
   useEffect(() => {
     const ac = new AbortController();
+    setLoading(true);
+    setError("");
     Promise.allSettled([
       v1.listSeasons(ac.signal),
       v1.listCorps(ac.signal),
@@ -29,7 +34,7 @@ export function SeasonWorkshop() {
       setLoading(false);
     });
     return () => ac.abort();
-  }, []);
+  }, [refreshToken]);
 
   useEffect(() => {
     if (!seasonId) { setDetail(null); return; }
@@ -41,6 +46,13 @@ export function SeasonWorkshop() {
       .finally(() => setDetailLoading(false));
     return () => ac.abort();
   }, [seasonId]);
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab && tab !== activeTab) {
+      setActiveTab(tab);
+    }
+  }, [searchParams, activeTab]);
 
   const handleCreateSeason = async () => {
     if (!newSeasonName.trim()) return;
@@ -85,7 +97,10 @@ export function SeasonWorkshop() {
   const errorBanner = error ? (
     <div className="error-banner" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
       <span>{error}</span>
-      <button className="small" onClick={() => setError("")} style={{ marginLeft: 8 }}>Dismiss</button>
+      <div>
+        <button className="small" onClick={() => setRefreshToken(t => t + 1)}>Retry</button>
+        <button className="small" onClick={() => setError("")} style={{ marginLeft: 8 }}>Dismiss</button>
+      </div>
     </div>
   ) : null;
 
@@ -98,29 +113,39 @@ export function SeasonWorkshop() {
     ];
 
     const registeredCorps = detail.registered_corps || [];
+    const corpsById = Object.fromEntries(corps.map(c => [c.corps_id, c]));
     const unregisteredCorps = corps.filter(c => c.corps_type !== "system" && !registeredCorps.includes(c.corps_id));
 
     return (
-      <div className="season-workshop">
+      <div className="page-content season-workshop">
         {errorBanner}
-        <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button className="back-btn" onClick={() => navigate("/seasons")}>Back</button>
-            <h1 className="page-title" style={{ marginBottom: 0 }}>
-              {detail.name || detail.season_id}
-            </h1>
-          </div>
-          <button className="small danger" onClick={() => handleDeleteSeason(detail.season_id)}>Delete Season</button>
+        <div className="page-header">
+          <button className="back-btn" onClick={() => navigate("/seasons")}>Back</button>
+          <h1 className="page-title" style={{ marginBottom: 0 }}>
+            {detail.name || slugToTitle(detail.season_id)}
+          </h1>
+          <button className="small danger" style={{ marginLeft: "auto" }} onClick={() => handleDeleteSeason(detail.season_id)}>
+            Delete Season
+          </button>
         </div>
 
-        <Tabs items={tabs} active={activeTab} onChange={setActiveTab} />
+        <Tabs
+          items={tabs}
+          active={activeTab}
+          onChange={(tab) => {
+            setActiveTab(tab);
+            const next = new URLSearchParams(searchParams);
+            next.set("tab", tab);
+            setSearchParams(next, { replace: true });
+          }}
+        />
 
         {activeTab === "setup" && (
           <div style={{ marginTop: 16 }}>
             <Panel title="Season Details">
               <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem" }}>
                 <Badge variant={(detail as any).status === "active" ? "success" : "default"}>
-                  {(detail as any).status || "planning"}
+                  {formatStatus((detail as any).status || "planning")}
                 </Badge>
                 <span>{registeredCorps.length} corps registered</span>
               </div>
@@ -136,7 +161,7 @@ export function SeasonWorkshop() {
               {registeredCorps.length === 0 && <p className="empty">No corps registered yet.</p>}
               {registeredCorps.map(id => (
                 <div key={id} style={{ padding: "8px 0", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between" }}>
-                  <span className="mono">{id}</span>
+                  <span title={id}>{corpsById[id]?.display_name || `Corps • ${id.slice(0, 8)}`}</span>
                   <button className="small" onClick={() => navigate(`/corps/${id}`)}>View</button>
                 </div>
               ))}
@@ -165,9 +190,9 @@ export function SeasonWorkshop() {
                 return (
                   <div key={id} style={{ padding: "12px 0", borderBottom: "1px solid var(--border)" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontWeight: 600 }}>{c?.display_name || id}</span>
+                      <span style={{ fontWeight: 600 }} title={id}>{c?.display_name || `Corps • ${id.slice(0, 8)}`}</span>
                       <Badge variant={c?.state === "winter_camps" ? "warning" : c?.state === "on_tour" ? "success" : "default"}>
-                        {c?.state || "unknown"}
+                        {formatStatus(c?.state || "unknown")}
                       </Badge>
                     </div>
                   </div>
@@ -190,7 +215,7 @@ export function SeasonWorkshop() {
                   return (
                     <div key={id} className={`ready-check-item ${isReady ? "ready" : "not-ready"}`}>
                       <span className={`ready-check-dot ${isReady ? "ready" : "not-ready"}`} />
-                      <span style={{ flex: 1, fontWeight: 500 }}>{c?.display_name || id}</span>
+                      <span style={{ flex: 1, fontWeight: 500 }} title={id}>{c?.display_name || `Corps • ${id.slice(0, 8)}`}</span>
                       <Badge variant={isReady ? "success" : "warning"}>
                         {isReady ? "Ready" : "Not Ready"}
                       </Badge>
@@ -220,11 +245,11 @@ export function SeasonWorkshop() {
 
   if (seasonId && !detail && !detailLoading) {
     return (
-      <div className="season-workshop">
+      <div className="page-content season-workshop">
         {errorBanner}
         <div className="page-header">
           <button className="back-btn" onClick={() => navigate("/seasons")}>Back</button>
-          <h1 className="page-title">{seasonId}</h1>
+          <h1 className="page-title">{slugToTitle(seasonId)}</h1>
         </div>
         <p className="empty">Season not found or failed to load.</p>
       </div>
@@ -233,9 +258,11 @@ export function SeasonWorkshop() {
 
   // List view
   return (
-    <div className="season-workshop">
+    <div className="page-content season-workshop">
       {errorBanner}
-      <h1 className="page-title">Season Workshop</h1>
+      <div className="page-header">
+        <h1 className="page-title">Season Workshop</h1>
+      </div>
 
       <div className="summary-bar">
         <div className="summary-stat">
@@ -269,14 +296,14 @@ export function SeasonWorkshop() {
             {
               key: "name",
               label: "Season",
-              render: (v, row) => <span>{String(v || (row as v1.V1Season).season_id)}</span>,
+              render: (v, row) => <span>{String(v || slugToTitle((row as v1.V1Season).season_id))}</span>,
             },
             {
               key: "status",
               label: "Status",
               render: v => (
                 <Badge variant={v === "active" ? "success" : v === "completed" ? "info" : "default"}>
-                  {String(v || "planning")}
+                  {formatStatus(String(v || "planning"))}
                 </Badge>
               ),
             },

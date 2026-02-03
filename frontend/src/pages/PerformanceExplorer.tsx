@@ -3,7 +3,7 @@
  */
 
 import { useState } from "react";
-import { Panel } from "../ui";
+import { Panel, DataTable } from "../ui";
 
 const MetricOptions = [
   "rep_completed",
@@ -144,31 +144,27 @@ const PerformanceExplorer = () => {
         )}
 
         {!loading && chartData.length > 0 && (
-          <div style={{ overflowX: "auto" }}>
-            <table className="standings-table">
-              <thead>
-                <tr>
-                  <th>Timestamp</th>
-                  {selectedMetrics.map(m => <th key={m}>{m.replace(/_/g, " ")}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {chartData.slice(0, 100).map((row, i) => (
-                  <tr key={i}>
-                    <td className="mono" style={{ fontSize: 11 }}>{row.timestamp}</td>
-                    {selectedMetrics.map(m => (
-                      <td key={m} className="mono">
-                        {typeof row[m] === "number" ? (row[m] as number).toFixed(2) : row[m] || "—"}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <>
+            <DataTable<Record<string, unknown>>
+              columns={[
+                { key: "timestamp", label: "Timestamp", render: (v) => <span className="mono" style={{ fontSize: 11 }}>{String(v)}</span> },
+                ...selectedMetrics.map((m) => ({
+                  key: m,
+                  label: m.replace(/_/g, " "),
+                  render: (v: unknown) => (
+                    <span className="mono">
+                      {typeof v === "number" ? v.toFixed(2) : (v as string) || "—"}
+                    </span>
+                  ),
+                })),
+              ]}
+              data={chartData.slice(0, 100) as Record<string, unknown>[]}
+              emptyMessage="No metrics data."
+            />
             {chartData.length > 100 && (
               <p className="hint" style={{ marginTop: 8 }}>Showing 100 of {chartData.length} data points. Export for full data.</p>
             )}
-          </div>
+          </>
         )}
       </Panel>
     </div>

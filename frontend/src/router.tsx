@@ -22,6 +22,7 @@ import { Settings } from "./pages/Settings";
 import { SystemHealth } from "./pages/SystemHealth";
 import MessageInbox from "./pages/MessageInbox";
 import MessageArchive from "./pages/MessageArchive";
+import MessageAdmin from "./pages/MessageAdmin";
 import { StaffMarketplace } from "./pages/StaffMarketplace";
 import { ScoreboardsPage } from "./pages/ScoreboardsPage";
 import PerformanceExplorer from "./pages/PerformanceExplorer";
@@ -57,6 +58,7 @@ export const router = createBrowserRouter([
       { path: "/system", element: <SystemHealth /> },
       { path: "/messages/inbox", element: <MessageInbox /> },
       { path: "/messages/archive", element: <MessageArchive /> },
+      { path: "/messages/admin", element: <MessageAdmin /> },
       { path: "/scoreboards", element: <ScoreboardsPage /> },
       { path: "/metrics", element: <PerformanceExplorer /> },
 

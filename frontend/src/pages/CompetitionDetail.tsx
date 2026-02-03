@@ -1,7 +1,8 @@
-import { useEffect, useState, Fragment } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { Panel, Tabs } from "../ui";
+import { useEffect, useState } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { Panel, Tabs, DataTable } from "../ui";
 import * as v1 from "../services/v1";
+import { formatCaption, slugToTitle } from "../utils/formatters";
 
 const CAPTION_ORDER = ["brass", "percussion", "guard", "visual", "general_effect", "ensemble_technique"];
 
@@ -12,79 +13,12 @@ function CaptionBars({ scores }: { scores: Record<string, number> }) {
         const val = scores[cap];
         if (val == null) return null;
         return (
-          <div key={cap} className="caption-bar" title={`${cap}: ${val}`}>
+          <div key={cap} className="caption-bar" title={`${formatCaption(cap)}: ${val}`}>
             <div className="caption-bar-fill" style={{ width: `${val}%` }} />
           </div>
         );
       })}
     </div>
-  );
-}
-
-function BreakdownRow({
-  competitionId,
-  entry,
-}: {
-  competitionId: string;
-  entry: v1.V1StandingEntry;
-}) {
-  const [breakdown, setBreakdown] = useState<v1.V1CorpsBreakdown | null>(null);
-  const [open, setOpen] = useState(false);
-
-  const toggle = () => {
-    if (!open && !breakdown) {
-      v1.getCorpsBreakdown(competitionId, entry.corps_id)
-        .then(setBreakdown)
-        .catch(() => {});
-    }
-    setOpen(!open);
-  };
-
-  return (
-    <>
-      <tr className="clickable-row" onClick={toggle}>
-        <td><strong>#{entry.rank}</strong></td>
-        <td>{entry.display_name || entry.corps_id}</td>
-        <td className="show-score">{entry.final_score.toFixed(2)}</td>
-        <td>{entry.raw_score.toFixed(2)}</td>
-        <td><CaptionBars scores={entry.caption_scores} /></td>
-      </tr>
-      {open && (
-        <tr className="breakdown-row">
-          <td colSpan={5}>
-            {breakdown ? (
-              <div className="breakdown-detail">
-                <table className="breakdown-table">
-                  <thead>
-                    <tr><th>Caption</th><th>Score</th><th>Weight</th><th>Weighted</th><th>Commentary</th></tr>
-                  </thead>
-                  <tbody>
-                    {CAPTION_ORDER.map((cap) => {
-                      const d = breakdown.caption_scores[cap];
-                      if (!d) return null;
-                      return (
-                        <tr key={cap}>
-                          <td>{cap}</td>
-                          <td>{d.score}</td>
-                          <td>{(d.weight * 100).toFixed(0)}%</td>
-                          <td>{d.weighted.toFixed(2)}</td>
-                          <td className="text-muted">{breakdown.commentary[cap]}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-                <div className="breakdown-footer">
-                  Penalties: {breakdown.penalties_total.toFixed(2)} | Final: {breakdown.final_score.toFixed(2)}
-                </div>
-              </div>
-            ) : (
-              <span className="text-muted">Loading breakdown...</span>
-            )}
-          </td>
-        </tr>
-      )}
-    </>
   );
 }
 
@@ -96,45 +30,111 @@ function StandingsTab({
   results: v1.V1StandingEntry[];
 }) {
   if (results.length === 0) return <p className="empty">No standings yet.</p>;
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [breakdowns, setBreakdowns] = useState<Record<string, v1.V1CorpsBreakdown | null>>({});
+
+  const handleSelect = async (entry: v1.V1StandingEntry) => {
+    const nextId = entry.corps_id === selectedId ? null : entry.corps_id;
+    setSelectedId(nextId);
+    if (!nextId || breakdowns[nextId] !== undefined) return;
+    setLoadingId(nextId);
+    try {
+      const breakdown = await v1.getCorpsBreakdown(competitionId, nextId);
+      setBreakdowns(prev => ({ ...prev, [nextId]: breakdown }));
+    } catch {
+      setBreakdowns(prev => ({ ...prev, [nextId]: null }));
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
+  const selectedBreakdown = selectedId ? breakdowns[selectedId] : null;
+  const breakdownRows = selectedBreakdown
+    ? CAPTION_ORDER.map((cap) => {
+        const d = selectedBreakdown.caption_scores[cap];
+        if (!d) return null;
+        return {
+          caption: cap,
+          score: d.score,
+          weight: d.weight,
+          weighted: d.weighted,
+          commentary: selectedBreakdown.commentary[cap],
+        };
+      }).filter(Boolean) as Array<{ caption: string; score: number; weight: number; weighted: number; commentary?: string }>
+    : [];
+
   return (
-    <table className="data-table">
-      <thead>
-        <tr>
-          <th>Rank</th><th>Corps</th><th>Score</th><th>Raw</th><th>Captions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {results.map((r) => (
-          <BreakdownRow key={r.corps_id} competitionId={competitionId} entry={r} />
-        ))}
-      </tbody>
-    </table>
+    <div>
+      <DataTable<v1.V1StandingEntry & Record<string, unknown>>
+        columns={[
+          { key: "rank", label: "Rank", render: (v) => <strong>#{String(v)}</strong> },
+          { key: "corps_id", label: "Corps", render: (_v, row) => (
+            <span title={row.corps_id}>{row.display_name || `Corps • ${row.corps_id.slice(0, 8)}`}</span>
+          ) },
+          { key: "final_score", label: "Score", render: (v) => Number(v).toFixed(2) },
+          { key: "raw_score", label: "Raw", render: (v) => Number(v).toFixed(2) },
+          { key: "caption_scores", label: "Captions", render: (v) => <CaptionBars scores={v as Record<string, number>} /> },
+        ]}
+        data={results as (v1.V1StandingEntry & Record<string, unknown>)[]}
+        onRowClick={handleSelect}
+        emptyMessage="No standings yet."
+      />
+      {selectedId && (
+        <div className="breakdown-detail" style={{ marginTop: 12 }}>
+          {loadingId === selectedId && <span className="text-muted">Loading breakdown...</span>}
+          {!loadingId && selectedBreakdown && (
+            <>
+              <DataTable<Record<string, unknown>>
+                columns={[
+                  { key: "caption", label: "Caption", render: (v) => formatCaption(String(v)) },
+                  { key: "score", label: "Score", render: (v) => Number(v).toFixed(1) },
+                  { key: "weight", label: "Weight", render: (v) => `${(Number(v) * 100).toFixed(0)}%` },
+                  { key: "weighted", label: "Weighted", render: (v) => Number(v).toFixed(2) },
+                  { key: "commentary", label: "Commentary", render: (v) => <span className="text-muted">{String(v ?? "")}</span> },
+                ]}
+                data={breakdownRows as Record<string, unknown>[]}
+                emptyMessage="No breakdown data."
+              />
+              <div className="breakdown-footer">
+                Penalties: {selectedBreakdown.penalties_total.toFixed(2)} | Final: {selectedBreakdown.final_score.toFixed(2)}
+              </div>
+            </>
+          )}
+          {!loadingId && !selectedBreakdown && <span className="text-muted">No breakdown available.</span>}
+        </div>
+      )}
+    </div>
   );
 }
 
 function CaptionBreakdownTab({ results }: { results: v1.V1StandingEntry[] }) {
   if (results.length === 0) return <p className="empty">No data.</p>;
+  const rows = results.map((r) => {
+    const row: Record<string, unknown> = {
+      corps: r.display_name || `Corps • ${r.corps_id.slice(0, 8)}`,
+      final: r.final_score,
+      corps_id: r.corps_id,
+    };
+    CAPTION_ORDER.forEach((c) => {
+      row[c] = r.caption_scores[c];
+    });
+    return row;
+  });
   return (
-    <table className="data-table">
-      <thead>
-        <tr>
-          <th>Corps</th>
-          {CAPTION_ORDER.map((c) => <th key={c}>{c}</th>)}
-          <th>Final</th>
-        </tr>
-      </thead>
-      <tbody>
-        {results.map((r) => (
-          <tr key={r.corps_id}>
-            <td>{r.display_name || r.corps_id}</td>
-            {CAPTION_ORDER.map((c) => (
-              <td key={c}>{r.caption_scores[c]?.toFixed?.(1) ?? "—"}</td>
-            ))}
-            <td className="show-score">{r.final_score.toFixed(2)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <DataTable<Record<string, unknown>>
+      columns={[
+        { key: "corps", label: "Corps", render: (v, row) => <span title={String(row.corps_id)}>{String(v)}</span> },
+        ...CAPTION_ORDER.map((c) => ({
+          key: c,
+          label: formatCaption(c),
+          render: (v: unknown) => (typeof v === "number" ? v.toFixed(1) : "—"),
+        })),
+        { key: "final", label: "Final", render: (v) => <span className="show-score">{Number(v).toFixed(2)}</span> },
+      ]}
+      data={rows}
+      emptyMessage="No data."
+    />
   );
 }
 
@@ -149,47 +149,54 @@ function CompareTab({ results }: { results: v1.V1StandingEntry[] }) {
     <div>
       <div className="compare-selectors">
         <select value={leftId} onChange={(e) => setLeftId(e.target.value)}>
-          {results.map((r) => <option key={r.corps_id} value={r.corps_id}>{r.display_name || r.corps_id}</option>)}
+          {results.map((r) => (
+            <option key={r.corps_id} value={r.corps_id}>
+              {r.display_name || `Corps • ${r.corps_id.slice(0, 8)}`}
+            </option>
+          ))}
         </select>
         <span>vs</span>
         <select value={rightId} onChange={(e) => setRightId(e.target.value)}>
-          {results.map((r) => <option key={r.corps_id} value={r.corps_id}>{r.display_name || r.corps_id}</option>)}
+          {results.map((r) => (
+            <option key={r.corps_id} value={r.corps_id}>
+              {r.display_name || `Corps • ${r.corps_id.slice(0, 8)}`}
+            </option>
+          ))}
         </select>
       </div>
       {left && right && (
-        <table className="data-table">
-          <thead>
-            <tr><th>Caption</th><th>{left.display_name || left.corps_id}</th><th>{right.display_name || right.corps_id}</th><th>Diff</th></tr>
-          </thead>
-          <tbody>
-            {CAPTION_ORDER.map((cap) => {
+        <DataTable<Record<string, unknown>>
+          columns={[
+            { key: "caption", label: "Caption", render: (v) => formatCaption(String(v)) },
+            { key: "left", label: left.display_name || `Corps • ${left.corps_id.slice(0, 8)}` },
+            { key: "right", label: right.display_name || `Corps • ${right.corps_id.slice(0, 8)}` },
+            { key: "diff", label: "Diff", render: (v, row) => (
+              <span className={(row as any).diffClass || ""}>{String(v)}</span>
+            ) },
+          ]}
+          data={[
+            ...CAPTION_ORDER.map((cap) => {
               const lv = left.caption_scores[cap] ?? 0;
               const rv = right.caption_scores[cap] ?? 0;
               const diff = lv - rv;
-              return (
-                <tr key={cap}>
-                  <td>{cap}</td>
-                  <td>{lv.toFixed(1)}</td>
-                  <td>{rv.toFixed(1)}</td>
-                  <td className={diff > 0 ? "text-success" : diff < 0 ? "text-danger" : ""}>
-                    {diff > 0 ? "+" : ""}{diff.toFixed(1)}
-                  </td>
-                </tr>
-              );
-            })}
-            <tr className="total-row">
-              <td><strong>Final</strong></td>
-              <td><strong>{left.final_score.toFixed(2)}</strong></td>
-              <td><strong>{right.final_score.toFixed(2)}</strong></td>
-              <td className={(left.final_score - right.final_score) > 0 ? "text-success" : "text-danger"}>
-                <strong>
-                  {(left.final_score - right.final_score) > 0 ? "+" : ""}
-                  {(left.final_score - right.final_score).toFixed(2)}
-                </strong>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+              return {
+                caption: cap,
+                left: lv.toFixed(1),
+                right: rv.toFixed(1),
+                diff: `${diff > 0 ? "+" : ""}${diff.toFixed(1)}`,
+                diffClass: diff > 0 ? "text-success" : diff < 0 ? "text-danger" : "",
+              };
+            }),
+            {
+              caption: "final",
+              left: left.final_score.toFixed(2),
+              right: right.final_score.toFixed(2),
+              diff: `${(left.final_score - right.final_score) > 0 ? "+" : ""}${(left.final_score - right.final_score).toFixed(2)}`,
+              diffClass: (left.final_score - right.final_score) > 0 ? "text-success" : "text-danger",
+            },
+          ]}
+          emptyMessage="No comparison data."
+        />
       )}
     </div>
   );
@@ -235,7 +242,7 @@ function JudgesTapesTab({ competitionId, results }: { competitionId: string; res
             className={`tape-corps-btn ${selectedCorps === r.corps_id ? "active" : ""}`}
             onClick={() => loadTape(r.corps_id)}
           >
-            #{r.rank} {r.display_name || r.corps_id.slice(0, 8)}
+            #{r.rank} {r.display_name || `Corps • ${r.corps_id.slice(0, 8)}`}
           </button>
         ))}
       </div>
@@ -245,7 +252,7 @@ function JudgesTapesTab({ competitionId, results }: { competitionId: string; res
       {tape && !loading && (
         <div className="tape-detail">
           <div className="tape-header">
-            <h3>Judges Tape — {tape.corps_id.slice(0, 8)}</h3>
+            <h3 title={tape.corps_id}>Judges Tape — Corps • {tape.corps_id.slice(0, 8)}</h3>
             <button className="secondary" onClick={() => handleExport(tape.corps_id)}>
               Export MD
             </button>
@@ -260,7 +267,7 @@ function JudgesTapesTab({ competitionId, results }: { competitionId: string; res
             {Object.entries(tape.caption_feedbacks).map(([caption, info]) => (
               <div key={caption} className="tape-caption-card">
                 <div className="tape-caption-header">
-                  <strong>{caption.replace("_", " ").toUpperCase()}</strong>
+                  <strong>{formatCaption(caption)}</strong>
                   <span className="tape-score">
                     {info.value.toFixed(1)}
                     {info.rep_score != null && info.perf_score != null && (
@@ -305,55 +312,45 @@ function RecapTab({ competitionId }: { competitionId: string }) {
   const allCaptions = new Set<string>();
   rows.forEach((r) => Object.keys(r.caption_scores).forEach((c) => allCaptions.add(c)));
   const captions = CAPTION_ORDER.filter((c) => allCaptions.has(c));
+  const recapRows = rows.map((r) => {
+    const row: Record<string, unknown> = {
+      rank: r.rank,
+      corps: r.corps_name || `Corps • ${r.corps_id.slice(0, 8)}`,
+      corps_id: r.corps_id,
+      penalties: r.penalties_total,
+      raw: r.raw_total,
+      final: r.final_score,
+    };
+    captions.forEach((c) => {
+      const cs = r.caption_scores[c] || { rep: 0, perf: 0, tot: 0 };
+      row[`${c}_rep`] = cs.rep;
+      row[`${c}_perf`] = cs.perf;
+      row[`${c}_tot`] = cs.tot;
+    });
+    return row;
+  });
 
   return (
     <div className="recap-tab">
       <div className="recap-actions">
         <button className="secondary" onClick={handleCSV}>Download CSV</button>
       </div>
-      <div className="recap-table-wrapper">
-        <table className="data-table recap-table">
-          <thead>
-            <tr>
-              <th>Rank</th>
-              <th>Corps</th>
-              {captions.map((c) => (
-                <th key={c} colSpan={3}>{c.replace("_", " ")}</th>
-              ))}
-              <th>Pen</th>
-              <th>Raw</th>
-              <th>Final</th>
-            </tr>
-            <tr className="sub-header">
-              <th></th>
-              <th></th>
-              {captions.map((c) => (
-                <Fragment key={c}><th>R</th><th>P</th><th>T</th></Fragment>
-              ))}
-              <th></th>
-              <th></th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.corps_id}>
-                <td><strong>#{r.rank}</strong></td>
-                <td>{r.corps_name || r.corps_id.slice(0, 8)}</td>
-                {captions.map((c) => {
-                  const cs = r.caption_scores[c] || { rep: 0, perf: 0, tot: 0 };
-                  return (
-                    <Fragment key={c}><td>{cs.rep.toFixed(1)}</td><td>{cs.perf.toFixed(1)}</td><td>{cs.tot.toFixed(1)}</td></Fragment>
-                  );
-                })}
-                <td>{r.penalties_total.toFixed(1)}</td>
-                <td>{r.raw_total.toFixed(1)}</td>
-                <td className="show-score">{r.final_score.toFixed(1)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable<Record<string, unknown>>
+        columns={[
+          { key: "rank", label: "Rank", render: (v) => <strong>#{String(v)}</strong> },
+          { key: "corps", label: "Corps", render: (v, row) => <span title={String(row.corps_id)}>{String(v)}</span> },
+          ...captions.flatMap((c) => ([
+            { key: `${c}_rep`, label: `${formatCaption(c)} R`, render: (v: unknown) => Number(v).toFixed(1) },
+            { key: `${c}_perf`, label: `${formatCaption(c)} P`, render: (v: unknown) => Number(v).toFixed(1) },
+            { key: `${c}_tot`, label: `${formatCaption(c)} T`, render: (v: unknown) => Number(v).toFixed(1) },
+          ])),
+          { key: "penalties", label: "Pen", render: (v) => Number(v).toFixed(1) },
+          { key: "raw", label: "Raw", render: (v) => Number(v).toFixed(1) },
+          { key: "final", label: "Final", render: (v) => <span className="show-score">{Number(v).toFixed(1)}</span> },
+        ]}
+        data={recapRows}
+        emptyMessage="No recap data."
+      />
     </div>
   );
 }
@@ -361,15 +358,19 @@ function RecapTab({ competitionId }: { competitionId: string }) {
 export function CompetitionDetail() {
   const { competitionId } = useParams<{ competitionId: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [scores, setScores] = useState<v1.V1Standings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [running, setRunning] = useState(false);
-  const [tab, setTab] = useState("standings");
+  const [tab, setTab] = useState(searchParams.get("tab") || "standings");
+  const [refreshToken, setRefreshToken] = useState(0);
 
   useEffect(() => {
     if (!competitionId) return;
     const ac = new AbortController();
+    setLoading(true);
+    setError("");
     v1.getScores(competitionId, ac.signal)
       .then(setScores)
       .catch((e) => {
@@ -379,7 +380,14 @@ export function CompetitionDetail() {
       })
       .finally(() => setLoading(false));
     return () => ac.abort();
-  }, [competitionId]);
+  }, [competitionId, refreshToken]);
+
+  useEffect(() => {
+    const nextTab = searchParams.get("tab");
+    if (nextTab && nextTab !== tab) {
+      setTab(nextTab);
+    }
+  }, [searchParams, tab]);
 
   const handleRun = async () => {
     if (!competitionId) return;
@@ -408,18 +416,28 @@ export function CompetitionDetail() {
     <div className="page-content">
       <div className="page-header">
         <button className="back-btn" onClick={() => navigate("/competitions")}>Back</button>
-        <h2>{competitionId}</h2>
+        <h2>{scores?.show_slug ? slugToTitle(scores.show_slug) : competitionId}</h2>
         <button className="primary" onClick={handleRun} disabled={running}>
           {running ? "Running..." : "Run Competition"}
         </button>
       </div>
 
-      {error && <div className="error-banner">{error}</div>}
+      {error && (
+        <div className="error-banner">
+          {error}
+          <button className="small" style={{ marginLeft: 8 }} onClick={() => setRefreshToken(t => t + 1)}>Retry</button>
+        </div>
+      )}
 
       <Panel title="Results">
         <Tabs
           active={tab}
-          onChange={setTab}
+          onChange={(next) => {
+            setTab(next);
+            const params = new URLSearchParams(searchParams);
+            params.set("tab", next);
+            setSearchParams(params, { replace: true });
+          }}
           items={[
             { key: "standings", label: "Standings" },
             { key: "captions", label: "Caption Breakdown" },

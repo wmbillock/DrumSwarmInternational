@@ -2,20 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import type { AgentSession, ChatMessage } from "../types";
 import * as v1 from "../services/v1";
 import { useWebSocket } from "../hooks/useWebSocket";
-
-function formatRole(role: string): string {
-  return role.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-}
-
-function timeAgo(ts?: string): string {
-  if (!ts) return "";
-  const diff = Date.now() - new Date(ts).getTime();
-  if (diff < 0) return "just now";
-  if (diff < 60000) return "just now";
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-  return `${Math.floor(diff / 86400000)}d ago`;
-}
+import { formatRole, formatStatus, formatTimestamp } from "../utils/formatters";
 
 function TierBadge({ tier }: { tier?: string }) {
   if (!tier) return null;
@@ -81,7 +68,7 @@ export function AdminChat() {
         <div style={{ flex: 1 }} />
         <div className="admin-roster">
           {roster.map(a => (
-            <span key={a.id} className={`admin-agent-chip ${a.status}`} title={`${a.nickname || formatRole(a.role)} (${a.status})`}>
+            <span key={a.id} className={`admin-agent-chip ${a.status}`} title={`${a.nickname || formatRole(a.role)} (${formatStatus(a.status)})`}>
               <TierBadge tier={a.model_tier} />
               <span>{a.nickname || formatRole(a.role)}</span>
             </span>
@@ -101,7 +88,11 @@ export function AdminChat() {
             <div key={m.id || i} className={`chat-msg ${m.from === "user" ? "user" : "agent"}`}>
               <div className="chat-msg-header">
                 <span className="chat-sender">{m.from === "user" ? "You" : (m.nickname || formatRole(m.from))}</span>
-                {m.time && <span className="chat-time">{timeAgo(m.time)}</span>}
+                {m.time && (
+                  <span className="chat-time" title={formatTimestamp(m.time).title}>
+                    {formatTimestamp(m.time).label}
+                  </span>
+                )}
               </div>
               <div className="chat-msg-body">{m.content}</div>
             </div>

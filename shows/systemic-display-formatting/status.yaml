@@ -1,1 +1,5 @@
-status: published
+status: completed
+completed_at: "2026-02-03"
+implementation_notes: |
+  - Applied centralized formatters across CommandCenter, CorpsDetailV2, CompetitionLive, Scoreboards, SeasonWorkshop, SystemHealth, DesignRoom.
+  - Added formatter warnings for unknown enum values.

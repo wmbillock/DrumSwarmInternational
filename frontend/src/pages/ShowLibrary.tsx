@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import * as v1 from "../services/v1";
+import { formatStatus, formatTimestamp, slugToTitle } from "../utils/formatters";
 
 interface LibraryShow {
   slug: string;
@@ -18,22 +19,11 @@ const STATUS_ORDER: Record<string, number> = {
   published: 0, approved: 1, needs_review: 2, draft: 3, archived: 4,
 };
 
-function getStatusColor(status: string): string {
-  switch (status) {
-    case "published":
-      return "var(--stage-tour)"; // Green
-    case "approved":
-      return "var(--stage-library)"; // Blue
-    case "needs_review":
-      return "var(--stage-season)"; // Amber
-    default:
-      return "var(--border)"; // Gray
-  }
-}
-
-function getStatusLabel(status: string): string {
-  return status.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-}
+const STATUS_COLORS: Record<string, string> = {
+  published: "#DC143C",
+  approved: "#FFA500",
+  draft: "#2D3436",
+};
 
 function getNextAction(show: LibraryShow): { label: string; color: string; tooltip: string } {
   switch (show.status) {
@@ -67,7 +57,7 @@ export function ShowLibrary() {
       .then(threads => {
         setShows(threads.map(t => ({
           ...t,
-          title: t.slug.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
+          title: slugToTitle(t.slug),
         })));
       })
       .catch((e) => {
@@ -119,11 +109,11 @@ export function ShowLibrary() {
   if (loading) return <div className="page-loading">Loading show library...</div>;
 
   return (
-    <div className="show-library-page">
+    <div className="page-content show-library-page">
       {/* Page Header */}
-      <div className="show-library-header">
+      <div className="show-library-header page-header">
         <div className="show-library-title-block">
-          <h1 className="show-library-title">SHOW LIBRARY</h1>
+          <h1 className="show-library-title page-title">SHOW LIBRARY</h1>
           <p className="show-library-subtitle">Manage and edit all shows in the system</p>
         </div>
         <button
@@ -186,7 +176,7 @@ export function ShowLibrary() {
         >
           {statuses.map(s => (
             <option key={s} value={s}>
-              {s === "all" ? "All Statuses" : getStatusLabel(s)}
+              {s === "all" ? "All Statuses" : formatStatus(s)}
             </option>
           ))}
         </select>
@@ -204,6 +194,9 @@ export function ShowLibrary() {
       <div className="show-library-grid">
         {filtered.map(show => {
           const nextAction = getNextAction(show);
+          const statusColor = STATUS_COLORS[show.status] || "var(--border)";
+          const created = show.created_at ? formatTimestamp(show.created_at) : null;
+          const updated = show.updated_at ? formatTimestamp(show.updated_at) : null;
           return (
             <div
               key={show.slug}
@@ -220,7 +213,7 @@ export function ShowLibrary() {
               {/* Status indicator stripe */}
               <div
                 className="show-library-card-stripe"
-                style={{ background: getStatusColor(show.status) }}
+                style={{ background: statusColor }}
               />
 
               {/* Card body */}
@@ -228,18 +221,15 @@ export function ShowLibrary() {
                 {/* Title section */}
                 <div className="show-library-card-title-block">
                   <h3 className="show-library-card-title">
-                    {show.title || show.slug}
+                    {show.title || slugToTitle(show.slug)}
                   </h3>
                   <div
                     className="show-library-card-status-badge"
-                    style={{
-                      borderColor: getStatusColor(show.status),
-                      color: getStatusColor(show.status),
-                    }}
                     data-tooltip-id="main"
-                    data-tooltip-content={`Status: ${getStatusLabel(show.status)}`}
+                    data-tooltip-content={`Status: ${formatStatus(show.status)}`}
+                    style={{ borderColor: statusColor, color: statusColor }}
                   >
-                    {getStatusLabel(show.status)}
+                    {formatStatus(show.status)}
                   </div>
                 </div>
 
@@ -259,18 +249,19 @@ export function ShowLibrary() {
 
                 {/* Metadata */}
                 <div className="show-library-card-meta">
+                  <span className="show-library-meta-item mono" title={created?.title || ""}>
+                    {created ? `Created ${created.label}` : "Created —"}
+                  </span>
                   <span
-                    className="show-library-meta-item"
+                    className="show-library-meta-item mono"
                     data-tooltip-id="main"
                     data-tooltip-content={show.has_spec ? "This show has a spec document defining requirements" : "No spec yet — open the Design Room to create one"}
                   >
                     {show.has_spec ? "\u2713 SPEC" : "\u2717 NO SPEC"}
                   </span>
-                  {show.priority && (
-                    <span className="show-library-meta-item">
-                      {show.priority.toUpperCase()}
-                    </span>
-                  )}
+                  <span className="show-library-meta-item mono" title={updated?.title || ""}>
+                    {updated ? `Updated ${updated.label}` : "Updated —"}
+                  </span>
                 </div>
 
                 {/* Next Action + Delete */}

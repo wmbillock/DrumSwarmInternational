@@ -11,6 +11,13 @@ const LIFECYCLE_ITEMS = [
   { to: "/finals", label: "Finals", icon: "FIN", color: "var(--stage-finals)", tooltip: "Review scores, rank performances, and crown champions" },
 ] as const;
 
+const QUICK_ACTIONS = [
+  { to: "/design", label: "New Show", icon: "NEW", tooltip: "Start a brand new show in the Design Room" },
+  { to: "/seasons", label: "New Season", icon: "SZN", tooltip: "Create a season and assign shows" },
+  { to: "/corps", label: "New Corps", icon: "CRP", tooltip: "Create a new corps roster and identity" },
+  { to: "/", label: "Command Center", icon: "CMD", tooltip: "Jump back to the Command Center" },
+] as const;
+
 export function SideNav() {
   const navigate = useNavigate();
   const [corps, setCorps] = useState<v1.V1Corps[]>([]);
@@ -48,6 +55,23 @@ export function SideNav() {
           <span className="side-nav-label">{s.label}</span>
         </NavLink>
       ))}
+      <div className="side-nav-divider" />
+      <div className="side-nav-section-label">QUICK ACTIONS</div>
+      <div className="side-nav-quick">
+        {QUICK_ACTIONS.map((a) => (
+          <button
+            key={a.to}
+            className="side-nav-quick-action"
+            onClick={() => navigate(a.to)}
+            data-tooltip-id="main"
+            data-tooltip-content={a.tooltip}
+            data-tooltip-place="right"
+          >
+            <span className="side-nav-quick-icon">{a.icon}</span>
+            <span className="side-nav-quick-label">{a.label}</span>
+          </button>
+        ))}
+      </div>
       <div className="side-nav-divider" />
       <div className="side-nav-section-label">CORPS</div>
       <div style={{ padding: "4px 12px" }}>

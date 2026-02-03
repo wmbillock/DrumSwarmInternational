@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Panel, Badge, DataTable } from "../ui";
 import * as v1 from "../services/v1";
+import { formatStatus, slugToTitle } from "../utils/formatters";
 
 export function Seasons() {
   const navigate = useNavigate();
@@ -11,15 +12,30 @@ export function Seasons() {
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState("");
+  const [corpsMap, setCorpsMap] = useState<Record<string, string>>({});
+  const [refreshToken, setRefreshToken] = useState(0);
 
   useEffect(() => {
     const ac = new AbortController();
+    setError("");
     v1.listSeasons(ac.signal)
       .then(setSeasons)
       .catch((e) => {
         if (e.name !== "AbortError") setError(e.message);
       })
       .finally(() => setLoading(false));
+    return () => ac.abort();
+  }, [refreshToken]);
+
+  useEffect(() => {
+    const ac = new AbortController();
+    v1.listCorps(ac.signal)
+      .then((corps) => {
+        const map: Record<string, string> = {};
+        for (const c of corps) map[c.corps_id] = c.display_name;
+        setCorpsMap(map);
+      })
+      .catch(() => {});
     return () => ac.abort();
   }, []);
 
@@ -40,13 +56,20 @@ export function Seasons() {
   }, [seasonId]);
 
   if (loading) return <div className="page-loading">Loading seasons...</div>;
-  if (error) return <div className="page-error"><div className="error-banner">{error}</div></div>;
+  if (error) {
+    return (
+      <div className="page-error">
+        <div className="error-banner">{error}</div>
+        <button className="secondary" onClick={() => setRefreshToken(t => t + 1)}>Retry</button>
+      </div>
+    );
+  }
 
   if (seasonId && detail) {
     return (
       <div className="page-content">
         <Panel
-          title={`Season: ${detail.season_id}`}
+          title={`Season: ${slugToTitle(detail.season_id)}`}
           actions={
             <button className="primary" onClick={() => navigate("/seasons")}>
               Back to Seasons
@@ -55,7 +78,7 @@ export function Seasons() {
         >
           <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem" }}>
             <Badge variant={detail.status === "active" ? "success" : detail.status === "completed" ? "info" : "default"}>
-              {detail.status}
+              {formatStatus(detail.status)}
             </Badge>
             <span>{detail.registered_corps_count ?? detail.registered_corps?.length ?? 0} registered corps</span>
           </div>
@@ -67,7 +90,11 @@ export function Seasons() {
                   {
                     key: "corps_id",
                     label: "Corps",
-                    render: (v) => <span className="mono">{String(v)}</span>,
+                    render: (v) => (
+                      <span className="mono" title={String(v)}>
+                        {corpsMap[String(v)] || `Corps • ${String(v).slice(0, 8)}`}
+                      </span>
+                    ),
                   },
                 ]}
                 data={detail.registered_corps.map((c) => ({ corps_id: c }))}
@@ -101,14 +128,14 @@ export function Seasons() {
             {
               key: "season_id",
               label: "Season",
-              render: (v) => <span className="mono">{String(v)}</span>,
+              render: (v) => <span className="mono" title={String(v)}>{slugToTitle(String(v))}</span>,
             },
             {
               key: "status",
               label: "Status",
               render: (v) => (
                 <Badge variant={v === "active" ? "success" : v === "completed" ? "info" : "default"}>
-                  {String(v)}
+                  {formatStatus(String(v))}
                 </Badge>
               ),
             },

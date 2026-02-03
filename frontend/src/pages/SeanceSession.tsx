@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import * as v1 from "../services/v1";
+import { Badge } from "../ui/Badge";
+import { formatStatus, formatTimestamp, slugToTitle } from "../utils/formatters";
 type ContextBinderItem = v1.V1Seance["context_binder"][number];
 
 export function SeanceSession() {
@@ -16,9 +18,12 @@ export function SeanceSession() {
   const [preview, setPreview] = useState<{ path: string; content: string; truncated: boolean } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const [refreshToken, setRefreshToken] = useState(0);
 
   useEffect(() => {
     if (!seanceId) return;
+    setLoading(true);
+    setError(null);
     Promise.all([
       v1.getSeance(seanceId),
       v1.getTranscript(seanceId),
@@ -29,7 +34,7 @@ export function SeanceSession() {
       })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, [seanceId]);
+  }, [seanceId, refreshToken]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -64,18 +69,39 @@ export function SeanceSession() {
   };
 
   if (loading) return <div className="page-loading">Loading seance...</div>;
-  if (error && !session) return <div className="dashboard"><div className="error-banner">{error}</div></div>;
-  if (!session) return <div className="dashboard"><div className="error-banner">Session not found</div></div>;
+  if (error && !session) {
+    return (
+      <div className="dashboard">
+        <div className="error-banner">{error}</div>
+        <button className="secondary" onClick={() => setRefreshToken(t => t + 1)}>Retry</button>
+      </div>
+    );
+  }
+  if (!session) {
+    return (
+      <div className="dashboard">
+        <div className="error-banner">Session not found</div>
+        <button className="secondary" onClick={() => setRefreshToken(t => t + 1)}>Retry</button>
+      </div>
+    );
+  }
 
   return (
     <div className="design-room">
       <div className="design-room-header">
         <button className="back-btn small" onClick={() => navigate(`/corps/${session.corps_id}/history`)}>Back</button>
-        <h2>Seance: {session.corps_id} / {session.season_id}</h2>
-        <span className={`badge ${session.status}`}>{session.status}</span>
-        {session.show_slug && <span className="corps-badge">{session.show_slug}</span>}
+        <h2>
+          Seance: Corps • {session.corps_id.slice(0, 8)} / {slugToTitle(session.season_id)}
+        </h2>
+        <Badge variant="default">{formatStatus(session.status)}</Badge>
+        {session.show_slug && <span className="corps-badge">{slugToTitle(session.show_slug)}</span>}
       </div>
-      {error && <div className="error-banner">{error}</div>}
+      {error && (
+        <div className="error-banner">
+          {error}
+          <button className="small" style={{ marginLeft: 8 }} onClick={() => setRefreshToken(t => t + 1)}>Retry</button>
+        </div>
+      )}
       <div className="design-room-panes">
         {/* Left: Chat */}
         <div className="design-room-left">
@@ -136,10 +162,9 @@ export function SeanceSession() {
           {/* Session Metadata */}
           <h3 style={{ fontSize: 14, marginBottom: 8, color: "var(--text-secondary)" }}>Session</h3>
           <div style={{ fontSize: 12, color: "var(--text-secondary)", display: "flex", flexDirection: "column", gap: 4, marginBottom: 16 }}>
-            <span>ID: <code>{session.seance_id}</code></span>
             <span>Participant: {session.participant}</span>
-            <span>Created: {new Date(session.created_at).toLocaleString()}</span>
-            <span>Entry: {session.entry_id}</span>
+            <span title={formatTimestamp(session.created_at).title}>Created: {formatTimestamp(session.created_at).label}</span>
+            {session.entry_id && <span title={session.entry_id}>Entry: {session.entry_id.slice(0, 8)}</span>}
           </div>
 
           {/* Artifact Preview */}

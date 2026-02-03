@@ -48,6 +48,11 @@ class ConnectionManager:
         for ws in stale:
             self.disconnect(ws, corps_id)
 
+    async def broadcast_all(self, message: dict):
+        """Broadcast a message to all active connections."""
+        for corps_id in list(self.active_connections.keys()):
+            await self.broadcast(corps_id, message)
+
 
 manager = ConnectionManager()
 

@@ -3,21 +3,24 @@
  */
 
 import { useState, useEffect } from "react";
-import { Tabs, Badge } from "../ui";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { Tabs, Badge, DataTable } from "../ui";
 import type { TabItem } from "../ui";
 import {
   getCorpsScoreboard,
   getAgentLeaderboard,
 } from "../services/v1";
 import type { CorpsScore, AgentLeaderEntry } from "../services/v1";
+import { badgeForCorpsStatus, formatRole, formatStatus } from "../utils/formatters";
 
 export function ScoreboardsPage() {
   const [corpsList, setCorpsList] = useState<CorpsScore[]>([]);
   const [agentsList, setAgentsList] = useState<AgentLeaderEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [periodDays, setPeriodDays] = useState(7);
-  const [activeTab, setActiveTab] = useState("corps");
-  const [selectedCorps, setSelectedCorps] = useState<CorpsScore | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "corps");
+  const navigate = useNavigate();
 
   const fetchData = async () => {
     setLoading(true);
@@ -39,6 +42,13 @@ export function ScoreboardsPage() {
     fetchData();
   }, [periodDays]);
 
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab && tab !== activeTab) {
+      setActiveTab(tab);
+    }
+  }, [searchParams, activeTab]);
+
   const tabs: TabItem[] = [
     { key: "corps", label: `Corps (${corpsList.length})` },
     { key: "agents", label: `Agents (${agentsList.length})` },
@@ -46,9 +56,9 @@ export function ScoreboardsPage() {
 
   return (
     <div className="page-content">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+      <div className="page-header">
         <h2 className="page-title">Scoreboards</h2>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
           <select
             className="library-filter"
             value={periodDays}
@@ -62,124 +72,77 @@ export function ScoreboardsPage() {
         </div>
       </div>
 
-      <Tabs items={tabs} active={activeTab} onChange={setActiveTab} />
+      <Tabs
+        items={tabs}
+        active={activeTab}
+        onChange={(tab) => {
+          setActiveTab(tab);
+          const next = new URLSearchParams(searchParams);
+          next.set("tab", tab);
+          setSearchParams(next, { replace: true });
+        }}
+      />
 
       {loading && <div className="page-loading">Loading...</div>}
 
       {!loading && activeTab === "corps" && (
         <>
-          <table className="standings-table" style={{ marginTop: 16 }}>
-            <thead>
-              <tr>
-                <th>Rank</th>
-                <th>Corps</th>
-                <th>Status</th>
-                <th>Completion</th>
-                <th>Efficiency</th>
-                <th>Sessions</th>
-                <th>Reps</th>
-                <th>Score</th>
-              </tr>
-            </thead>
-            <tbody>
-              {corpsList.length === 0 && (
-                <tr><td colSpan={8} className="empty">No corps data available</td></tr>
-              )}
-              {corpsList.map(c => (
-                <tr key={c.corps_id} className="clickable" onClick={() => setSelectedCorps(selectedCorps?.corps_id === c.corps_id ? null : c)}>
-                  <td><span className={`standings-rank rank-${c.rank}`}>#{c.rank}</span></td>
-                  <td style={{ fontWeight: 600 }}>{c.corps_name}</td>
-                  <td><Badge variant={c.corps_status === "on_tour" ? "success" : "default"}>{c.corps_status.replace(/_/g, " ")}</Badge></td>
-                  <td>
-                    <div className="progress-bar" style={{ width: 80 }}>
-                      <div className="progress-fill" style={{ width: `${Math.round(c.completion_score)}%` }} />
-                    </div>
-                    <span style={{ fontSize: 11, marginLeft: 4 }}>{Math.round(c.completion_score)}%</span>
-                  </td>
-                  <td>{c.efficiency_score.toFixed(1)}%</td>
-                  <td>{c.completed_sessions}/{c.total_sessions}</td>
-                  <td>{c.completed_reps}/{c.total_reps}</td>
-                  <td><span className="standings-score">{c.composite_score.toFixed(1)}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <DataTable<CorpsScore & Record<string, unknown>>
+            columns={[
+              { key: "rank", label: "Rank", render: (v) => <span className={`standings-rank rank-${String(v)}`}>#{String(v)}</span> },
+              { key: "corps_name", label: "Corps", render: (v) => (
+                <span className="link" style={{ fontWeight: 600, textDecoration: "underline" }}>
+                  {String(v)}
+                </span>
+              ) },
+              { key: "corps_status", label: "Status", render: (v) => <Badge variant={badgeForCorpsStatus(String(v))}>{formatStatus(String(v))}</Badge> },
+              { key: "completion_score", label: "Completion", render: (v) => (
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <div className="progress-bar" style={{ width: 80 }}>
+                    <div className="progress-fill" style={{ width: `${Math.round(Number(v))}%` }} />
+                  </div>
+                  <span style={{ fontSize: 11 }}>{Math.round(Number(v))}%</span>
+                </div>
+              ) },
+              { key: "efficiency_score", label: "Efficiency", render: (v) => `${Number(v).toFixed(1)}%` },
+              { key: "completed_sessions", label: "Sessions", render: (_v, row) => `${row.completed_sessions}/${row.total_sessions}` },
+              { key: "completed_reps", label: "Reps", render: (_v, row) => `${row.completed_reps}/${row.total_reps}` },
+              { key: "composite_score", label: "Score", render: (v) => <span className="standings-score">{Number(v).toFixed(1)}</span> },
+            ]}
+            data={corpsList as (CorpsScore & Record<string, unknown>)[]}
+            onRowClick={(row) => navigate(`/corps/${row.corps_id}/overview`)}
+            emptyMessage="No corps data available"
+          />
 
-          {selectedCorps && (
-            <div className="competition-card" style={{ marginTop: 16 }}>
-              <h3 style={{ marginBottom: 12 }}>{selectedCorps.corps_name} — Performance Breakdown</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }}>
-                <div className="vital-card">
-                  <span className="vital-value">#{selectedCorps.rank}</span>
-                  <span className="vital-label">Rank</span>
-                </div>
-                <div className="vital-card">
-                  <span className="vital-value" style={{ color: "var(--accent)" }}>{selectedCorps.composite_score.toFixed(1)}</span>
-                  <span className="vital-label">Composite</span>
-                </div>
-                <div className="vital-card">
-                  <span className="vital-value">{Math.round(selectedCorps.completion_score)}%</span>
-                  <span className="vital-label">Completion</span>
-                </div>
-                <div className="vital-card">
-                  <span className="vital-value">{Math.round(selectedCorps.efficiency_score)}%</span>
-                  <span className="vital-label">Efficiency</span>
-                </div>
-                <div className="vital-card">
-                  <span className="vital-value">{selectedCorps.completed_sessions}</span>
-                  <span className="vital-label">Sessions Done</span>
-                </div>
-                <div className="vital-card">
-                  <span className="vital-value" style={{ color: selectedCorps.failed_sessions > 0 ? "var(--danger)" : undefined }}>{selectedCorps.failed_sessions}</span>
-                  <span className="vital-label">Failed</span>
-                </div>
-              </div>
-              <button className="small" style={{ marginTop: 12 }} onClick={() => setSelectedCorps(null)}>Close</button>
-            </div>
-          )}
         </>
       )}
 
       {!loading && activeTab === "agents" && (
-        <table className="standings-table" style={{ marginTop: 16 }}>
-          <thead>
-            <tr>
-              <th>Rank</th>
-              <th>Role</th>
-              <th>Nickname</th>
-              <th>Sessions</th>
-              <th>Completed</th>
-              <th>Failed</th>
-              <th>Success Rate</th>
-            </tr>
-          </thead>
-          <tbody>
-            {agentsList.length === 0 && (
-              <tr><td colSpan={7} className="empty">No agent data available</td></tr>
-            )}
-            {agentsList.map(a => (
-              <tr key={`${a.role}-${a.corps_id}`}>
-                <td><span className={`standings-rank rank-${a.rank}`}>#{a.rank}</span></td>
-                <td style={{ fontWeight: 600 }}>{a.role.replace(/_/g, " ")}</td>
-                <td>{a.nickname}</td>
-                <td>{a.total_sessions}</td>
-                <td>{a.completed_sessions}</td>
-                <td style={{ color: a.failed_sessions > 0 ? "var(--danger)" : undefined }}>{a.failed_sessions}</td>
-                <td>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div className="progress-bar" style={{ width: 80 }}>
-                      <div className="progress-fill" style={{
-                        width: `${Math.round(a.success_rate)}%`,
-                        background: a.success_rate >= 80 ? "var(--success)" : a.success_rate >= 50 ? "var(--warning)" : "var(--danger)",
-                      }} />
-                    </div>
-                    <span>{Math.round(a.success_rate)}%</span>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <DataTable<AgentLeaderEntry & Record<string, unknown>>
+          columns={[
+            { key: "rank", label: "Rank", render: (v) => <span className={`standings-rank rank-${String(v)}`}>#{String(v)}</span> },
+            { key: "role", label: "Role", render: (v) => <span style={{ fontWeight: 600 }}>{formatRole(String(v))}</span> },
+            { key: "nickname", label: "Nickname", render: (v) => String(v || "—") },
+            { key: "total_sessions", label: "Sessions", render: (v) => String(v ?? 0) },
+            { key: "completed_sessions", label: "Completed", render: (v) => String(v ?? 0) },
+            { key: "failed_sessions", label: "Failed", render: (v) => (
+              <span style={{ color: Number(v) > 0 ? "var(--danger)" : undefined }}>{String(v ?? 0)}</span>
+            ) },
+            { key: "success_rate", label: "Success Rate", render: (v) => (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div className="progress-bar" style={{ width: 80 }}>
+                  <div className="progress-fill" style={{
+                    width: `${Math.round(Number(v))}%`,
+                    background: Number(v) >= 80 ? "var(--success)" : Number(v) >= 50 ? "var(--warning)" : "var(--danger)",
+                  }} />
+                </div>
+                <span>{Math.round(Number(v))}%</span>
+              </div>
+            ) },
+          ]}
+          data={agentsList as (AgentLeaderEntry & Record<string, unknown>)[]}
+          emptyMessage="No agent data available"
+        />
       )}
     </div>
   );

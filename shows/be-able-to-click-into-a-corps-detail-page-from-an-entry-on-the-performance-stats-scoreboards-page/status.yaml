@@ -1,1 +1,5 @@
-status: published
+status: completed
+completed_at: "2026-02-03"
+implementation_notes: |
+  - Scoreboards corps rows now navigate to /corps/{corps_id}/overview.
+  - Corps names styled as links; inline detail panel removed.

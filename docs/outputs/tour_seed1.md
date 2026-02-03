@@ -1,5 +1,5 @@
 # Tour Recap (seed=1, seasons=1, corps=2)
-Generated: 2026-02-03T03:32:58.844354+00:00
+Generated: 2026-02-03T09:46:06.645919+00:00
 
 ## Pool: 10 agents initialized
 

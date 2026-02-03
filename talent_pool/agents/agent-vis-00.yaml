@@ -1,7 +1,7 @@
 agent_id: agent-vis-00
 display_name: Visual 0
 primary_instrument: visual
-availability: active
+availability: assigned
 trust_score: 68.0
 total_sessions: 1
 successful_sessions: 0

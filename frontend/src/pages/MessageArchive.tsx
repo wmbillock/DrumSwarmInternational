@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import * as v1 from "../services/v1";
 import "../styles/MessageArchive.css";
+import { formatTimestamp } from "../utils/formatters";
 
 export default function MessageArchive() {
   const [results, setResults] = useState<v1.ArchivedThreadSummary[]>([]);
@@ -40,15 +41,7 @@ export default function MessageArchive() {
     }
   }, []);
 
-  // Format date
-  const formatDate = (isoString: string) => {
-    try {
-      const date = new Date(isoString);
-      return date.toLocaleString();
-    } catch {
-      return isoString;
-    }
-  };
+  const formatDate = (isoString: string) => formatTimestamp(isoString);
 
   // Check permissions
   const canAccessArchive =
@@ -56,21 +49,32 @@ export default function MessageArchive() {
 
   if (!canAccessArchive) {
     return (
-      <div className="archive-error">
-        <h2>Access Denied</h2>
-        <p>Only administrators and executive directors can access the archive.</p>
+      <div className="page-content">
+        <div className="page-header">
+          <h2 className="page-title">Message Archive</h2>
+        </div>
+        <div className="error-banner">
+          <p>Access denied. Only administrators and executive directors can access the archive.</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="message-archive">
-      <div className="archive-header">
-        <h1>Message Archive</h1>
-        <p>Search archived threads for historical context and decisions</p>
+    <div className="page-content message-archive">
+      <div className="archive-header page-header">
+        <div>
+          <h1 className="page-title">Message Archive</h1>
+          <p>Search archived threads for historical context and decisions</p>
+        </div>
       </div>
 
-      {error && <div className="archive-error">{error}</div>}
+      {error && (
+        <div className="error-banner">
+          {error}
+          <button className="small" style={{ marginLeft: 8 }} onClick={handleSearch}>Retry</button>
+        </div>
+      )}
 
       <div className="archive-container">
         {/* Left Pane - Search Interface */}
@@ -120,7 +124,10 @@ export default function MessageArchive() {
                 <div className="result-subject">{archive.subject}</div>
                 <div className="result-meta">
                   <span className="result-role">{archive.originator_role}</span>
-                  <span className="result-date">{formatDate(archive.archived_at)}</span>
+                  {(() => {
+                    const ts = formatDate(archive.archived_at);
+                    return <span className="result-date" title={ts.title}>{ts.label}</span>;
+                  })()}
                 </div>
                 {archive.tags && archive.tags.length > 0 && (
                   <div className="result-tags">
@@ -145,7 +152,10 @@ export default function MessageArchive() {
                 <div className="archive-info">
                   <span>From: {selectedArchive.originator_role}</span>
                   <span>Messages: {selectedArchive.message_count}</span>
-                  <span>Archived: {formatDate(selectedArchive.archived_at)}</span>
+                  {(() => {
+                    const ts = formatDate(selectedArchive.archived_at);
+                    return <span title={ts.title}>Archived: {ts.label}</span>;
+                  })()}
                 </div>
               </div>
 
@@ -177,12 +187,22 @@ export default function MessageArchive() {
                   <p>
                     <strong>Original Thread ID:</strong> {selectedArchive.original_thread_id}
                   </p>
-                  <p>
-                    <strong>Created:</strong> {formatDate(selectedArchive.created_at)}
-                  </p>
-                  <p>
-                    <strong>Archived:</strong> {formatDate(selectedArchive.archived_at)}
-                  </p>
+                  {(() => {
+                    const ts = formatDate(selectedArchive.created_at);
+                    return (
+                      <p>
+                        <strong>Created:</strong> <span title={ts.title}>{ts.label}</span>
+                      </p>
+                    );
+                  })()}
+                  {(() => {
+                    const ts = formatDate(selectedArchive.archived_at);
+                    return (
+                      <p>
+                        <strong>Archived:</strong> <span title={ts.title}>{ts.label}</span>
+                      </p>
+                    );
+                  })()}
                 </div>
               </div>
             </>

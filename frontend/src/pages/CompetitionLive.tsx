@@ -1,28 +1,40 @@
-import { useState, useEffect, Fragment } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import * as v1 from "../services/v1";
-import { Tabs, Badge } from "../ui";
+import { Tabs, Badge, DataTable } from "../ui";
 import type { TabItem } from "../ui";
+import { formatCaption, slugToTitle } from "../utils/formatters";
 
 const CAPTION_ORDER = ["brass", "percussion", "guard", "visual", "general_effect", "ensemble_technique"];
 
 export function CompetitionLive() {
   const { competitionId } = useParams<{ competitionId: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [standings, setStandings] = useState<v1.V1Standings | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("standings");
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "standings");
   const [error, setError] = useState("");
+  const [refreshToken, setRefreshToken] = useState(0);
 
   useEffect(() => {
     if (!competitionId) return;
     const ac = new AbortController();
+    setLoading(true);
+    setError("");
     v1.getScores(competitionId, ac.signal)
       .then(setStandings)
       .catch(e => { if (e.name !== "AbortError") setError(e.message); })
       .finally(() => setLoading(false));
     return () => ac.abort();
-  }, [competitionId]);
+  }, [competitionId, refreshToken]);
+
+  useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab && tab !== activeTab) {
+      setActiveTab(tab);
+    }
+  }, [searchParams, activeTab]);
 
   const tabs: TabItem[] = [
     { key: "standings", label: "Standings" },
@@ -32,54 +44,62 @@ export function CompetitionLive() {
   ];
 
   if (loading) return <div className="page-loading">Loading competition...</div>;
-  if (error) return <div className="page-error"><div className="error-banner">{error}</div></div>;
+  if (error) {
+    return (
+      <div className="page-error">
+        <div className="error-banner">{error}</div>
+        <button className="secondary" onClick={() => setRefreshToken(t => t + 1)}>Retry</button>
+      </div>
+    );
+  }
 
   return (
-    <div className="tour-dashboard">
+    <div className="page-content tour-dashboard">
       <div className="page-header">
         <button className="back-btn" onClick={() => navigate("/tour")}>Back</button>
         <h1 className="page-title" style={{ marginBottom: 0 }}>
-          {standings?.show_slug || competitionId}
+          {standings?.show_slug ? slugToTitle(standings.show_slug) : competitionId}
         </h1>
         {standings && (
-          <Badge variant="info">{standings.season_id}</Badge>
+          <Badge variant="info" title={standings.season_id}>{slugToTitle(standings.season_id)}</Badge>
         )}
       </div>
 
-      <Tabs items={tabs} active={activeTab} onChange={setActiveTab} />
+      <Tabs
+        items={tabs}
+        active={activeTab}
+        onChange={(tab) => {
+          setActiveTab(tab);
+          const next = new URLSearchParams(searchParams);
+          next.set("tab", tab);
+          setSearchParams(next, { replace: true });
+        }}
+      />
 
       {activeTab === "standings" && standings && (
         <div style={{ marginTop: 16 }}>
-          <table className="standings-table">
-            <thead>
-              <tr>
-                <th>Rank</th>
-                <th>Corps</th>
-                <th>Score</th>
-                <th>Captions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {standings.results.map(r => (
-                <tr key={r.corps_id}>
-                  <td>
-                    <span className={`standings-rank rank-${r.rank}`}>{r.rank}</span>
-                  </td>
-                  <td style={{ fontWeight: 600 }}>{r.display_name || r.corps_id}</td>
-                  <td><span className="standings-score">{r.final_score.toFixed(2)}</span></td>
-                  <td>
-                    <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                      {Object.entries(r.caption_scores || {}).map(([cap, score]) => (
-                        <span key={cap} className={`standings-caption caption-${cap}`}>
-                          {cap}: {(score as number).toFixed(1)}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <DataTable<v1.V1StandingEntry & Record<string, unknown>>
+            columns={[
+              { key: "rank", label: "Rank", render: (v) => <span className={`standings-rank rank-${String(v)}`}>{v}</span> },
+              { key: "corps_id", label: "Corps", render: (_v, row) => (
+                <span style={{ fontWeight: 600 }} title={row.corps_id}>
+                  {row.display_name || `Corps • ${row.corps_id.slice(0, 8)}`}
+                </span>
+              ) },
+              { key: "final_score", label: "Score", render: (v) => <span className="standings-score">{Number(v).toFixed(2)}</span> },
+              { key: "caption_scores", label: "Captions", render: (v) => (
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                  {Object.entries((v as Record<string, number>) || {}).map(([cap, score]) => (
+                    <span key={cap} className={`standings-caption caption-${cap}`}>
+                      {cap}: {Number(score).toFixed(1)}
+                    </span>
+                  ))}
+                </div>
+              ) },
+            ]}
+            data={standings.results as (v1.V1StandingEntry & Record<string, unknown>)[]}
+            emptyMessage="No standings yet."
+          />
         </div>
       )}
 
@@ -124,7 +144,9 @@ function ScoreCard({ competitionId, entry }: { competitionId: string; entry: v1.
       onClick={() => setOpen(!open)}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h3 style={{ margin: 0 }}>{entry.display_name || entry.corps_id}</h3>
+        <h3 style={{ margin: 0 }} title={entry.corps_id}>
+          {entry.display_name || `Corps • ${entry.corps_id.slice(0, 8)}`}
+        </h3>
         <span className="standings-score">{entry.final_score.toFixed(2)}</span>
       </div>
       {open && breakdown && (
@@ -188,7 +210,7 @@ function JudgesTapesPanel({ competitionId, results }: { competitionId: string; r
             onClick={() => loadTape(r.corps_id)}
             style={{ fontSize: 12, padding: "4px 10px" }}
           >
-            #{r.rank} {r.display_name || r.corps_id.slice(0, 8)}
+            #{r.rank} {r.display_name || `Corps • ${r.corps_id.slice(0, 8)}`}
           </button>
         ))}
       </div>
@@ -221,7 +243,7 @@ function JudgesTapesPanel({ competitionId, results }: { competitionId: string; r
               <div key={caption} style={{ padding: 10, border: "1px solid var(--border, #333)", borderRadius: 4 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                   <strong style={{ textTransform: "uppercase", fontSize: 11, letterSpacing: 1 }}>
-                    {caption.replace(/_/g, " ")}
+                    {formatCaption(caption)}
                   </strong>
                   <span style={{ fontFamily: "var(--font-mono, monospace)", fontWeight: 700 }}>
                     {info.value.toFixed(1)}
@@ -266,55 +288,44 @@ function RecapPanel({ competitionId }: { competitionId: string }) {
   const allCaptions = new Set<string>();
   rows.forEach(r => Object.keys(r.caption_scores).forEach(c => allCaptions.add(c)));
   const captions = CAPTION_ORDER.filter(c => allCaptions.has(c));
+  const recapRows = rows.map(r => {
+    const row: Record<string, unknown> = {
+      rank: r.rank,
+      corps: r.corps_name || "Unknown Corps",
+      penalties: r.penalties_total,
+      raw: r.raw_total,
+      final: r.final_score,
+    };
+    captions.forEach(c => {
+      const cs = r.caption_scores[c] || { rep: 0, perf: 0, tot: 0 };
+      row[`${c}_rep`] = cs.rep;
+      row[`${c}_perf`] = cs.perf;
+      row[`${c}_tot`] = cs.tot;
+    });
+    return row;
+  });
 
   return (
     <div>
       <div style={{ marginBottom: 12 }}>
         <button className="secondary" style={{ fontSize: 12 }} onClick={handleCSV}>Download CSV</button>
       </div>
-      <div style={{ overflowX: "auto" }}>
-        <table className="standings-table" style={{ fontSize: 12 }}>
-          <thead>
-            <tr>
-              <th>Rank</th>
-              <th>Corps</th>
-              {captions.map(c => (
-                <th key={c} colSpan={3} style={{ textAlign: "center" }}>{c.replace(/_/g, " ")}</th>
-              ))}
-              <th>Pen</th>
-              <th>Raw</th>
-              <th>Final</th>
-            </tr>
-            <tr>
-              <th></th>
-              <th></th>
-              {captions.map(c => (
-                <Fragment key={c}><th style={{ fontSize: 10 }}>R</th><th style={{ fontSize: 10 }}>P</th><th style={{ fontSize: 10 }}>T</th></Fragment>
-              ))}
-              <th></th>
-              <th></th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(r => (
-              <tr key={r.corps_id}>
-                <td><strong>{r.rank}</strong></td>
-                <td>{r.corps_name || r.corps_id.slice(0, 8)}</td>
-                {captions.map(c => {
-                  const cs = r.caption_scores[c] || { rep: 0, perf: 0, tot: 0 };
-                  return (
-                    <Fragment key={c}><td>{cs.rep.toFixed(1)}</td><td>{cs.perf.toFixed(1)}</td><td>{cs.tot.toFixed(1)}</td></Fragment>
-                  );
-                })}
-                <td>{r.penalties_total.toFixed(1)}</td>
-                <td>{r.raw_total.toFixed(1)}</td>
-                <td className="standings-score">{r.final_score.toFixed(1)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable<Record<string, unknown>>
+        columns={[
+          { key: "rank", label: "Rank", render: (v) => <strong>{String(v)}</strong> },
+          { key: "corps", label: "Corps" },
+          ...captions.flatMap((c) => ([
+            { key: `${c}_rep`, label: `${formatCaption(c)} R`, render: (v) => Number(v).toFixed(1) },
+            { key: `${c}_perf`, label: `${formatCaption(c)} P`, render: (v) => Number(v).toFixed(1) },
+            { key: `${c}_tot`, label: `${formatCaption(c)} T`, render: (v) => Number(v).toFixed(1) },
+          ])),
+          { key: "penalties", label: "Pen", render: (v) => Number(v).toFixed(1) },
+          { key: "raw", label: "Raw", render: (v) => Number(v).toFixed(1) },
+          { key: "final", label: "Final", render: (v) => <span className="standings-score">{Number(v).toFixed(1)}</span> },
+        ]}
+        data={recapRows}
+        emptyMessage="No recap data available."
+      />
     </div>
   );
 }

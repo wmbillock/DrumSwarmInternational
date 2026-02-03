@@ -1,13 +1,12 @@
 agent_id: agent-gen-00
 display_name: General_Effect 0
 primary_instrument: general_effect
-availability: active
+availability: assigned
 trust_score: 55.0
-total_sessions: 1
-successful_sessions: 1
+total_sessions: 0
+successful_sessions: 0
 failed_sessions: 0
 experience_seasons: 0
 specialties:
 - arrangement
-seen_sessions:
-- tour-s1-tour-show-s1
+seen_sessions: []

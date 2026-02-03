@@ -5,6 +5,7 @@ import { ThreadList } from "../components/ThreadList";
 import { DesignChat } from "../components/DesignChat";
 import { ArtifactPanel } from "../components/ArtifactPanel";
 import { DevilsAdvocate } from "../components/DevilsAdvocate";
+import { formatStatus, slugToTitle } from "../utils/formatters";
 
 function ThreadDetail({ showSlug }: { showSlug: string }) {
   const navigate = useNavigate();
@@ -36,7 +37,14 @@ function ThreadDetail({ showSlug }: { showSlug: string }) {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   if (loading) return <div className="page-loading">Loading thread...</div>;
-  if (error) return <div className="page-error"><div className="error-banner">{error}</div></div>;
+  if (error) {
+    return (
+      <div className="page-error">
+        <div className="error-banner">{error}</div>
+        <button className="secondary" onClick={fetchData}>Retry</button>
+      </div>
+    );
+  }
 
   const statusVariant = (s: string) => {
     if (s === "approved") return "success";
@@ -50,13 +58,13 @@ function ThreadDetail({ showSlug }: { showSlug: string }) {
     <div className="design-room">
       <div className="design-room-header" style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <button className="back-btn small" onClick={() => navigate("/design")}>Back</button>
-        <h2 style={{ margin: 0 }}>{showSlug}</h2>
+        <h2 style={{ margin: 0 }}>{slugToTitle(showSlug)}</h2>
         <span
           className={`badge ${statusVariant(threadStatus)}`}
           data-tooltip-id="main"
-          data-tooltip-content={`Current status: ${threadStatus}. ${threadStatus === "draft" ? "Send design messages to develop the spec." : threadStatus === "needs_review" ? "Ready for approval." : threadStatus === "approved" ? "Ready to publish." : threadStatus === "published" ? "Available for seasons." : ""}`}
+          data-tooltip-content={`Current status: ${formatStatus(threadStatus)}. ${threadStatus === "draft" ? "Send design messages to develop the spec." : threadStatus === "needs_review" ? "Ready for approval." : threadStatus === "approved" ? "Ready to publish." : threadStatus === "published" ? "Available for seasons." : ""}`}
         >
-          {threadStatus}
+          {formatStatus(threadStatus)}
         </span>
         {threadStatus === "approved" && (
           <button

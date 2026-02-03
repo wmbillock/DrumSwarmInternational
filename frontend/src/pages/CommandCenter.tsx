@@ -2,28 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import type { Show, WorkLogEntry, SystemHealth, LLMUsageResponse } from "../types";
 import * as v1 from "../services/v1";
-
-function timeAgo(ts?: string): string {
-  if (!ts) return "";
-  const diff = Date.now() - new Date(ts).getTime();
-  if (diff < 0) return "just now";
-  if (diff < 60000) return "just now";
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-  return `${Math.floor(diff / 86400000)}d ago`;
-}
-
-function formatRole(role: string): string {
-  return role.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-}
-
-const MODE_LABELS: Record<string, string> = {
-  design_room: "Design Room",
-  show_mode: "Show Mode",
-  rehearsal_mode: "Rehearsal",
-  judging: "Judging",
-  offseason_review: "Offseason Review",
-};
+import { formatMode, formatRole, formatTimestamp } from "../utils/formatters";
+import { DataTable } from "../ui";
 
 const QUICK_START_STEPS = [
   { num: 1, label: "Design a Show", desc: "Create and refine your show concept with AI design staff", to: "/design" },
@@ -104,9 +84,19 @@ export function CommandCenter() {
   if (loading) return <div className="page-loading">Loading Command Center...</div>;
 
   const activeShows = shows.filter(s => s.status === "active");
+  const providerRows = llmUsage
+    ? llmUsage.providers.map(p => ({
+        ...p,
+        status_label: p.name === llmUsage.active_provider ? "ACTIVE" : "standby",
+        requests: p.stats.requests,
+        successes: p.stats.successes,
+        failures: p.stats.failures,
+        tokens: `${p.stats.total_input_tokens.toLocaleString()} / ${p.stats.total_output_tokens.toLocaleString()} / ${p.stats.total_cached_tokens.toLocaleString()}`,
+      }))
+    : [];
 
   return (
-    <div className="command-center">
+    <div className="page-content command-center">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <h1 className="page-title" style={{ marginBottom: 0 }}>Command Center</h1>
         <button className="small quick-start-toggle" onClick={toggleGuide}>
@@ -114,7 +104,12 @@ export function CommandCenter() {
         </button>
       </div>
 
-      {error && <div className="error-banner">{error}</div>}
+      {error && (
+        <div className="error-banner">
+          {error}
+          <button className="small" style={{ marginLeft: 8 }} onClick={refresh}>Retry</button>
+        </div>
+      )}
 
       {/* Quick Start Guide */}
       {guideOpen && (
@@ -199,7 +194,7 @@ export function CommandCenter() {
               <div key={c.id} className="corps-status-card clickable" onClick={() => navigate(`/corps/${c.id}`)}>
                 <div className="corps-status-header">
                   <span className="corps-status-name">{c.name}</span>
-                  {c.mode && <span className={`badge mode-${c.mode}`}>{MODE_LABELS[c.mode] || c.mode}</span>}
+                  {c.mode && <span className={`badge mode-${c.mode}`}>{formatMode(c.mode)}</span>}
                 </div>
                 <div className="corps-status-stats">
                   <span>{c.agents_active}/{c.agents_total} agents</span>
@@ -221,30 +216,21 @@ export function CommandCenter() {
       <section className="cc-section">
         <h2>Active Shows ({activeShows.length})</h2>
         {activeShows.length === 0 && <p className="empty">No active shows. Create and activate a show to begin.</p>}
-        <div className="cc-table-wrap">
-          <table className="cc-table">
-            <thead>
-              <tr>
-                <th>Show</th>
-                <th>Corps</th>
-                <th>Progress</th>
-                <th>Score</th>
-                <th>Created</th>
-              </tr>
-            </thead>
-            <tbody>
-              {activeShows.map(s => (
-                <tr key={s.id} className="clickable" onClick={() => s.corps_id && navigate(`/corps/${s.corps_id}`)}>
-                  <td>{s.title}</td>
-                  <td>{s.corps_name || "—"}</td>
-                  <td>{s.reps_completed ?? 0}/{s.reps_total ?? 0}</td>
-                  <td>{s.final_score != null ? s.final_score.toFixed(1) : "—"}</td>
-                  <td>{timeAgo(s.created_at)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable<Show & Record<string, unknown>>
+          columns={[
+            { key: "title", label: "Show", render: (v) => String(v || "—") },
+            { key: "corps_name", label: "Corps", render: (v) => String(v || "—") },
+            { key: "reps_completed", label: "Progress", render: (_v, row) => `${row.reps_completed ?? 0}/${row.reps_total ?? 0}` },
+            { key: "final_score", label: "Score", render: (v) => v != null ? Number(v).toFixed(1) : "—" },
+            { key: "created_at", label: "Created", render: (v) => {
+              const ts = formatTimestamp(String(v));
+              return <span title={ts.title}>{ts.label}</span>;
+            } },
+          ]}
+          data={activeShows as (Show & Record<string, unknown>)[]}
+          onRowClick={(row) => row.corps_id && navigate(`/corps/${row.corps_id}`)}
+          emptyMessage="No active shows. Create and activate a show to begin."
+        />
       </section>
 
       {/* Agent Usage — LLM Provider Stats */}
@@ -255,45 +241,42 @@ export function CommandCenter() {
         ) : (
           <>
             <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 8 }}>
-              Router active since {llmUsage.started_at ? new Date(llmUsage.started_at).toLocaleString() : "unknown"}
+              Router active since {llmUsage.started_at ? formatTimestamp(llmUsage.started_at).label : "unknown"}
               {" | "}Total requests: {llmUsage.total_requests}
               {" | "}Total failures: {llmUsage.total_failures}
             </div>
-            <div className="cc-table-wrap">
-              <table className="cc-table">
-                <thead>
-                  <tr>
-                    <th>Provider</th>
-                    <th>Status</th>
-                    <th>Capabilities</th>
-                    <th>Requests</th>
-                    <th>OK</th>
-                    <th>Fail</th>
-                    <th>Tokens (in/out/cached)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {llmUsage.providers.map(p => (
-                    <tr key={p.name} style={p.name === llmUsage.active_provider ? { background: "var(--stage-green)", color: "#000" } : {}}>
-                      <td style={{ fontFamily: "var(--font-mono, 'JetBrains Mono', monospace)" }}>{p.name}</td>
-                      <td>{p.name === llmUsage.active_provider ? "ACTIVE" : "standby"}</td>
-                      <td>
-                        {p.capabilities.supports_images && <span className="badge" style={{ marginRight: 4 }}>IMG</span>}
-                        {p.capabilities.supports_native_tools && <span className="badge" style={{ marginRight: 4 }}>TOOLS</span>}
-                        {p.capabilities.supports_caching && <span className="badge">CACHE</span>}
-                        {!p.capabilities.supports_images && !p.capabilities.supports_native_tools && !p.capabilities.supports_caching && <span style={{ color: "var(--text-secondary)" }}>text-only</span>}
-                      </td>
-                      <td>{p.stats.requests}</td>
-                      <td>{p.stats.successes}</td>
-                      <td style={p.stats.failures > 0 ? { color: "var(--stage-red, #ff4444)" } : {}}>{p.stats.failures}</td>
-                      <td style={{ fontFamily: "var(--font-mono, 'JetBrains Mono', monospace)", fontSize: 11 }}>
-                        {p.stats.total_input_tokens.toLocaleString()} / {p.stats.total_output_tokens.toLocaleString()} / {p.stats.total_cached_tokens.toLocaleString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <DataTable<Record<string, unknown>>
+              columns={[
+                { key: "name", label: "Provider", render: (v) => (
+                  <span style={{ fontFamily: "var(--font-mono, 'JetBrains Mono', monospace)" }}>{String(v)}</span>
+                ) },
+                { key: "status_label", label: "Status", render: (v) => String(v) },
+                { key: "capabilities", label: "Capabilities", render: (_v, row) => (
+                  <>
+                    {row.capabilities.supports_images && <span className="badge" style={{ marginRight: 4 }}>IMG</span>}
+                    {row.capabilities.supports_native_tools && <span className="badge" style={{ marginRight: 4 }}>TOOLS</span>}
+                    {row.capabilities.supports_caching && <span className="badge">CACHE</span>}
+                    {!row.capabilities.supports_images && !row.capabilities.supports_native_tools && !row.capabilities.supports_caching && (
+                      <span style={{ color: "var(--text-secondary)" }}>text-only</span>
+                    )}
+                  </>
+                ) },
+                { key: "requests", label: "Requests" },
+                { key: "successes", label: "OK" },
+                { key: "failures", label: "Fail", render: (v) => (
+                  <span style={Number(v) > 0 ? { color: "var(--stage-red, #ff4444)" } : {}}>
+                    {String(v)}
+                  </span>
+                ) },
+                { key: "tokens", label: "Tokens (in/out/cached)", render: (v) => (
+                  <span style={{ fontFamily: "var(--font-mono, 'JetBrains Mono', monospace)", fontSize: 11 }}>
+                    {String(v)}
+                  </span>
+                ) },
+              ]}
+              data={providerRows as Record<string, unknown>[]}
+              emptyMessage="No LLM providers reported."
+            />
 
             {llmUsage.failover_events.length > 0 && (
               <div style={{ marginTop: 12 }}>
@@ -301,7 +284,9 @@ export function CommandCenter() {
                 <div className="activity-list">
                   {llmUsage.failover_events.slice().reverse().slice(0, 10).map((ev, i) => (
                     <div key={i} className="activity-row">
-                      <span className="activity-time">{timeAgo(ev.timestamp)}</span>
+                      <span className="activity-time" title={formatTimestamp(ev.timestamp).title}>
+                        {formatTimestamp(ev.timestamp).label}
+                      </span>
                       <span className="activity-type" style={{ color: "var(--stage-red, #ff4444)" }}>FAILOVER</span>
                       <span className="activity-detail">
                         {ev.from_provider} &rarr; {ev.to_provider}: {ev.error_snippet.slice(0, 80)}
@@ -325,7 +310,9 @@ export function CommandCenter() {
               <span className="activity-type">{w.event_type}</span>
               <span className="activity-role">{w.nickname || formatRole(w.role)}</span>
               <span className="activity-detail">{w.details?.slice(0, 120)}</span>
-              <span className="activity-time">{timeAgo(w.timestamp)}</span>
+              <span className="activity-time" title={formatTimestamp(w.timestamp).title}>
+                {formatTimestamp(w.timestamp).label}
+              </span>
             </div>
           ))}
         </div>

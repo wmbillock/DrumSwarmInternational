@@ -38,6 +38,32 @@ def create_show(title: str, base_dir: Path) -> Path:
     return candidate
 
 
+def ensure_show_scaffold(show_dir: Path) -> None:
+    """Ensure core show files exist (status, design notes, prompt)."""
+    show_dir = Path(show_dir)
+    show_dir.mkdir(parents=True, exist_ok=True)
+    status_path = show_dir / "status.yaml"
+    if not status_path.exists():
+        atomic_write(status_path, safe_dump_yaml({"status": "draft"}))
+    notes_path = show_dir / "design_notes.md"
+    if not notes_path.exists():
+        atomic_write(notes_path, "")
+    prompt_path = show_dir / "show_prompt.md"
+    if not prompt_path.exists():
+        atomic_write(prompt_path, "")
+
+
+def missing_show_files(show_dir: Path) -> list[str]:
+    """Return missing core show files."""
+    show_dir = Path(show_dir)
+    required = ["status.yaml", "design_notes.md", "show_prompt.md", "spec.md"]
+    missing = []
+    for name in required:
+        if not (show_dir / name).exists():
+            missing.append(name)
+    return missing
+
+
 def load_status(show_dir: Path) -> dict:
     """Read and return status dict from status.yaml."""
     return safe_load_yaml_dict((Path(show_dir) / "status.yaml").read_text(), {"status": "draft"})
@@ -222,6 +248,7 @@ def read_spec(show_dir: Path) -> str:
 
 def write_spec(show_dir: Path, content: str) -> None:
     """Write spec.md to a show directory."""
+    ensure_show_scaffold(show_dir)
     atomic_write(Path(show_dir) / "spec.md", content)
 
 
@@ -232,6 +259,7 @@ def approve_spec(show_dir: Path) -> dict:
     Raises ValueError if spec is empty or missing.
     """
     show_dir = Path(show_dir)
+    ensure_show_scaffold(show_dir)
     content = read_spec(show_dir)
     if not content.strip():
         raise ValueError("Cannot approve an empty spec")

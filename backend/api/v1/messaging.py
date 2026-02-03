@@ -4,6 +4,7 @@ Extracted from router.py — all messaging thread and archive endpoints.
 """
 
 import uuid
+import anyio
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
@@ -59,6 +60,22 @@ def v1_create_messaging_thread(req: MessagingCreateThreadRequest):
             initial_message_body=req.initial_message_body,
             initial_sender_name=req.initial_sender_name or "Agent",
         )
+        unread = service.get_unread_count()
+        try:
+            from backend.api.app import manager
+            anyio.from_thread.run(manager.broadcast_all, {
+                "type": "thread:created",
+                "thread_id": thread.id,
+                "originator_role": thread.originator_role.value,
+                "subject": thread.subject,
+                "status": thread.status.value,
+            })
+            anyio.from_thread.run(manager.broadcast_all, {
+                "type": "unread_count:updated",
+                "unread_count": unread,
+            })
+        except Exception:
+            pass
         return {
             "thread_id": thread.id,
             "originator_role": thread.originator_role.value,
@@ -177,6 +194,25 @@ def v1_add_messaging_thread_message(thread_id: str, req: MessagingAddMessageRequ
             sender_name=req.sender_name,
             body=req.body,
         )
+        unread = service.get_unread_count()
+        try:
+            from backend.api.app import manager
+            anyio.from_thread.run(manager.broadcast_all, {
+                "type": "message:new",
+                "thread_id": message.thread_id,
+                "message_id": message.id,
+                "sender_type": message.sender_type.value,
+                "sender_role": message.sender_role,
+                "sender_name": message.sender_name,
+                "body": message.body,
+                "created_at": message.created_at.isoformat(),
+            })
+            anyio.from_thread.run(manager.broadcast_all, {
+                "type": "unread_count:updated",
+                "unread_count": unread,
+            })
+        except Exception:
+            pass
         return {
             "message_id": message.id,
             "thread_id": message.thread_id,
@@ -228,6 +264,22 @@ def v1_mark_messaging_thread_complete(
             )
 
         thread = service.mark_thread_complete(thread_id, req.completed_by_user_id)
+        unread = service.get_unread_count()
+        try:
+            from backend.api.app import manager
+            anyio.from_thread.run(manager.broadcast_all, {
+                "type": "thread:status_changed",
+                "thread_id": thread.id,
+                "status": thread.status.value,
+                "completed_at": thread.completed_at.isoformat() if thread.completed_at else None,
+                "completed_by": thread.completed_by,
+            })
+            anyio.from_thread.run(manager.broadcast_all, {
+                "type": "unread_count:updated",
+                "unread_count": unread,
+            })
+        except Exception:
+            pass
         return {
             "thread_id": thread.id,
             "status": thread.status.value,
@@ -399,6 +451,23 @@ def v1_bulk_archive_messaging_threads(req: MessagingBulkArchiveRequest):
             decisions=decisions,
             tags_dict=tags_dict,
         )
+        unread = service.get_unread_count()
+        try:
+            from backend.api.app import manager
+            for at in archived:
+                anyio.from_thread.run(manager.broadcast_all, {
+                    "type": "thread:archived",
+                    "archived_thread_id": at.id,
+                    "original_thread_id": at.original_thread_id,
+                    "subject": at.subject,
+                    "archived_at": at.archived_at.isoformat() if at.archived_at else None,
+                })
+            anyio.from_thread.run(manager.broadcast_all, {
+                "type": "unread_count:updated",
+                "unread_count": unread,
+            })
+        except Exception:
+            pass
 
         return {
             "operation_id": str(uuid.uuid4()),

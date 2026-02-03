@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
-import { Panel, Tabs } from "../ui";
+import { Panel, Tabs, Badge, DataTable } from "../ui";
+import { useSearchParams } from "react-router-dom";
 import * as v1 from "../services/v1";
+import { formatRole, formatStatus } from "../utils/formatters";
 
 const TABS = [
   { key: "marketplace", label: "Marketplace" },
@@ -14,6 +16,7 @@ function trustColor(score: number): string {
 }
 
 export function StaffMarketplace() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [tab, setTab] = useState("marketplace");
   const [marketplace, setMarketplace] = useState<v1.StaffMember[]>([]);
   const [loading, setLoading] = useState(false);
@@ -64,6 +67,13 @@ export function StaffMarketplace() {
   }, [fetchMarketplace, fetchCorpsList]);
 
   useEffect(() => {
+    const nextTab = searchParams.get("tab");
+    if (nextTab && nextTab !== tab) {
+      setTab(nextTab);
+    }
+  }, [searchParams, tab]);
+
+  useEffect(() => {
     if (selectedCorps) fetchCorpsStaff(selectedCorps);
   }, [selectedCorps, fetchCorpsStaff]);
 
@@ -80,55 +90,48 @@ export function StaffMarketplace() {
   };
 
   return (
-    <div className="dashboard">
-      <h1 className="page-title">Staff Marketplace</h1>
-      <Tabs active={tab} onChange={setTab} items={TABS} />
+    <div className="page-content">
+      <div className="page-header">
+        <h1 className="page-title">Staff Marketplace</h1>
+      </div>
+      <Tabs
+        active={tab}
+        onChange={(next) => {
+          setTab(next);
+          const params = new URLSearchParams(searchParams);
+          params.set("tab", next);
+          setSearchParams(params, { replace: true });
+        }}
+        items={TABS}
+      />
 
       {tab === "marketplace" && (
         <Panel title="Available Performers">
           {loading && <p className="empty">Loading...</p>}
-          {error && <p className="empty" style={{ color: "#f44336" }}>{error}</p>}
+          {error && (
+            <div className="error-banner">
+              {error}
+              <button className="small" style={{ marginLeft: 8 }} onClick={fetchMarketplace}>Retry</button>
+            </div>
+          )}
           {!loading && !error && marketplace.length === 0 && (
             <p className="empty">No performers available.</p>
           )}
           {marketplace.length > 0 && (
-            <table className="data-table" style={{ width: "100%" }}>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Role</th>
-                  <th>Trust Score</th>
-                  <th>Sessions</th>
-                  <th>Status</th>
-                  <th>Specialties</th>
-                </tr>
-              </thead>
-              <tbody>
-                {marketplace.map((m) => (
-                  <tr key={m.id}>
-                    <td>{m.name}</td>
-                    <td>{m.role_type}</td>
-                    <td>
-                      <span
-                        style={{
-                          color: trustColor(m.trust_score),
-                          fontWeight: 600,
-                        }}
-                      >
-                        {m.trust_score}
-                      </span>
-                    </td>
-                    <td>
-                      {m.successful_sessions}/{m.total_sessions}
-                    </td>
-                    <td>
-                      <span className={`badge ${m.status}`}>{m.status}</span>
-                    </td>
-                    <td>{m.specialties || "--"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <DataTable<v1.StaffMember & Record<string, unknown>>
+              columns={[
+                { key: "id", label: "Name", render: (v, row) => <span title={String(v)}>{row.name || `Performer • ${String(v).slice(0, 8)}`}</span> },
+                { key: "role_type", label: "Role", render: (v) => formatRole(String(v || "")) },
+                { key: "trust_score", label: "Trust Score", render: (v) => (
+                  <span style={{ color: trustColor(Number(v ?? 0)), fontWeight: 600 }}>{v ?? "--"}</span>
+                ) },
+                { key: "successful_sessions", label: "Sessions", render: (_v, row) => `${row.successful_sessions}/${row.total_sessions}` },
+                { key: "status", label: "Status", render: (v) => <Badge>{formatStatus(String(v || ""))}</Badge> },
+                { key: "specialties", label: "Specialties", render: (v) => String(v || "--") },
+              ]}
+              data={marketplace as (v1.StaffMember & Record<string, unknown>)[]}
+              emptyMessage="No performers available."
+            />
           )}
         </Panel>
       )}
@@ -159,48 +162,27 @@ export function StaffMarketplace() {
             <p className="empty">No staff assigned to this corps.</p>
           )}
           {selectedCorps && corpsStaff.length > 0 && (
-            <table className="data-table" style={{ width: "100%" }}>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Role</th>
-                  <th>Trust Score</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {corpsStaff.map((s: any) => (
-                  <tr key={s.id || s.performer_id}>
-                    <td>{s.name || s.performer_id}</td>
-                    <td>{s.role_type || s.role || "--"}</td>
-                    <td>
-                      <span
-                        style={{
-                          color: trustColor(s.trust_score ?? 0),
-                          fontWeight: 600,
-                        }}
-                      >
-                        {s.trust_score ?? "--"}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`badge ${s.status || ""}`}>
-                        {s.status || "--"}
-                      </span>
-                    </td>
-                    <td>
-                      <button
-                        className="small danger"
-                        onClick={() => handleRelease(s.id || s.performer_id)}
-                      >
-                        Release
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <DataTable<any>
+              columns={[
+                { key: "performer_id", label: "Name", render: (_v, row) => (
+                  <span title={row.performer_id || row.id}>
+                    {row.name || `Performer • ${(row.performer_id || row.id || "").slice(0, 8)}`}
+                  </span>
+                ) },
+                { key: "role_type", label: "Role", render: (_v, row) => formatRole(row.role_type || row.role || "") },
+                { key: "trust_score", label: "Trust Score", render: (v) => (
+                  <span style={{ color: trustColor(Number(v ?? 0)), fontWeight: 600 }}>{v ?? "--"}</span>
+                ) },
+                { key: "status", label: "Status", render: (v) => <Badge>{formatStatus(String(v || "active"))}</Badge> },
+                { key: "id", label: "Actions", render: (_v, row) => (
+                  <button className="small danger" onClick={() => handleRelease(row.id || row.performer_id)}>
+                    Release
+                  </button>
+                ) },
+              ]}
+              data={corpsStaff}
+              emptyMessage="No staff assigned to this corps."
+            />
           )}
         </Panel>
       )}

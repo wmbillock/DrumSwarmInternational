@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Tabs, Panel, DataTable, Badge } from "../ui";
 import { ShowDetail } from "../components/ShowDetail";
+import { HiringProgress } from "../components/HiringProgress";
+import { badgeForRunStatus, badgeForShowStatus, formatMode, formatStatus, formatTimestamp, slugToTitle } from "../utils/formatters";
 import * as v1 from "../services/v1";
 
 const TAB_ITEMS = [
@@ -21,11 +23,14 @@ export function CorpsDetailV2() {
   const [history, setHistory] = useState<v1.V1HistoryIndex | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [refreshToken, setRefreshToken] = useState(0);
 
   useEffect(() => {
     if (!corpsId) return;
     const ac = new AbortController();
 
+    setLoading(true);
+    setError("");
     v1.getCorps(corpsId, ac.signal)
       .then(setCorps)
       .catch((e) => { if (e.name !== "AbortError") setError(e.message); })
@@ -40,7 +45,7 @@ export function CorpsDetailV2() {
       .catch(() => {});
 
     return () => ac.abort();
-  }, [corpsId]);
+  }, [corpsId, refreshToken]);
 
   const handleTabChange = (key: string) => {
     setActiveTab(key);
@@ -53,7 +58,14 @@ export function CorpsDetailV2() {
   }, [corpsId]);
 
   if (loading) return <div className="page-loading">Loading corps...</div>;
-  if (error) return <div className="page-error"><div className="error-banner">{error}</div></div>;
+  if (error) {
+    return (
+      <div className="page-error">
+        <div className="error-banner">{error}</div>
+        <button className="secondary" onClick={() => setRefreshToken(t => t + 1)}>Retry</button>
+      </div>
+    );
+  }
   if (!corps) return <div className="page-error">Corps not found</div>;
 
   return (
@@ -61,7 +73,7 @@ export function CorpsDetailV2() {
       <div className="page-header">
         <button className="back-btn" onClick={() => navigate("/corps")}>Back</button>
         <h2>{corps.display_name}</h2>
-        <Badge variant={corps.state === "on_tour" ? "success" : "default"}>{corps.state}</Badge>
+        <Badge variant={corps.state === "on_tour" ? "success" : "default"}>{formatStatus(corps.state)}</Badge>
       </div>
 
       <Tabs active={activeTab} onChange={handleTabChange} items={TAB_ITEMS} />
@@ -90,6 +102,7 @@ export function CorpsDetailV2() {
 function OverviewTab({ corps, onStateChange }: { corps: v1.V1CorpsDetail; onStateChange?: () => void }) {
   const [cmdLoading, setCmdLoading] = useState("");
   const [cmdResult, setCmdResult] = useState("");
+  const [staffing, setStaffing] = useState<v1.StaffingStatus | null>(null);
 
   const exec = async (command: string) => {
     setCmdLoading(command);
@@ -106,18 +119,27 @@ function OverviewTab({ corps, onStateChange }: { corps: v1.V1CorpsDetail; onStat
   };
 
   const isWinterCamps = corps.state === "winter_camps";
-  const isOnTour = corps.state === "on_tour";
-  const isReadyForContest = corps.state === "ready_for_contest";
+  const lifecycle = ["initializing", "winter_camps", "on_tour", "ready_for_contest", "completed"];
+
+  useEffect(() => {
+    if (!isWinterCamps) return;
+    v1.getStaffingStatus(corps.corps_id)
+      .then(setStaffing)
+      .catch(() => {});
+  }, [corps.corps_id, isWinterCamps]);
 
   return (
     <div>
       <Panel title="Corps Info">
         <table className="styled-table">
           <tbody>
-            <tr><td className="cell-primary">ID</td><td className="mono">{corps.corps_id}</td></tr>
-            <tr><td className="cell-primary">State</td><td>{corps.state}</td></tr>
-            {corps.mode && <tr><td className="cell-primary">Mode</td><td>{corps.mode.replace("_", " ")}</td></tr>}
-            {corps.rehearsal_mode && <tr><td className="cell-primary">Rehearsal</td><td>{corps.rehearsal_mode.replace("_", " ")}</td></tr>}
+            <tr>
+              <td className="cell-primary">ID</td>
+              <td className="mono" title={corps.corps_id}>Corps • {corps.corps_id.slice(0, 8)}</td>
+            </tr>
+            <tr><td className="cell-primary">State</td><td>{formatStatus(corps.state)}</td></tr>
+            {corps.mode && <tr><td className="cell-primary">Mode</td><td>{formatMode(corps.mode)}</td></tr>}
+            {corps.rehearsal_mode && <tr><td className="cell-primary">Rehearsal</td><td>{formatMode(corps.rehearsal_mode)}</td></tr>}
             <tr><td className="cell-primary">Roster Size</td><td>{corps.roster_size}</td></tr>
             {corps.mascot && <tr><td className="cell-primary">Mascot</td><td>{corps.mascot}</td></tr>}
             <tr><td className="cell-primary">History Entries</td><td>{corps.history_count}</td></tr>
@@ -131,8 +153,8 @@ function OverviewTab({ corps, onStateChange }: { corps: v1.V1CorpsDetail; onStat
             <tbody>
               <tr><td className="cell-primary">Title</td><td><strong>{corps.current_show.title}</strong></td></tr>
               <tr><td className="cell-primary">Status</td><td>
-                <Badge variant={corps.current_show.status === "active" ? "success" : corps.current_show.status === "completed" ? "info" : "default"}>
-                  {corps.current_show.status}
+                <Badge variant={badgeForShowStatus(corps.current_show.status)}>
+                  {formatStatus(corps.current_show.status)}
                 </Badge>
               </td></tr>
               {corps.current_show.description && (
@@ -143,33 +165,34 @@ function OverviewTab({ corps, onStateChange }: { corps: v1.V1CorpsDetail; onStat
         </Panel>
       )}
 
-      <Panel title="Lifecycle Controls" className="mt-16">
+      <Panel title="Lifecycle Status" className="mt-16">
+        <div className="lifecycle-bar">
+          {lifecycle.map((state) => (
+            <div
+              key={state}
+              className={`lifecycle-step ${corps.state === state ? "active" : ""}`}
+            >
+              {formatStatus(state)}
+            </div>
+          ))}
+        </div>
+      </Panel>
+
+      {isWinterCamps && (
+        <Panel title="Prep Status" className="mt-16">
+          <div style={{ display: "grid", gap: 12 }}>
+            <HiringProgress corpsId={corps.corps_id} />
+            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+              {staffing && staffing.hired >= staffing.total_roles
+                ? "Staffing complete. Review readiness checks before touring."
+                : "Staffing in progress. Corps will be ready when all roles are filled."}
+            </div>
+          </div>
+        </Panel>
+      )}
+
+      <Panel title="Operational Commands" className="mt-16">
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-          {isWinterCamps && (
-            <button className="primary" onClick={() => exec("go_on_tour")} disabled={!!cmdLoading}>
-              {cmdLoading === "go_on_tour" ? "Starting..." : "Go On Tour"}
-            </button>
-          )}
-          {isOnTour && (
-            <>
-              <button className="success" onClick={() => exec("ready_for_contest")} disabled={!!cmdLoading}>
-                {cmdLoading === "ready_for_contest" ? "Preparing..." : "Ready for Contest"}
-              </button>
-              <button onClick={() => exec("return_to_camps")} disabled={!!cmdLoading}>
-                {cmdLoading === "return_to_camps" ? "Returning..." : "Return to Camps"}
-              </button>
-            </>
-          )}
-          {isReadyForContest && (
-            <>
-              <button className="success" onClick={() => exec("complete_corps")} disabled={!!cmdLoading}>
-                {cmdLoading === "complete_corps" ? "Completing..." : "Complete Corps"}
-              </button>
-              <button onClick={() => exec("return_to_tour")} disabled={!!cmdLoading}>
-                {cmdLoading === "return_to_tour" ? "Resuming..." : "Back to Tour"}
-              </button>
-            </>
-          )}
           <button onClick={() => exec("resume_hut")} disabled={!!cmdLoading}>
             {cmdLoading === "resume_hut" ? "Waking..." : "Resume, Hut!"}
           </button>
@@ -263,18 +286,21 @@ function RunsTab({ runs, navigate }: { runs: v1.V1Run[]; navigate: ReturnType<ty
     <Panel title="Run History">
       <DataTable<v1.V1Run & Record<string, unknown>>
         columns={[
-          { key: "run_id", label: "Run", render: (v) => <span className="mono">{String(v).slice(0, 30)}</span> },
-          { key: "show_slug", label: "Show" },
+          { key: "run_id", label: "Run", render: (v) => <span className="mono" title={String(v)}>{String(v).slice(0, 8)}</span> },
+          { key: "show_slug", label: "Show", render: (v) => slugToTitle(String(v || "")) },
           {
             key: "status",
             label: "Status",
             render: (v) => (
-              <Badge variant={v === "completed" ? "success" : v === "failed" ? "danger" : "warning"}>
-                {String(v)}
+              <Badge variant={badgeForRunStatus(String(v))}>
+                {formatStatus(String(v))}
               </Badge>
             ),
           },
-          { key: "started_at", label: "Started", render: (v) => v ? new Date(String(v)).toLocaleString() : "" },
+          { key: "started_at", label: "Started", render: (v) => {
+            const ts = formatTimestamp(String(v || ""));
+            return <span title={ts.title}>{ts.label}</span>;
+          } },
         ]}
         data={runs as (v1.V1Run & Record<string, unknown>)[]}
         onRowClick={(row) => navigate(`/runs/${row.run_id}`)}
@@ -294,8 +320,8 @@ function ShowsTab({ history }: { history: v1.V1HistoryIndex | null }) {
     <Panel title="Show Participation">
       <DataTable<v1.V1HistoryEntry & Record<string, unknown>>
         columns={[
-          { key: "show_slug", label: "Show", render: (v) => String(v || "N/A") },
-          { key: "season_id", label: "Season" },
+          { key: "show_slug", label: "Show", render: (v) => slugToTitle(String(v || "")) },
+          { key: "season_id", label: "Season", render: (v) => slugToTitle(String(v || "")) },
           { key: "placement", label: "Placement", render: (v) => <strong>#{String(v)}</strong> },
           { key: "final_score", label: "Score", render: (v) => Number(v).toFixed(2) },
         ]}
@@ -326,8 +352,8 @@ function HistoryTab({ corps, history, corpsId }: { corps: v1.V1CorpsDetail; hist
         <Panel title="Past Shows">
           <DataTable<v1.V1HistoryEntry & Record<string, unknown>>
             columns={[
-              { key: "show_slug", label: "Show", render: (v) => String(v || "N/A") },
-              { key: "season_id", label: "Season" },
+              { key: "show_slug", label: "Show", render: (v) => slugToTitle(String(v || "")) },
+              { key: "season_id", label: "Season", render: (v) => slugToTitle(String(v || "")) },
               { key: "placement", label: "Place", render: (v) => <strong>#{String(v)}</strong> },
               { key: "final_score", label: "Score", render: (v) => Number(v).toFixed(2) },
               { key: "artifacts", label: "Artifacts", render: (v) => String(Object.keys(v as Record<string, string>).length) },

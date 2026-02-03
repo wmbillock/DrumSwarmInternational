@@ -1,1 +1,4 @@
-status: published
+status: completed
+completed_at: "2026-02-03"
+implementation_notes: |
+  - Identity generation endpoints and corps creation modal are implemented.

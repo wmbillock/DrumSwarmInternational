@@ -1,1 +1,7 @@
-status: published
+status: completed
+completed_at: "2026-02-03"
+implementation_notes: |
+  - Added WebSocket broadcasts for thread/message lifecycle and unread count updates.
+  - Added Message Admin bulk-archive UI route and styles.
+  - Added ranked archive search scoring (BM25 + recency + tags + decision).
+  - Added acceptance checklist.

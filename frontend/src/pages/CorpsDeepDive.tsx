@@ -16,31 +16,8 @@ import { TheChart } from "../components/TheChart";
 import { TheBooks } from "../components/TheBooks";
 import { TheSeason } from "../components/TheSeason";
 import { TheHistory } from "../components/TheHistory";
-
-function formatRole(role: string): string {
-  return role.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-}
-
-function timeAgo(ts?: string): string {
-  if (!ts) return "";
-  const diff = Date.now() - new Date(ts).getTime();
-  if (diff < 0) return "just now";
-  if (diff < 60000) return "just now";
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-  return `${Math.floor(diff / 86400000)}d ago`;
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  winter_camps: "Winter Camps",
-  on_tour: "On Tour",
-  in_progress: "In Progress",
-};
-
-function StatusBadge({ status }: { status: string }) {
-  const label = STATUS_LABELS[status] || status;
-  return <span className={`badge ${status}`}>{label}</span>;
-}
+import { Badge } from "../ui";
+import { badgeForShowStatus, formatRole, formatStatus, formatTimestamp } from "../utils/formatters";
 
 function TierBadge({ tier }: { tier?: string }) {
   if (!tier) return null;
@@ -248,7 +225,11 @@ export function CorpsDeepDive() {
         <div className="show-detail-title">
           <h2>{show?.title ? (show.title.length > 60 ? show.title.slice(0, 60) + "..." : show.title) : corpsId?.slice(0, 8)}</h2>
           {show?.corps_name && <span className="corps-badge">{show.corps_name}</span>}
-          {show && <StatusBadge status={show.status} />}
+          {show && (
+            <Badge variant={badgeForShowStatus(show.status)}>
+              {formatStatus(show.status)}
+            </Badge>
+          )}
           <ModeIndicator mode={corpsMode} />
           <span className={`ws-dot ${connected ? "connected" : "disconnected"}`}
                 title={connected ? "WebSocket connected" : "WebSocket disconnected"} />
@@ -300,7 +281,11 @@ export function CorpsDeepDive() {
                       <div className="chat-msg-header">
                         <span className="chat-sender">{m.from === "user" ? "You" : (m.nickname || formatRole(m.from))}</span>
                         {m.internal && <span className="chat-badge-internal">internal</span>}
-                        {m.time && <span className="chat-time">{timeAgo(m.time)}</span>}
+                        {m.time && (
+                          <span className="chat-time" title={formatTimestamp(m.time).title}>
+                            {formatTimestamp(m.time).label}
+                          </span>
+                        )}
                       </div>
                       <div className="chat-msg-body">{m.content}</div>
                     </div>

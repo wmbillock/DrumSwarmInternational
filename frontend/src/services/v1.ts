@@ -48,6 +48,7 @@ export interface V1Corps {
   corps_type?: "competing" | "system";
   theme_id?: string;
   mascot?: string;
+  staff_count?: number;
 }
 
 export interface V1ShowInfo {
@@ -193,6 +194,15 @@ export interface CreateCompReq {
 
 export const listCorps = (signal?: AbortSignal, includeSystem = false) =>
   request<V1Corps[]>(`/api/v1/corps${includeSystem ? "?include_system=true" : ""}`, { signal });
+
+export interface StaffingStatus {
+  total_roles: number;
+  hired: number;
+  current_role?: string | null;
+}
+
+export const getStaffingStatus = (corpsId: string, signal?: AbortSignal) =>
+  request<StaffingStatus>(`/api/v1/corps/${corpsId}/staffing-status`, { signal });
 
 export interface CorpsIdentity {
   name: string;

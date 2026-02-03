@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import * as v1 from "../services/v1";
 import "../styles/MessageInbox.css";
+import { formatTimestamp } from "../utils/formatters";
 
 interface ThreadListItem {
   thread_id: string;
@@ -96,23 +97,24 @@ export default function MessageInbox() {
     }
   }, [selectedThread, userRole, handleSelectThread, loadThreads]);
 
-  // Format date
-  const formatDate = (isoString: string) => {
-    try {
-      const date = new Date(isoString);
-      return date.toLocaleString();
-    } catch {
-      return isoString;
-    }
-  };
+  const formatDate = (isoString: string) => formatTimestamp(isoString);
 
   return (
-    <div className="message-inbox">
-      <div className="inbox-header">
-        <h1>Message Inbox</h1>
+    <div className="page-content message-inbox">
+      <div className="inbox-header page-header">
+        <h1 className="page-title">Message Inbox</h1>
+        <div className="inbox-actions" style={{ marginLeft: "auto" }}>
+          <a href="/messages/archive" className="btn-link">Archive</a>
+          <a href="/messages/admin" className="btn-link">Admin</a>
+        </div>
       </div>
 
-      {error && <div className="inbox-error">{error}</div>}
+      {error && (
+        <div className="error-banner">
+          {error}
+          <button className="small" style={{ marginLeft: 8 }} onClick={loadThreads}>Retry</button>
+        </div>
+      )}
 
       <div className="inbox-container">
         {/* Left Sidebar - Thread List */}
@@ -145,7 +147,10 @@ export default function MessageInbox() {
                   <div className="thread-subject">{thread.subject}</div>
                   <div className="thread-meta">
                     <span className="thread-role">{thread.originator_role}</span>
-                    <span className="thread-time">{formatDate(thread.updated_at)}</span>
+                    {(() => {
+                      const ts = formatDate(thread.updated_at);
+                      return <span className="thread-time" title={ts.title}>{ts.label}</span>;
+                    })()}
                   </div>
                   {thread.status === "completed" && <span className="status-badge completed">Completed</span>}
                 </div>
@@ -163,7 +168,10 @@ export default function MessageInbox() {
                 <div className="thread-info">
                   <span>From: {selectedThread.originator_role}</span>
                   <span>Status: {selectedThread.status}</span>
-                  <span>Created: {formatDate(selectedThread.created_at)}</span>
+                  {(() => {
+                    const ts = formatDate(selectedThread.created_at);
+                    return <span title={ts.title}>Created: {ts.label}</span>;
+                  })()}
                 </div>
               </div>
 
@@ -174,7 +182,10 @@ export default function MessageInbox() {
                       <div className="message-header">
                         <strong>{msg.sender_name}</strong>
                         <span className="message-role">({msg.sender_role})</span>
-                        <span className="message-time">{formatDate(msg.created_at)}</span>
+                        {(() => {
+                          const ts = formatDate(msg.created_at);
+                          return <span className="message-time" title={ts.title}>{ts.label}</span>;
+                        })()}
                       </div>
                       <div className="message-body">{msg.body}</div>
                     </div>
@@ -207,7 +218,10 @@ export default function MessageInbox() {
                 )}
                 {selectedThread.status === "completed" && (
                   <div className="completed-info">
-                    Thread completed on {formatDate(selectedThread.completed_at || "")}
+                    {(() => {
+                      const ts = formatDate(selectedThread.completed_at || "");
+                      return <span title={ts.title}>Thread completed {ts.label}</span>;
+                    })()}
                   </div>
                 )}
               </div>

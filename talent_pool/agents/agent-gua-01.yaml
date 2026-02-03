@@ -1,7 +1,7 @@
 agent_id: agent-gua-01
 display_name: Guard 1
 primary_instrument: guard
-availability: active
+availability: assigned
 trust_score: 68.0
 total_sessions: 1
 successful_sessions: 0

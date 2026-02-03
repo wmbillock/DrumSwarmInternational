@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import * as v1 from "../services/v1";
+import { Badge, DataTable } from "../ui";
+import { badgeForCorpsStatus, formatNumber, formatStatus, formatTimestamp, slugToTitle } from "../utils/formatters";
 
 export function CorpsHistory() {
   const { corpsId } = useParams<{ corpsId: string }>();
@@ -10,22 +12,28 @@ export function CorpsHistory() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState<string | null>(null);
+  const [refreshToken, setRefreshToken] = useState(0);
 
   useEffect(() => {
     const ac = new AbortController();
+    setLoading(true);
+    setError(null);
     if (!corpsId) {
       v1.listCorps(ac.signal)
         .then(setCorpsList)
         .catch(e => { if (e.name !== "AbortError") setError(e.message); })
         .finally(() => setLoading(false));
     } else {
-      v1.getCorpsHistory(corpsId, ac.signal)
+      const historyPromise = v1.getCorpsHistory(corpsId, ac.signal)
         .then(setIndex)
-        .catch(e => { if (e.name !== "AbortError") setError(e.message); })
-        .finally(() => setLoading(false));
+        .catch(e => { if (e.name !== "AbortError") setError(e.message); });
+      const corpsPromise = v1.listCorps(ac.signal)
+        .then(setCorpsList)
+        .catch(e => { if (e.name !== "AbortError") console.warn("Failed to load corps list", e); });
+      Promise.allSettled([historyPromise, corpsPromise]).finally(() => setLoading(false));
     }
     return () => ac.abort();
-  }, [corpsId]);
+  }, [corpsId, refreshToken]);
 
   const handleStartSeance = async (entry: v1.V1HistoryEntry) => {
     if (!corpsId) return;
@@ -41,13 +49,22 @@ export function CorpsHistory() {
   };
 
   if (loading) return <div className="page-loading">Loading...</div>;
-  if (error) return <div className="dashboard"><div className="error-banner">{error}</div></div>;
+  if (error) {
+    return (
+      <div className="page-content dashboard">
+        <div className="error-banner">{error}</div>
+        <button className="secondary" onClick={() => setRefreshToken(t => t + 1)}>Retry</button>
+      </div>
+    );
+  }
 
   // Corps picker
   if (!corpsId) {
     return (
-      <div className="dashboard">
-        <h2 className="page-title">Corps History</h2>
+      <div className="page-content dashboard">
+        <div className="page-header">
+          <h2 className="page-title">Corps History</h2>
+        </div>
         <p style={{ marginBottom: 16, color: "var(--text-secondary)" }}>
           Select a corps to view competition history.
         </p>
@@ -60,7 +77,7 @@ export function CorpsHistory() {
             >
               <div className="corps-list-header">
                 <span className="corps-list-name">{c.display_name}</span>
-                <span className={`badge ${c.state}`}>{c.state}</span>
+                <Badge variant={badgeForCorpsStatus(c.state)}>{formatStatus(c.state)}</Badge>
               </div>
             </div>
           ))}
@@ -72,57 +89,53 @@ export function CorpsHistory() {
 
   // History entries
   const entries = index?.entries || [];
+  const corpsName = corpsList.find(c => c.corps_id === corpsId)?.display_name;
+  const generated = index?.generated_at ? formatTimestamp(index.generated_at) : null;
 
   return (
-    <div className="dashboard">
+    <div className="page-content dashboard">
       <div className="page-header">
         <button className="back-btn small" onClick={() => navigate("/history")}>Back</button>
-        <h2 className="page-title" style={{ margin: 0 }}>History: {corpsId}</h2>
+        <div>
+          <h2 className="page-title" style={{ margin: 0 }}>
+            History: {corpsName || `Corps • ${corpsId?.slice(0, 8)}`}
+          </h2>
+          {generated && (
+            <p className="text-muted" title={generated.title} style={{ marginTop: 4 }}>
+              Generated {generated.label}
+            </p>
+          )}
+        </div>
       </div>
 
       {entries.length === 0 ? (
         <p className="empty">No history entries found for this corps.</p>
       ) : (
-        <div className="table-wrapper">
-          <table className="styled-table">
-            <thead>
-              <tr>
-                <th>Season</th>
-                <th>Show</th>
-                <th>Place</th>
-                <th>Score</th>
-                <th>Artifacts</th>
-                <th>Runs</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map(entry => (
-                <tr key={entry.entry_id}>
-                  <td className="cell-primary">{entry.season_id}</td>
-                  <td>{entry.show_slug || <span className="dim">-</span>}</td>
-                  <td>
-                    <span className={`placement placement-${entry.placement}`}>
-                      #{entry.placement}
-                    </span>
-                  </td>
-                  <td className="trust-score">{entry.final_score}</td>
-                  <td>{Object.keys(entry.artifacts).length}</td>
-                  <td>{entry.runs.length}</td>
-                  <td>
-                    <button
-                      className="primary small"
-                      disabled={starting === entry.entry_id}
-                      onClick={() => handleStartSeance(entry)}
-                    >
-                      {starting === entry.entry_id ? "Starting..." : "Start Seance"}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable<v1.V1HistoryEntry & Record<string, unknown>>
+          columns={[
+            { key: "season_id", label: "Season", render: (v) => <span className="cell-primary" title={String(v)}>{slugToTitle(String(v || ""))}</span> },
+            { key: "show_slug", label: "Show", render: (v) => v ? <span title={String(v)}>{slugToTitle(String(v))}</span> : <span className="dim">-</span> },
+            { key: "placement", label: "Place", render: (v) => <span className={`placement placement-${String(v)}`}>#{String(v)}</span> },
+            { key: "final_score", label: "Score", render: (v) => <span className="trust-score">{formatNumber(Number(v))}</span> },
+            { key: "artifacts", label: "Artifacts", render: (v) => String(Object.keys(v as Record<string, string>).length) },
+            { key: "runs", label: "Runs", render: (v) => String((v as string[]).length) },
+            {
+              key: "entry_id",
+              label: "",
+              render: (_v, row) => (
+                <button
+                  className="primary small"
+                  disabled={starting === row.entry_id}
+                  onClick={() => handleStartSeance(row)}
+                >
+                  {starting === row.entry_id ? "Starting..." : "Start Seance"}
+                </button>
+              ),
+            },
+          ]}
+          data={entries as (v1.V1HistoryEntry & Record<string, unknown>)[]}
+          emptyMessage="No history entries found for this corps."
+        />
       )}
     </div>
   );

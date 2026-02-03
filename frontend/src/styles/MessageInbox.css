@@ -9,12 +9,34 @@
   padding: 20px 32px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .inbox-header h1 {
   margin: 0;
   font-size: 24px;
   color: var(--text-primary);
+}
+
+.inbox-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-link {
+  font-size: 14px;
+  color: var(--accent);
+  text-decoration: none;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-primary);
+}
+
+.btn-link:hover {
+  background: var(--bg-hover);
 }
 
 .inbox-error {

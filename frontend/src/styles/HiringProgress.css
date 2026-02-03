@@ -1,0 +1,55 @@
+.hiring-progress {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--bg-secondary);
+}
+
+.hiring-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.hiring-title {
+  font-weight: 600;
+}
+
+.hiring-bar {
+  height: 10px;
+  background: var(--bg-hover);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.hiring-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.4s ease;
+}
+
+.hiring-meta {
+  margin-top: 8px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.hiring-role {
+  text-transform: capitalize;
+}
+
+.hiring-error {
+  background: #fee;
+  border: 1px solid #f4b4b4;
+  color: #8a1f1f;
+  padding: 8px 10px;
+  border-radius: 6px;
+}
+
+.hiring-loading {
+  color: var(--text-muted);
+  font-size: 12px;
+}

@@ -2,33 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Show, AgentSession, WorkLogEntry } from "../types";
 import * as v1 from "../services/v1";
-
-function formatRole(role: string): string {
-  return role.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-}
-
-function timeAgo(ts?: string): string {
-  if (!ts) return "";
-  const diff = Date.now() - new Date(ts).getTime();
-  if (diff < 0) return "just now";
-  if (diff < 60000) return "just now";
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-  return `${Math.floor(diff / 86400000)}d ago`;
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  winter_camps: "Winter Camps",
-  on_tour: "On Tour",
-  in_progress: "In Progress",
-  full_ensemble: "Full Ensemble",
-  run_through: "Run Through",
-};
-
-function StatusBadge({ status }: { status: string }) {
-  const label = STATUS_LABELS[status] || status;
-  return <span className={`badge ${status}`}>{label}</span>;
-}
+import { Badge } from "../ui/Badge";
+import { badgeForShowStatus, formatRole, formatStatus, formatTimestamp } from "../utils/formatters";
 
 function TierBadge({ tier }: { tier?: string }) {
   if (!tier) return null;
@@ -53,11 +28,12 @@ function ShowCard({ show, onSelect, onDelete, onActivate }: {
   show: Show; onSelect: (s: Show) => void; onDelete: (id: string) => void; onActivate: (id: string) => void;
 }) {
   const displayTitle = show.title.length > 40 ? show.title.slice(0, 40) + "..." : show.title;
+  const created = show.created_at ? formatTimestamp(show.created_at) : null;
   return (
     <div className={`show-card status-${show.status}`} onClick={() => onSelect(show)}>
       <div className="show-card-header">
         <h3 title={show.title}>{displayTitle}</h3>
-        <StatusBadge status={show.status} />
+        <Badge variant={badgeForShowStatus(show.status)}>{formatStatus(show.status)}</Badge>
       </div>
       {show.corps_name && <p className="show-corps-name">{show.corps_name}</p>}
       {show.description && <p className="show-desc">{show.description.length > 80 ? show.description.slice(0, 80) + "..." : show.description}</p>}
@@ -65,7 +41,7 @@ function ShowCard({ show, onSelect, onDelete, onActivate }: {
         <span>{show.agents_active ?? 0} agents</span>
         <span>{(show.reps_completed ?? 0)}/{(show.reps_total ?? 0)} tasks done</span>
         {show.final_score != null && <span className="show-score">Score: {show.final_score}</span>}
-        {show.created_at && <span>{timeAgo(show.created_at)}</span>}
+        {created && <span title={created.title}>{created.label}</span>}
       </div>
       <div className="show-actions" onClick={e => e.stopPropagation()}>
         {show.status === "draft" && (
@@ -154,8 +130,10 @@ export function SwarmOverview() {
   const completedShows = shows.filter(s => s.status === "completed" || s.status === "archived");
 
   return (
-    <div className="shows-overview">
-      <h1 className="page-title">Shows</h1>
+    <div className="page-content shows-overview">
+      <div className="page-header">
+        <h1 className="page-title">Shows</h1>
+      </div>
       <div className="summary-bar">
         <div className="summary-stat">
           <span className="summary-value">{shows.length}</span>
@@ -282,7 +260,9 @@ export function SwarmOverview() {
                 <span className="activity-type">{w.event_type}</span>
                 <span className="activity-role">{w.nickname || formatRole(w.role)}</span>
                 <span className="activity-detail">{w.details?.slice(0, 100)}</span>
-                <span className="activity-time">{timeAgo(w.timestamp)}</span>
+                <span className="activity-time" title={formatTimestamp(w.timestamp).title}>
+                  {formatTimestamp(w.timestamp).label}
+                </span>
               </div>
             ))}
           </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import * as v1 from "../services/v1";
+import { HiringProgress } from "./HiringProgress";
 
 interface CorpsCreateModalProps {
   onCreated: (corps: v1.V1CreatedCorps) => void;
@@ -32,6 +33,7 @@ export function CorpsCreateModal({ onCreated, onClose }: CorpsCreateModalProps) 
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
+  const [createdCorps, setCreatedCorps] = useState<v1.V1CreatedCorps | null>(null);
 
   // Editable overrides
   const [editName, setEditName] = useState("");
@@ -74,6 +76,8 @@ export function CorpsCreateModal({ onCreated, onClose }: CorpsCreateModalProps) 
         uniform_concept: editUniform || undefined,
       });
       onCreated(corps);
+      setCreatedCorps(corps);
+      setCreating(false);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to create corps");
       setCreating(false);
@@ -93,6 +97,16 @@ export function CorpsCreateModal({ onCreated, onClose }: CorpsCreateModalProps) 
         {loading ? (
           <div style={{ padding: 32, textAlign: "center", color: "var(--text-muted)" }}>
             Generating corps identity...
+          </div>
+        ) : createdCorps ? (
+          <div className="modal-body">
+            <div className="form-group">
+              <label className="form-label">Corps Created</label>
+              <div style={{ fontSize: 14 }}>
+                {createdCorps.display_name} is staffing now.
+              </div>
+            </div>
+            <HiringProgress corpsId={createdCorps.corps_id} />
           </div>
         ) : identity ? (
           <div className="modal-body">
@@ -183,10 +197,10 @@ export function CorpsCreateModal({ onCreated, onClose }: CorpsCreateModalProps) 
         ) : null}
 
         <div className="modal-footer">
-          <button className="primary" onClick={generate} disabled={loading}>
+          <button className="primary" onClick={generate} disabled={loading || !!createdCorps}>
             {loading ? "Generating..." : "Re-generate All"}
           </button>
-          <button className="primary" onClick={handleCreate} disabled={creating || loading || !editName.trim()}>
+          <button className="primary" onClick={handleCreate} disabled={creating || loading || !editName.trim() || !!createdCorps}>
             {creating ? "Creating..." : "Approve & Create"}
           </button>
           <button onClick={onClose}>Cancel</button>

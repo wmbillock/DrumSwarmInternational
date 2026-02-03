@@ -12,6 +12,7 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import func
 
 from backend.api.v1.helpers import (
     _get_root,
@@ -116,6 +117,7 @@ def v1_list_corps(include_system: bool = False):
     # DB corps (merge, dedup by display_name)
     try:
         from backend.models.corps import Corps, CorpsStatus
+        from backend.models.agent_definition import AgentDefinition
         db = _get_db_session()
         try:
             query = db.query(Corps).filter(Corps.status != CorpsStatus.DISBANDED)
@@ -124,6 +126,12 @@ def v1_list_corps(include_system: bool = False):
                     (Corps.corps_type != "system") | (Corps.corps_type.is_(None))
                 )
             db_corps = query.all()
+            staff_counts = {
+                c_id: count
+                for c_id, count in db.query(
+                    AgentDefinition.corps_id, func.count(AgentDefinition.id)
+                ).group_by(AgentDefinition.corps_id)
+            }
             for c in db_corps:
                 if c.name not in seen_names:
                     seen_names.add(c.name)
@@ -135,6 +143,7 @@ def v1_list_corps(include_system: bool = False):
                         "corps_type": c.corps_type or "competing",
                         "theme_id": c.theme_id,
                         "mascot": c.mascot,
+                        "staff_count": staff_counts.get(c.id, 0),
                     })
         finally:
             db.close()
@@ -228,6 +237,7 @@ def v1_generate_corps_icon(req: GenerateIconRequest):
 def v1_create_corps(req: CreateCorpsRequest):
     """Create a new corps via the DB. Enforces an 18-corps cap."""
     from backend.models.corps import Corps, CorpsStatus, CorpsMode
+    from backend.services.corps_service import initialize_corps
     import json as _json
 
     db = _get_db_session()
@@ -263,6 +273,7 @@ def v1_create_corps(req: CreateCorpsRequest):
         )
         db.add(corps)
         db.commit()
+        initialize_corps(db, corps_id)
 
         return {
             "corps_id": corps_id,
@@ -278,6 +289,19 @@ def v1_create_corps(req: CreateCorpsRequest):
     except Exception as e:
         db.rollback()
         raise HTTPException(500, f"Failed to create corps: {e}")
+    finally:
+        db.close()
+
+
+@router.get("/corps/{corps_id}/staffing-status")
+def v1_get_corps_staffing_status(corps_id: str):
+    """Return staffing progress for a corps."""
+    _validate_id(corps_id, "corps_id")
+    from backend.services.corps_service import get_staffing_status
+
+    db = _get_db_session()
+    try:
+        return get_staffing_status(db, corps_id)
     finally:
         db.close()
 

@@ -1,19 +1,8 @@
 import { useState, useEffect } from "react";
 import * as v1 from "../services/v1";
 import type { PerformerGenome, SelectionEvent, MutationLog, MutationSimulationResult } from "../types";
-
-function formatRole(role: string): string {
-  return role.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-}
-
-function timeAgo(ts?: string | null): string {
-  if (!ts) return "";
-  const diff = Date.now() - new Date(ts).getTime();
-  if (diff < 60000) return "just now";
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-  return `${Math.floor(diff / 86400000)}d ago`;
-}
+import { Badge, DataTable } from "../ui";
+import { formatRole, formatStatus, formatTimestamp } from "../utils/formatters";
 
 function TrustBar({ score }: { score: number }) {
   const color = score >= 70 ? "var(--success)" : score >= 40 ? "var(--warning)" : "var(--danger)";
@@ -60,6 +49,9 @@ export function EvolutionTalentPool() {
   const [events, setEvents] = useState<SelectionEvent[]>([]);
   const [eventFilter, setEventFilter] = useState("");
   const [mutations, setMutations] = useState<MutationLog[]>([]);
+  const [performersError, setPerformersError] = useState<string | null>(null);
+  const [eventsError, setEventsError] = useState<string | null>(null);
+  const [mutationsError, setMutationsError] = useState<string | null>(null);
 
   // Simulation state
   const [simDefId, setSimDefId] = useState("");
@@ -68,22 +60,40 @@ export function EvolutionTalentPool() {
   const [simResult, setSimResult] = useState<MutationSimulationResult | null>(null);
   const [simulating, setSimulating] = useState(false);
 
+  const loadPerformers = () => {
+    setPerformersError(null);
+    v1.listPerformers()
+      .then(setPerformers)
+      .catch((e) => {
+        setPerformers([]);
+        setPerformersError(e instanceof Error ? e.message : "Failed to load performers");
+      });
+  };
+
   useEffect(() => {
-    v1.listPerformers().then(setPerformers).catch(() => setPerformers([]));
+    loadPerformers();
   }, []);
 
   const loadEvents = async () => {
     try {
+      setEventsError(null);
       const e = await v1.getSelectionEvents(eventFilter || undefined);
       setEvents(e);
-    } catch { setEvents([]); }
+    } catch (e: unknown) {
+      setEvents([]);
+      setEventsError(e instanceof Error ? e.message : "Failed to load events");
+    }
   };
 
   const loadMutations = async () => {
     try {
+      setMutationsError(null);
       const m = await v1.getMutations();
       setMutations(m);
-    } catch { setMutations([]); }
+    } catch (e: unknown) {
+      setMutations([]);
+      setMutationsError(e instanceof Error ? e.message : "Failed to load mutations");
+    }
   };
 
   useEffect(() => {
@@ -134,26 +144,29 @@ export function EvolutionTalentPool() {
       {tab === "pool" && (
         <div style={{ display: "flex", gap: 16 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="table-wrapper">
-              <table className="styled-table">
-                <thead>
-                  <tr><th>Name</th><th>Role</th><th>Trust</th><th>Age</th><th>Status</th><th>Sessions</th></tr>
-                </thead>
-                <tbody>
-                  {performers.map((p: any) => (
-                    <tr key={p.id} onClick={() => handleSelectPerformer(p.id)} className="clickable">
-                      <td className="cell-primary">{p.name || p.id.slice(0, 8)}</td>
-                      <td>{formatRole(p.role_type || "")}</td>
-                      <td><TrustBar score={p.trust_score ?? 0} /></td>
-                      <td>{p.age ?? "-"}</td>
-                      <td><span className={`badge ${p.status}`}>{p.status}</span></td>
-                      <td>{p.total_sessions ?? 0}</td>
-                    </tr>
-                  ))}
-                  {performers.length === 0 && <tr><td colSpan={6} className="dim">No performers in the talent pool.</td></tr>}
-                </tbody>
-              </table>
-            </div>
+            <DataTable<any>
+              columns={[
+                { key: "id", label: "Name", render: (v, row) => (
+                  <span className="cell-primary" title={String(v)}>
+                    {row.name || `Performer • ${String(v).slice(0, 8)}`}
+                  </span>
+                ) },
+                { key: "role_type", label: "Role", render: (v) => formatRole(String(v || "")) },
+                { key: "trust_score", label: "Trust", render: (v) => <TrustBar score={Number(v ?? 0)} /> },
+                { key: "age", label: "Age", render: (v) => String(v ?? "-") },
+                { key: "status", label: "Status", render: (v) => <Badge>{formatStatus(String(v || "active"))}</Badge> },
+                { key: "total_sessions", label: "Sessions", render: (v) => String(v ?? 0) },
+              ]}
+              data={performers}
+              onRowClick={(row) => handleSelectPerformer(row.id)}
+              emptyMessage="No performers in the talent pool."
+            />
+            {performersError && (
+              <div className="error-banner" style={{ marginTop: 8 }}>
+                {performersError}
+                <button className="small" style={{ marginLeft: 8 }} onClick={loadPerformers}>Retry</button>
+              </div>
+            )}
           </div>
 
           {/* Genome detail */}
@@ -166,9 +179,9 @@ export function EvolutionTalentPool() {
                 <div className="section-label">Identity</div>
                 <div className="stats-grid">
                   <div><strong>Trust</strong><TrustBar score={selectedGenome.trust_score} /></div>
-                  <div><strong>Status</strong><span className={`badge ${selectedGenome.status}`}>{selectedGenome.status}</span></div>
-                  <div><strong>Specialties</strong><span>{selectedGenome.specialties || "None"}</span></div>
-                </div>
+                <div><strong>Status</strong><Badge>{formatStatus(selectedGenome.status)}</Badge></div>
+                <div><strong>Specialties</strong><span>{selectedGenome.specialties || "None"}</span></div>
+              </div>
 
                 <div className="section-label">Performance Summary</div>
                 <div className="stats-grid">
@@ -236,7 +249,13 @@ export function EvolutionTalentPool() {
             </select>
           </div>
 
-          {events.length === 0 && <p className="empty">No selection events recorded.</p>}
+          {eventsError && (
+            <div className="error-banner" style={{ marginBottom: 12 }}>
+              {eventsError}
+              <button className="small" style={{ marginLeft: 8 }} onClick={loadEvents}>Retry</button>
+            </div>
+          )}
+          {events.length === 0 && !eventsError && <p className="empty">No selection events recorded.</p>}
 
           <div className="activity-list">
             {events.map(e => (
@@ -254,7 +273,9 @@ export function EvolutionTalentPool() {
                 )}
                 {e.score != null && <span style={{ fontSize: 11, color: "var(--accent)" }}>score: {e.score.toFixed(1)}</span>}
                 <span className="activity-detail">{e.details}</span>
-                <span className="activity-time">{timeAgo(e.created_at)}</span>
+                <span className="activity-time" title={formatTimestamp(e.created_at).title}>
+                  {formatTimestamp(e.created_at).label}
+                </span>
               </div>
             ))}
           </div>
@@ -264,7 +285,13 @@ export function EvolutionTalentPool() {
       {/* Mutations */}
       {tab === "mutations" && (
         <div>
-          {mutations.length === 0 && <p className="empty">No mutation proposals recorded.</p>}
+          {mutationsError && (
+            <div className="error-banner" style={{ marginBottom: 12 }}>
+              {mutationsError}
+              <button className="small" style={{ marginLeft: 8 }} onClick={loadMutations}>Retry</button>
+            </div>
+          )}
+          {mutations.length === 0 && !mutationsError && <p className="empty">No mutation proposals recorded.</p>}
           {mutations.map(m => (
             <div key={m.id} style={{ padding: 12, marginBottom: 8, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
@@ -272,17 +299,17 @@ export function EvolutionTalentPool() {
                   <strong>{m.nickname || formatRole(m.role)}</strong>
                   <span style={{ marginLeft: 8, fontSize: 12, color: "var(--text-muted)" }}>v{m.old_version} → v{m.new_version}</span>
                 </div>
-                <span className={`badge ${m.status === "approved" ? "completed" : m.status === "rejected" ? "failed" : "pending"}`}>
-                  {m.status}
-                </span>
+                <Badge variant={m.status === "approved" ? "success" : m.status === "rejected" ? "danger" : "warning"}>
+                  {formatStatus(m.status)}
+                </Badge>
               </div>
               <p style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 6 }}>{m.reason}</p>
               <div className="code-block" style={{ fontSize: 11, maxHeight: 100, padding: 8 }}>
                 {JSON.stringify(m.changes, null, 2)}
               </div>
               <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
-                {m.approved_by && <span>Approved by: {m.approved_by.slice(0, 8)} </span>}
-                {timeAgo(m.created_at)}
+                {m.approved_by && <span title={m.approved_by}>Approved by: {m.approved_by.slice(0, 8)} </span>}
+                <span title={formatTimestamp(m.created_at).title}>{formatTimestamp(m.created_at).label}</span>
               </div>
             </div>
           ))}

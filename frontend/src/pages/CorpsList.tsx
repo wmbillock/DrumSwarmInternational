@@ -40,11 +40,17 @@ export function CorpsList() {
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
 
-  useEffect(() => {
+  const loadCorps = () => {
+    setLoading(true);
+    setError(null);
     v1.listCorps(undefined, true)
       .then(setCorps)
       .catch(e => setError(e instanceof Error ? e.message : "Failed to load corps"))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadCorps();
   }, []);
 
   if (loading) return <div className="page-loading">Loading Corps...</div>;
@@ -53,15 +59,22 @@ export function CorpsList() {
   const systemCorps = corps.filter(c => c.corps_type === "system");
 
   return (
-    <div className="corps-list-page">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div className="page-content corps-list-page">
+      <div className="page-header">
         <h1 className="page-title">Corps</h1>
-        <button className="primary" onClick={() => setShowModal(true)}>
-          Create Corps
-        </button>
+        <div style={{ marginLeft: "auto" }}>
+          <button className="primary" onClick={() => setShowModal(true)}>
+            Create Corps
+          </button>
+        </div>
       </div>
 
-      {error && <div className="error-banner">{error}</div>}
+      {error && (
+        <div className="error-banner">
+          {error}
+          <button className="small" style={{ marginLeft: 8 }} onClick={loadCorps}>Retry</button>
+        </div>
+      )}
 
       {showModal && (
         <CorpsCreateModal
@@ -96,7 +109,10 @@ export function CorpsList() {
               >
                 <div className="corps-list-header">
                   <span className="corps-list-name">{c.display_name}</span>
-                  <span className={`badge state-${c.state}`}>{STATE_LABELS[c.state] || c.state}</span>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <span className="badge">Staff {c.staff_count ?? 0}</span>
+                    <span className={`badge state-${c.state}`}>{STATE_LABELS[c.state] || c.state}</span>
+                  </div>
                 </div>
                 {c.mascot && <p className="corps-list-mascot" style={{ fontSize: "0.8rem", opacity: 0.7, margin: "4px 0 0" }}>{c.mascot}</p>}
                 {c.philosophy && <p className="corps-list-philosophy">{c.philosophy}</p>}
@@ -116,7 +132,10 @@ export function CorpsList() {
               <div key={c.corps_id} className="corps-list-card clickable" onClick={() => navigate(`/corps/${c.corps_id}`)}>
                 <div className="corps-list-header">
                   <span className="corps-list-name">{c.display_name}</span>
-                  <span className={`badge state-${c.state}`}>{STATE_LABELS[c.state] || c.state}</span>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <span className="badge">Staff {c.staff_count ?? 0}</span>
+                    <span className={`badge state-${c.state}`}>{STATE_LABELS[c.state] || c.state}</span>
+                  </div>
                 </div>
               </div>
             ))}

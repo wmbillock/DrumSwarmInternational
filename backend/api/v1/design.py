@@ -348,7 +348,7 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
     try:
         from backend.services.brief_linter import lint_brief
         from backend.services.prompt_linter import lint_prompt
-        from backend.services.show_persistence import read_spec as _read_spec
+        from backend.services.show_persistence import read_spec as _read_spec, missing_show_files
 
         brief_content = _read_spec(show_dir) or ""
         prompt_path = show_dir / "show_prompt.md"
@@ -356,12 +356,15 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
 
         brief_report = lint_brief(brief_content)
         prompt_report = lint_prompt(prompt_content)
+        missing_files = missing_show_files(show_dir)
 
         issues: list[str] = []
         for f in brief_report.required_fix:
             issues.append(f"Brief — {f.section}: {f.message}")
         for f in prompt_report.required_fix:
             issues.append(f"Prompt — {f.section}: {f.message}")
+        for name in missing_files:
+            issues.append(f"Show Files — Missing required file: {name}")
 
         if issues:
             judge_text = "Open issues: " + "; ".join(issues[:5])

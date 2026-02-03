@@ -1,7 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
-import { Panel } from "../ui";
+import { Panel, DataTable } from "../ui";
 import * as v1 from "../services/v1";
 import type { SystemHealth as SystemHealthData } from "../types";
+import { formatMode, formatStatus } from "../utils/formatters";
 
 function statusColor(status: string): string {
   switch (status.toLowerCase()) {
@@ -22,6 +23,7 @@ function statusColor(status: string): string {
 }
 
 function StatusBadge({ status }: { status: string }) {
+  const display = formatStatus(status);
   return (
     <span
       style={{
@@ -35,7 +37,7 @@ function StatusBadge({ status }: { status: string }) {
         textTransform: "uppercase",
       }}
     >
-      {status}
+      {display}
     </span>
   );
 }
@@ -76,7 +78,9 @@ export function SystemHealth() {
   if (error && !data) {
     return (
       <div className="page-content">
-        <h2>System Health</h2>
+        <div className="page-header">
+          <h2 className="page-title">System Health</h2>
+        </div>
         <Panel title="Error">
           <p style={{ color: "#ef4444" }}>{error}</p>
         </Panel>
@@ -87,7 +91,9 @@ export function SystemHealth() {
   if (!data) {
     return (
       <div className="page-content">
-        <h2>System Health</h2>
+        <div className="page-header">
+          <h2 className="page-title">System Health</h2>
+        </div>
         <Panel title="Loading...">
           <p>Fetching system health data...</p>
         </Panel>
@@ -97,10 +103,10 @@ export function SystemHealth() {
 
   return (
     <div className="page-content">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <h2 style={{ margin: 0 }}>System Health</h2>
+      <div className="page-header">
+        <h2 className="page-title">System Health</h2>
         {lastRefresh && (
-          <span style={{ fontSize: 11, opacity: 0.5 }}>
+          <span style={{ marginLeft: "auto", fontSize: 11, opacity: 0.5 }}>
             Last updated: {lastRefresh.toLocaleTimeString()} (auto-refresh 15s)
           </span>
         )}
@@ -126,44 +132,21 @@ export function SystemHealth() {
       </Panel>
 
       <Panel title="Corps Health" className="mt-4">
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead>
-              <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.1)", textAlign: "left" }}>
-                <th style={{ padding: "8px 12px" }}>Corps</th>
-                <th style={{ padding: "8px 12px" }}>Status</th>
-                <th style={{ padding: "8px 12px" }}>Mode</th>
-                <th style={{ padding: "8px 12px" }}>Agents</th>
-                <th style={{ padding: "8px 12px" }}>Sessions</th>
-                <th style={{ padding: "8px 12px" }}>Reps</th>
-                <th style={{ padding: "8px 12px" }}>Failures</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.corps_summaries.map((c) => (
-                <tr key={c.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                  <td style={{ padding: "8px 12px", fontWeight: 600 }}>{c.name}</td>
-                  <td style={{ padding: "8px 12px" }}>
-                    <StatusBadge status={c.status} />
-                  </td>
-                  <td style={{ padding: "8px 12px" }}>{c.mode}</td>
-                  <td style={{ padding: "8px 12px" }}>
-                    {c.agents_active} / {c.agents_total}
-                  </td>
-                  <td style={{ padding: "8px 12px" }}>{c.sessions_total}</td>
-                  <td style={{ padding: "8px 12px" }}>
-                    {c.reps_completed} / {c.reps_total}
-                  </td>
-                  <td style={{ padding: "8px 12px" }}>
-                    <span style={{ color: c.failures > 0 ? "#ef4444" : "inherit" }}>
-                      {c.failures}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable<SystemHealthData["corps_summaries"][number] & Record<string, unknown>>
+          columns={[
+            { key: "name", label: "Corps", render: (v) => <span style={{ fontWeight: 600 }}>{String(v)}</span> },
+            { key: "status", label: "Status", render: (v) => <StatusBadge status={String(v)} /> },
+            { key: "mode", label: "Mode", render: (v) => formatMode(String(v || "")) },
+            { key: "agents_active", label: "Agents", render: (_v, row) => `${row.agents_active} / ${row.agents_total}` },
+            { key: "sessions_total", label: "Sessions", render: (v) => String(v ?? 0) },
+            { key: "reps_completed", label: "Reps", render: (_v, row) => `${row.reps_completed} / ${row.reps_total}` },
+            { key: "failures", label: "Failures", render: (v) => (
+              <span style={{ color: Number(v) > 0 ? "#ef4444" : "inherit" }}>{String(v ?? 0)}</span>
+            ) },
+          ]}
+          data={data.corps_summaries as (SystemHealthData["corps_summaries"][number] & Record<string, unknown>)[]}
+          emptyMessage="No corps health data."
+        />
       </Panel>
     </div>
   );
