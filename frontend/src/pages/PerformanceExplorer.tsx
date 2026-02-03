@@ -2,8 +2,11 @@
  * Performance Explorer — Advanced metrics analysis tool.
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Panel, DataTable } from "../ui";
+import { TrendChart } from "../components/metrics";
+import "../styles/Metrics.css";
+import * as v1 from "../services/v1";
 
 const MetricOptions = [
   "rep_completed",
@@ -24,6 +27,7 @@ const PerformanceExplorer = () => {
   const [granularity, setGranularity] = useState("1h");
   const [chartData, setChartData] = useState<MetricDataPoint[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleMetricToggle = (metric: string) => {
     if (selectedMetrics.includes(metric)) {
@@ -41,16 +45,13 @@ const PerformanceExplorer = () => {
   const fetchMetricsData = async () => {
     if (selectedMetrics.length === 0) { setChartData([]); return; }
     setLoading(true);
+    setError(null);
     try {
-      const metricTypes = selectedMetrics.join(",");
       const periodDays = getPeriodDays();
-      const response = await fetch(
-        `/api/v1/metrics/timeseries?metric_types=${encodeURIComponent(metricTypes)}&period_days=${periodDays}&granularity=${granularity}`
-      );
-      const data = await response.json();
+      const data = await v1.getMetricsSeries(selectedMetrics, periodDays, granularity);
       setChartData(data.data || []);
     } catch (error) {
-      console.error("Failed to fetch metrics:", error);
+      setError("Failed to fetch metrics");
     } finally {
       setLoading(false);
     }
@@ -72,6 +73,27 @@ const PerformanceExplorer = () => {
     a.click();
   };
 
+  const handleExportJson = () => {
+    if (chartData.length === 0) return;
+    const blob = new Blob([JSON.stringify(chartData, null, 2)], { type: "application/json" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `metrics-${Date.now()}.json`;
+    a.click();
+  };
+
+  const series = useMemo(() => {
+    return selectedMetrics.map(metric => ({
+      id: metric,
+      label: metric,
+      points: chartData.map((row, idx) => ({
+        x: idx,
+        y: Number(row[metric] || 0),
+      })),
+    }));
+  }, [chartData, selectedMetrics]);
+
   return (
     <div className="page-content">
       <h2 className="page-title">Performance Explorer</h2>
@@ -87,7 +109,6 @@ const PerformanceExplorer = () => {
               <option value="6h">Last 6 Hours</option>
               <option value="24h">Last 24 Hours</option>
               <option value="7d">Last 7 Days</option>
-              <option value="30d">Last 30 Days</option>
             </select>
           </div>
 
@@ -129,8 +150,19 @@ const PerformanceExplorer = () => {
           <button className="small" onClick={handleExport} disabled={chartData.length === 0}>
             Export CSV
           </button>
+          <button className="small" onClick={handleExportJson} disabled={chartData.length === 0}>
+            Export JSON
+          </button>
         </div>
       </Panel>
+
+      {error && <div className="error-banner">{error}</div>}
+
+      {chartData.length > 0 && (
+        <Panel title="Trend Chart" style={{ marginTop: 16 }}>
+          <TrendChart series={series} />
+        </Panel>
+      )}
 
       <Panel title="Metrics Data" style={{ marginTop: 16 }}>
         {loading && <div className="page-loading">Loading metrics...</div>}

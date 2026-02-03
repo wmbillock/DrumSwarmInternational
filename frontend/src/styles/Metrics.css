@@ -1,0 +1,130 @@
+.metrics-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 1100px) {
+  .metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.metrics-card {
+  border: 2px solid var(--border);
+  padding: 16px;
+  background: var(--surface-1, #0f1014);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.2);
+}
+
+.metrics-card-good {
+  border-color: var(--success);
+}
+
+.metrics-card-warning {
+  border-color: var(--warning);
+}
+
+.metrics-card-critical {
+  border-color: var(--danger);
+}
+
+.metrics-card-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+
+.metrics-label {
+  font-family: "IBM Plex Sans", "Helvetica Neue", sans-serif;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.metrics-value {
+  font-family: "JetBrains Mono", "SFMono-Regular", monospace;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.metrics-subtitle {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.metrics-trend {
+  font-family: "JetBrains Mono", "SFMono-Regular", monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.metrics-sparkline {
+  color: var(--accent, #f97316);
+}
+
+.trend-chart {
+  border: 1px solid var(--border);
+  padding: 8px;
+  background: var(--surface-2, #11131a);
+}
+
+.leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.leaderboard-row {
+  display: grid;
+  grid-template-columns: 48px 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+}
+
+.leaderboard-row.clickable {
+  cursor: pointer;
+}
+
+.leaderboard-rank {
+  font-family: "JetBrains Mono", "SFMono-Regular", monospace;
+}
+
+.leaderboard-label {
+  font-weight: 600;
+}
+
+.leaderboard-value {
+  font-family: "JetBrains Mono", "SFMono-Regular", monospace;
+  font-size: 12px;
+}
+
+.alert-panel .alert-row {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 12px;
+  align-items: start;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.alert-title {
+  font-weight: 600;
+}
+
+.alert-detail {
+  font-size: 12px;
+  color: var(--text-secondary);
+}

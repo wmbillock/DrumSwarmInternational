@@ -28,6 +28,7 @@ import MessageAdmin from "./pages/MessageAdmin";
 import { StaffMarketplace } from "./pages/StaffMarketplace";
 import { ScoreboardsPage } from "./pages/ScoreboardsPage";
 import PerformanceExplorer from "./pages/PerformanceExplorer";
+import MetricsDashboard from "./pages/MetricsDashboard";
 import { TourDashboard } from "./pages/TourDashboard";
 import { CompetitionLive } from "./pages/CompetitionLive";
 import { Finals } from "./pages/Finals";
@@ -63,7 +64,8 @@ export const router = createBrowserRouter([
       { path: "/messages/archive", element: <MessageArchive /> },
       { path: "/messages/admin", element: <MessageAdmin /> },
       { path: "/scoreboards", element: <ScoreboardsPage /> },
-      { path: "/metrics", element: <PerformanceExplorer /> },
+      { path: "/metrics", element: <MetricsDashboard /> },
+      { path: "/metrics/explorer", element: <PerformanceExplorer /> },
 
       // Legacy routes — still accessible via deep links
       { path: "/corps-legacy/:corpsId", element: <CorpsDeepDive /> },

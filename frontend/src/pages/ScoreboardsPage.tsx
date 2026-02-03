@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Tabs, Badge, DataTable } from "../ui";
 import type { TabItem } from "../ui";
+import "../styles/Metrics.css";
 import {
   getCorpsScoreboard,
   getAgentLeaderboard,
@@ -17,6 +18,7 @@ export function ScoreboardsPage() {
   const [corpsList, setCorpsList] = useState<CorpsScore[]>([]);
   const [agentsList, setAgentsList] = useState<AgentLeaderEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [periodDays, setPeriodDays] = useState(7);
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "corps");
@@ -24,6 +26,7 @@ export function ScoreboardsPage() {
 
   const fetchData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const [corpsRes, agentsRes] = await Promise.all([
         getCorpsScoreboard(periodDays),
@@ -31,8 +34,8 @@ export function ScoreboardsPage() {
       ]);
       setCorpsList(corpsRes.scoreboard || []);
       setAgentsList(agentsRes.leaderboard || []);
-    } catch (error) {
-      console.error("Failed to fetch scoreboards:", error);
+    } catch (error: any) {
+      setError(error?.message || "Failed to fetch scoreboards");
     } finally {
       setLoading(false);
     }
@@ -53,6 +56,13 @@ export function ScoreboardsPage() {
     { key: "corps", label: `Corps (${corpsList.length})` },
     { key: "agents", label: `Agents (${agentsList.length})` },
   ];
+
+  const medalForRank = (rank: number) => {
+    if (rank === 1) return "🥇";
+    if (rank === 2) return "🥈";
+    if (rank === 3) return "🥉";
+    return `#${rank}`;
+  };
 
   return (
     <div className="page-content">
@@ -84,12 +94,15 @@ export function ScoreboardsPage() {
       />
 
       {loading && <div className="page-loading">Loading...</div>}
+      {error && <div className="error-banner">{error}</div>}
 
       {!loading && activeTab === "corps" && (
         <>
           <DataTable<CorpsScore & Record<string, unknown>>
             columns={[
-              { key: "rank", label: "Rank", render: (v) => <span className={`standings-rank rank-${String(v)}`}>#{String(v)}</span> },
+              { key: "rank", label: "Rank", sortable: true, render: (v) => (
+                <span className={`standings-rank rank-${String(v)}`}>{medalForRank(Number(v))}</span>
+              ) },
               { key: "corps_name", label: "Corps", render: (v) => (
                 <span className="link" style={{ fontWeight: 600, textDecoration: "underline" }}>
                   {String(v)}
@@ -104,10 +117,10 @@ export function ScoreboardsPage() {
                   <span style={{ fontSize: 11 }}>{Math.round(Number(v))}%</span>
                 </div>
               ) },
-              { key: "efficiency_score", label: "Efficiency", render: (v) => `${Number(v).toFixed(1)}%` },
+              { key: "efficiency_score", label: "Efficiency", sortable: true, render: (v) => `${Number(v).toFixed(1)}%` },
               { key: "completed_sessions", label: "Sessions", render: (_v, row) => `${row.completed_sessions}/${row.total_sessions}` },
               { key: "completed_reps", label: "Reps", render: (_v, row) => `${row.completed_reps}/${row.total_reps}` },
-              { key: "composite_score", label: "Score", render: (v) => <span className="standings-score">{Number(v).toFixed(1)}</span> },
+              { key: "composite_score", label: "Score", sortable: true, render: (v) => <span className="standings-score">{Number(v).toFixed(1)}</span> },
             ]}
             data={corpsList as (CorpsScore & Record<string, unknown>)[]}
             onRowClick={(row) => navigate(`/corps/${row.corps_id}/overview`)}
@@ -120,8 +133,8 @@ export function ScoreboardsPage() {
       {!loading && activeTab === "agents" && (
         <DataTable<AgentLeaderEntry & Record<string, unknown>>
           columns={[
-            { key: "rank", label: "Rank", render: (v) => <span className={`standings-rank rank-${String(v)}`}>#{String(v)}</span> },
-            { key: "role", label: "Role", render: (v) => <span style={{ fontWeight: 600 }}>{formatRole(String(v))}</span> },
+            { key: "rank", label: "Rank", sortable: true, render: (v) => <span className={`standings-rank rank-${String(v)}`}>{medalForRank(Number(v))}</span> },
+            { key: "role", label: "Role", sortable: true, render: (v) => <span style={{ fontWeight: 600 }}>{formatRole(String(v))}</span> },
             { key: "nickname", label: "Nickname", render: (v) => String(v || "—") },
             { key: "total_sessions", label: "Sessions", render: (v) => String(v ?? 0) },
             { key: "completed_sessions", label: "Completed", render: (v) => String(v ?? 0) },
@@ -141,6 +154,7 @@ export function ScoreboardsPage() {
             ) },
           ]}
           data={agentsList as (AgentLeaderEntry & Record<string, unknown>)[]}
+          onRowClick={(row) => navigate(`/corps/${row.corps_id}`)}
           emptyMessage="No agent data available"
         />
       )}

@@ -750,6 +750,23 @@ export const getMetricsTrends = (metricType?: string, corpsId?: string, periodDa
   return request<{ trends: MetricTrend[] }>(`/api/v1/metrics/trends?${params}`, { signal });
 };
 
+export const getMetricsSeries = (
+  metricTypes: string[],
+  periodDays: number,
+  granularity: string,
+  signal?: AbortSignal,
+) => {
+  const params = new URLSearchParams({
+    metric_types: metricTypes.join(","),
+    period_days: String(periodDays),
+    granularity,
+  });
+  return request<{ data: Array<Record<string, string | number>> }>(
+    `/api/v1/metrics/timeseries?${params}`,
+    { signal },
+  );
+};
+
 // --- Asynchronous Messaging System ---
 
 export interface MessageThread {
