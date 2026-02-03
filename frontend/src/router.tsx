@@ -20,6 +20,8 @@ import { CompetitionDetail } from "./pages/CompetitionDetail";
 import { SeasonWorkshop } from "./pages/SeasonWorkshop";
 import { Settings } from "./pages/Settings";
 import { SystemHealth } from "./pages/SystemHealth";
+import { SystemHealthDashboard } from "./pages/SystemHealthDashboard";
+import { SystemHealthDashboard } from "./pages/SystemHealthDashboard";
 import MessageInbox from "./pages/MessageInbox";
 import MessageArchive from "./pages/MessageArchive";
 import MessageAdmin from "./pages/MessageAdmin";
@@ -56,6 +58,8 @@ export const router = createBrowserRouter([
 
       // System & Messages (top nav)
       { path: "/system", element: <SystemHealth /> },
+      { path: "/system-health", element: <SystemHealthDashboard /> },
+      { path: "/system-health", element: <SystemHealthDashboard /> },
       { path: "/messages/inbox", element: <MessageInbox /> },
       { path: "/messages/archive", element: <MessageArchive /> },
       { path: "/messages/admin", element: <MessageAdmin /> },
