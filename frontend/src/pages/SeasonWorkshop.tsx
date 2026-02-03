@@ -39,6 +39,7 @@ export function SeasonWorkshop() {
   const [tourStandings, setTourStandings] = useState<any>(null);
   const [tourCompetitions, setTourCompetitions] = useState<v1.V1Competition[]>([]);
   const [tourLoading, setTourLoading] = useState(false);
+  const [enteringFinals, setEnteringFinals] = useState(false);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -142,6 +143,8 @@ export function SeasonWorkshop() {
       || (detail as any).status === "on_tour"
     )
   );
+  const seasonStatus = detail?.metadata?.status || (detail as any)?.status || "";
+  const canFinals = Boolean(detail && ["finals", "completed", "review", "locked", "touring", "on_tour"].includes(seasonStatus));
 
   const competitionStatus = useMemo(
     () => Object.fromEntries(tourCompetitions.map(c => [c.competition_id, c.status])),
@@ -289,6 +292,21 @@ export function SeasonWorkshop() {
     }
   };
 
+  const handleEnterFinals = async () => {
+    if (!seasonId) return;
+    setEnteringFinals(true);
+    try {
+      await v1.enterSeasonFinals(seasonId);
+      const updated = await v1.getSeason(seasonId);
+      setDetail(updated);
+      setActiveTab("finals");
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setEnteringFinals(false);
+    }
+  };
+
   const handleDeleteSeason = async (sid: string) => {
     if (!confirm(`Delete season "${sid}"? This cannot be undone.`)) return;
     try {
@@ -318,11 +336,14 @@ export function SeasonWorkshop() {
       { key: "setup", label: "Setup" },
       { key: "camps", label: "Winter Camps" },
       { key: "ready", label: "Ready Check" },
-      { key: "standings", label: "Standings" },
     ];
     if (isTouring) {
-      tabs.splice(3, 0, { key: "tour", label: "Tour Status" });
+      tabs.push({ key: "tour", label: "Tour Status" });
     }
+    if (canFinals) {
+      tabs.push({ key: "finals", label: "Finals" });
+    }
+    tabs.push({ key: "standings", label: "Standings" });
 
     const registeredCorps = detail.registered_corps || [];
     const unregisteredCorps = corps.filter(c => c.corps_type !== "system" && !registeredCorps.includes(c.corps_id));
@@ -630,6 +651,27 @@ export function SeasonWorkshop() {
                   ))}
                 </div>
               )}
+            </Panel>
+          </div>
+        )}
+
+        {activeTab === "finals" && (
+          <div style={{ marginTop: 16 }}>
+            <Panel title="Finals Control">
+              <p className="text-muted" style={{ marginBottom: 12 }}>
+                Finals require corps to meet the required score threshold before winner declaration.
+              </p>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                <button className="primary" onClick={handleEnterFinals} disabled={enteringFinals}>
+                  {enteringFinals ? "Entering Finals..." : "Enter Finals"}
+                </button>
+                <button className="secondary" onClick={() => navigate(`/finals/${detail.season_id}`)}>
+                  View Finals
+                </button>
+              </div>
+              <div style={{ marginTop: 12, fontSize: 12 }}>
+                Required scores per corps: <strong>{config.required_scores}</strong>
+              </div>
             </Panel>
           </div>
         )}

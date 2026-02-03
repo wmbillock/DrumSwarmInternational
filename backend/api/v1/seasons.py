@@ -1,5 +1,8 @@
 """V1 API — Seasons routes."""
 
+from datetime import datetime, timezone
+from pathlib import Path
+
 from fastapi import APIRouter, HTTPException
 
 from backend.api.v1.helpers import _get_root, _validate_id, _get_db_session, _slugify
@@ -10,10 +13,75 @@ from backend.api.v1.schemas import (
     SeasonShowRequest,
     SeasonAssignRequest,
     SeasonConfigRequest,
+    FinalsDeclareWinnerRequest,
 )
 from backend.services.yaml_util import safe_load_yaml_dict
 
 router = APIRouter(prefix="/api/v1")
+
+
+def _build_finals_payload(season_dir: Path) -> dict:
+    from backend.services.season_persistence import load_season
+
+    data = load_season(season_dir)
+    season_id = data.get("season_id", season_dir.name)
+    required_scores = (data.get("config") or {}).get("required_scores", 1)
+    corps_ids = data.get("registered_corps", [])
+    divisions = data.get("divisions", {})
+
+    qualification: dict[str, bool] = {}
+    score_counts: dict[str, int] = {}
+    scores_by_corps: dict[str, float] = {}
+
+    for cid in corps_ids:
+        perf_dir = season_dir / "performances" / cid
+        critique_count = 0
+        if perf_dir.exists():
+            critique_count = len(list(perf_dir.glob("critique_round_*.md")))
+        score_counts[cid] = critique_count
+        qualification[cid] = critique_count >= required_scores
+        score_value = 0.0
+        scores_path = perf_dir / "scores.yaml"
+        if scores_path.is_file():
+            try:
+                sc = safe_load_yaml_dict(scores_path.read_text())
+                if isinstance(sc, dict):
+                    score_value = float(sc.get("final_score") or sc.get("raw_total") or 0.0)
+            except Exception:
+                score_value = 0.0
+        scores_by_corps[cid] = score_value
+
+    def rank_rows(ids: list[str]) -> list[dict]:
+        ordered = sorted(ids, key=lambda cid: scores_by_corps.get(cid, 0.0), reverse=True)
+        return [
+            {
+                "rank": idx + 1,
+                "corps_id": cid,
+                "score": scores_by_corps.get(cid, 0.0),
+                "qualified": qualification.get(cid, False),
+                "scores_count": score_counts.get(cid, 0),
+            }
+            for idx, cid in enumerate(ordered)
+        ]
+
+    overall = rank_rows(corps_ids)
+    division_rows = []
+    for show_slug, corps_list in (divisions or {}).items():
+        division_rows.append({
+            "show_slug": show_slug,
+            "standings": rank_rows(list(corps_list or [])),
+        })
+
+    return {
+        "season_id": season_id,
+        "status": data.get("metadata", {}).get("status", "planning"),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "required_scores": required_scores,
+        "qualification": qualification,
+        "score_counts": score_counts,
+        "overall": overall,
+        "divisions": division_rows,
+    }
 
 
 @router.get("/seasons")
@@ -239,3 +307,74 @@ def v1_get_season_standings(season_id: str):
     if not standings_yaml.is_file():
         return []
     return safe_load_yaml_dict(standings_yaml.read_text())
+
+
+@router.post("/seasons/{season_id}/enter-finals")
+def v1_enter_finals(season_id: str):
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    if not (season_dir / "season.yaml").is_file():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+
+    from backend.services.season_persistence import load_season, save_season
+    data = load_season(season_dir)
+    data.setdefault("metadata", {})
+    data["metadata"]["status"] = "finals"
+    save_season(season_dir, data)
+
+    finals = _build_finals_payload(season_dir)
+    from backend.services.yaml_util import atomic_write, safe_dump_yaml
+    atomic_write(season_dir / "finals.yaml", safe_dump_yaml(finals))
+    return finals
+
+
+@router.get("/seasons/{season_id}/finals")
+def v1_get_finals(season_id: str):
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    if not (season_dir / "season.yaml").is_file():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+
+    finals_path = season_dir / "finals.yaml"
+    if finals_path.is_file():
+        try:
+            existing = safe_load_yaml_dict(finals_path.read_text())
+        except Exception:
+            existing = {}
+    else:
+        existing = {}
+
+    finals = _build_finals_payload(season_dir)
+    if isinstance(existing, dict) and existing.get("winner"):
+        finals["winner"] = existing.get("winner")
+    return finals
+
+
+@router.post("/seasons/{season_id}/finals/declare-winner")
+def v1_declare_winner(season_id: str, req: FinalsDeclareWinnerRequest):
+    _validate_id(season_id, "season_id")
+    _validate_id(req.corps_id, "corps_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    if not (season_dir / "season.yaml").is_file():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+
+    from backend.services.season_persistence import load_season, save_season
+    data = load_season(season_dir)
+    data.setdefault("metadata", {})
+    data["metadata"]["status"] = "completed"
+    data["metadata"]["winner"] = req.corps_id
+    data["locked"] = True
+    save_season(season_dir, data)
+
+    finals = _build_finals_payload(season_dir)
+    finals["winner"] = {
+        "corps_id": req.corps_id,
+        "division": req.division,
+        "declared_at": datetime.now(timezone.utc).isoformat(),
+    }
+    from backend.services.yaml_util import atomic_write, safe_dump_yaml
+    atomic_write(season_dir / "finals.yaml", safe_dump_yaml(finals))
+    return finals

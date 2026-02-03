@@ -96,6 +96,11 @@ class SeasonConfigRequest(BaseModel):
     required_scores: Optional[int] = None
 
 
+class FinalsDeclareWinnerRequest(BaseModel):
+    corps_id: str
+    division: Optional[str] = None
+
+
 # --- Competitions ---
 
 class CreateCompetitionRequest(BaseModel):

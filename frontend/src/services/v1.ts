@@ -433,6 +433,43 @@ export const getSeasonSchedule = (seasonId: string, signal?: AbortSignal) =>
 export const getSeasonStandings = (seasonId: string, signal?: AbortSignal) =>
   request<any>(`/api/v1/seasons/${seasonId}/standings`, { signal });
 
+export interface V1FinalsStandingRow {
+  rank: number;
+  corps_id: string;
+  score: number;
+  qualified: boolean;
+  scores_count: number;
+}
+
+export interface V1FinalsDivision {
+  show_slug: string;
+  standings: V1FinalsStandingRow[];
+}
+
+export interface V1FinalsData {
+  season_id: string;
+  status: string;
+  generated_at: string;
+  required_scores: number;
+  qualification: Record<string, boolean>;
+  score_counts: Record<string, number>;
+  overall: V1FinalsStandingRow[];
+  divisions: V1FinalsDivision[];
+  winner?: { corps_id: string; division?: string; declared_at?: string };
+}
+
+export const enterSeasonFinals = (seasonId: string) =>
+  request<V1FinalsData>(`/api/v1/seasons/${seasonId}/enter-finals`, { method: "POST" });
+
+export const getSeasonFinals = (seasonId: string, signal?: AbortSignal) =>
+  request<V1FinalsData>(`/api/v1/seasons/${seasonId}/finals`, { signal });
+
+export const declareSeasonWinner = (seasonId: string, corpsId: string, division?: string) =>
+  request<V1FinalsData>(`/api/v1/seasons/${seasonId}/finals/declare-winner`, {
+    method: "POST",
+    body: JSON.stringify({ corps_id: corpsId, division }),
+  });
+
 // --- Messaging ---
 
 export interface MessagingThreadMessage {

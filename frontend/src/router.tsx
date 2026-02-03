@@ -31,7 +31,6 @@ import PerformanceExplorer from "./pages/PerformanceExplorer";
 import { TourDashboard } from "./pages/TourDashboard";
 import { CompetitionLive } from "./pages/CompetitionLive";
 import { Finals } from "./pages/Finals";
-import { SeasonReview } from "./pages/SeasonReview";
 import { CritiquePage } from "./pages/CritiquePage";
 
 export const router = createBrowserRouter([
@@ -47,7 +46,7 @@ export const router = createBrowserRouter([
       { path: "/tour", element: <TourDashboard /> },
       { path: "/tour/:competitionId", element: <CompetitionLive /> },
       { path: "/finals", element: <Finals /> },
-      { path: "/finals/:seasonId", element: <SeasonReview /> },
+      { path: "/finals/:seasonId", element: <Finals /> },
 
       // Utilities
       { path: "/corps", element: <CorpsList /> },
