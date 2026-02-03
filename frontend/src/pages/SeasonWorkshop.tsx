@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Panel, Badge, DataTable, Tabs } from "../ui";
 import type { TabItem } from "../ui";
 import * as v1 from "../services/v1";
 import { formatStatus, slugToTitle } from "../utils/formatters";
+import { TourSchedule } from "../components/TourSchedule";
 
 export function SeasonWorkshop() {
   const navigate = useNavigate();
@@ -34,6 +35,10 @@ export function SeasonWorkshop() {
   const [standingsView, setStandingsView] = useState<"standings" | "recap">("standings");
   const [breakdowns, setBreakdowns] = useState<Record<string, v1.V1CorpsBreakdown | null>>({});
   const [standingsLoading, setStandingsLoading] = useState(false);
+  const [tourSchedule, setTourSchedule] = useState<{ competition_id: string; show_slug: string; corps_ids: string[] }[]>([]);
+  const [tourStandings, setTourStandings] = useState<any>(null);
+  const [tourCompetitions, setTourCompetitions] = useState<v1.V1Competition[]>([]);
+  const [tourLoading, setTourLoading] = useState(false);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -109,6 +114,77 @@ export function SeasonWorkshop() {
       .finally(() => setStandingsLoading(false));
     return () => ac.abort();
   }, [activeTab, seasonId, selectedCompetitionId]);
+
+  useEffect(() => {
+    if (!seasonId || activeTab !== "tour") return;
+    const ac = new AbortController();
+    setTourLoading(true);
+    Promise.allSettled([
+      v1.getSeasonSchedule(seasonId, ac.signal),
+      v1.getSeasonStandings(seasonId, ac.signal),
+      v1.listCompetitions(ac.signal),
+    ]).then(([scheduleRes, standingsRes, competitionsRes]) => {
+      if (scheduleRes.status === "fulfilled") setTourSchedule(scheduleRes.value);
+      if (standingsRes.status === "fulfilled") setTourStandings(standingsRes.value);
+      if (competitionsRes.status === "fulfilled") {
+        setTourCompetitions(competitionsRes.value.filter(c => c.season_id === seasonId));
+      }
+    }).finally(() => setTourLoading(false));
+    return () => ac.abort();
+  }, [activeTab, seasonId]);
+
+  const corpsById = useMemo(() => Object.fromEntries(corps.map(c => [c.corps_id, c])), [corps]);
+  const isTouring = Boolean(
+    detail && (
+      detail.metadata?.status === "touring"
+      || detail.metadata?.status === "on_tour"
+      || (detail as any).status === "touring"
+      || (detail as any).status === "on_tour"
+    )
+  );
+
+  const competitionStatus = useMemo(
+    () => Object.fromEntries(tourCompetitions.map(c => [c.competition_id, c.status])),
+    [tourCompetitions],
+  );
+
+  const currentCompetitionId = useMemo(() => {
+    const current = tourCompetitions.find(c => ["in_progress", "running", "live", "active"].includes(c.status));
+    if (current) return current.competition_id;
+    const upcoming = tourSchedule.find(s => !["completed", "final", "scored", "closed"].includes(competitionStatus[s.competition_id] || ""));
+    return upcoming?.competition_id || tourSchedule[0]?.competition_id || null;
+  }, [competitionStatus, tourCompetitions, tourSchedule]);
+
+  const overallRows = useMemo(() => {
+    const source = Array.isArray(tourStandings)
+      ? tourStandings
+      : tourStandings?.overall || tourStandings?.overall_rankings || tourStandings?.standings || [];
+    if (!Array.isArray(source)) return [];
+    return source.map((row: any, idx: number) => ({
+      rank: row.rank ?? idx + 1,
+      corps: row.corps_name
+        || row.display_name
+        || (row.corps_id ? (corpsById[row.corps_id]?.display_name || `Corps • ${row.corps_id.slice(0, 8)}`) : "Unknown"),
+      score: row.final_score ?? row.score ?? row.total ?? row.points ?? row.raw_score ?? row.aggregate ?? null,
+    }));
+  }, [tourStandings, corpsById]);
+
+  const divisionRows = useMemo(() => {
+    const divisions = tourStandings?.divisions || tourStandings?.division_standings || {};
+    if (!divisions || typeof divisions !== "object" || Array.isArray(divisions)) return [];
+    return Object.entries(divisions).map(([division, rows]) => ({
+      division,
+      rows: Array.isArray(rows)
+        ? rows.map((row: any, idx: number) => ({
+          rank: row.rank ?? idx + 1,
+          corps: row.corps_name
+            || row.display_name
+            || (row.corps_id ? (corpsById[row.corps_id]?.display_name || `Corps • ${row.corps_id.slice(0, 8)}`) : "Unknown"),
+          score: row.final_score ?? row.score ?? row.total ?? row.points ?? row.raw_score ?? row.aggregate ?? null,
+        }))
+        : [],
+    }));
+  }, [tourStandings, corpsById]);
 
   const handleCreateSeason = async () => {
     if (!newSeasonName.trim()) return;
@@ -244,9 +320,11 @@ export function SeasonWorkshop() {
       { key: "ready", label: "Ready Check" },
       { key: "standings", label: "Standings" },
     ];
+    if (isTouring) {
+      tabs.splice(3, 0, { key: "tour", label: "Tour Status" });
+    }
 
     const registeredCorps = detail.registered_corps || [];
-    const corpsById = Object.fromEntries(corps.map(c => [c.corps_id, c]));
     const unregisteredCorps = corps.filter(c => c.corps_type !== "system" && !registeredCorps.includes(c.corps_id));
     const selectedShows = detail.shows || [];
     const availableShows = showThreads.filter(t => t.status === "published" || t.status === "approved" || t.status === "needs_review");
@@ -494,6 +572,63 @@ export function SeasonWorkshop() {
                 >
                   Start Tour
                 </button>
+              )}
+            </Panel>
+          </div>
+        )}
+
+        {activeTab === "tour" && (
+          <div style={{ marginTop: 16 }}>
+            <Panel title="Tour Timeline">
+              {tourLoading && <p className="empty">Loading tour data...</p>}
+              {!tourLoading && tourSchedule.length === 0 && <p className="empty">No schedule available yet.</p>}
+              {!tourLoading && tourSchedule.length > 0 && (
+                <TourSchedule
+                  schedule={tourSchedule}
+                  statusByCompetition={competitionStatus}
+                  currentCompetitionId={currentCompetitionId}
+                  renderTitle={(slug) => slugToTitle(slug)}
+                />
+              )}
+            </Panel>
+
+            <Panel title="Overall Rankings" style={{ marginTop: 16 }}>
+              {overallRows.length === 0 ? (
+                <p className="empty">No standings available yet.</p>
+              ) : (
+                <DataTable<Record<string, unknown>>
+                  columns={[
+                    { key: "rank", label: "Rank", sortable: true, render: (v) => <strong>#{String(v)}</strong> },
+                    { key: "corps", label: "Corps", sortable: true },
+                    { key: "score", label: "Score", sortable: true, render: (v) => v == null ? "—" : Number(v).toFixed(2) },
+                  ]}
+                  data={overallRows as Record<string, unknown>[]}
+                  defaultSortKey="rank"
+                  emptyMessage="No standings available yet."
+                />
+              )}
+            </Panel>
+
+            <Panel title="Division Standings" style={{ marginTop: 16 }}>
+              {divisionRows.length === 0 && <p className="empty">No division standings available yet.</p>}
+              {divisionRows.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {divisionRows.map((division) => (
+                    <div key={division.division}>
+                      <h4 style={{ marginBottom: 8 }}>{slugToTitle(String(division.division))}</h4>
+                      <DataTable<Record<string, unknown>>
+                        columns={[
+                          { key: "rank", label: "Rank", sortable: true, render: (v) => <strong>#{String(v)}</strong> },
+                          { key: "corps", label: "Corps", sortable: true },
+                          { key: "score", label: "Score", sortable: true, render: (v) => v == null ? "—" : Number(v).toFixed(2) },
+                        ]}
+                        data={division.rows as Record<string, unknown>[]}
+                        defaultSortKey="rank"
+                        emptyMessage="No standings available yet."
+                      />
+                    </div>
+                  ))}
+                </div>
               )}
             </Panel>
           </div>
