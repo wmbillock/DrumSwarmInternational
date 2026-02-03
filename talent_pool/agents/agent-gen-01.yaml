@@ -1,7 +1,7 @@
 agent_id: agent-gen-01
 display_name: General_Effect 1
 primary_instrument: general_effect
-availability: assigned
+availability: active
 trust_score: 60.0
 total_sessions: 1
 successful_sessions: 0

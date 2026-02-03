@@ -1,7 +1,7 @@
 agent_id: agent-bra-00
 display_name: Brass 0
 primary_instrument: brass
-availability: assigned
+availability: active
 trust_score: 67.0
 total_sessions: 1
 successful_sessions: 0

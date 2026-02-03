@@ -1,7 +1,7 @@
 agent_id: agent-per-00
 display_name: Percussion 0
 primary_instrument: percussion
-availability: assigned
+availability: active
 trust_score: 64.0
 total_sessions: 1
 successful_sessions: 1
