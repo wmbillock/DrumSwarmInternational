@@ -433,6 +433,12 @@ export const getSeasonSchedule = (seasonId: string, signal?: AbortSignal) =>
 export const getSeasonStandings = (seasonId: string, signal?: AbortSignal) =>
   request<any>(`/api/v1/seasons/${seasonId}/standings`, { signal });
 
+export const advanceSeasonTour = (seasonId: string) =>
+  request<any>(`/api/v1/seasons/${seasonId}/advance`, { method: "POST" });
+
+export const getSeasonTourStatus = (seasonId: string, signal?: AbortSignal) =>
+  request<any>(`/api/v1/seasons/${seasonId}/tour-status`, { signal });
+
 export interface V1FinalsStandingRow {
   rank: number;
   corps_id: string;

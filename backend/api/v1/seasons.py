@@ -378,3 +378,25 @@ def v1_declare_winner(season_id: str, req: FinalsDeclareWinnerRequest):
     from backend.services.yaml_util import atomic_write, safe_dump_yaml
     atomic_write(season_dir / "finals.yaml", safe_dump_yaml(finals))
     return finals
+
+
+@router.post("/seasons/{season_id}/advance")
+def v1_advance_tour(season_id: str):
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    if not (season_dir / "season.yaml").is_file():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+    from backend.services.tour_coordinator import run_competition_round
+    return run_competition_round(season_dir)
+
+
+@router.get("/seasons/{season_id}/tour-status")
+def v1_get_tour_status(season_id: str):
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    if not (season_dir / "season.yaml").is_file():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+    from backend.services.tour_coordinator import get_tour_status
+    return get_tour_status(season_dir)
