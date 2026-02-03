@@ -120,6 +120,10 @@ class CritiqueMessageRequest(BaseModel):
     message: str
 
 
+class CritiqueClarifyRequest(BaseModel):
+    question: str
+
+
 # --- Messaging ---
 
 class MessagingCreateThreadRequest(BaseModel):

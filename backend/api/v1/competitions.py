@@ -18,6 +18,15 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1")
 
 
+def _next_critique_round(perf_dir: Path) -> int:
+    max_round = 0
+    for path in perf_dir.glob("critique_round_*.md"):
+        stem = path.stem.replace("critique_round_", "")
+        if stem.isdigit():
+            max_round = max(max_round, int(stem))
+    return max_round + 1
+
+
 # =========================================================================
 # COMPETITIONS
 # =========================================================================
@@ -271,6 +280,20 @@ def v1_run_competition(competition_id: str):
         if corps_dir.exists():
             record_corps_placement(corps_dir, season_id, r.rank, r.final_score,
                                    notes=f"show:{show_slug}")
+
+    # Persist critique markdown per corps
+    from backend.services.judge_service import generate_judges_tape, export_tape_markdown
+    critique_db = _get_db_session()
+    try:
+        for cid in corps_ids:
+            perf_dir = season_dir / "performances" / cid
+            perf_dir.mkdir(parents=True, exist_ok=True)
+            round_num = _next_critique_round(perf_dir)
+            tape = generate_judges_tape(critique_db, competition_id, cid, llm_client)
+            critique_md = export_tape_markdown(tape)
+            atomic_write(perf_dir / f"critique_round_{round_num}.md", critique_md)
+    finally:
+        critique_db.close()
 
     # Auto-critique bottom 75% corps
     auto_critique_summary = {}

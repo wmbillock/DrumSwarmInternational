@@ -8,6 +8,7 @@ import logging
 import random
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
@@ -32,6 +33,7 @@ from backend.api.v1.schemas import (
     HireStaffRequest,
     ReleaseStaffRequest,
     MessageCreateV1Request,
+    CritiqueClarifyRequest,
 )
 
 logger = logging.getLogger(__name__)
@@ -78,6 +80,25 @@ CORPS_COMMANDS = {
     "metronome_tick": {"label": "Metronome Tick", "description": "Manual metronome tick — reclaim stale work", "category": "system"},
     "merge_check": {"label": "Merge Check", "description": "Check and merge completed work", "category": "system"},
 }
+
+
+def _find_critique_file(root: Path, corps_id: str, round_num: int) -> Optional[Path]:
+    seasons_dir = root / "seasons"
+    if not seasons_dir.exists():
+        return None
+    matches: list[Path] = []
+    for season_dir in seasons_dir.iterdir():
+        if not season_dir.is_dir():
+            continue
+        perf_dir = season_dir / "performances" / corps_id
+        if not perf_dir.is_dir():
+            continue
+        critique_path = perf_dir / f"critique_round_{round_num}.md"
+        if critique_path.is_file():
+            matches.append(critique_path)
+    if not matches:
+        return None
+    return max(matches, key=lambda p: p.stat().st_mtime)
 
 
 # =========================================================================
@@ -632,6 +653,41 @@ def v1_list_corps_seances(corps_id: str):
             continue
     results.sort(key=lambda s: s.get("created_at", ""), reverse=True)
     return results
+
+
+# =========================================================================
+# CRITIQUE
+# =========================================================================
+
+
+@router.post("/corps/{corps_id}/critique/{round_num}/clarify")
+def v1_clarify_critique(corps_id: str, round_num: int, req: CritiqueClarifyRequest):
+    """Clarify judge critique for a corps and round."""
+    _validate_id(corps_id, "corps_id")
+    root = _get_root()
+    critique_path = _find_critique_file(root, corps_id, round_num)
+    if not critique_path:
+        raise HTTPException(404, "Critique round not found")
+
+    critique_text = critique_path.read_text()
+
+    from backend.api.app import get_task_manager
+    tm = get_task_manager()
+    llm_client = tm.llm_client if tm else None
+
+    if not llm_client:
+        return {"answer": "LLM unavailable", "critique_path": str(critique_path)}
+
+    from backend.services.llm_client import LLMMessage
+    from backend.models.agent_definition import ModelTier
+
+    context = critique_text[:6000]
+    messages = [
+        LLMMessage(role="system", content="You are a DCI judge clarifying feedback from a critique report. Answer concisely and stay grounded in the report."),
+        LLMMessage(role="user", content=f"Critique report:\n{context}\n\nQuestion: {req.question}\nAnswer with actionable clarification."),
+    ]
+    resp = llm_client.chat(messages, model_tier=ModelTier.HAIKU)
+    return {"answer": resp.content.strip(), "critique_path": str(critique_path)}
 
 
 # =========================================================================

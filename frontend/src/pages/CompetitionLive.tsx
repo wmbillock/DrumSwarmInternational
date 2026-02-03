@@ -40,6 +40,7 @@ export function CompetitionLive() {
     { key: "standings", label: "Standings" },
     { key: "scorecards", label: "Scorecards" },
     { key: "tapes", label: "Judges Tapes" },
+    { key: "critique", label: "Critique" },
     { key: "recap", label: "Recap" },
   ];
 
@@ -114,6 +115,12 @@ export function CompetitionLive() {
       {activeTab === "tapes" && standings && competitionId && (
         <div style={{ marginTop: 16 }}>
           <JudgesTapesPanel competitionId={competitionId} results={standings.results} />
+        </div>
+      )}
+
+      {activeTab === "critique" && standings && competitionId && (
+        <div style={{ marginTop: 16 }}>
+          <CritiquePanel competitionId={competitionId} results={standings.results} />
         </div>
       )}
 
@@ -259,6 +266,59 @@ function JudgesTapesPanel({ competitionId, results }: { competitionId: string; r
             ))}
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function CritiquePanel({ competitionId, results }: { competitionId: string; results: v1.V1StandingEntry[] }) {
+  const [selectedCorps, setSelectedCorps] = useState<string | null>(null);
+  const [markdown, setMarkdown] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+
+  const loadCritique = async (corpsId: string) => {
+    setSelectedCorps(corpsId);
+    setLoading(true);
+    try {
+      const result = await v1.exportTape(competitionId, corpsId);
+      setMarkdown(result.markdown || "");
+    } catch {
+      setMarkdown("");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (results.length === 0) return <p className="text-muted">No results yet.</p>;
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+        {results.map(r => (
+          <button
+            key={r.corps_id}
+            className={selectedCorps === r.corps_id ? "primary" : "secondary"}
+            onClick={() => loadCritique(r.corps_id)}
+            style={{ fontSize: 12, padding: "4px 10px" }}
+          >
+            #{r.rank} {r.display_name || `Corps • ${r.corps_id.slice(0, 8)}`}
+          </button>
+        ))}
+      </div>
+
+      {loading && <p className="text-muted">Loading critique...</p>}
+
+      {!loading && markdown && (
+        <div className="competition-card" style={{ padding: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <h3 style={{ margin: 0 }}>Critique Report</h3>
+          </div>
+          <pre style={{ whiteSpace: "pre-wrap", fontSize: 12, margin: 0 }}>{markdown}</pre>
+        </div>
+      )}
+
+      {!loading && selectedCorps && !markdown && (
+        <p className="text-muted">No critique available yet.</p>
       )}
     </div>
   );

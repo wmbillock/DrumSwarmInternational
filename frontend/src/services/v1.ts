@@ -246,6 +246,12 @@ export const getCorps = (id: string, signal?: AbortSignal) =>
 export const getCorpsHistory = (id: string, signal?: AbortSignal) =>
   request<V1HistoryIndex>(`/api/v1/corps/${id}/history`, { signal });
 
+export const clarifyCorpsCritique = (corpsId: string, round: number, question: string) =>
+  request<{ answer: string; critique_path: string }>(`/api/v1/corps/${corpsId}/critique/${round}/clarify`, {
+    method: "POST",
+    body: JSON.stringify({ question }),
+  });
+
 // --- Runs ---
 
 export const listRuns = (corpsId?: string, signal?: AbortSignal) =>
