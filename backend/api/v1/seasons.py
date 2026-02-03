@@ -3,7 +3,14 @@
 from fastapi import APIRouter, HTTPException
 
 from backend.api.v1.helpers import _get_root, _validate_id, _get_db_session, _slugify
-from backend.api.v1.schemas import CreateSeasonRequest, UpdateSeasonRequest, RegisterCorpsRequest
+from backend.api.v1.schemas import (
+    CreateSeasonRequest,
+    UpdateSeasonRequest,
+    RegisterCorpsRequest,
+    SeasonShowRequest,
+    SeasonAssignRequest,
+    SeasonConfigRequest,
+)
 from backend.services.yaml_util import safe_load_yaml_dict
 
 router = APIRouter(prefix="/api/v1")
@@ -137,3 +144,98 @@ def v1_delete_season(season_id: str):
     import shutil
     shutil.rmtree(season_dir)
     return {"status": "deleted", "season_id": season_id}
+
+
+@router.post("/seasons/{season_id}/shows")
+def v1_add_season_show(season_id: str, req: SeasonShowRequest):
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    if not (season_dir / "season.yaml").is_file():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+    from backend.services.season_persistence import add_show
+    data = add_show(season_dir, req.show_slug)
+    return data
+
+
+@router.delete("/seasons/{season_id}/shows/{show_slug}")
+def v1_remove_season_show(season_id: str, show_slug: str):
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    if not (season_dir / "season.yaml").is_file():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+    from backend.services.season_persistence import remove_show
+    data = remove_show(season_dir, show_slug)
+    return data
+
+
+@router.post("/seasons/{season_id}/assign")
+def v1_assign_season(season_id: str, req: SeasonAssignRequest):
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    if not (season_dir / "season.yaml").is_file():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+    from backend.services.season_persistence import assign_corps
+    data = assign_corps(season_dir, req.show_slug, req.corps_ids)
+    return data
+
+
+@router.put("/seasons/{season_id}/config")
+def v1_update_season_config(season_id: str, req: SeasonConfigRequest):
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    if not (season_dir / "season.yaml").is_file():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+    from backend.services.season_persistence import update_config
+    data = update_config(season_dir, req.dict(exclude_none=True))
+    return data
+
+
+@router.post("/seasons/{season_id}/lock")
+def v1_lock_season(season_id: str):
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    if not (season_dir / "season.yaml").is_file():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+    from backend.services.season_persistence import lock_season
+    data = lock_season(season_dir)
+    return data
+
+
+@router.post("/seasons/{season_id}/start-tour")
+def v1_start_season_tour(season_id: str):
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    if not (season_dir / "season.yaml").is_file():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+    from backend.services.season_persistence import start_tour
+    data = start_tour(season_dir)
+    return data
+
+
+@router.get("/seasons/{season_id}/schedule")
+def v1_get_season_schedule(season_id: str):
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    if not (season_dir / "season.yaml").is_file():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+    from backend.services.season_persistence import load_season
+    data = load_season(season_dir)
+    return data.get("schedule", [])
+
+
+@router.get("/seasons/{season_id}/standings")
+def v1_get_season_standings(season_id: str):
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    standings_yaml = season_dir / "standings.yaml"
+    if not standings_yaml.is_file():
+        return []
+    return safe_load_yaml_dict(standings_yaml.read_text())

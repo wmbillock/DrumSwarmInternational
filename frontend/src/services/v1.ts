@@ -381,6 +381,11 @@ export interface V1Season {
   name?: string;
   dir_name: string;
   metadata: Record<string, unknown>;
+  shows?: string[];
+  divisions?: Record<string, string[]>;
+  config?: { corps_per_contest?: number; required_scores?: number };
+  schedule?: { competition_id: string; show_slug: string; corps_ids: string[] }[];
+  locked?: boolean;
 }
 
 export const listSeasons = (signal?: AbortSignal) =>
@@ -397,6 +402,30 @@ export const registerSeasonCorps = (seasonId: string, corpsId: string) =>
 
 export const deleteSeason = (seasonId: string) =>
   request<{ status: string }>(`/api/v1/seasons/${seasonId}`, { method: "DELETE" });
+
+export const addSeasonShow = (seasonId: string, showSlug: string) =>
+  request<V1Season>(`/api/v1/seasons/${seasonId}/shows`, { method: "POST", body: JSON.stringify({ show_slug: showSlug }) });
+
+export const removeSeasonShow = (seasonId: string, showSlug: string) =>
+  request<V1Season>(`/api/v1/seasons/${seasonId}/shows/${showSlug}`, { method: "DELETE" });
+
+export const assignSeasonCorps = (seasonId: string, showSlug: string, corpsIds: string[]) =>
+  request<V1Season>(`/api/v1/seasons/${seasonId}/assign`, { method: "POST", body: JSON.stringify({ show_slug: showSlug, corps_ids: corpsIds }) });
+
+export const updateSeasonConfig = (seasonId: string, config: { corps_per_contest?: number; required_scores?: number }) =>
+  request<V1Season>(`/api/v1/seasons/${seasonId}/config`, { method: "PUT", body: JSON.stringify(config) });
+
+export const lockSeason = (seasonId: string) =>
+  request<V1Season>(`/api/v1/seasons/${seasonId}/lock`, { method: "POST" });
+
+export const startSeasonTour = (seasonId: string) =>
+  request<V1Season>(`/api/v1/seasons/${seasonId}/start-tour`, { method: "POST" });
+
+export const getSeasonSchedule = (seasonId: string, signal?: AbortSignal) =>
+  request<{ competition_id: string; show_slug: string; corps_ids: string[] }[]>(`/api/v1/seasons/${seasonId}/schedule`, { signal });
+
+export const getSeasonStandings = (seasonId: string, signal?: AbortSignal) =>
+  request<any>(`/api/v1/seasons/${seasonId}/standings`, { signal });
 
 // --- Messaging ---
 

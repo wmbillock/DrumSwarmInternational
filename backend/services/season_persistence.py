@@ -51,6 +51,11 @@ LIFECYCLE_RULES_TEMPLATE = """# Season Lifecycle Rules
 - Process violations (bypassed hierarchy, skipped rehearsal modes): -1.0 each.
 """
 
+DEFAULT_CONFIG = {
+    "corps_per_contest": 12,
+    "required_scores": 1,
+}
+
 
 def create_season(base_dir: Path, season_id: str, metadata: dict | None = None) -> Path:
     """Create a season workspace directory with scorecard and lifecycle rules.
@@ -66,7 +71,15 @@ def create_season(base_dir: Path, season_id: str, metadata: dict | None = None) 
     (season_dir / "performances").mkdir()
     atomic_write(season_dir / "scorecard.md", SCORECARD_TEMPLATE)
     atomic_write(season_dir / "lifecycle_rules.md", LIFECYCLE_RULES_TEMPLATE)
-    meta = {"season_id": season_id, "metadata": metadata or {}}
+    meta = {
+        "season_id": season_id,
+        "metadata": metadata or {},
+        "shows": [],
+        "divisions": {},
+        "config": dict(DEFAULT_CONFIG),
+        "schedule": [],
+        "locked": False,
+    }
     atomic_write(season_dir / "season.yaml", safe_dump_yaml(meta))
     return season_dir
 
@@ -82,6 +95,11 @@ def load_season(season_dir: Path) -> dict:
             raise FileNotFoundError(f"Required file '{required}' missing in {season_dir}")
 
     data = safe_load_yaml_dict((season_dir / "season.yaml").read_text())
+    data.setdefault("shows", [])
+    data.setdefault("divisions", {})
+    data.setdefault("config", dict(DEFAULT_CONFIG))
+    data.setdefault("schedule", [])
+    data.setdefault("locked", False)
     data["registered_corps"] = list_registered_corps(season_dir)
     return data
 
@@ -109,3 +127,80 @@ def list_registered_corps(season_dir: Path) -> list[str]:
     if not perf_root.exists():
         return []
     return sorted(d.name for d in perf_root.iterdir() if d.is_dir())
+
+
+def save_season(season_dir: Path, data: dict) -> None:
+    season_dir = Path(season_dir)
+    atomic_write(season_dir / "season.yaml", safe_dump_yaml(data))
+
+
+def add_show(season_dir: Path, show_slug: str) -> dict:
+    data = load_season(season_dir)
+    shows = list(dict.fromkeys(data.get("shows", []) + [show_slug]))
+    data["shows"] = shows
+    data.setdefault("divisions", {})
+    data["divisions"].setdefault(show_slug, [])
+    save_season(season_dir, data)
+    return data
+
+
+def remove_show(season_dir: Path, show_slug: str) -> dict:
+    data = load_season(season_dir)
+    data["shows"] = [s for s in data.get("shows", []) if s != show_slug]
+    data.get("divisions", {}).pop(show_slug, None)
+    save_season(season_dir, data)
+    return data
+
+
+def assign_corps(season_dir: Path, show_slug: str, corps_ids: list[str]) -> dict:
+    data = load_season(season_dir)
+    if show_slug not in data.get("shows", []):
+        data["shows"] = list(dict.fromkeys(data.get("shows", []) + [show_slug]))
+    data.setdefault("divisions", {})
+    data["divisions"][show_slug] = sorted(set(corps_ids))
+    save_season(season_dir, data)
+    return data
+
+
+def update_config(season_dir: Path, config: dict) -> dict:
+    data = load_season(season_dir)
+    current = dict(DEFAULT_CONFIG)
+    current.update(data.get("config", {}))
+    current.update(config or {})
+    data["config"] = current
+    save_season(season_dir, data)
+    return data
+
+
+def lock_season(season_dir: Path) -> dict:
+    data = load_season(season_dir)
+    data["locked"] = True
+    data.setdefault("metadata", {})
+    data["metadata"]["status"] = "locked"
+    save_season(season_dir, data)
+    return data
+
+
+def build_schedule(season_dir: Path) -> list[dict]:
+    data = load_season(season_dir)
+    season_id = data.get("season_id", season_dir.name)
+    schedule = []
+    divisions = data.get("divisions", {})
+    for show_slug in data.get("shows", []):
+        corps_ids = divisions.get(show_slug, data.get("registered_corps", []))
+        schedule.append({
+            "competition_id": f\"{season_id}-{show_slug}\",
+            "show_slug": show_slug,
+            "corps_ids": corps_ids,
+        })
+    return schedule
+
+
+def start_tour(season_dir: Path) -> dict:
+    data = load_season(season_dir)
+    data.setdefault("metadata", {})
+    data["metadata"]["status"] = "touring"
+    if not data.get("schedule"):
+        data["schedule"] = build_schedule(season_dir)
+    save_season(season_dir, data)
+    return data

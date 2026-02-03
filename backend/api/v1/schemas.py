@@ -82,6 +82,20 @@ class RegisterCorpsRequest(BaseModel):
     corps_id: str
 
 
+class SeasonShowRequest(BaseModel):
+    show_slug: str
+
+
+class SeasonAssignRequest(BaseModel):
+    show_slug: str
+    corps_ids: list[str]
+
+
+class SeasonConfigRequest(BaseModel):
+    corps_per_contest: Optional[int] = None
+    required_scores: Optional[int] = None
+
+
 # --- Competitions ---
 
 class CreateCompetitionRequest(BaseModel):

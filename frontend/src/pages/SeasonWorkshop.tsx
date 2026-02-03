@@ -16,10 +16,17 @@ export function SeasonWorkshop() {
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "setup");
   const [corps, setCorps] = useState<v1.V1Corps[]>([]);
+  const [showThreads, setShowThreads] = useState<v1.V1Thread[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [newSeasonName, setNewSeasonId] = useState("");
   const [creating, setCreating] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
+  const [config, setConfig] = useState({ corps_per_contest: 12, required_scores: 1 });
+  const [assignments, setAssignments] = useState<Record<string, string[]>>({});
+  const [savingConfig, setSavingConfig] = useState(false);
+  const [assigning, setAssigning] = useState(false);
+  const [locking, setLocking] = useState(false);
+  const [startingTour, setStartingTour] = useState(false);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -28,9 +35,11 @@ export function SeasonWorkshop() {
     Promise.allSettled([
       v1.listSeasons(ac.signal),
       v1.listCorps(ac.signal),
-    ]).then(([seasonsRes, corpsRes]) => {
+      v1.listThreads(ac.signal),
+    ]).then(([seasonsRes, corpsRes, threadsRes]) => {
       if (seasonsRes.status === "fulfilled") setSeasons(seasonsRes.value);
       if (corpsRes.status === "fulfilled") setCorps(corpsRes.value);
+      if (threadsRes.status === "fulfilled") setShowThreads(threadsRes.value);
       setLoading(false);
     });
     return () => ac.abort();
@@ -41,7 +50,14 @@ export function SeasonWorkshop() {
     const ac = new AbortController();
     setDetailLoading(true);
     v1.getSeason(seasonId, ac.signal)
-      .then(setDetail)
+      .then((data) => {
+        setDetail(data);
+        setConfig({
+          corps_per_contest: data.config?.corps_per_contest ?? 12,
+          required_scores: data.config?.required_scores ?? 1,
+        });
+        setAssignments(data.divisions || {});
+      })
       .catch(e => { if (e.name !== "AbortError") setError(e.message); })
       .finally(() => setDetailLoading(false));
     return () => ac.abort();
@@ -76,8 +92,84 @@ export function SeasonWorkshop() {
       await v1.registerSeasonCorps(seasonId, corpsId);
       const updated = await v1.getSeason(seasonId);
       setDetail(updated);
+      setAssignments(updated.divisions || {});
     } catch (e: any) {
       setError(e.message);
+    }
+  };
+
+  const handleAddShow = async (showSlug: string) => {
+    if (!seasonId) return;
+    try {
+      const updated = await v1.addSeasonShow(seasonId, showSlug);
+      setDetail(updated);
+      setAssignments(updated.divisions || {});
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+
+  const handleRemoveShow = async (showSlug: string) => {
+    if (!seasonId) return;
+    try {
+      const updated = await v1.removeSeasonShow(seasonId, showSlug);
+      setDetail(updated);
+      setAssignments(updated.divisions || {});
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+
+  const handleSaveAssignments = async (showSlug: string) => {
+    if (!seasonId) return;
+    setAssigning(true);
+    try {
+      const updated = await v1.assignSeasonCorps(seasonId, showSlug, assignments[showSlug] || []);
+      setDetail(updated);
+      setAssignments(updated.divisions || {});
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  const handleSaveConfig = async () => {
+    if (!seasonId) return;
+    setSavingConfig(true);
+    try {
+      const updated = await v1.updateSeasonConfig(seasonId, config);
+      setDetail(updated);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setSavingConfig(false);
+    }
+  };
+
+  const handleLockSeason = async () => {
+    if (!seasonId) return;
+    setLocking(true);
+    try {
+      const updated = await v1.lockSeason(seasonId);
+      setDetail(updated);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLocking(false);
+    }
+  };
+
+  const handleStartTour = async () => {
+    if (!seasonId) return;
+    setStartingTour(true);
+    try {
+      const updated = await v1.startSeasonTour(seasonId);
+      setDetail(updated);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setStartingTour(false);
     }
   };
 
@@ -115,6 +207,15 @@ export function SeasonWorkshop() {
     const registeredCorps = detail.registered_corps || [];
     const corpsById = Object.fromEntries(corps.map(c => [c.corps_id, c]));
     const unregisteredCorps = corps.filter(c => c.corps_type !== "system" && !registeredCorps.includes(c.corps_id));
+    const selectedShows = detail.shows || [];
+    const availableShows = showThreads.filter(t => t.status === "published" || t.status === "approved" || t.status === "needs_review");
+    const checklist = [
+      { key: "corps", label: "Add Corps", done: registeredCorps.length > 0 },
+      { key: "shows", label: "Assign Shows (creates divisions)", done: selectedShows.length > 0 },
+      { key: "config", label: "Competition Settings", done: !!config.corps_per_contest && !!config.required_scores },
+      { key: "lock", label: "Lock & Prepare", done: Boolean(detail.locked) },
+      { key: "tour", label: "Start Tour", done: detail.metadata?.status === "touring" },
+    ];
 
     return (
       <div className="page-content season-workshop">
@@ -142,6 +243,19 @@ export function SeasonWorkshop() {
 
         {activeTab === "setup" && (
           <div style={{ marginTop: 16 }}>
+            <Panel title="Setup Checklist">
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {checklist.map(step => (
+                  <div key={step.key} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <Badge variant={step.done ? "success" : "warning"}>
+                      {step.done ? "Done" : "Pending"}
+                    </Badge>
+                    <span style={{ fontWeight: 600 }}>{step.label}</span>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+
             <Panel title="Season Details">
               <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem" }}>
                 <Badge variant={(detail as any).status === "active" ? "success" : "default"}>
@@ -154,6 +268,114 @@ export function SeasonWorkshop() {
                 <pre style={{ fontSize: "0.85rem", whiteSpace: "pre-wrap", marginBottom: 16 }}>
                   {JSON.stringify(Object.fromEntries(Object.entries(detail.metadata).filter(([k]) => k !== "name")), null, 2)}
                 </pre>
+              )}
+            </Panel>
+
+            <Panel title="Assign Shows" style={{ marginTop: 16 }}>
+              {availableShows.length === 0 && <p className="empty">No shows available. Publish a show first.</p>}
+              {availableShows.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+                  {availableShows.map(show => (
+                    <button
+                      key={show.slug}
+                      className="small"
+                      onClick={() => handleAddShow(show.slug)}
+                      disabled={selectedShows.includes(show.slug)}
+                    >
+                      + {slugToTitle(show.slug)}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {selectedShows.length === 0 && <p className="empty">No shows assigned yet.</p>}
+              {selectedShows.map(showSlug => (
+                <div key={showSlug} style={{ marginBottom: 16, padding: 12, border: "1px solid var(--border)", borderRadius: 6 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                    <strong>{slugToTitle(showSlug)}</strong>
+                    <button className="small danger" onClick={() => handleRemoveShow(showSlug)}>Remove</button>
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
+                    {registeredCorps.map(cid => {
+                      const checked = (assignments[showSlug] || []).includes(cid);
+                      return (
+                        <label key={cid} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              setAssignments(prev => {
+                                const next = { ...prev };
+                                const list = new Set(next[showSlug] || []);
+                                if (e.target.checked) list.add(cid);
+                                else list.delete(cid);
+                                next[showSlug] = Array.from(list);
+                                return next;
+                              });
+                            }}
+                          />
+                          {corpsById[cid]?.display_name || `Corps • ${cid.slice(0, 8)}`}
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <button className="small" onClick={() => handleSaveAssignments(showSlug)} disabled={assigning}>
+                    {assigning ? "Saving..." : "Save Assignments"}
+                  </button>
+                </div>
+              ))}
+            </Panel>
+
+            <Panel title="Competition Settings" style={{ marginTop: 16 }}>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                <label style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 4 }}>
+                  Corps per Contest
+                  <input
+                    type="number"
+                    min={2}
+                    value={config.corps_per_contest}
+                    onChange={(e) => setConfig(prev => ({ ...prev, corps_per_contest: Number(e.target.value) }))}
+                  />
+                </label>
+                <label style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 4 }}>
+                  Required Scores
+                  <input
+                    type="number"
+                    min={1}
+                    value={config.required_scores}
+                    onChange={(e) => setConfig(prev => ({ ...prev, required_scores: Number(e.target.value) }))}
+                  />
+                </label>
+                <button className="small" onClick={handleSaveConfig} disabled={savingConfig}>
+                  {savingConfig ? "Saving..." : "Save Settings"}
+                </button>
+              </div>
+            </Panel>
+
+            <Panel title="Lock & Prepare" style={{ marginTop: 16 }}>
+              <p className="text-muted">Locking freezes configuration and prepares schedule generation.</p>
+              <button className="small primary" onClick={handleLockSeason} disabled={locking || detail.locked}>
+                {detail.locked ? "Locked" : locking ? "Locking..." : "Lock Season"}
+              </button>
+            </Panel>
+
+            <Panel title="Start Tour" style={{ marginTop: 16 }}>
+              <p className="text-muted">Starts tour and generates schedule based on assignments.</p>
+              <button className="primary" onClick={handleStartTour} disabled={startingTour || detail.metadata?.status === "touring"}>
+                {detail.metadata?.status === "touring" ? "Tour Active" : startingTour ? "Starting..." : "Start Tour"}
+              </button>
+              {detail.schedule && detail.schedule.length > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  <h4 style={{ marginBottom: 8 }}>Schedule</h4>
+                  <DataTable<Record<string, unknown>>
+                    columns={[
+                      { key: "competition_id", label: "Competition" },
+                      { key: "show_slug", label: "Show", render: (v) => slugToTitle(String(v || \"\")) },
+                      { key: "corps_ids", label: "Corps", render: (v) => Array.isArray(v) ? `${v.length} corps` : \"0 corps\" },
+                    ]}
+                    data={detail.schedule as Record<string, unknown>[]}
+                    emptyMessage="No schedule generated."
+                  />
+                </div>
               )}
             </Panel>
 
