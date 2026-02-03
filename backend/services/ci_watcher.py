@@ -162,7 +162,8 @@ class CIWatcher:
         cmd.extend(targets)
 
         try:
-            proc = subprocess.run(
+            from backend.services.process_registry import run_tracked_process
+            proc = run_tracked_process(
                 cmd,
                 capture_output=True,
                 text=True,
@@ -190,7 +191,8 @@ class CIWatcher:
 
                 # Also generate HTML report
                 html_dir = self._coverage_dir / "html"
-                subprocess.run(
+                from backend.services.process_registry import run_tracked_process
+                run_tracked_process(
                     ["python", "-m", "coverage", "html", "-d", str(html_dir)],
                     capture_output=True,
                     timeout=60,

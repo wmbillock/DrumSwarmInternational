@@ -68,6 +68,10 @@ async def lifespan(app: FastAPI):
     from backend.database import init_db
     init_db(engine)
 
+    # Reap any orphaned subprocesses from a previous crash of this instance
+    from backend.services.process_registry import get_process_registry
+    get_process_registry().reap_orphans()
+
     # Initialize task manager with real LLM client and tool registry
     from backend.services.llm_client import build_llm_client
     from backend.tools import create_tool_registry

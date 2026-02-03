@@ -8,6 +8,8 @@ PROJECT_ROOT="${DCI_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
 VENV_DIR="$PROJECT_ROOT/.venv"
 BACKEND_PORT="${DCI_PORT:-8000}"
 API_BASE="http://localhost:$BACKEND_PORT"
+SESSION_NAME="${DCI_SESSION:-dci-swarm}"
+export DSI_INSTANCE_ID="${DSI_INSTANCE_ID:-$SESSION_NAME}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -39,10 +41,10 @@ action_resume_hut() {
     sleep 1
 
     # Use tmux run-shell to launch outside the popup's PTY so processes survive popup close
-    tmux run-shell -b "cd '$PROJECT_ROOT' && source '$VENV_DIR/bin/activate' 2>/dev/null; uvicorn backend.api.app:app --host 0.0.0.0 --port $BACKEND_PORT --reload > '$PROJECT_ROOT/backend.log' 2>&1 &"
+    tmux run-shell -b "export DSI_INSTANCE_ID='${INSTANCE_ID}'; cd '$PROJECT_ROOT' && source '$VENV_DIR/bin/activate' 2>/dev/null; uvicorn backend.api.app:app --host 0.0.0.0 --port $BACKEND_PORT --reload > '$PROJECT_ROOT/backend.log' 2>&1 &"
     echo -e "${GREEN}Backend restarting (port $BACKEND_PORT)${NC}"
 
-    tmux run-shell -b "cd '$PROJECT_ROOT/frontend' && npx vite > '$PROJECT_ROOT/frontend.log' 2>&1 &"
+    tmux run-shell -b "export DSI_INSTANCE_ID='${INSTANCE_ID}'; cd '$PROJECT_ROOT/frontend' && npx vite > '$PROJECT_ROOT/frontend.log' 2>&1 &"
     echo -e "${GREEN}Frontend restarting (port 5173)${NC}"
 
     # Wait for backend
@@ -87,7 +89,7 @@ action_restart_backend() {
     echo -e "${BOLD}Restarting Backend${NC}"
     _kill_port "$BACKEND_PORT"
     sleep 1
-    tmux run-shell -b "cd '$PROJECT_ROOT' && source '$VENV_DIR/bin/activate' 2>/dev/null; uvicorn backend.api.app:app --host 0.0.0.0 --port $BACKEND_PORT --reload > '$PROJECT_ROOT/backend.log' 2>&1 &"
+    tmux run-shell -b "export DSI_INSTANCE_ID='${INSTANCE_ID}'; cd '$PROJECT_ROOT' && source '$VENV_DIR/bin/activate' 2>/dev/null; uvicorn backend.api.app:app --host 0.0.0.0 --port $BACKEND_PORT --reload > '$PROJECT_ROOT/backend.log' 2>&1 &"
     echo -e "${GREEN}Backend restarting${NC}"
     sleep 2
     if curl -s "$API_BASE/api/v1/shows" >/dev/null 2>&1; then
@@ -103,7 +105,7 @@ action_restart_frontend() {
     echo -e "${BOLD}Restarting Frontend${NC}"
     _kill_port 5173
     sleep 1
-    tmux run-shell -b "cd '$PROJECT_ROOT/frontend' && npx vite > '$PROJECT_ROOT/frontend.log' 2>&1 &"
+    tmux run-shell -b "export DSI_INSTANCE_ID='${INSTANCE_ID}'; cd '$PROJECT_ROOT/frontend' && npx vite > '$PROJECT_ROOT/frontend.log' 2>&1 &"
     echo -e "${GREEN}Frontend restarting${NC}"
     echo "Press any key..."
     read -n 1

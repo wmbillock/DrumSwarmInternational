@@ -23,6 +23,7 @@ VENV_DIR="$PROJECT_ROOT/.venv"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 LOG_FILE="$PROJECT_ROOT/backend.log"
 FE_LOG_FILE="$PROJECT_ROOT/frontend.log"
+INSTANCE_ID="${DSI_INSTANCE_ID:-$SESSION_NAME}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -70,6 +71,7 @@ create_session() {
     # Create session with pane 0 (Claude Code workspace — left, large)
     tmux new-session -d -s "$SESSION_NAME" -c "$PROJECT_ROOT" -x 220 -y 55
     tmux rename-window -t "$SESSION_NAME:0" "monitor"
+    tmux set-environment -t "$SESSION_NAME" DSI_INSTANCE_ID "$INSTANCE_ID"
 
     # Split: right column (40%)
     tmux split-window -h -t "$SESSION_NAME:0.0" -c "$PROJECT_ROOT" -p 40

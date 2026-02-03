@@ -345,9 +345,10 @@ Available tools:
 
         cmd.append(user_content)
 
+        import subprocess
         try:
             from backend.services.runtime_config import get_runtime_config
-            from backend.services.process_registry import get_process_registry
+            from backend.services.process_registry import get_process_registry, start_tracked_process
             _effective_timeout = get_runtime_config()["timeout"]
             _registry = get_process_registry()
 
@@ -360,7 +361,7 @@ Available tools:
                 "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:9090/api/v1/otlp",
             })
 
-            proc = subprocess.Popen(
+            proc = start_tracked_process(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -368,13 +369,11 @@ Available tools:
                 cwd=self._project_root,
                 env=env,
             )
-            _registry.register(proc.pid)
             try:
                 stdout, stderr = proc.communicate(timeout=_effective_timeout)
             except subprocess.TimeoutExpired:
                 proc.kill()
                 proc.wait()
-                _registry.unregister(proc.pid)
                 return LLMResponse(content=f"Error: Claude CLI timed out after {_effective_timeout}s", stop_reason="error")
             finally:
                 _registry.unregister(proc.pid)
@@ -401,20 +400,18 @@ Available tools:
                     if self.max_budget_usd:
                         resume_cmd.extend(["--max-budget-usd", str(self.max_budget_usd)])
                     resume_cmd.append(user_content)
-                    proc2 = subprocess.Popen(
+                    proc2 = start_tracked_process(
                         resume_cmd,
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
                         text=True,
                         cwd=self._project_root,
                     )
-                    _registry.register(proc2.pid)
                     try:
                         stdout, stderr = proc2.communicate(timeout=_effective_timeout)
                     except subprocess.TimeoutExpired:
                         proc2.kill()
                         proc2.wait()
-                        _registry.unregister(proc2.pid)
                         return LLMResponse(content=f"Error: Claude CLI timed out after {_effective_timeout}s", stop_reason="error")
                     finally:
                         _registry.unregister(proc2.pid)
@@ -571,8 +568,6 @@ class ChatGPTCLIClient(LLMClient):
         tools: Optional[list[dict]] = None,
         **kwargs,
     ) -> LLMResponse:
-        import subprocess
-
         system_prompt = ""
         user_content = ""
         for msg in messages:
@@ -594,7 +589,8 @@ class ChatGPTCLIClient(LLMClient):
             cmd.append(user_content)
 
         try:
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+            from backend.services.process_registry import run_tracked_process
+            proc = run_tracked_process(cmd, capture_output=True, text=True, timeout=600)
             if proc.returncode != 0:
                 return LLMResponse(content=f"Error: {proc.stderr.strip()}", stop_reason="error")
             return LLMResponse(content=proc.stdout.strip(), stop_reason="end_turn")
@@ -754,22 +750,20 @@ class GHCopilotCLIClient(LLMClient):
         cmd = ["gh", "copilot", "suggest", "-t", "shell", prompt]
 
         try:
-            from backend.services.process_registry import get_process_registry
+            from backend.services.process_registry import get_process_registry, start_tracked_process
             registry = get_process_registry()
 
-            proc = subprocess.Popen(
+            proc = start_tracked_process(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
             )
-            registry.register(proc.pid)
             try:
                 stdout, stderr = proc.communicate(timeout=600)
             except subprocess.TimeoutExpired:
                 proc.kill()
                 proc.wait()
-                registry.unregister(proc.pid)
                 return LLMResponse(content="Error: gh copilot timed out after 600s", stop_reason="error")
             finally:
                 registry.unregister(proc.pid)
