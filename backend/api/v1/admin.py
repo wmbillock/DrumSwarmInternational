@@ -118,3 +118,17 @@ def v1_get_admin_corps():
         }
     finally:
         db.close()
+
+
+@router.get("/admin/llm-batch")
+def v1_admin_llm_batch_status():
+    """Expose LLM batch queue and job metrics."""
+    try:
+        from backend.api.app import get_task_manager
+        tm = get_task_manager()
+        llm_client = tm.llm_client if tm else None
+        if not llm_client or not hasattr(llm_client, "get_batch_status"):
+            return {"status": "unavailable"}
+        return llm_client.get_batch_status()
+    except Exception as e:
+        raise HTTPException(500, f"Failed to fetch batch status: {e}")

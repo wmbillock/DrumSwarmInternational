@@ -60,7 +60,15 @@ Critique feedback:
 
 Generate an improved system prompt that addresses the critique."""),
         ]
-        resp = llm_client.chat(messages, model_tier=ModelTier.HAIKU)
+        resp = llm_client.chat(
+            messages,
+            model_tier=ModelTier.HAIKU,
+            batchable=True,
+            workload="agent_synthesis",
+            allow_deferred=True,
+        )
+        if resp.stop_reason == "queued":
+            return None
         new_prompt = resp.content.strip()
     except Exception as e:
         logger.error("Adaptation LLM call failed: %s", e)

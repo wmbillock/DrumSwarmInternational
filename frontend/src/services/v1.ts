@@ -630,6 +630,9 @@ export interface CleanupResult {
 export const adminCleanup = () =>
   request<CleanupResult>("/api/v1/admin/cleanup", { method: "POST" });
 
+export const getLlmBatchStatus = (signal?: AbortSignal) =>
+  request<any>("/api/v1/admin/llm-batch", { signal });
+
 // --- Staff Marketplace ---
 
 export interface StaffMember {

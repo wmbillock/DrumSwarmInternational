@@ -140,8 +140,15 @@ def complete_critique(
                 LLMMessage(role="system", content="Extract specific, actionable improvement items from this critique conversation. Output as a numbered list."),
                 LLMMessage(role="user", content=conv_text),
             ]
-            resp = llm_client.chat(messages, model_tier=ModelTier.HAIKU)
-            action_items = resp.content.strip()
+            resp = llm_client.chat(
+                messages,
+                model_tier=ModelTier.HAIKU,
+                batchable=True,
+                workload="critique_actions",
+                allow_deferred=True,
+            )
+            if resp.stop_reason != "queued":
+                action_items = resp.content.strip()
         except Exception as e:
             logger.warning("Failed to extract action items: %s", e)
 

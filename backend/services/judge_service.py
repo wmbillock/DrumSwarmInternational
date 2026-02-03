@@ -356,8 +356,15 @@ def generate_judges_tape(
             LLMMessage(role="user", content=f"Corps: {corps_id}\nCompetition: {competition_id}\n\nCaption feedback:\n{feedback_text}\n\nWrite a 2-paragraph overall assessment."),
         ]
         try:
-            resp = llm_client.chat(messages, model_tier=ModelTier.HAIKU)
-            overall = resp.content.strip()
+            resp = llm_client.chat(
+                messages,
+                model_tier=ModelTier.HAIKU,
+                batchable=True,
+                workload="scoring_calculation",
+                allow_deferred=True,
+            )
+            if resp.stop_reason != "queued":
+                overall = resp.content.strip()
         except Exception as e:
             logger.warning("Overall assessment generation failed: %s", e)
 

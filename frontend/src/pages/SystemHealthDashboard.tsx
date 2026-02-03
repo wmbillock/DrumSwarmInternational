@@ -16,6 +16,7 @@ type AgentOverview = {
 export function SystemHealthDashboard() {
   const [health, setHealth] = useState<SystemHealthData | null>(null);
   const [llmUsage, setLlmUsage] = useState<import("../types").LLMUsageResponse | null>(null);
+  const [batchStatus, setBatchStatus] = useState<any | null>(null);
   const [agents, setAgents] = useState<AgentOverview[]>([]);
   const [workLog, setWorkLog] = useState<WorkLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,6 +54,8 @@ export function SystemHealthDashboard() {
       setLlmUsage(l);
       setAgents(a as AgentOverview[]);
       setWorkLog(w as WorkLogEntry[]);
+      const batch = await v1.getLlmBatchStatus();
+      setBatchStatus(batch);
       setLastRefresh(new Date().toISOString());
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to load system health");
@@ -153,6 +156,35 @@ export function SystemHealthDashboard() {
           data={providerRows}
           emptyMessage="No provider data available."
         />
+      </section>
+
+      <section className="dash-section">
+        <h2>LLM Batch</h2>
+        {batchStatus?.status === "unavailable" && (
+          <p className="text-muted">Batch metrics unavailable.</p>
+        )}
+        {batchStatus && batchStatus.status !== "unavailable" && (
+          <>
+            <div className="summary-bar">
+              <div className="summary-stat"><span className="summary-value">{batchStatus.queue_size ?? 0}</span><span className="summary-label">Queued</span></div>
+              <div className="summary-stat"><span className="summary-value">{batchStatus.metrics?.submitted ?? 0}</span><span className="summary-label">Submitted</span></div>
+              <div className="summary-stat"><span className="summary-value">{batchStatus.metrics?.completed ?? 0}</span><span className="summary-label">Completed</span></div>
+              <div className="summary-stat"><span className="summary-value">{batchStatus.metrics?.errors ?? 0}</span><span className="summary-label">Errors</span></div>
+              <div className="summary-stat"><span className="summary-value">{batchStatus.metrics?.fallback_sync ?? 0}</span><span className="summary-label">Fallback</span></div>
+            </div>
+            <DataTable<Record<string, unknown>>
+              columns={[
+                { key: "batch_id", label: "Batch" },
+                { key: "status", label: "Status", render: (v) => <Badge variant={statusVariant(String(v))}>{formatStatus(String(v || ""))}</Badge> },
+                { key: "request_count", label: "Requests" },
+                { key: "submitted_at", label: "Submitted", render: (v) => v ? formatTimestamp(String(v)).label : "—" },
+                { key: "completed_at", label: "Completed", render: (v) => v ? formatTimestamp(String(v)).label : "—" },
+              ]}
+              data={(batchStatus.jobs || []) as Record<string, unknown>[]}
+              emptyMessage="No batch jobs yet."
+            />
+          </>
+        )}
       </section>
 
       <section className="dash-section">

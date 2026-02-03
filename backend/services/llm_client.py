@@ -18,6 +18,8 @@ import logging
 import os
 import re
 import time
+import threading
+import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Optional
@@ -52,6 +54,14 @@ class ToolCall:
 
 
 @dataclass
+class BatchRequest:
+    request_id: str
+    workload: str
+    created_at: float
+    api_kwargs: dict
+
+
+@dataclass
 class LLMResponse:
     content: str = ""
     tool_calls: list[ToolCall] = field(default_factory=list)
@@ -59,6 +69,8 @@ class LLMResponse:
     cached_tokens: int = 0  # tokens served from cache (prompt caching)
     input_tokens: int = 0
     output_tokens: int = 0
+    request_id: str = ""
+    batch_id: str = ""
 
     @property
     def wants_tool_use(self) -> bool:
@@ -96,6 +108,14 @@ class LLMClient(ABC):
         """Clean up a CLI session after agent work completes. No-op for API clients."""
         pass
 
+    def submit_batch(self) -> Optional[str]:
+        """Submit any queued batch requests (if supported)."""
+        return None
+
+    def get_batch_status(self) -> dict:
+        """Return batch queue/status metrics (if supported)."""
+        return {}
+
 
 class AnthropicLLMClient(LLMClient):
     """Real Anthropic API client with prompt caching support."""
@@ -103,6 +123,20 @@ class AnthropicLLMClient(LLMClient):
     def __init__(self, api_key: Optional[str] = None):
         import anthropic
         self._client = anthropic.Anthropic(api_key=api_key or os.environ.get("ANTHROPIC_API_KEY"))
+        self._batch_queue: list[BatchRequest] = []
+        self._batch_results: dict[str, LLMResponse] = {}
+        self._batch_jobs: dict[str, dict] = {}
+        self._batch_lock = threading.Lock()
+        self._batch_window_start: Optional[float] = None
+        self._batch_threshold_count = int(os.environ.get("ANTHROPIC_BATCH_COUNT", "50"))
+        self._batch_threshold_seconds = int(os.environ.get("ANTHROPIC_BATCH_WINDOW_SECONDS", "300"))
+        self._batch_metrics = {
+            "queued": 0,
+            "submitted": 0,
+            "completed": 0,
+            "errors": 0,
+            "fallback_sync": 0,
+        }
 
     @property
     def supports_images(self) -> bool:
@@ -123,9 +157,176 @@ class AnthropicLLMClient(LLMClient):
         tools: Optional[list[dict]] = None,
         **kwargs,
     ) -> LLMResponse:
-        model_id = MODEL_TIER_MAP[model_tier]
+        batchable = bool(kwargs.pop("batchable", False))
+        allow_deferred = bool(kwargs.pop("allow_deferred", False))
+        workload = str(kwargs.pop("workload", "default"))
+        submit_batch = bool(kwargs.pop("submit_batch", False))
 
-        # Separate system message from conversation messages
+        if batchable:
+            return self._chat_batchable(
+                messages=messages,
+                model_tier=model_tier,
+                tools=tools,
+                workload=workload,
+                allow_deferred=allow_deferred,
+                submit_batch=submit_batch,
+            )
+
+        return self._chat_sync(messages, model_tier, tools)
+
+    def submit_batch(self) -> Optional[str]:
+        return self._submit_batch(force=True)
+
+    def get_batch_status(self) -> dict:
+        with self._batch_lock:
+            return {
+                "queue_size": len(self._batch_queue),
+                "jobs": list(self._batch_jobs.values()),
+                "metrics": dict(self._batch_metrics),
+                "thresholds": {
+                    "count": self._batch_threshold_count,
+                    "window_seconds": self._batch_threshold_seconds,
+                },
+            }
+
+    def _chat_sync(
+        self,
+        messages: list[LLMMessage],
+        model_tier: ModelTier,
+        tools: Optional[list[dict]] = None,
+    ) -> LLMResponse:
+        model_id = MODEL_TIER_MAP[model_tier]
+        api_kwargs = self._build_api_kwargs(messages, model_id, tools)
+        response = self._client.messages.create(**api_kwargs)
+        return self._parse_response(response)
+
+    def _chat_batchable(
+        self,
+        messages: list[LLMMessage],
+        model_tier: ModelTier,
+        tools: Optional[list[dict]],
+        workload: str,
+        allow_deferred: bool,
+        submit_batch: bool,
+    ) -> LLMResponse:
+        model_id = MODEL_TIER_MAP[model_tier]
+        api_kwargs = self._build_api_kwargs(messages, model_id, tools)
+        request_id = str(uuid.uuid4())
+
+        with self._batch_lock:
+            self._batch_queue.append(BatchRequest(
+                request_id=request_id,
+                workload=workload,
+                created_at=time.time(),
+                api_kwargs=api_kwargs,
+            ))
+            self._batch_metrics["queued"] += 1
+            if self._batch_window_start is None:
+                self._batch_window_start = time.time()
+
+        batch_id = self._submit_batch(force=submit_batch)
+
+        if allow_deferred:
+            return LLMResponse(
+                content="",
+                stop_reason="queued",
+                request_id=request_id,
+                batch_id=batch_id or "",
+            )
+
+        if request_id in self._batch_results:
+            return self._batch_results.pop(request_id)
+
+        self._batch_metrics["fallback_sync"] += 1
+        response = self._chat_sync(messages, model_tier, tools)
+        response.request_id = request_id
+        response.batch_id = batch_id or ""
+        return response
+
+    def _submit_batch(self, force: bool = False) -> Optional[str]:
+        with self._batch_lock:
+            if not self._batch_queue:
+                return None
+            if not force:
+                queue_age = 0
+                if self._batch_window_start:
+                    queue_age = time.time() - self._batch_window_start
+                if len(self._batch_queue) < self._batch_threshold_count and queue_age < self._batch_threshold_seconds:
+                    return None
+
+            batch_requests = list(self._batch_queue)
+            self._batch_queue.clear()
+            self._batch_window_start = None
+
+        batch_id = f"batch-{int(time.time())}-{uuid.uuid4().hex[:8]}"
+        job = {
+            "batch_id": batch_id,
+            "status": "submitted",
+            "submitted_at": datetime.now(timezone.utc).isoformat(),
+            "request_count": len(batch_requests),
+            "workloads": {},
+            "provider_batch_id": None,
+        }
+        for req in batch_requests:
+            job["workloads"][req.workload] = job["workloads"].get(req.workload, 0) + 1
+
+        with self._batch_lock:
+            self._batch_jobs[batch_id] = job
+            self._batch_metrics["submitted"] += 1
+
+        try:
+            if hasattr(self._client, "messages") and hasattr(self._client.messages, "batches"):
+                payload = [
+                    {"custom_id": req.request_id, "params": req.api_kwargs}
+                    for req in batch_requests
+                ]
+                batch = self._client.messages.batches.create(requests=payload)
+                job["provider_batch_id"] = getattr(batch, "id", None)
+                job["status"] = "submitted"
+                return batch_id
+        except Exception as e:
+            job["status"] = "error"
+            job["error"] = str(e)
+            with self._batch_lock:
+                self._batch_metrics["errors"] += 1
+
+        # Fallback: process locally to keep results flowing
+        self._process_batch_locally(batch_id, batch_requests)
+        return batch_id
+
+    def _process_batch_locally(self, batch_id: str, batch_requests: list[BatchRequest]) -> None:
+        results = {}
+        for req in batch_requests:
+            try:
+                response = self._client.messages.create(**req.api_kwargs)
+                llm_response = self._parse_response(response)
+                llm_response.request_id = req.request_id
+                llm_response.batch_id = batch_id
+                results[req.request_id] = llm_response
+            except Exception as e:
+                results[req.request_id] = LLMResponse(
+                    content=str(e),
+                    stop_reason="error",
+                    request_id=req.request_id,
+                    batch_id=batch_id,
+                )
+                with self._batch_lock:
+                    self._batch_metrics["errors"] += 1
+
+        with self._batch_lock:
+            self._batch_results.update(results)
+            job = self._batch_jobs.get(batch_id)
+            if job:
+                job["status"] = "completed"
+                job["completed_at"] = datetime.now(timezone.utc).isoformat()
+            self._batch_metrics["completed"] += 1
+
+    def _build_api_kwargs(
+        self,
+        messages: list[LLMMessage],
+        model_id: str,
+        tools: Optional[list[dict]],
+    ) -> dict:
         system_content = ""
         conv_messages = []
         for msg in messages:
@@ -140,8 +341,6 @@ class AnthropicLLMClient(LLMClient):
             "messages": conv_messages,
         }
 
-        # Apply prompt caching to system prompt — cache the full system prompt
-        # as an ephemeral breakpoint so subsequent turns reuse it (90% cost savings)
         if system_content:
             api_kwargs["system"] = [
                 {
@@ -152,19 +351,17 @@ class AnthropicLLMClient(LLMClient):
             ]
 
         if tools:
-            # Cache the tool definitions too — they rarely change between turns
             cached_tools = []
             for i, tool in enumerate(tools):
                 t = dict(tool)
-                # Mark last tool with cache_control breakpoint
                 if i == len(tools) - 1:
                     t["cache_control"] = {"type": "ephemeral"}
                 cached_tools.append(t)
             api_kwargs["tools"] = cached_tools
 
-        response = self._client.messages.create(**api_kwargs)
+        return api_kwargs
 
-        # Parse response
+    def _parse_response(self, response) -> LLMResponse:
         content_text = ""
         tool_calls = []
         for block in response.content:
@@ -177,7 +374,6 @@ class AnthropicLLMClient(LLMClient):
                     call_id=block.id,
                 ))
 
-        # Extract token usage including cache stats
         usage = response.usage
         cached_tokens = 0
         input_tokens = getattr(usage, "input_tokens", 0)
