@@ -27,6 +27,13 @@ export function SeasonWorkshop() {
   const [assigning, setAssigning] = useState(false);
   const [locking, setLocking] = useState(false);
   const [startingTour, setStartingTour] = useState(false);
+  const [competitions, setCompetitions] = useState<v1.V1Competition[]>([]);
+  const [selectedCompetitionId, setSelectedCompetitionId] = useState<string | null>(null);
+  const [standings, setStandings] = useState<v1.V1Standings | null>(null);
+  const [recap, setRecap] = useState<v1.V1RecapRow[]>([]);
+  const [standingsView, setStandingsView] = useState<"standings" | "recap">("standings");
+  const [breakdowns, setBreakdowns] = useState<Record<string, v1.V1CorpsBreakdown | null>>({});
+  const [standingsLoading, setStandingsLoading] = useState(false);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -69,6 +76,39 @@ export function SeasonWorkshop() {
       setActiveTab(tab);
     }
   }, [searchParams, activeTab]);
+
+  useEffect(() => {
+    if (!seasonId || activeTab !== "standings") return;
+    const ac = new AbortController();
+    setStandingsLoading(true);
+    setStandings(null);
+    setRecap([]);
+    v1.listCompetitions(ac.signal)
+      .then((comps) => {
+        const filtered = comps.filter(c => c.season_id === seasonId);
+        setCompetitions(filtered);
+        const nextId = filtered.find(c => c.competition_id === selectedCompetitionId)?.competition_id
+          || filtered[0]?.competition_id
+          || null;
+        setSelectedCompetitionId(nextId);
+        return nextId;
+      })
+      .then((id) => {
+        if (!id) return;
+        return Promise.all([
+          v1.getScores(id, ac.signal),
+          v1.getRecap(id, "json", ac.signal),
+        ]);
+      })
+      .then((data) => {
+        if (!data) return;
+        setStandings(data[0]);
+        setRecap(data[1]);
+      })
+      .catch(() => {})
+      .finally(() => setStandingsLoading(false));
+    return () => ac.abort();
+  }, [activeTab, seasonId, selectedCompetitionId]);
 
   const handleCreateSeason = async () => {
     if (!newSeasonName.trim()) return;
@@ -202,6 +242,7 @@ export function SeasonWorkshop() {
       { key: "setup", label: "Setup" },
       { key: "camps", label: "Winter Camps" },
       { key: "ready", label: "Ready Check" },
+      { key: "standings", label: "Standings" },
     ];
 
     const registeredCorps = detail.registered_corps || [];
@@ -453,6 +494,104 @@ export function SeasonWorkshop() {
                 >
                   Start Tour
                 </button>
+              )}
+            </Panel>
+          </div>
+        )}
+
+        {activeTab === "standings" && (
+          <div style={{ marginTop: 16 }}>
+            <Panel title="Competitions">
+              {competitions.length === 0 && <p className="empty">No competitions for this season.</p>}
+              {competitions.length > 0 && (
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                  {competitions.map(c => (
+                    <button
+                      key={c.competition_id}
+                      className={selectedCompetitionId === c.competition_id ? "primary" : "small"}
+                      onClick={() => {
+                        setSelectedCompetitionId(c.competition_id);
+                        setBreakdowns({});
+                      }}
+                    >
+                      {slugToTitle(c.show_slug)}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {selectedCompetitionId && (
+                <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                  <button className={standingsView === "standings" ? "small primary" : "small"} onClick={() => setStandingsView("standings")}>Standings</button>
+                  <button className={standingsView === "recap" ? "small primary" : "small"} onClick={() => setStandingsView("recap")}>Recap</button>
+                </div>
+              )}
+
+              {standingsLoading && <p className="empty">Loading standings...</p>}
+
+              {!standingsLoading && standingsView === "standings" && standings && (
+                <>
+                  <DataTable<v1.V1StandingEntry & Record<string, unknown>>
+                    columns={[
+                      { key: "rank", label: "Rank", sortable: true, render: (v) => <strong>#{String(v)}</strong> },
+                      { key: "display_name", label: "Corps", sortable: true, render: (_v, row) => row.display_name || `Corps • ${row.corps_id.slice(0, 8)}` },
+                      { key: "final_score", label: "Final", sortable: true, render: (v) => Number(v).toFixed(2) },
+                      { key: "raw_score", label: "Raw", sortable: true, render: (v) => Number(v).toFixed(2) },
+                      { key: "penalties_total", label: "Pen", sortable: true, render: (_v, row) => Number(row.penalties_total || 0).toFixed(1) },
+                      { key: "caption_scores", label: "Captions", render: (v) => (
+                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          {Object.entries((v as Record<string, number>) || {}).map(([cap, score]) => (
+                            <span key={cap} className={`standings-caption caption-${cap}`}>{cap}: {Number(score).toFixed(1)}</span>
+                          ))}
+                        </div>
+                      ) },
+                    ]}
+                    data={standings.results as (v1.V1StandingEntry & Record<string, unknown>)[]}
+                    onRowClick={async (row) => {
+                      if (!selectedCompetitionId) return;
+                      if (breakdowns[row.corps_id] !== undefined) return;
+                      const bd = await v1.getCorpsBreakdown(selectedCompetitionId, row.corps_id);
+                      setBreakdowns(prev => ({ ...prev, [row.corps_id]: bd }));
+                    }}
+                    emptyMessage="No standings data."
+                  />
+                  {Object.entries(breakdowns).map(([corpsId, breakdown]) => (
+                    breakdown ? (
+                      <Panel key={corpsId} title={`Breakdown — ${corpsById[corpsId]?.display_name || corpsId.slice(0, 8)}`} style={{ marginTop: 12 }}>
+                        <DataTable<Record<string, unknown>>
+                          columns={[
+                            { key: "caption", label: "Caption" },
+                            { key: "score", label: "Score" },
+                            { key: "weight", label: "Weight" },
+                            { key: "weighted", label: "Weighted" },
+                            { key: "commentary", label: "Commentary" },
+                          ]}
+                          data={Object.entries(breakdown.caption_scores).map(([cap, data]) => ({
+                            caption: cap,
+                            score: Number(data.score).toFixed(1),
+                            weight: `${(Number(data.weight) * 100).toFixed(0)}%`,
+                            weighted: Number(data.weighted).toFixed(2),
+                            commentary: breakdown.commentary?.[cap] || "",
+                          }))}
+                          emptyMessage="No breakdown data."
+                        />
+                      </Panel>
+                    ) : null
+                  ))}
+                </>
+              )}
+
+              {!standingsLoading && standingsView === "recap" && recap && (
+                <DataTable<Record<string, unknown>>
+                  columns={[
+                    { key: "rank", label: "Rank", sortable: true, render: (v) => <strong>#{String(v)}</strong> },
+                    { key: "corps_name", label: "Corps", sortable: true },
+                    { key: "raw_total", label: "Raw", sortable: true, render: (v) => Number(v).toFixed(1) },
+                    { key: "penalties_total", label: "Pen", sortable: true, render: (v) => Number(v).toFixed(1) },
+                    { key: "final_score", label: "Final", sortable: true, render: (v) => Number(v).toFixed(1) },
+                  ]}
+                  data={recap as Record<string, unknown>[]}
+                  emptyMessage="No recap data."
+                />
               )}
             </Panel>
           </div>
