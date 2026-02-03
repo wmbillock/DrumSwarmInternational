@@ -1,34 +1,24 @@
-Perfect! I've successfully updated the spec.md file with the complete ## Swarm Prompt section. Here's what was incorporated:
+# Lets Build Some Metrics
 
-## ✅ Updated Spec Complete
+## Goal
+Transform the DCI swarm from a black box into a fully observable system with real-time visibility into system performance, corps health, agent efficiency, and bottleneck detection.
 
-I've integrated all design decisions from the conversation into the **"Let's Build Some Metrics"** spec.md with the following structure:
+## Acceptance Criteria
+1. MetricsDashboard.tsx page with summary cards, sparklines, time range selector (1h/6h/24h/7d), auto-refresh every 30s
+2. ScoreboardsPage.tsx with sortable corps and agent leaderboards, drill-down on row click, medal badges for top 3
+3. PerformanceExplorer.tsx with custom metric analysis, multi-series line chart, data export CSV/JSON
+4. All three pages wired to backend API endpoints (GET /api/v1/metrics/dashboard, GET /api/v1/scoreboards/corps, /agents, /trends, GET /api/v1/metrics/series)
+5. Real-time updates via WebSocket /ws/metrics or polling fallback
+6. Status indicators: green (good), yellow (warning), red (critical)
+7. MetricsCard, TrendChart, Leaderboard, AlertPanel components implemented
+8. 20+ unit tests, 10+ integration tests, >80% coverage
+9. Page load <2 seconds p95
+10. TypeScript strict mode, zero console errors
+11. Responsive: 1-col mobile, 2-col tablet, 3-col desktop
+12. Field Commander Brutalism aesthetic: JetBrains Mono for data, IBM Plex Sans for labels
 
-### All 8 Required Sections Now Present:
-
-1. **## Show Concept** — Mission to transform DCI Swarm from black box to observable system
-2. **## Musical Design** — 4 movements (data collection → aggregation → scoreboards → dashboard visualization)
-3. **## Visual Design** — Field Commander Brutalism aesthetic (JetBrains Mono, IBM Plex Sans, WCAG 2.1 AA)
-4. **## Guard Design** — Role-based access control hierarchy with data privacy enforcement
-5. **## General Effect** — Purpose, stakeholder impact, 6 measurable success criteria
-6. **## Constraints** — Technical, operational, code quality, and performance guardrails
-7. **## Deliverables** — 5 movement-level bullets summarizing 25+ files across all 4 movements
-8. **## Evaluation Rubric** — 78/100 passing threshold with 50/25/15/10 weighting
-9. **## Swarm Prompt** — ✅ **NOW COMPLETE** — Actionable implementation specification (1,200+ lines) with:
-   - Mission statement and success criteria
-   - Current state of Movements I-III
-   - Concrete deliverables (3 pages, 4 components, 7 test files)
-   - Phase execution timeline (API integration → real-time → testing → polish)
-   - Complete API reference and testing strategy
-   - Design system guidelines and guard rails
-   - Success checklist with definition of done
-
-### Key Integration Points:
-
-✅ **Guard Choreographer concept**: Integrated into Guard Design (role hierarchy, data privacy)  
-✅ **Drill Writer concept**: Integrated into Musical Design (4 movements, visual metaphor)  
-✅ **All design decisions incorporated**: Visual design, guard formations, responsive design synchronized  
-✅ **Actionable for teams**: Teams can pick up the Swarm Prompt section and implement without additional questions  
-✅ **Complete specifications**: Performance budgets, test coverage targets, API endpoints all defined  
-
-**The spec is now locked and ready for director sign-off and team assignment.**
+## Constraints
+- No backend modifications (Movement III API endpoints are frozen)
+- No new databases or LLM clients
+- Use v1.ts for API calls
+- Performance budget: page load <2s, API response <1s, chart render <500ms, memory <100MB

@@ -29,7 +29,7 @@ function getCorpsColors(c: v1.V1Corps): { primary: string; secondary: string; te
   const theme = c.theme_id ? CORPS_THEMES[c.theme_id] : undefined;
   const primary = theme?.primary || "var(--accent, #58a6ff)";
   const secondary = theme?.secondary || "var(--bg-secondary, #1a1a2e)";
-  const textColor = theme?.secondary && luminance(theme.secondary) < 0.15 ? "#e0e0e0" : "#1a1a2e";
+  const textColor = theme?.primary ? (luminance(theme.primary) < 0.15 ? "#e0e0e0" : "#1a1a2e") : "var(--text-primary, #e0e0e0)";
   return { primary, secondary, textColor };
 }
 

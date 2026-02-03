@@ -1,53 +1,44 @@
-# Show Prompt
+# Anthropic Batch API Integration
 
-## Show Concept
-
-Derived from spec and design discussions.
-
-
+## Objective
+Integrate Anthropic Batch API into the DCI swarm LLM client to achieve 50% cost savings on high-volume, non-blocking workloads (agent synthesis, design note routing, scoring calculations) while maintaining system reliability.
 
 ## Musical Design
-
-No musical design notes captured yet.
-
-
-
-## Visual Design
-
-No visual design notes captured yet.
-
-
+Phased progression:
+1. **Basics**: Audit current LLM client usage patterns to identify batch-eligible workloads
+2. **Sectionals**: Extend AnthropicLLMClient with batch request queueing and threshold triggers
+3. **Full Ensemble**: Integrate batch submission for 2-3 high-impact workloads
+4. **Run-Through**: Dogfood, measure cost/latency, verify correctness
 
 ## Guard Design
-
-No guard design notes captured yet.
-
-
+- Batch requests maintain ordering where causality matters
+- Failed batch jobs retryable without data loss
+- Async results correctly mapped back via unique identifiers
+- Non-blocking workloads prioritize cost; interactive workloads skip batching
 
 ## General Effect
-
-No general effect notes captured yet.
-
-
+The swarm automatically leverages batch API for non-blocking workloads, reducing costs by 50% while maintaining reliability.
 
 ## Constraints
-
-- The Anthropic Batch API supports up to 10,000 requests per batch with 50% cost savings and up to 24-hour processing windows. This applies best to high-volume, non-blocking workloads where latency tolerance exists.
-- **Batching Strategy**: Integrate batching at the `AnthropicLLMClient` level in `backend/services/llm_client.py`. For all agent requests (synthesis, design note routing, scoring calculations, agent runs), queue requests and submit as batches when: (1) threshold count is reached (e.g., 50+ requests), (2) time window expires (e.g., 5 minutes), or (3) explicit submission signal is sent. Non-blocking workloads (async synthesis, background scoring) prioritize cost reduction; interactive workloads (design room responses, real-time agent decisions) must remain low-latency and may skip batching.
-- Batching must not block critical agent execution paths (e.g., real-time design room chat, seance synthesis with deadline constraints)
-- Current LLM client initialization in `backend/services/llm_client.py` already supports `AnthropicLLMClient`; batch integration must extend this without breaking existing synchronous interfaces
-- Batch job status polling and result retrieval must be resilient to network failures and API rate limits
-- Cost/latency trade-offs must be configurable per workload class (e.g., agent runs batch, design notes batch, scoring batch)
-- **Error Recovery**: Failed batch jobs must map to individual request retry strategy: (A) retry the entire batch, (B) retry individual failed requests immediately outside the batch, or (C) surface the failure to the user for manual retry — strategy depends on workload class criticality
-
+- Integrate at AnthropicLLMClient level in backend/services/llm_client.py
+- Threshold triggers: count >= 50, time >= 5 min, or explicit signal
+- Must not block critical paths (design room chat, seance synthesis)
+- Extend without breaking existing synchronous interfaces
+- Cost/latency configurable per workload class
 
 ## Deliverables
+- Audit report cataloging all LLM client calls with latency tolerance
+- Enhanced AnthropicLLMClient with batch queueing, submission, polling, result retrieval
+- Integration with 2-3 high-impact workloads
+- Request-result mapping mechanism with unique identifiers
+- Error recovery implementation per workload class
+- Monitoring dashboard for batch metrics
+- Operational playbook documenting lifecycle and recovery
 
-1. **Audit Report**: Catalog of current LLM client calls in the codebase with latency tolerance assessment (blocking vs non-blocking, frequency, volume, estimated batch-eligible requests per day/week)
-2. **Batch Client Extension**: Enhanced `AnthropicLLMClient` with request queueing, threshold triggers, batch submission, job status polling, and result retrieval
-3. **Workload Integration**: Identify and integrate batch functionality into 2-3 high-impact workloads (e.g., agent synthesis, design note routing, scoring calculations)
-4. **Request-Result Mapping**: Mechanism to queue requests with unique identifiers and correctly return results to original request contexts
-5. **Error Recovery Strategy**: Implementation of retry logic and failure handling per workload class (full batch retry vs. individual request retry vs. manual intervention)
-6. **Monitoring & Metrics**: Dashboard visibility into batch job submission, completion time, cost savings, latency impact, and error rates
-7. **Operational Playbook**: Documentation of batch job lifecycle, failure recovery procedures, and cost/latency tuning guidelines
-
+## Acceptance Criteria
+- Batch requests submitted when thresholds met
+- Synchronous interface unchanged for blocking paths
+- Batch results match synchronous results (correctness verified)
+- Cost savings measurable and dashboard-visible
+- Failed requests recoverable per workload class strategy
+- Tests pass, no regressions

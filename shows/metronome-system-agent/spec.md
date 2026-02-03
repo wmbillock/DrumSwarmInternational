@@ -1,32 +1,26 @@
-Perfect! The spec has been successfully updated with all required sections and design conversation details. Here's a summary of what was added:
+# Metronome System Agent
 
-## Summary of Updates
+## Goal
+Build a standalone, cron-driven system-level heartbeat that keeps the entire DCI swarm marching autonomously every 5 minutes. The Metronome operates above the corps hierarchy and orchestrates staff-level wake signals, work resumption, and swarm-wide status reporting.
 
-**Version bumped to 2** and spec now includes:
+## Acceptance Criteria
+1. `scripts/metronome/tick.sh` exists and is executable with lock file mechanism preventing overlapping executions
+2. `ten-hut` message sent to every active corps ED on each tick via backend messaging system
+3. `resume-hut` sent only to corps with stalled work (pending >5 min with no agent activity)
+4. Performers are never directly messaged by the metronome
+5. Swarm-wide status report generated after each tick (sessions, reps, agent liveness per corps)
+6. Report written to `logs/metronome/{TIMESTAMP}.log` in structured format
+7. Corps that fail to respond for 3 consecutive ticks trigger RED FLAG alert in `logs/metronome/alerts.log`
+8. 30-second timeout per corps wake attempt; unreachable corps logged and skipped
+9. Lock file prevents concurrent ticks (flock-based)
+10. Backend unavailability causes graceful exit with error log
 
-### ✅ **All Required Sections**
-1. **Show Concept** — Clear purpose: autonomous heartbeat for the DCI swarm
-2. **Musical Design** — Three movements organized by captions:
-   - **Percussion** (timing/rhythm) — cron script, lock file, tick sequence
-   - **Brass** (command & signal) — ten-hut/resume-hut with precise definitions
-   - **Visual** (observation & display) — status gathering and summary format
-3. **Guard Design** — Error handling, resilience, idempotency, isolation
-4. **General Effect** — Behavioral outcomes and detailed acceptance criteria (5 checkboxes)
-5. **Deliverables** — Code modules, logging structure, documentation requirements
-6. **Evaluation Rubric** — Four scoring dimensions (Functionality 50%, Code 25%, Operational 15%, Devil's Advocate 10%) with explicit pass threshold (≥78/100)
-
-### ✅ **Devil's Advocate Proofing**
-- **Concrete specifications**: Lock file path (`/tmp/metronome.lock`), timeout (30 sec per corps, 4 min total), stalled definition (>5 min no activity)
-- **Testable acceptance criteria**: 5 checkbox sections with objective, verifiable requirements
-- **Edge cases explicit**: Concurrent ticks, stale locks, unreachable corps, partial failures, timeouts, idempotency
-- **Thresholds defined**: N=3 consecutive tick failures before alert, 300-second lock timeout, daily log rotation
-
-### ✅ **All Design Decisions Incorporated**
-- Cron interval: 5 minutes ✓
-- Wake targets: ED/PC/caption heads/logistics (NOT performers) ✓
-- Stalled detection: >5 min pending with no agent activity ✓
-- System-level daemon (outside any corps) ✓
-- Stateless per tick with lock file concurrency ✓
-- Structured logging with alerts ✓
-
-The spec is now **testable, unambiguous, and ready for implementation**.
+## Constraints
+- System-level daemon (outside any corps)
+- Stateless per tick with lock file concurrency
+- Targets: ED, PC, caption heads, logistics staff only (NOT performers)
+- Stalled detection: >5 min pending with no agent activity
+- Cron interval: 5 minutes
+- Lock timeout: 300 seconds
+- N=3 consecutive tick failures before RED FLAG alert
+- 30 sec per corps, 4 min total maximum tick duration

@@ -1,28 +1,25 @@
-Perfect! I've updated the TMUX Control Panel spec with all the design decisions from the conversation. Here's what changed:
+# TMUX Control Panel
 
-## Summary of Updates
+## Goal
+Rewrite the DCI Swarm TMUX monitoring dashboard from 4-pane to 2-pane layout with 8 interactive switchable screens.
 
-✅ **Restructured as Full DCI Show Spec** with all mandatory sections:
-- **Show Concept** — High-level goal and context
-- **Musical Design** — Eight "movements" corresponding to screens
-- **Visual Design** — Layout, navigation keys, status bar details
-- **Guard Design** — Technical architecture for input handling and caching
-- **General Effect** — Operational impact and UX transformation
-- **Constraints** — 10 specific non-negotiable requirements
-- **Deliverables** — Detailed checklist with acceptance criteria
-- **Swarm Prompt** — Synthesized actionable prompt for the swarm
+## Acceptance Criteria
+1. start_monitor.sh creates 2 panes: Pane 0 (left 60%) Claude Code, Pane 1 (right 40%) unified dashboard
+2. prefix+1 through prefix+8 switch between 8 screens: overview, design, corps, tour, scoring, logs, git, system
+3. unified_dashboard.py rewritten with 8 screens, non-blocking input handling via select.select()
+4. Response caching with 30s TTL and fallback to cached data on timeout
+5. Design screen: show list with j/k selection, a=approve, p=publish, Enter=detail
+6. Corps screen: corps list with j/k selection, t=go_on_tour, c=return_to_camps, r=ready-for-contest
+7. Logs screen: merged BE+FE logs with filter toggles (e/w/i/b/f keys)
+8. Destructive actions require Y/N confirmation
+9. status_line.sh shows correct corps count from /api/v1/system/health
+10. Deprecated scripts deleted: log_dashboard.py, metrics_dashboard.py, agent_dashboard.py, changes_dashboard.py
+11. dci CLI help updated for 8-screen layout
 
-## Key Design Decisions Incorporated
-
-1. **Input Handling**: Explicitly specifies `select.poll()` (not curses) for non-blocking stdin reading, with justification (TMUX compatibility, terminal state safety)
-
-2. **Cache Invalidation**: Documents the 8-second timeout strategy with:
-   - Last-good fallback on timeout
-   - Clear "stale data" UI message
-   - **Ctrl+R force refresh** to handle the race condition where agents start just before timeout window closes
-
-3. **Confirmation Prompts**: Specifies Y/N destructive action confirmation (not single-key) for safety
-
-4. **All 8 Screens**: Complete specification with action keys, filters, and dependencies
-
-The spec is now ready for the drum-corps-director agent to implement this show end-to-end.
+## Constraints
+- No backend Python changes
+- No frontend changes
+- No new Python dependencies (stdlib only)
+- No database or migration changes
+- Atomic view file writes (temp + mv)
+- 8-second default timeout for API calls

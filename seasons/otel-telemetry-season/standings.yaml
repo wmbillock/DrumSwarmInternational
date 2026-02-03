@@ -1,0 +1,14 @@
+season_id: otel-telemetry-season
+generated_at: '2026-02-03T02:00:52.460301+00:00'
+results:
+- corps_id: cavaliers
+  rank: 1
+  final_score: 22.020000000000003
+  raw_score: 22.020000000000003
+  caption_scores:
+    guard: 60.0
+    visual: 12.5
+    percussion: 13.5
+    general_effect: 20.0
+    brass: 12.5
+    ensemble_technique: 10.0

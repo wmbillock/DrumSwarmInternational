@@ -1,0 +1,14 @@
+season_id: otel-season
+generated_at: '2026-02-03T02:53:17.276729+00:00'
+results:
+- corps_id: 98aa355c-08ad-4c15-ad8a-5a48eda083c0
+  rank: 1
+  final_score: 30.175
+  raw_score: 30.175
+  caption_scores:
+    brass: 70.0
+    visual: 22.5
+    guard: 22.5
+    ensemble_technique: 30.0
+    general_effect: 17.5
+    percussion: 20.0

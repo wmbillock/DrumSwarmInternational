@@ -1,22 +1,23 @@
-✅ **Show Library Page Redesign spec updated!**
+# Show Library Page Redesign
 
-The spec now includes:
+## Goal
+Redesign ShowLibrary.tsx to follow Field Commander Brutalism design language. Replace cluttered layout with clean, scannable card grid communicating status through visual hierarchy.
 
-### **Complete Sections**:
-1. **Show Concept** — Stage lineup board metaphor, functional scope
-2. **Visual Design** — Full design system (typography, colors, card layout, responsive design)
-3. **Guard Design** — Placeholder for choreography details
-4. **General Effect** — Premium, zero-clutter visual intent
-5. **Deliverables** — 4 phases (all complete ✅)
-6. **Evaluation Rubric** — 6 categories, all achieved 5/5
-7. **Decisions** — 10 locked-in design choices
-8. **Constraints** — 6 technical/design guardrails
+## Acceptance Criteria
+1. Hero cards with JetBrains Mono titles (24px bold) as primary anchor
+2. Left-edge color bars indicating status: PUBLISHED=#DC143C, APPROVED=#FFA500, DRAFT=#2D3436
+3. IBM Plex Sans descriptions (14px, opacity 0.75, 2-3 lines max truncated)
+4. Bottom metadata strip: created date, spec indicator, last modified in monospace
+5. 2-column grid desktop, 1-column mobile
+6. Stats bar at top with stage palette colors and monospace numbers
+7. Hover: left bar grows 3px to 5px, color saturates
+8. Card bg #1A1A1A, text #F5F5F5, CTA gold #FFD700
+9. All existing functionality preserved: search, filter by status, New Show button
+10. Remove raw slug display and Assign Season dropdown from cards
+11. TypeScript compiles clean
 
-### **Design Details Locked In**:
-- **Typography**: JetBrains Mono (headings, 24px bold), IBM Plex Sans (body)
-- **Colors**: Crimson (published), Amber (approved), Goldenrod (needs review), Charcoal (draft)
-- **Micro-interactions**: 3px → 5px stripe on hover, badge outline → filled, 0.15s transitions
-- **Layout**: 2-column desktop, 1-column mobile, 24px card gaps
-- **Status Communication**: Left stripe + badge hierarchy (no clutter)
-
-The spec is now a complete reference for the Show Library Page Redesign, ready for future iteration or handoff.
+## Constraints
+- Single file change preferred (ShowLibrary.tsx) unless v1.ts needs new fields
+- Must use existing Field Commander Brutalism design system variables
+- Remove raw slug display from cards
+- Remove Assign Season dropdown from cards (move to detail view)

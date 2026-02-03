@@ -70,9 +70,9 @@ def _apply_schema_patches(engine) -> None:
                 except Exception as e:
                     logger.warning("Failed to add column %s.%s: %s", table_name, column_name, e)
 
-        # Mark existing system corps (no show_id) as system type
+        # Mark the admin corps as system type (only targets 'Critique', not user corps)
         try:
-            conn.execute(text("UPDATE corps SET corps_type = 'system' WHERE show_id IS NULL AND (corps_type IS NULL OR corps_type = 'competing')"))
+            conn.execute(text("UPDATE corps SET corps_type = 'system' WHERE show_id IS NULL AND name = 'Critique' AND (corps_type IS NULL OR corps_type = 'competing')"))
             conn.commit()
         except Exception as e:
             logger.debug("Corps type backfill skipped: %s", e)

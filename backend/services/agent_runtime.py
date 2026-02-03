@@ -439,6 +439,9 @@ def run_agent(
         else:
             complete_session(db, session_id, context_snapshot=snapshot)
 
+        # Clean up CLI session so it doesn't pollute the user's resume list
+        llm_client.cleanup_session(session_id)
+
         _emit({
             "type": "agent_status",
             "role": definition.role,
@@ -530,6 +533,9 @@ def run_agent(
                 fail_session(db, session_id, error=str(e))
             except Exception:
                 pass  # Session may already be in terminal state
+
+        # Clean up CLI session on failure too
+        llm_client.cleanup_session(session_id)
 
     return result
 

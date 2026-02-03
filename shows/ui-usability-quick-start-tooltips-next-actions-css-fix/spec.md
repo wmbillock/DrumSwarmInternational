@@ -1,48 +1,23 @@
-Perfect! ✅ **Spec Updated Successfully**
+# UI Usability: Quick Start, Tooltips, Next Actions, CSS Fix
 
-I've written a comprehensive, production-grade show spec that incorporates all the design conversation feedback. Here's what's now in the spec:
+## Goal
+Five integrated deliverables grounded in Field Commander Brutalism to improve UI usability: tooltip infrastructure, quick start guide, status badges, SideNav shortcuts, and MessageArchive CSS fixes.
 
-## Key Updates:
+## Acceptance Criteria
+1. React-Tooltip infrastructure installed and configured
+2. Quick Start panel with localStorage persistence (dismissible, remembers state)
+3. Status badges with consistent color mapping across all pages
+4. SideNav quick-action shortcuts for common operations
+5. MessageArchive.css fixed for proper layout and styling
+6. Design Room action buttons styled consistently
+7. Tooltips rolled out to key interactive elements
+8. Zero console errors
+9. Accessibility score >= 95/100
+10. Pixel-perfect rendering matching Field Commander Brutalism aesthetic
+11. TypeScript compiles clean
 
-1. **Show Concept** — Clear articulation of 5 integrated deliverables grounded in Field Commander Brutalism
-
-2. **Musical Design** — The **critical sequencing decision** from the program_coordinator brainstorm is now front-and-center:
-   - Phase 1: React-Tooltip infrastructure (foundation, no UI yet)
-   - Phase 2a/2b: Quick Start + MessageArchive.css in parallel (high-impact, no blockers)
-   - Phase 3a/3b: Badges + Tooltip rollout in parallel (all infrastructure live)
-
-3. **Visual Design** — Component-by-component design spec (Tooltips, Quick Start, Badges, SideNav, Design Room buttons, MessageArchive.css) all tied to Brutalism aesthetic with precise hex colors, typography rules, spacing grids
-
-4. **Guard Design** — 5 quality gates + automated test coverage (Playwright E2E, accessibility audits, visual regression, design consistency verification)
-
-5. **General Effect** — User experience goals and success metrics (zero console errors, accessibility ≥95/100, localStorage persistence, pixel-perfect rendering)
-
-6. **Constraints** — No breaking changes, React 18+, browser compatibility, aesthetic consistency, performance budgets
-
-7. **Decisions & Open Questions** — All brainstorm outcomes captured; 4 blockers explicitly listed with owners and impacts:
-   - Show status enum finalization (backend)
-   - Quick Start copy finalization (music writer)
-   - SideNav shortcuts decision (drill writer)
-   - MessageArchive.css baseline assessment (frontend lead)
-
-8. **Deliverables** — Detailed per-phase breakdown with:
-   - Files to create/modify
-   - Acceptance criteria (checkboxes)
-   - Step-by-step content
-   - Status/color mappings
-   - Test requirements
-   - Definition of done
-
-9. **Swarm Prompt** — Executive summary + critical path + design constraints + quality gates + missing context + agent mandate — ready for swarm execution
-
-10. **Appendix** — Implementation notes for library selection, localStorage schema, CSS audit process, tooltip positioning strategy, DevTools validation
-
----
-
-**The spec is now ready for:**
-- ✅ Director review and approval
-- ✅ Blocker resolution (4 items identified, owners assigned)
-- ✅ Swarm execution (all phases gated, success metrics clear)
-- ✅ Phase 1 assignment to Caption Head (Frontend)
-
-**Status:** `draft` → Awaiting blocker resolution → `needs_review` → `approved` → `published`
+## Constraints
+- No breaking changes to existing functionality
+- React 18+ compatible
+- All styling uses existing design system variables
+- Performance budgets maintained

@@ -92,6 +92,10 @@ class LLMClient(ABC):
         """Whether this client supports prompt caching."""
         return False
 
+    def cleanup_session(self, session_id: str) -> None:
+        """Clean up a CLI session after agent work completes. No-op for API clients."""
+        pass
+
 
 class AnthropicLLMClient(LLMClient):
     """Real Anthropic API client with prompt caching support."""
@@ -347,12 +351,22 @@ Available tools:
             _effective_timeout = get_runtime_config()["timeout"]
             _registry = get_process_registry()
 
+            # Set OTEL env vars so agent sessions export metrics to Prometheus
+            env = os.environ.copy()
+            env.update({
+                "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
+                "OTEL_METRICS_EXPORTER": "otlp",
+                "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
+                "OTEL_EXPORTER_OTLP_ENDPOINT": "http://localhost:9090/api/v1/otlp",
+            })
+
             proc = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
                 cwd=self._project_root,
+                env=env,
             )
             _registry.register(proc.pid)
             try:
@@ -441,6 +455,28 @@ Available tools:
 
         except FileNotFoundError:
             return LLMResponse(content="Error: 'claude' CLI not found in PATH", stop_reason="error")
+
+    def cleanup_session(self, session_id: str) -> None:
+        """Remove a finished session from tracking and delete its Claude Code session file."""
+        self._active_sessions.discard(session_id)
+        # Delete the session JSONL file so it doesn't clutter the user's resume list
+        try:
+            import pathlib
+            # Claude Code stores sessions as JSONL files in the project directory
+            project_key = self._project_root.replace("/", "-").lstrip("-")
+            sessions_dir = pathlib.Path.home() / ".claude" / "projects" / project_key
+            session_file = sessions_dir / f"{session_id}.jsonl"
+            if session_file.exists():
+                session_file.unlink()
+                logger.debug("Cleaned up Claude CLI session file %s", session_file)
+            # Also check for session subdirectory
+            session_dir = sessions_dir / session_id
+            if session_dir.is_dir():
+                import shutil
+                shutil.rmtree(session_dir, ignore_errors=True)
+                logger.debug("Cleaned up Claude CLI session dir %s", session_dir)
+        except Exception:
+            logger.debug("Session cleanup skipped for %s", session_id, exc_info=True)
 
 
 class OpenAIClient(LLMClient):
