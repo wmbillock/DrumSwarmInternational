@@ -22,27 +22,20 @@ router = APIRouter(prefix="/api/v1")
 
 _DESIGN_ROLE_PROMPTS = {
     "music_writer": (
-        "You are the Music Arranger — the person who hears a director say 'I want something epic' "
-        "and comes back with keys, tempos, and a brass book. Talk like a colleague in a planning "
-        "meeting, not a spec document. When the director is vague, pitch a specific idea "
-        "('What about a ballad in Db at 72 bpm?') and let them react."
+        "You are the Music Arranger. You think in keys, tempos, and brass books. "
+        "Pitch specific musical ideas. 30 words max."
     ),
     "drill_writer": (
-        "You are the Drill Designer — you think in formations, transitions, and spatial flow. "
-        "Talk like you're sketching on a whiteboard with the director, not narrating a manual. "
-        "When something is vague, propose a concrete visual ('Company front into a pinwheel "
-        "at the brass hit?') and let the director react."
+        "You are the Drill Designer. You think in formations and spatial flow. "
+        "Pitch specific visual ideas. 30 words max."
     ),
     "choreographer": (
-        "You are the Guard Choreographer — you live in the world of silk, sabre, and movement. "
-        "Talk like a creative partner brainstorming in a gym, not writing a rubric. "
-        "When the director is vague, propose something specific ('Triple on the downbeat of "
-        "measure 16, rifle exchange into the closer?') and let them steer."
+        "You are the Guard Choreographer. You think in silk, sabre, and movement. "
+        "Pitch specific guard ideas. 30 words max."
     ),
     "program_coordinator": (
-        "You are the Program Coordinator — the person who keeps the whole show coherent. "
-        "You track what's decided vs. what's still foggy, and you push for the details agents "
-        "will need. Talk like a lead designer in a production meeting: direct, practical, no fluff."
+        "You are the Program Coordinator. You track what's decided vs. foggy "
+        "and push for details agents need. 30 words max."
     ),
 }
 
@@ -53,28 +46,23 @@ _DESIGN_ROLE_DISPLAY = {
     "program_coordinator": "Program Coordinator",
 }
 
-_DESIGN_SYSTEM_TEMPLATE = """You're on the design staff for show "{slug}". Have a natural conversation with the director.
+_DESIGN_SYSTEM_TEMPLATE = """You're on the design staff for show "{slug}".
 
 {role_prompt}
 
-WHAT YOU KNOW SO FAR (the Brief):
+Brief so far:
 {spec_content}
 
-You're working toward two things:
-- A **Brief** (the spec) with enough detail that agents can build from it
-- A **Swarm Prompt** that tells the agent swarm exactly what to do
-
-HOW TO TALK:
-- 2-4 sentences, like a colleague in a planning meeting
-- If the director is vague, pitch a specific idea and let them react
-- Build on what's already decided — don't restart from scratch
-- When your area is solid, suggest Swarm Prompt language for it
-- Never recap what the director just said
+RULES — follow these exactly:
+- MAX 30 WORDS. No exceptions. One or two short sentences.
+- The Brief and Prompt tabs update automatically — never mention saving or writing files.
+- Pitch a specific idea or ask one pointed question. That's it.
+- Never recap. Never narrate. Let the Brief document tell the story.
 """
 
 _PC_MARSHAL_TEMPLATE = """You're the Program Coordinator for "{slug}".
 
-Here's the Brief so far:
+Brief so far:
 {spec_content}
 
 Recent conversation:
@@ -82,13 +70,14 @@ Recent conversation:
 
 Director just said: "{user_message}"
 
-Respond in 2-4 sentences. Pick ONE move:
-- Turn their input into a concrete Brief update (name the section, state the detail)
-- Call out a section that's too vague for agents and propose specific language
-- If the Brief is solid, draft Swarm Prompt language
-- Ask ONE question only if you're genuinely stuck
+{specialist_context}
 
-Don't recap what they said. Be direct about what's ready and what's not.
+RULES — follow these exactly:
+- MAX 30 WORDS total. No exceptions.
+- The Brief and Prompt tabs auto-update after each exchange. Never mention saving files.
+- Pick ONE move: confirm a decision, ask one question, or flag what's missing.
+- If specialists contributed input above, weave their key points into your response — don't repeat them separately.
+- Never recap what the director said.
 """
 
 _SPEC_UPDATE_TEMPLATE = """Update the show spec (Brief) based on the design conversation.
@@ -114,9 +103,29 @@ Write the COMPLETE updated spec in markdown.
 - Incorporate all design decisions from the conversation
 - Use professional DCI show design language
 - If a section hasn't been discussed, write "TBD — awaiting design input"
-- ## Swarm Prompt: synthesize decided sections into an actionable prompt for the agent swarm. Note what's still missing.
+- ## Swarm Prompt: synthesize decided sections into an actionable prompt for the agent swarm.
+  The Swarm Prompt is a SEPARATE document from the Brief — it must use action-oriented sections:
+  ## Objective (what are we building), ## Deliverables (bullet list of outputs),
+  ## Constraints (limits and rules), ## Acceptance Criteria (how to verify).
+  Do NOT repeat Brief sections like Show Concept/Musical Design in the Swarm Prompt.
 - Output ONLY the spec markdown, no preamble
 """
+
+
+_PC_GREETING_TEMPLATE = """You're the Program Coordinator for show "{slug}".
+The director just entered the Design Room. Greet them in MAX 30 WORDS.
+Mention the show name and ask one question to get started. Be direct and collegial."""
+
+
+def _extract_swarm_prompt(show_dir, spec_text: str):
+    """Extract the ## Swarm Prompt section from a spec and write it to show_prompt.md."""
+    import re as _re
+    m = _re.search(r"^## Swarm Prompt\s*\n(.*?)(?=\n## |\Z)", spec_text, _re.DOTALL | _re.MULTILINE)
+    if m:
+        prompt_text = m.group(1).strip()
+        if prompt_text and "TBD" not in prompt_text and "awaiting" not in prompt_text.lower():
+            from backend.services.yaml_util import atomic_write
+            atomic_write(show_dir / "show_prompt.md", prompt_text)
 
 
 # ---------------------------------------------------------------------------
@@ -249,37 +258,14 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
     llm_client = _get_llm_client()
 
     if llm_client:
-        # 1. Program Coordinator always speaks first — marshals the discussion
-        pc_prompt = _PC_MARSHAL_TEMPLATE.format(
-            slug=slug,
-            spec_content=spec_content[:2000],
-            notes_content=notes_content,
-            user_message=req.message,
-        )
-        pc_text = _llm_chat(llm_client, pc_prompt, req.message)
-        if pc_text:
-            pc_entry = f"\n<!-- tags: {', '.join(tags)} -->\n**[program_coordinator]** {pc_text}\n"
-            with open(notes_path, "a") as f:
-                f.write(pc_entry)
-            responses.append({
-                "role": "program_coordinator",
-                "display_name": _DESIGN_ROLE_DISPLAY["program_coordinator"],
-                "tags": tags,
-                "response": pc_text,
-            })
-            # Re-read notes so specialists see PC's response
-            notes_content = notes_path.read_text()
-            if len(notes_content) > 4000:
-                notes_content = "...\n" + notes_content[-4000:]
-
-        # 2. Specialists contribute if their domain was tagged
+        # 1. Specialists contribute first if their domain was tagged
+        specialist_inputs: list[str] = []
         for spec_role in sorted(specialist_roles):
             role_prompt = _DESIGN_ROLE_PROMPTS[spec_role]
             system_prompt = _DESIGN_SYSTEM_TEMPLATE.format(
                 role_prompt=role_prompt,
                 slug=slug,
                 spec_content=spec_content[:2000],
-                notes_content=notes_content,
             )
             spec_text = _llm_chat(llm_client, system_prompt, req.message)
             if spec_text:
@@ -292,10 +278,36 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
                     "tags": tags,
                     "response": spec_text,
                 })
-                # Update notes for subsequent specialists
-                notes_content = notes_path.read_text()
-                if len(notes_content) > 4000:
-                    notes_content = "...\n" + notes_content[-4000:]
+                specialist_inputs.append(f"{_DESIGN_ROLE_DISPLAY.get(spec_role, spec_role)}: {spec_text}")
+
+        # 2. PC marshals — sees specialist input and gives one coordinating response
+        specialist_ctx = ""
+        if specialist_inputs:
+            specialist_ctx = "Specialist input:\n" + "\n".join(specialist_inputs)
+
+        # Re-read notes after specialist writes
+        notes_content = notes_path.read_text() if notes_path.exists() else "(no notes yet)"
+        if len(notes_content) > 4000:
+            notes_content = "...\n" + notes_content[-4000:]
+
+        pc_prompt = _PC_MARSHAL_TEMPLATE.format(
+            slug=slug,
+            spec_content=spec_content[:2000],
+            notes_content=notes_content,
+            user_message=req.message,
+            specialist_context=specialist_ctx,
+        )
+        pc_text = _llm_chat(llm_client, pc_prompt, req.message)
+        if pc_text:
+            pc_entry = f"\n<!-- tags: {', '.join(tags)} -->\n**[program_coordinator]** {pc_text}\n"
+            with open(notes_path, "a") as f:
+                f.write(pc_entry)
+            responses.append({
+                "role": "program_coordinator",
+                "display_name": _DESIGN_ROLE_DISPLAY["program_coordinator"],
+                "tags": tags,
+                "response": pc_text,
+            })
 
     # Fallback if no LLM responses were generated
     if not responses:
@@ -327,8 +339,45 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
             updated_spec = _llm_chat(llm_client, spec_prompt, "Update the spec now.")
             if updated_spec and len(updated_spec) > 50:
                 write_spec(show_dir, updated_spec)
+                # Auto-extract ## Swarm Prompt into show_prompt.md
+                _extract_swarm_prompt(show_dir, updated_spec)
         except Exception:
             pass  # Spec update is best-effort
+
+    # Auto-lint: run both linters and report issues as a judge message
+    try:
+        from backend.services.brief_linter import lint_brief
+        from backend.services.prompt_linter import lint_prompt
+        from backend.services.show_persistence import read_spec as _read_spec
+
+        brief_content = _read_spec(show_dir) or ""
+        prompt_path = show_dir / "show_prompt.md"
+        prompt_content = prompt_path.read_text() if prompt_path.exists() else ""
+
+        brief_report = lint_brief(brief_content)
+        prompt_report = lint_prompt(prompt_content)
+
+        issues: list[str] = []
+        for f in brief_report.required_fix:
+            issues.append(f"Brief — {f.section}: {f.message}")
+        for f in prompt_report.required_fix:
+            issues.append(f"Prompt — {f.section}: {f.message}")
+
+        if issues:
+            judge_text = "Open issues: " + "; ".join(issues[:5])
+            if len(issues) > 5:
+                judge_text += f" (+{len(issues) - 5} more)"
+            judge_entry = f"\n<!-- tags: admin -->\n**[judge]** {judge_text}\n"
+            with open(notes_path, "a") as f:
+                f.write(judge_entry)
+            responses.append({
+                "role": "judge",
+                "display_name": "Judge",
+                "tags": ["admin"],
+                "response": judge_text,
+            })
+    except Exception:
+        pass  # Lint is best-effort
 
     # Return backward-compatible single response + full responses array
     return {
@@ -336,6 +385,35 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
         "tags": tags,
         "response": responses[0]["response"],
         "responses": responses,
+    }
+
+
+@router.post("/design/threads/{slug}/greet")
+def v1_greet_thread(slug: str):
+    """Generate a PC greeting when the director first enters the Design Room."""
+    show_dir = _show_dir(slug)
+    from backend.services.show_persistence import read_spec
+    spec_content = read_spec(show_dir) or "(blank spec)"
+    llm_client = _get_llm_client()
+    if not llm_client:
+        return {
+            "role": "program_coordinator",
+            "display_name": "Program Coordinator",
+            "response": f"Welcome to the Design Room for \"{slug}\". I'm your Program Coordinator — tell me your vision and we'll build the Brief together.",
+        }
+    prompt = _PC_GREETING_TEMPLATE.format(slug=slug) + f"\n\nCurrent Brief:\n{spec_content[:2000]}"
+    text = _llm_chat(llm_client, prompt, "Greet the director.")
+    if not text:
+        text = f"Welcome to the Design Room for \"{slug}\". I'm your Program Coordinator — tell me your vision and we'll build the Brief together."
+    # Persist greeting to design notes
+    notes_path = show_dir / "design_notes.md"
+    entry = f"\n<!-- tags: admin -->\n**[program_coordinator]** {text}\n"
+    with open(notes_path, "a") as f:
+        f.write(entry)
+    return {
+        "role": "program_coordinator",
+        "display_name": "Program Coordinator",
+        "response": text,
     }
 
 
@@ -383,6 +461,21 @@ def v1_lint_prompt(slug: str):
     content = prompt_path.read_text() if prompt_path.exists() else ""
     from backend.services.prompt_linter import lint_prompt
     report = lint_prompt(content)
+    return {
+        "required_fix": [{"section": f.section, "message": f.message} for f in report.required_fix],
+        "nice_to_have": [{"section": f.section, "message": f.message} for f in report.nice_to_have],
+        "acceptable_risk": [{"section": f.section, "message": f.message} for f in report.acceptable_risk],
+    }
+
+
+@router.post("/design/threads/{slug}/lint-brief")
+def v1_lint_brief(slug: str):
+    """Run brief linter on current spec.md."""
+    show_dir = _show_dir(slug)
+    from backend.services.show_persistence import read_spec
+    from backend.services.brief_linter import lint_brief
+    content = read_spec(show_dir) or ""
+    report = lint_brief(content)
     return {
         "required_fix": [{"section": f.section, "message": f.message} for f in report.required_fix],
         "nice_to_have": [{"section": f.section, "message": f.message} for f in report.nice_to_have],

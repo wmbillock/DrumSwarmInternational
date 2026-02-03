@@ -44,10 +44,19 @@ def seed_founding_corps(db: Session, corps_dir: Optional[Path] = None) -> list[C
 
             name = data["name"]
 
-            # Idempotent: skip if already exists
+            # Idempotent: skip if already exists, but fix up stale fields
             existing = db.query(Corps).filter(Corps.name == name).first()
             if existing:
-                logger.debug("Corps '%s' already exists, skipping", name)
+                changed = False
+                if existing.corps_type != "competing":
+                    existing.corps_type = "competing"
+                    changed = True
+                if existing.status == CorpsStatus.INITIALIZING:
+                    existing.status = CorpsStatus.WINTER_CAMPS
+                    changed = True
+                if changed:
+                    db.commit()
+                    logger.info("Fixed up corps '%s': type=%s status=%s", name, existing.corps_type, existing.status.value)
                 continue
 
             # Create the corps record

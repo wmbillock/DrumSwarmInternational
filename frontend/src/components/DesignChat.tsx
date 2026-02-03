@@ -19,6 +19,7 @@ const ROLE_COLORS: Record<string, string> = {
   music_writer: "var(--warning, #fc6)",
   drill_writer: "var(--info, #6cf)",
   choreographer: "var(--danger, #f69)",
+  judge: "var(--danger, #f44)",
 };
 
 export function DesignChat({ showSlug, onSpecUpdate }: Props) {
@@ -28,17 +29,29 @@ export function DesignChat({ showSlug, onSpecUpdate }: Props) {
   const [loadingHistory, setLoadingHistory] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Load message history on mount
+  // Load message history on mount, then greet if empty
   useEffect(() => {
     const ctrl = new AbortController();
     v1.getMessages(showSlug, ctrl.signal)
-      .then(data => {
+      .then(async (data) => {
         const history: ChatEntry[] = data.messages.map(m => ({
           role: m.role,
           message: m.content,
           tags: m.tags,
           isUser: m.role === "user",
         }));
+        if (history.length === 0) {
+          // Auto-greet: have the PC welcome the director
+          try {
+            const greeting = await v1.greetThread(showSlug, ctrl.signal);
+            history.push({
+              role: greeting.role,
+              displayName: greeting.display_name,
+              message: greeting.response,
+              isUser: false,
+            });
+          } catch { /* greeting is best-effort */ }
+        }
         setMessages(history);
       })
       .catch(() => {})

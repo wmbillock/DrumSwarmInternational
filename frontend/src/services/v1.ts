@@ -261,6 +261,9 @@ export const getMessages = (slug: string, signal?: AbortSignal) =>
 export const postMessage = (slug: string, message: string) =>
   request<V1MessageResp>(`/api/v1/design/threads/${slug}/messages`, { method: "POST", body: JSON.stringify({ message }) });
 
+export const greetThread = (slug: string, signal?: AbortSignal) =>
+  request<{ role: string; display_name: string; response: string }>(`/api/v1/design/threads/${slug}/greet`, { method: "POST", signal });
+
 export const getBrief = (slug: string, signal?: AbortSignal) =>
   request<{ slug: string; content: string }>(`/api/v1/design/threads/${slug}/artifacts/brief`, { signal });
 

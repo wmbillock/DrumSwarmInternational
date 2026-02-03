@@ -1,23 +1,21 @@
-"""Prompt linter ('Judge Snare') — validates show_prompt.md content.
+"""Brief linter — validates spec.md (the Brief) content.
 
-The Swarm Prompt is a distilled action document telling agent corps what to build.
-It is NOT a copy of the Brief. It should have a clear objective, specific deliverables,
-and constraints — not the same section structure as the spec.
+The Brief is the structured design document with show concept, musical design,
+visual design, guard design, general effect, constraints, and deliverables.
 """
 
 import re
 from dataclasses import dataclass, field
 from typing import List
 
-# Sections expected in the Swarm Prompt (action-oriented, not spec-mirroring)
 REQUIRED_SECTIONS = [
-    "Objective",
-    "Deliverables",
-]
-
-RECOMMENDED_SECTIONS = [
+    "Show Concept",
+    "Musical Design",
+    "Visual Design",
+    "Guard Design",
+    "General Effect",
     "Constraints",
-    "Acceptance Criteria",
+    "Deliverables",
 ]
 
 PLACEHOLDER_PATTERNS = [
@@ -26,6 +24,7 @@ PLACEHOLDER_PATTERNS = [
     re.compile(r"\[PLACEHOLDER\]", re.IGNORECASE),
     re.compile(r"___"),
     re.compile(r"\bXXX\b", re.IGNORECASE),
+    re.compile(r"awaiting design input", re.IGNORECASE),
 ]
 
 
@@ -65,13 +64,13 @@ def _count_bullets(text: str) -> int:
     return len(re.findall(r"^\s*[-*]\s+", text, re.MULTILINE))
 
 
-def lint_prompt(content: str) -> LintReport:
-    """Lint show_prompt.md content and return findings."""
+def lint_brief(content: str) -> LintReport:
+    """Lint spec.md (Brief) content and return findings."""
     report = LintReport()
 
     if not content or len(content.strip()) < 30:
         report.required_fix.append(LintFinding(
-            "Prompt", "Prompt is empty or too short. It should describe what the swarm needs to build."
+            "Brief", "Brief is empty or too short."
         ))
         return report
 
@@ -82,37 +81,30 @@ def lint_prompt(content: str) -> LintReport:
         if name not in sections:
             report.required_fix.append(LintFinding(name, f"Missing required section: ## {name}"))
 
-    # Check recommended sections
-    for name in RECOMMENDED_SECTIONS:
-        if name not in sections:
-            report.nice_to_have.append(LintFinding(name, f"Consider adding: ## {name}"))
-
     # Check each present section
     for name, body in sections.items():
-        # Placeholder detection
         for pat in PLACEHOLDER_PATTERNS:
             if pat.search(body):
                 report.required_fix.append(
-                    LintFinding(name, f"Unfilled placeholder found: {pat.pattern}")
+                    LintFinding(name, f"Unfilled placeholder: {pat.pattern}")
                 )
                 break
 
-        # Short section
         if len(body) < 20:
             report.acceptable_risk.append(
-                LintFinding(name, "Section has less than 20 characters of content")
+                LintFinding(name, "Section has less than 20 characters")
             )
 
-    # Deliverables should have bullet items
-    if "Deliverables" in sections and _count_bullets(sections["Deliverables"]) < 1:
-        report.required_fix.append(
-            LintFinding("Deliverables", "Deliverables section has no bullet items — list what the swarm should produce")
+    # Constraints bullets
+    if "Constraints" in sections and _count_bullets(sections["Constraints"]) < 2:
+        report.nice_to_have.append(
+            LintFinding("Constraints", "Fewer than 2 bullet items")
         )
 
-    # Constraints bullets
-    if "Constraints" in sections and _count_bullets(sections["Constraints"]) < 1:
-        report.nice_to_have.append(
-            LintFinding("Constraints", "Constraints section has no bullet items")
+    # Deliverables bullets
+    if "Deliverables" in sections and _count_bullets(sections["Deliverables"]) < 1:
+        report.required_fix.append(
+            LintFinding("Deliverables", "No bullet items listed")
         )
 
     return report

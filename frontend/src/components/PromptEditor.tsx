@@ -3,9 +3,10 @@ import * as v1 from "../services/v1";
 
 interface Props {
   showSlug: string;
+  refreshKey?: number;
 }
 
-export function PromptEditor({ showSlug }: Props) {
+export function PromptEditor({ showSlug, refreshKey }: Props) {
   const [content, setContent] = useState("");
   const [editContent, setEditContent] = useState("");
   const [editing, setEditing] = useState(false);
@@ -21,7 +22,7 @@ export function PromptEditor({ showSlug }: Props) {
       .catch(() => {})
       .finally(() => setLoading(false));
     return () => ctrl.abort();
-  }, [showSlug]);
+  }, [showSlug, refreshKey]);
 
   const handleSave = async () => {
     setSaving(true);

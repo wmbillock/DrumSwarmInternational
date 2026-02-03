@@ -9,9 +9,10 @@ interface Props {
   showSlug: string;
   specContent: string;
   onRefresh: () => void;
+  refreshKey?: number;
 }
 
-export function ArtifactPanel({ showSlug, specContent, onRefresh }: Props) {
+export function ArtifactPanel({ showSlug, specContent, onRefresh, refreshKey }: Props) {
   const [tab, setTab] = useState<Tab>("brief");
 
   return (
@@ -37,7 +38,7 @@ export function ArtifactPanel({ showSlug, specContent, onRefresh }: Props) {
       </div>
       <div style={{ flex: 1, overflow: "hidden" }}>
         {tab === "brief" && <SpecViewer showSlug={showSlug} content={specContent} onRefresh={onRefresh} />}
-        {tab === "prompt" && <PromptEditor showSlug={showSlug} />}
+        {tab === "prompt" && <PromptEditor showSlug={showSlug} refreshKey={refreshKey} />}
         {tab === "versions" && <VersionList showSlug={showSlug} />}
       </div>
     </div>

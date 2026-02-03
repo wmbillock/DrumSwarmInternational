@@ -13,6 +13,7 @@ function ThreadDetail({ showSlug }: { showSlug: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showPublishGate, setShowPublishGate] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const fetchData = useCallback(async () => {
     try {
@@ -24,6 +25,7 @@ function ThreadDetail({ showSlug }: { showSlug: string }) {
       const thread = threads.find(t => t.slug === showSlug);
       if (thread) setThreadStatus(thread.status);
       setError(null);
+      setRefreshKey(k => k + 1);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -73,7 +75,7 @@ function ThreadDetail({ showSlug }: { showSlug: string }) {
           <DesignChat showSlug={showSlug} onSpecUpdate={fetchData} />
         </div>
         <div className="design-room-right">
-          <ArtifactPanel showSlug={showSlug} specContent={specContent} onRefresh={fetchData} />
+          <ArtifactPanel showSlug={showSlug} specContent={specContent} onRefresh={fetchData} refreshKey={refreshKey} />
         </div>
       </div>
       {showPublishGate && (
