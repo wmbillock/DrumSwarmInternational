@@ -1,0 +1,3962 @@
+version: 1
+achievements:
+  - id: "brass_excellence_corps_01"
+    category: "brass_excellence"
+    tier: "bronze"
+    scope: "corps"
+    name: "Brass Excellence - Warmup Wizard"
+    description: "Corps average brass score at least 60. (min 5 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 60
+      caption: "brass"
+      min_reps_completed: 5
+  - id: "brass_excellence_corps_02"
+    category: "brass_excellence"
+    tier: "bronze"
+    scope: "corps"
+    name: "Brass Excellence - Downbeat Dynamo"
+    description: "Corps average brass score at least 65. (min 10 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 65
+      caption: "brass"
+      min_reps_completed: 10
+  - id: "brass_excellence_corps_03"
+    category: "brass_excellence"
+    tier: "bronze"
+    scope: "corps"
+    name: "Brass Excellence - Stadium Sparkler"
+    description: "Corps average brass score at least 70. (min 15 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 70
+      caption: "brass"
+      min_reps_completed: 15
+  - id: "brass_excellence_corps_04"
+    category: "brass_excellence"
+    tier: "silver"
+    scope: "corps"
+    name: "Brass Excellence - Cadence Cyclone"
+    description: "Corps average brass score at least 72. (min 20 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 72
+      caption: "brass"
+      min_reps_completed: 20
+  - id: "brass_excellence_corps_05"
+    category: "brass_excellence"
+    tier: "silver"
+    scope: "corps"
+    name: "Brass Excellence - Fanfare Frenzy"
+    description: "Corps average brass score at least 74. (min 25 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 74
+      caption: "brass"
+      min_reps_completed: 25
+  - id: "brass_excellence_corps_06"
+    category: "brass_excellence"
+    tier: "silver"
+    scope: "corps"
+    name: "Brass Excellence - Line-Check Legend"
+    description: "Corps average brass score at least 76. (min 30 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 76
+      caption: "brass"
+      min_reps_completed: 30
+  - id: "brass_excellence_corps_07"
+    category: "brass_excellence"
+    tier: "gold"
+    scope: "corps"
+    name: "Brass Excellence - Block Finale"
+    description: "Corps average brass score at least 78. (min 40 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 78
+      caption: "brass"
+      min_reps_completed: 40
+  - id: "brass_excellence_corps_08"
+    category: "brass_excellence"
+    tier: "gold"
+    scope: "corps"
+    name: "Brass Excellence - Field Firestarter"
+    description: "Corps average brass score at least 80. (min 50 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 80
+      caption: "brass"
+      min_reps_completed: 50
+  - id: "brass_excellence_corps_09"
+    category: "brass_excellence"
+    tier: "platinum"
+    scope: "corps"
+    name: "Brass Excellence - Crowd-Noise Conductor"
+    description: "Corps average brass score at least 85. (min 60 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 85
+      caption: "brass"
+      min_reps_completed: 60
+  - id: "brass_excellence_corps_10"
+    category: "brass_excellence"
+    tier: "diamond"
+    scope: "corps"
+    name: "Brass Excellence - Encore Overlord"
+    description: "Corps average brass score at least 90. (min 75 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 90
+      caption: "brass"
+      min_reps_completed: 75
+  - id: "brass_excellence_performer_01"
+    category: "brass_excellence"
+    tier: "bronze"
+    scope: "performer"
+    name: "Brass Excellence - Warmup Wizard"
+    description: "Performer average brass score at least 60. (min 3 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 60
+      caption: "brass"
+      min_reps_completed: 3
+  - id: "brass_excellence_performer_02"
+    category: "brass_excellence"
+    tier: "bronze"
+    scope: "performer"
+    name: "Brass Excellence - Downbeat Dynamo"
+    description: "Performer average brass score at least 65. (min 5 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 65
+      caption: "brass"
+      min_reps_completed: 5
+  - id: "brass_excellence_performer_03"
+    category: "brass_excellence"
+    tier: "bronze"
+    scope: "performer"
+    name: "Brass Excellence - Stadium Sparkler"
+    description: "Performer average brass score at least 70. (min 8 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 70
+      caption: "brass"
+      min_reps_completed: 8
+  - id: "brass_excellence_performer_04"
+    category: "brass_excellence"
+    tier: "silver"
+    scope: "performer"
+    name: "Brass Excellence - Cadence Cyclone"
+    description: "Performer average brass score at least 72. (min 10 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 72
+      caption: "brass"
+      min_reps_completed: 10
+  - id: "brass_excellence_performer_05"
+    category: "brass_excellence"
+    tier: "silver"
+    scope: "performer"
+    name: "Brass Excellence - Fanfare Frenzy"
+    description: "Performer average brass score at least 74. (min 12 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 74
+      caption: "brass"
+      min_reps_completed: 12
+  - id: "brass_excellence_performer_06"
+    category: "brass_excellence"
+    tier: "silver"
+    scope: "performer"
+    name: "Brass Excellence - Line-Check Legend"
+    description: "Performer average brass score at least 76. (min 15 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 76
+      caption: "brass"
+      min_reps_completed: 15
+  - id: "brass_excellence_performer_07"
+    category: "brass_excellence"
+    tier: "gold"
+    scope: "performer"
+    name: "Brass Excellence - Block Finale"
+    description: "Performer average brass score at least 78. (min 20 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 78
+      caption: "brass"
+      min_reps_completed: 20
+  - id: "brass_excellence_performer_08"
+    category: "brass_excellence"
+    tier: "gold"
+    scope: "performer"
+    name: "Brass Excellence - Field Firestarter"
+    description: "Performer average brass score at least 80. (min 25 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 80
+      caption: "brass"
+      min_reps_completed: 25
+  - id: "brass_excellence_performer_09"
+    category: "brass_excellence"
+    tier: "platinum"
+    scope: "performer"
+    name: "Brass Excellence - Crowd-Noise Conductor"
+    description: "Performer average brass score at least 85. (min 30 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 85
+      caption: "brass"
+      min_reps_completed: 30
+  - id: "brass_excellence_performer_10"
+    category: "brass_excellence"
+    tier: "diamond"
+    scope: "performer"
+    name: "Brass Excellence - Encore Overlord"
+    description: "Performer average brass score at least 90. (min 40 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 90
+      caption: "brass"
+      min_reps_completed: 40
+  - id: "brass_excellence_staff_01"
+    category: "brass_excellence"
+    tier: "bronze"
+    scope: "staff"
+    name: "Brass Excellence - Warmup Wizard"
+    description: "Staff average brass score at least 60. (min 3 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 60
+      caption: "brass"
+      min_reps_completed: 3
+  - id: "brass_excellence_staff_02"
+    category: "brass_excellence"
+    tier: "bronze"
+    scope: "staff"
+    name: "Brass Excellence - Downbeat Dynamo"
+    description: "Staff average brass score at least 65. (min 5 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 65
+      caption: "brass"
+      min_reps_completed: 5
+  - id: "brass_excellence_staff_03"
+    category: "brass_excellence"
+    tier: "bronze"
+    scope: "staff"
+    name: "Brass Excellence - Stadium Sparkler"
+    description: "Staff average brass score at least 70. (min 8 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 70
+      caption: "brass"
+      min_reps_completed: 8
+  - id: "brass_excellence_staff_04"
+    category: "brass_excellence"
+    tier: "silver"
+    scope: "staff"
+    name: "Brass Excellence - Cadence Cyclone"
+    description: "Staff average brass score at least 72. (min 10 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 72
+      caption: "brass"
+      min_reps_completed: 10
+  - id: "brass_excellence_staff_05"
+    category: "brass_excellence"
+    tier: "silver"
+    scope: "staff"
+    name: "Brass Excellence - Fanfare Frenzy"
+    description: "Staff average brass score at least 74. (min 12 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 74
+      caption: "brass"
+      min_reps_completed: 12
+  - id: "brass_excellence_staff_06"
+    category: "brass_excellence"
+    tier: "silver"
+    scope: "staff"
+    name: "Brass Excellence - Line-Check Legend"
+    description: "Staff average brass score at least 76. (min 15 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 76
+      caption: "brass"
+      min_reps_completed: 15
+  - id: "brass_excellence_staff_07"
+    category: "brass_excellence"
+    tier: "gold"
+    scope: "staff"
+    name: "Brass Excellence - Block Finale"
+    description: "Staff average brass score at least 78. (min 20 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 78
+      caption: "brass"
+      min_reps_completed: 20
+  - id: "brass_excellence_staff_08"
+    category: "brass_excellence"
+    tier: "gold"
+    scope: "staff"
+    name: "Brass Excellence - Field Firestarter"
+    description: "Staff average brass score at least 80. (min 25 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 80
+      caption: "brass"
+      min_reps_completed: 25
+  - id: "brass_excellence_staff_09"
+    category: "brass_excellence"
+    tier: "platinum"
+    scope: "staff"
+    name: "Brass Excellence - Crowd-Noise Conductor"
+    description: "Staff average brass score at least 85. (min 30 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 85
+      caption: "brass"
+      min_reps_completed: 30
+  - id: "brass_excellence_staff_10"
+    category: "brass_excellence"
+    tier: "diamond"
+    scope: "staff"
+    name: "Brass Excellence - Encore Overlord"
+    description: "Staff average brass score at least 90. (min 40 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 90
+      caption: "brass"
+      min_reps_completed: 40
+  - id: "percussion_mastery_corps_01"
+    category: "percussion_mastery"
+    tier: "bronze"
+    scope: "corps"
+    name: "Percussion Mastery - Warmup Wizard"
+    description: "Corps average percussion score at least 60. (min 5 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 60
+      caption: "percussion"
+      min_reps_completed: 5
+  - id: "percussion_mastery_corps_02"
+    category: "percussion_mastery"
+    tier: "bronze"
+    scope: "corps"
+    name: "Percussion Mastery - Downbeat Dynamo"
+    description: "Corps average percussion score at least 65. (min 10 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 65
+      caption: "percussion"
+      min_reps_completed: 10
+  - id: "percussion_mastery_corps_03"
+    category: "percussion_mastery"
+    tier: "bronze"
+    scope: "corps"
+    name: "Percussion Mastery - Stadium Sparkler"
+    description: "Corps average percussion score at least 70. (min 15 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 70
+      caption: "percussion"
+      min_reps_completed: 15
+  - id: "percussion_mastery_corps_04"
+    category: "percussion_mastery"
+    tier: "silver"
+    scope: "corps"
+    name: "Percussion Mastery - Cadence Cyclone"
+    description: "Corps average percussion score at least 72. (min 20 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 72
+      caption: "percussion"
+      min_reps_completed: 20
+  - id: "percussion_mastery_corps_05"
+    category: "percussion_mastery"
+    tier: "silver"
+    scope: "corps"
+    name: "Percussion Mastery - Fanfare Frenzy"
+    description: "Corps average percussion score at least 74. (min 25 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 74
+      caption: "percussion"
+      min_reps_completed: 25
+  - id: "percussion_mastery_corps_06"
+    category: "percussion_mastery"
+    tier: "silver"
+    scope: "corps"
+    name: "Percussion Mastery - Line-Check Legend"
+    description: "Corps average percussion score at least 76. (min 30 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 76
+      caption: "percussion"
+      min_reps_completed: 30
+  - id: "percussion_mastery_corps_07"
+    category: "percussion_mastery"
+    tier: "gold"
+    scope: "corps"
+    name: "Percussion Mastery - Block Finale"
+    description: "Corps average percussion score at least 78. (min 40 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 78
+      caption: "percussion"
+      min_reps_completed: 40
+  - id: "percussion_mastery_corps_08"
+    category: "percussion_mastery"
+    tier: "gold"
+    scope: "corps"
+    name: "Percussion Mastery - Field Firestarter"
+    description: "Corps average percussion score at least 80. (min 50 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 80
+      caption: "percussion"
+      min_reps_completed: 50
+  - id: "percussion_mastery_corps_09"
+    category: "percussion_mastery"
+    tier: "platinum"
+    scope: "corps"
+    name: "Percussion Mastery - Crowd-Noise Conductor"
+    description: "Corps average percussion score at least 85. (min 60 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 85
+      caption: "percussion"
+      min_reps_completed: 60
+  - id: "percussion_mastery_corps_10"
+    category: "percussion_mastery"
+    tier: "diamond"
+    scope: "corps"
+    name: "Percussion Mastery - Encore Overlord"
+    description: "Corps average percussion score at least 90. (min 75 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 90
+      caption: "percussion"
+      min_reps_completed: 75
+  - id: "percussion_mastery_performer_01"
+    category: "percussion_mastery"
+    tier: "bronze"
+    scope: "performer"
+    name: "Percussion Mastery - Warmup Wizard"
+    description: "Performer average percussion score at least 60. (min 3 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 60
+      caption: "percussion"
+      min_reps_completed: 3
+  - id: "percussion_mastery_performer_02"
+    category: "percussion_mastery"
+    tier: "bronze"
+    scope: "performer"
+    name: "Percussion Mastery - Downbeat Dynamo"
+    description: "Performer average percussion score at least 65. (min 5 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 65
+      caption: "percussion"
+      min_reps_completed: 5
+  - id: "percussion_mastery_performer_03"
+    category: "percussion_mastery"
+    tier: "bronze"
+    scope: "performer"
+    name: "Percussion Mastery - Stadium Sparkler"
+    description: "Performer average percussion score at least 70. (min 8 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 70
+      caption: "percussion"
+      min_reps_completed: 8
+  - id: "percussion_mastery_performer_04"
+    category: "percussion_mastery"
+    tier: "silver"
+    scope: "performer"
+    name: "Percussion Mastery - Cadence Cyclone"
+    description: "Performer average percussion score at least 72. (min 10 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 72
+      caption: "percussion"
+      min_reps_completed: 10
+  - id: "percussion_mastery_performer_05"
+    category: "percussion_mastery"
+    tier: "silver"
+    scope: "performer"
+    name: "Percussion Mastery - Fanfare Frenzy"
+    description: "Performer average percussion score at least 74. (min 12 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 74
+      caption: "percussion"
+      min_reps_completed: 12
+  - id: "percussion_mastery_performer_06"
+    category: "percussion_mastery"
+    tier: "silver"
+    scope: "performer"
+    name: "Percussion Mastery - Line-Check Legend"
+    description: "Performer average percussion score at least 76. (min 15 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 76
+      caption: "percussion"
+      min_reps_completed: 15
+  - id: "percussion_mastery_performer_07"
+    category: "percussion_mastery"
+    tier: "gold"
+    scope: "performer"
+    name: "Percussion Mastery - Block Finale"
+    description: "Performer average percussion score at least 78. (min 20 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 78
+      caption: "percussion"
+      min_reps_completed: 20
+  - id: "percussion_mastery_performer_08"
+    category: "percussion_mastery"
+    tier: "gold"
+    scope: "performer"
+    name: "Percussion Mastery - Field Firestarter"
+    description: "Performer average percussion score at least 80. (min 25 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 80
+      caption: "percussion"
+      min_reps_completed: 25
+  - id: "percussion_mastery_performer_09"
+    category: "percussion_mastery"
+    tier: "platinum"
+    scope: "performer"
+    name: "Percussion Mastery - Crowd-Noise Conductor"
+    description: "Performer average percussion score at least 85. (min 30 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 85
+      caption: "percussion"
+      min_reps_completed: 30
+  - id: "percussion_mastery_performer_10"
+    category: "percussion_mastery"
+    tier: "diamond"
+    scope: "performer"
+    name: "Percussion Mastery - Encore Overlord"
+    description: "Performer average percussion score at least 90. (min 40 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 90
+      caption: "percussion"
+      min_reps_completed: 40
+  - id: "percussion_mastery_staff_01"
+    category: "percussion_mastery"
+    tier: "bronze"
+    scope: "staff"
+    name: "Percussion Mastery - Warmup Wizard"
+    description: "Staff average percussion score at least 60. (min 3 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 60
+      caption: "percussion"
+      min_reps_completed: 3
+  - id: "percussion_mastery_staff_02"
+    category: "percussion_mastery"
+    tier: "bronze"
+    scope: "staff"
+    name: "Percussion Mastery - Downbeat Dynamo"
+    description: "Staff average percussion score at least 65. (min 5 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 65
+      caption: "percussion"
+      min_reps_completed: 5
+  - id: "percussion_mastery_staff_03"
+    category: "percussion_mastery"
+    tier: "bronze"
+    scope: "staff"
+    name: "Percussion Mastery - Stadium Sparkler"
+    description: "Staff average percussion score at least 70. (min 8 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 70
+      caption: "percussion"
+      min_reps_completed: 8
+  - id: "percussion_mastery_staff_04"
+    category: "percussion_mastery"
+    tier: "silver"
+    scope: "staff"
+    name: "Percussion Mastery - Cadence Cyclone"
+    description: "Staff average percussion score at least 72. (min 10 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 72
+      caption: "percussion"
+      min_reps_completed: 10
+  - id: "percussion_mastery_staff_05"
+    category: "percussion_mastery"
+    tier: "silver"
+    scope: "staff"
+    name: "Percussion Mastery - Fanfare Frenzy"
+    description: "Staff average percussion score at least 74. (min 12 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 74
+      caption: "percussion"
+      min_reps_completed: 12
+  - id: "percussion_mastery_staff_06"
+    category: "percussion_mastery"
+    tier: "silver"
+    scope: "staff"
+    name: "Percussion Mastery - Line-Check Legend"
+    description: "Staff average percussion score at least 76. (min 15 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 76
+      caption: "percussion"
+      min_reps_completed: 15
+  - id: "percussion_mastery_staff_07"
+    category: "percussion_mastery"
+    tier: "gold"
+    scope: "staff"
+    name: "Percussion Mastery - Block Finale"
+    description: "Staff average percussion score at least 78. (min 20 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 78
+      caption: "percussion"
+      min_reps_completed: 20
+  - id: "percussion_mastery_staff_08"
+    category: "percussion_mastery"
+    tier: "gold"
+    scope: "staff"
+    name: "Percussion Mastery - Field Firestarter"
+    description: "Staff average percussion score at least 80. (min 25 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 80
+      caption: "percussion"
+      min_reps_completed: 25
+  - id: "percussion_mastery_staff_09"
+    category: "percussion_mastery"
+    tier: "platinum"
+    scope: "staff"
+    name: "Percussion Mastery - Crowd-Noise Conductor"
+    description: "Staff average percussion score at least 85. (min 30 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 85
+      caption: "percussion"
+      min_reps_completed: 30
+  - id: "percussion_mastery_staff_10"
+    category: "percussion_mastery"
+    tier: "diamond"
+    scope: "staff"
+    name: "Percussion Mastery - Encore Overlord"
+    description: "Staff average percussion score at least 90. (min 40 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 90
+      caption: "percussion"
+      min_reps_completed: 40
+  - id: "guard_artistry_corps_01"
+    category: "guard_artistry"
+    tier: "bronze"
+    scope: "corps"
+    name: "Guard Artistry - Warmup Wizard"
+    description: "Corps average guard score at least 60. (min 5 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 60
+      caption: "guard"
+      min_reps_completed: 5
+  - id: "guard_artistry_corps_02"
+    category: "guard_artistry"
+    tier: "bronze"
+    scope: "corps"
+    name: "Guard Artistry - Downbeat Dynamo"
+    description: "Corps average guard score at least 65. (min 10 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 65
+      caption: "guard"
+      min_reps_completed: 10
+  - id: "guard_artistry_corps_03"
+    category: "guard_artistry"
+    tier: "bronze"
+    scope: "corps"
+    name: "Guard Artistry - Stadium Sparkler"
+    description: "Corps average guard score at least 70. (min 15 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 70
+      caption: "guard"
+      min_reps_completed: 15
+  - id: "guard_artistry_corps_04"
+    category: "guard_artistry"
+    tier: "silver"
+    scope: "corps"
+    name: "Guard Artistry - Cadence Cyclone"
+    description: "Corps average guard score at least 72. (min 20 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 72
+      caption: "guard"
+      min_reps_completed: 20
+  - id: "guard_artistry_corps_05"
+    category: "guard_artistry"
+    tier: "silver"
+    scope: "corps"
+    name: "Guard Artistry - Fanfare Frenzy"
+    description: "Corps average guard score at least 74. (min 25 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 74
+      caption: "guard"
+      min_reps_completed: 25
+  - id: "guard_artistry_corps_06"
+    category: "guard_artistry"
+    tier: "silver"
+    scope: "corps"
+    name: "Guard Artistry - Line-Check Legend"
+    description: "Corps average guard score at least 76. (min 30 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 76
+      caption: "guard"
+      min_reps_completed: 30
+  - id: "guard_artistry_corps_07"
+    category: "guard_artistry"
+    tier: "gold"
+    scope: "corps"
+    name: "Guard Artistry - Block Finale"
+    description: "Corps average guard score at least 78. (min 40 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 78
+      caption: "guard"
+      min_reps_completed: 40
+  - id: "guard_artistry_corps_08"
+    category: "guard_artistry"
+    tier: "gold"
+    scope: "corps"
+    name: "Guard Artistry - Field Firestarter"
+    description: "Corps average guard score at least 80. (min 50 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 80
+      caption: "guard"
+      min_reps_completed: 50
+  - id: "guard_artistry_corps_09"
+    category: "guard_artistry"
+    tier: "platinum"
+    scope: "corps"
+    name: "Guard Artistry - Crowd-Noise Conductor"
+    description: "Corps average guard score at least 85. (min 60 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 85
+      caption: "guard"
+      min_reps_completed: 60
+  - id: "guard_artistry_corps_10"
+    category: "guard_artistry"
+    tier: "diamond"
+    scope: "corps"
+    name: "Guard Artistry - Encore Overlord"
+    description: "Corps average guard score at least 90. (min 75 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 90
+      caption: "guard"
+      min_reps_completed: 75
+  - id: "guard_artistry_performer_01"
+    category: "guard_artistry"
+    tier: "bronze"
+    scope: "performer"
+    name: "Guard Artistry - Warmup Wizard"
+    description: "Performer average guard score at least 60. (min 3 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 60
+      caption: "guard"
+      min_reps_completed: 3
+  - id: "guard_artistry_performer_02"
+    category: "guard_artistry"
+    tier: "bronze"
+    scope: "performer"
+    name: "Guard Artistry - Downbeat Dynamo"
+    description: "Performer average guard score at least 65. (min 5 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 65
+      caption: "guard"
+      min_reps_completed: 5
+  - id: "guard_artistry_performer_03"
+    category: "guard_artistry"
+    tier: "bronze"
+    scope: "performer"
+    name: "Guard Artistry - Stadium Sparkler"
+    description: "Performer average guard score at least 70. (min 8 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 70
+      caption: "guard"
+      min_reps_completed: 8
+  - id: "guard_artistry_performer_04"
+    category: "guard_artistry"
+    tier: "silver"
+    scope: "performer"
+    name: "Guard Artistry - Cadence Cyclone"
+    description: "Performer average guard score at least 72. (min 10 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 72
+      caption: "guard"
+      min_reps_completed: 10
+  - id: "guard_artistry_performer_05"
+    category: "guard_artistry"
+    tier: "silver"
+    scope: "performer"
+    name: "Guard Artistry - Fanfare Frenzy"
+    description: "Performer average guard score at least 74. (min 12 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 74
+      caption: "guard"
+      min_reps_completed: 12
+  - id: "guard_artistry_performer_06"
+    category: "guard_artistry"
+    tier: "silver"
+    scope: "performer"
+    name: "Guard Artistry - Line-Check Legend"
+    description: "Performer average guard score at least 76. (min 15 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 76
+      caption: "guard"
+      min_reps_completed: 15
+  - id: "guard_artistry_performer_07"
+    category: "guard_artistry"
+    tier: "gold"
+    scope: "performer"
+    name: "Guard Artistry - Block Finale"
+    description: "Performer average guard score at least 78. (min 20 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 78
+      caption: "guard"
+      min_reps_completed: 20
+  - id: "guard_artistry_performer_08"
+    category: "guard_artistry"
+    tier: "gold"
+    scope: "performer"
+    name: "Guard Artistry - Field Firestarter"
+    description: "Performer average guard score at least 80. (min 25 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 80
+      caption: "guard"
+      min_reps_completed: 25
+  - id: "guard_artistry_performer_09"
+    category: "guard_artistry"
+    tier: "platinum"
+    scope: "performer"
+    name: "Guard Artistry - Crowd-Noise Conductor"
+    description: "Performer average guard score at least 85. (min 30 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 85
+      caption: "guard"
+      min_reps_completed: 30
+  - id: "guard_artistry_performer_10"
+    category: "guard_artistry"
+    tier: "diamond"
+    scope: "performer"
+    name: "Guard Artistry - Encore Overlord"
+    description: "Performer average guard score at least 90. (min 40 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 90
+      caption: "guard"
+      min_reps_completed: 40
+  - id: "guard_artistry_staff_01"
+    category: "guard_artistry"
+    tier: "bronze"
+    scope: "staff"
+    name: "Guard Artistry - Warmup Wizard"
+    description: "Staff average guard score at least 60. (min 3 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 60
+      caption: "guard"
+      min_reps_completed: 3
+  - id: "guard_artistry_staff_02"
+    category: "guard_artistry"
+    tier: "bronze"
+    scope: "staff"
+    name: "Guard Artistry - Downbeat Dynamo"
+    description: "Staff average guard score at least 65. (min 5 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 65
+      caption: "guard"
+      min_reps_completed: 5
+  - id: "guard_artistry_staff_03"
+    category: "guard_artistry"
+    tier: "bronze"
+    scope: "staff"
+    name: "Guard Artistry - Stadium Sparkler"
+    description: "Staff average guard score at least 70. (min 8 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 70
+      caption: "guard"
+      min_reps_completed: 8
+  - id: "guard_artistry_staff_04"
+    category: "guard_artistry"
+    tier: "silver"
+    scope: "staff"
+    name: "Guard Artistry - Cadence Cyclone"
+    description: "Staff average guard score at least 72. (min 10 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 72
+      caption: "guard"
+      min_reps_completed: 10
+  - id: "guard_artistry_staff_05"
+    category: "guard_artistry"
+    tier: "silver"
+    scope: "staff"
+    name: "Guard Artistry - Fanfare Frenzy"
+    description: "Staff average guard score at least 74. (min 12 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 74
+      caption: "guard"
+      min_reps_completed: 12
+  - id: "guard_artistry_staff_06"
+    category: "guard_artistry"
+    tier: "silver"
+    scope: "staff"
+    name: "Guard Artistry - Line-Check Legend"
+    description: "Staff average guard score at least 76. (min 15 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 76
+      caption: "guard"
+      min_reps_completed: 15
+  - id: "guard_artistry_staff_07"
+    category: "guard_artistry"
+    tier: "gold"
+    scope: "staff"
+    name: "Guard Artistry - Block Finale"
+    description: "Staff average guard score at least 78. (min 20 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 78
+      caption: "guard"
+      min_reps_completed: 20
+  - id: "guard_artistry_staff_08"
+    category: "guard_artistry"
+    tier: "gold"
+    scope: "staff"
+    name: "Guard Artistry - Field Firestarter"
+    description: "Staff average guard score at least 80. (min 25 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 80
+      caption: "guard"
+      min_reps_completed: 25
+  - id: "guard_artistry_staff_09"
+    category: "guard_artistry"
+    tier: "platinum"
+    scope: "staff"
+    name: "Guard Artistry - Crowd-Noise Conductor"
+    description: "Staff average guard score at least 85. (min 30 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 85
+      caption: "guard"
+      min_reps_completed: 30
+  - id: "guard_artistry_staff_10"
+    category: "guard_artistry"
+    tier: "diamond"
+    scope: "staff"
+    name: "Guard Artistry - Encore Overlord"
+    description: "Staff average guard score at least 90. (min 40 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 90
+      caption: "guard"
+      min_reps_completed: 40
+  - id: "visual_innovation_corps_01"
+    category: "visual_innovation"
+    tier: "bronze"
+    scope: "corps"
+    name: "Visual Innovation - Warmup Wizard"
+    description: "Corps average visual score at least 60. (min 5 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 60
+      caption: "visual"
+      min_reps_completed: 5
+  - id: "visual_innovation_corps_02"
+    category: "visual_innovation"
+    tier: "bronze"
+    scope: "corps"
+    name: "Visual Innovation - Downbeat Dynamo"
+    description: "Corps average visual score at least 65. (min 10 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 65
+      caption: "visual"
+      min_reps_completed: 10
+  - id: "visual_innovation_corps_03"
+    category: "visual_innovation"
+    tier: "bronze"
+    scope: "corps"
+    name: "Visual Innovation - Stadium Sparkler"
+    description: "Corps average visual score at least 70. (min 15 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 70
+      caption: "visual"
+      min_reps_completed: 15
+  - id: "visual_innovation_corps_04"
+    category: "visual_innovation"
+    tier: "silver"
+    scope: "corps"
+    name: "Visual Innovation - Cadence Cyclone"
+    description: "Corps average visual score at least 72. (min 20 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 72
+      caption: "visual"
+      min_reps_completed: 20
+  - id: "visual_innovation_corps_05"
+    category: "visual_innovation"
+    tier: "silver"
+    scope: "corps"
+    name: "Visual Innovation - Fanfare Frenzy"
+    description: "Corps average visual score at least 74. (min 25 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 74
+      caption: "visual"
+      min_reps_completed: 25
+  - id: "visual_innovation_corps_06"
+    category: "visual_innovation"
+    tier: "silver"
+    scope: "corps"
+    name: "Visual Innovation - Line-Check Legend"
+    description: "Corps average visual score at least 76. (min 30 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 76
+      caption: "visual"
+      min_reps_completed: 30
+  - id: "visual_innovation_corps_07"
+    category: "visual_innovation"
+    tier: "gold"
+    scope: "corps"
+    name: "Visual Innovation - Block Finale"
+    description: "Corps average visual score at least 78. (min 40 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 78
+      caption: "visual"
+      min_reps_completed: 40
+  - id: "visual_innovation_corps_08"
+    category: "visual_innovation"
+    tier: "gold"
+    scope: "corps"
+    name: "Visual Innovation - Field Firestarter"
+    description: "Corps average visual score at least 80. (min 50 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 80
+      caption: "visual"
+      min_reps_completed: 50
+  - id: "visual_innovation_corps_09"
+    category: "visual_innovation"
+    tier: "platinum"
+    scope: "corps"
+    name: "Visual Innovation - Crowd-Noise Conductor"
+    description: "Corps average visual score at least 85. (min 60 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 85
+      caption: "visual"
+      min_reps_completed: 60
+  - id: "visual_innovation_corps_10"
+    category: "visual_innovation"
+    tier: "diamond"
+    scope: "corps"
+    name: "Visual Innovation - Encore Overlord"
+    description: "Corps average visual score at least 90. (min 75 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 90
+      caption: "visual"
+      min_reps_completed: 75
+  - id: "visual_innovation_performer_01"
+    category: "visual_innovation"
+    tier: "bronze"
+    scope: "performer"
+    name: "Visual Innovation - Warmup Wizard"
+    description: "Performer average visual score at least 60. (min 3 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 60
+      caption: "visual"
+      min_reps_completed: 3
+  - id: "visual_innovation_performer_02"
+    category: "visual_innovation"
+    tier: "bronze"
+    scope: "performer"
+    name: "Visual Innovation - Downbeat Dynamo"
+    description: "Performer average visual score at least 65. (min 5 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 65
+      caption: "visual"
+      min_reps_completed: 5
+  - id: "visual_innovation_performer_03"
+    category: "visual_innovation"
+    tier: "bronze"
+    scope: "performer"
+    name: "Visual Innovation - Stadium Sparkler"
+    description: "Performer average visual score at least 70. (min 8 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 70
+      caption: "visual"
+      min_reps_completed: 8
+  - id: "visual_innovation_performer_04"
+    category: "visual_innovation"
+    tier: "silver"
+    scope: "performer"
+    name: "Visual Innovation - Cadence Cyclone"
+    description: "Performer average visual score at least 72. (min 10 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 72
+      caption: "visual"
+      min_reps_completed: 10
+  - id: "visual_innovation_performer_05"
+    category: "visual_innovation"
+    tier: "silver"
+    scope: "performer"
+    name: "Visual Innovation - Fanfare Frenzy"
+    description: "Performer average visual score at least 74. (min 12 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 74
+      caption: "visual"
+      min_reps_completed: 12
+  - id: "visual_innovation_performer_06"
+    category: "visual_innovation"
+    tier: "silver"
+    scope: "performer"
+    name: "Visual Innovation - Line-Check Legend"
+    description: "Performer average visual score at least 76. (min 15 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 76
+      caption: "visual"
+      min_reps_completed: 15
+  - id: "visual_innovation_performer_07"
+    category: "visual_innovation"
+    tier: "gold"
+    scope: "performer"
+    name: "Visual Innovation - Block Finale"
+    description: "Performer average visual score at least 78. (min 20 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 78
+      caption: "visual"
+      min_reps_completed: 20
+  - id: "visual_innovation_performer_08"
+    category: "visual_innovation"
+    tier: "gold"
+    scope: "performer"
+    name: "Visual Innovation - Field Firestarter"
+    description: "Performer average visual score at least 80. (min 25 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 80
+      caption: "visual"
+      min_reps_completed: 25
+  - id: "visual_innovation_performer_09"
+    category: "visual_innovation"
+    tier: "platinum"
+    scope: "performer"
+    name: "Visual Innovation - Crowd-Noise Conductor"
+    description: "Performer average visual score at least 85. (min 30 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 85
+      caption: "visual"
+      min_reps_completed: 30
+  - id: "visual_innovation_performer_10"
+    category: "visual_innovation"
+    tier: "diamond"
+    scope: "performer"
+    name: "Visual Innovation - Encore Overlord"
+    description: "Performer average visual score at least 90. (min 40 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 90
+      caption: "visual"
+      min_reps_completed: 40
+  - id: "visual_innovation_staff_01"
+    category: "visual_innovation"
+    tier: "bronze"
+    scope: "staff"
+    name: "Visual Innovation - Warmup Wizard"
+    description: "Staff average visual score at least 60. (min 3 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 60
+      caption: "visual"
+      min_reps_completed: 3
+  - id: "visual_innovation_staff_02"
+    category: "visual_innovation"
+    tier: "bronze"
+    scope: "staff"
+    name: "Visual Innovation - Downbeat Dynamo"
+    description: "Staff average visual score at least 65. (min 5 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 65
+      caption: "visual"
+      min_reps_completed: 5
+  - id: "visual_innovation_staff_03"
+    category: "visual_innovation"
+    tier: "bronze"
+    scope: "staff"
+    name: "Visual Innovation - Stadium Sparkler"
+    description: "Staff average visual score at least 70. (min 8 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 70
+      caption: "visual"
+      min_reps_completed: 8
+  - id: "visual_innovation_staff_04"
+    category: "visual_innovation"
+    tier: "silver"
+    scope: "staff"
+    name: "Visual Innovation - Cadence Cyclone"
+    description: "Staff average visual score at least 72. (min 10 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 72
+      caption: "visual"
+      min_reps_completed: 10
+  - id: "visual_innovation_staff_05"
+    category: "visual_innovation"
+    tier: "silver"
+    scope: "staff"
+    name: "Visual Innovation - Fanfare Frenzy"
+    description: "Staff average visual score at least 74. (min 12 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 74
+      caption: "visual"
+      min_reps_completed: 12
+  - id: "visual_innovation_staff_06"
+    category: "visual_innovation"
+    tier: "silver"
+    scope: "staff"
+    name: "Visual Innovation - Line-Check Legend"
+    description: "Staff average visual score at least 76. (min 15 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 76
+      caption: "visual"
+      min_reps_completed: 15
+  - id: "visual_innovation_staff_07"
+    category: "visual_innovation"
+    tier: "gold"
+    scope: "staff"
+    name: "Visual Innovation - Block Finale"
+    description: "Staff average visual score at least 78. (min 20 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 78
+      caption: "visual"
+      min_reps_completed: 20
+  - id: "visual_innovation_staff_08"
+    category: "visual_innovation"
+    tier: "gold"
+    scope: "staff"
+    name: "Visual Innovation - Field Firestarter"
+    description: "Staff average visual score at least 80. (min 25 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 80
+      caption: "visual"
+      min_reps_completed: 25
+  - id: "visual_innovation_staff_09"
+    category: "visual_innovation"
+    tier: "platinum"
+    scope: "staff"
+    name: "Visual Innovation - Crowd-Noise Conductor"
+    description: "Staff average visual score at least 85. (min 30 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 85
+      caption: "visual"
+      min_reps_completed: 30
+  - id: "visual_innovation_staff_10"
+    category: "visual_innovation"
+    tier: "diamond"
+    scope: "staff"
+    name: "Visual Innovation - Encore Overlord"
+    description: "Staff average visual score at least 90. (min 40 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 90
+      caption: "visual"
+      min_reps_completed: 40
+  - id: "general_effect_corps_01"
+    category: "general_effect"
+    tier: "bronze"
+    scope: "corps"
+    name: "General Effect - Warmup Wizard"
+    description: "Corps average general effect score at least 60. (min 5 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 60
+      caption: "general_effect"
+      min_reps_completed: 5
+  - id: "general_effect_corps_02"
+    category: "general_effect"
+    tier: "bronze"
+    scope: "corps"
+    name: "General Effect - Downbeat Dynamo"
+    description: "Corps average general effect score at least 65. (min 10 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 65
+      caption: "general_effect"
+      min_reps_completed: 10
+  - id: "general_effect_corps_03"
+    category: "general_effect"
+    tier: "bronze"
+    scope: "corps"
+    name: "General Effect - Stadium Sparkler"
+    description: "Corps average general effect score at least 70. (min 15 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 70
+      caption: "general_effect"
+      min_reps_completed: 15
+  - id: "general_effect_corps_04"
+    category: "general_effect"
+    tier: "silver"
+    scope: "corps"
+    name: "General Effect - Cadence Cyclone"
+    description: "Corps average general effect score at least 72. (min 20 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 72
+      caption: "general_effect"
+      min_reps_completed: 20
+  - id: "general_effect_corps_05"
+    category: "general_effect"
+    tier: "silver"
+    scope: "corps"
+    name: "General Effect - Fanfare Frenzy"
+    description: "Corps average general effect score at least 74. (min 25 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 74
+      caption: "general_effect"
+      min_reps_completed: 25
+  - id: "general_effect_corps_06"
+    category: "general_effect"
+    tier: "silver"
+    scope: "corps"
+    name: "General Effect - Line-Check Legend"
+    description: "Corps average general effect score at least 76. (min 30 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 76
+      caption: "general_effect"
+      min_reps_completed: 30
+  - id: "general_effect_corps_07"
+    category: "general_effect"
+    tier: "gold"
+    scope: "corps"
+    name: "General Effect - Block Finale"
+    description: "Corps average general effect score at least 78. (min 40 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 78
+      caption: "general_effect"
+      min_reps_completed: 40
+  - id: "general_effect_corps_08"
+    category: "general_effect"
+    tier: "gold"
+    scope: "corps"
+    name: "General Effect - Field Firestarter"
+    description: "Corps average general effect score at least 80. (min 50 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 80
+      caption: "general_effect"
+      min_reps_completed: 50
+  - id: "general_effect_corps_09"
+    category: "general_effect"
+    tier: "platinum"
+    scope: "corps"
+    name: "General Effect - Crowd-Noise Conductor"
+    description: "Corps average general effect score at least 85. (min 60 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 85
+      caption: "general_effect"
+      min_reps_completed: 60
+  - id: "general_effect_corps_10"
+    category: "general_effect"
+    tier: "diamond"
+    scope: "corps"
+    name: "General Effect - Encore Overlord"
+    description: "Corps average general effect score at least 90. (min 75 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 90
+      caption: "general_effect"
+      min_reps_completed: 75
+  - id: "general_effect_performer_01"
+    category: "general_effect"
+    tier: "bronze"
+    scope: "performer"
+    name: "General Effect - Warmup Wizard"
+    description: "Performer average general effect score at least 60. (min 3 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 60
+      caption: "general_effect"
+      min_reps_completed: 3
+  - id: "general_effect_performer_02"
+    category: "general_effect"
+    tier: "bronze"
+    scope: "performer"
+    name: "General Effect - Downbeat Dynamo"
+    description: "Performer average general effect score at least 65. (min 5 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 65
+      caption: "general_effect"
+      min_reps_completed: 5
+  - id: "general_effect_performer_03"
+    category: "general_effect"
+    tier: "bronze"
+    scope: "performer"
+    name: "General Effect - Stadium Sparkler"
+    description: "Performer average general effect score at least 70. (min 8 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 70
+      caption: "general_effect"
+      min_reps_completed: 8
+  - id: "general_effect_performer_04"
+    category: "general_effect"
+    tier: "silver"
+    scope: "performer"
+    name: "General Effect - Cadence Cyclone"
+    description: "Performer average general effect score at least 72. (min 10 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 72
+      caption: "general_effect"
+      min_reps_completed: 10
+  - id: "general_effect_performer_05"
+    category: "general_effect"
+    tier: "silver"
+    scope: "performer"
+    name: "General Effect - Fanfare Frenzy"
+    description: "Performer average general effect score at least 74. (min 12 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 74
+      caption: "general_effect"
+      min_reps_completed: 12
+  - id: "general_effect_performer_06"
+    category: "general_effect"
+    tier: "silver"
+    scope: "performer"
+    name: "General Effect - Line-Check Legend"
+    description: "Performer average general effect score at least 76. (min 15 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 76
+      caption: "general_effect"
+      min_reps_completed: 15
+  - id: "general_effect_performer_07"
+    category: "general_effect"
+    tier: "gold"
+    scope: "performer"
+    name: "General Effect - Block Finale"
+    description: "Performer average general effect score at least 78. (min 20 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 78
+      caption: "general_effect"
+      min_reps_completed: 20
+  - id: "general_effect_performer_08"
+    category: "general_effect"
+    tier: "gold"
+    scope: "performer"
+    name: "General Effect - Field Firestarter"
+    description: "Performer average general effect score at least 80. (min 25 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 80
+      caption: "general_effect"
+      min_reps_completed: 25
+  - id: "general_effect_performer_09"
+    category: "general_effect"
+    tier: "platinum"
+    scope: "performer"
+    name: "General Effect - Crowd-Noise Conductor"
+    description: "Performer average general effect score at least 85. (min 30 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 85
+      caption: "general_effect"
+      min_reps_completed: 30
+  - id: "general_effect_performer_10"
+    category: "general_effect"
+    tier: "diamond"
+    scope: "performer"
+    name: "General Effect - Encore Overlord"
+    description: "Performer average general effect score at least 90. (min 40 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 90
+      caption: "general_effect"
+      min_reps_completed: 40
+  - id: "general_effect_staff_01"
+    category: "general_effect"
+    tier: "bronze"
+    scope: "staff"
+    name: "General Effect - Warmup Wizard"
+    description: "Staff average general effect score at least 60. (min 3 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 60
+      caption: "general_effect"
+      min_reps_completed: 3
+  - id: "general_effect_staff_02"
+    category: "general_effect"
+    tier: "bronze"
+    scope: "staff"
+    name: "General Effect - Downbeat Dynamo"
+    description: "Staff average general effect score at least 65. (min 5 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 65
+      caption: "general_effect"
+      min_reps_completed: 5
+  - id: "general_effect_staff_03"
+    category: "general_effect"
+    tier: "bronze"
+    scope: "staff"
+    name: "General Effect - Stadium Sparkler"
+    description: "Staff average general effect score at least 70. (min 8 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 70
+      caption: "general_effect"
+      min_reps_completed: 8
+  - id: "general_effect_staff_04"
+    category: "general_effect"
+    tier: "silver"
+    scope: "staff"
+    name: "General Effect - Cadence Cyclone"
+    description: "Staff average general effect score at least 72. (min 10 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 72
+      caption: "general_effect"
+      min_reps_completed: 10
+  - id: "general_effect_staff_05"
+    category: "general_effect"
+    tier: "silver"
+    scope: "staff"
+    name: "General Effect - Fanfare Frenzy"
+    description: "Staff average general effect score at least 74. (min 12 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 74
+      caption: "general_effect"
+      min_reps_completed: 12
+  - id: "general_effect_staff_06"
+    category: "general_effect"
+    tier: "silver"
+    scope: "staff"
+    name: "General Effect - Line-Check Legend"
+    description: "Staff average general effect score at least 76. (min 15 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 76
+      caption: "general_effect"
+      min_reps_completed: 15
+  - id: "general_effect_staff_07"
+    category: "general_effect"
+    tier: "gold"
+    scope: "staff"
+    name: "General Effect - Block Finale"
+    description: "Staff average general effect score at least 78. (min 20 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 78
+      caption: "general_effect"
+      min_reps_completed: 20
+  - id: "general_effect_staff_08"
+    category: "general_effect"
+    tier: "gold"
+    scope: "staff"
+    name: "General Effect - Field Firestarter"
+    description: "Staff average general effect score at least 80. (min 25 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 80
+      caption: "general_effect"
+      min_reps_completed: 25
+  - id: "general_effect_staff_09"
+    category: "general_effect"
+    tier: "platinum"
+    scope: "staff"
+    name: "General Effect - Crowd-Noise Conductor"
+    description: "Staff average general effect score at least 85. (min 30 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 85
+      caption: "general_effect"
+      min_reps_completed: 30
+  - id: "general_effect_staff_10"
+    category: "general_effect"
+    tier: "diamond"
+    scope: "staff"
+    name: "General Effect - Encore Overlord"
+    description: "Staff average general effect score at least 90. (min 40 completed reps)"
+    trigger:
+      metric: "caption_avg_score"
+      op: ">="
+      value: 90
+      caption: "general_effect"
+      min_reps_completed: 40
+  - id: "endurance_corps_01"
+    category: "endurance"
+    tier: "bronze"
+    scope: "corps"
+    name: "Endurance - Warmup Wizard"
+    description: "Corps completed 50 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 50
+  - id: "endurance_corps_02"
+    category: "endurance"
+    tier: "bronze"
+    scope: "corps"
+    name: "Endurance - Downbeat Dynamo"
+    description: "Corps completed 100 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 100
+  - id: "endurance_corps_03"
+    category: "endurance"
+    tier: "bronze"
+    scope: "corps"
+    name: "Endurance - Stadium Sparkler"
+    description: "Corps completed 200 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 200
+  - id: "endurance_corps_04"
+    category: "endurance"
+    tier: "silver"
+    scope: "corps"
+    name: "Endurance - Cadence Cyclone"
+    description: "Corps completed 300 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 300
+  - id: "endurance_corps_05"
+    category: "endurance"
+    tier: "silver"
+    scope: "corps"
+    name: "Endurance - Fanfare Frenzy"
+    description: "Corps completed 400 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 400
+  - id: "endurance_corps_06"
+    category: "endurance"
+    tier: "silver"
+    scope: "corps"
+    name: "Endurance - Line-Check Legend"
+    description: "Corps completed 500 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 500
+  - id: "endurance_corps_07"
+    category: "endurance"
+    tier: "gold"
+    scope: "corps"
+    name: "Endurance - Block Finale"
+    description: "Corps completed 750 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 750
+  - id: "endurance_corps_08"
+    category: "endurance"
+    tier: "gold"
+    scope: "corps"
+    name: "Endurance - Field Firestarter"
+    description: "Corps completed 1000 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 1000
+  - id: "endurance_corps_09"
+    category: "endurance"
+    tier: "platinum"
+    scope: "corps"
+    name: "Endurance - Crowd-Noise Conductor"
+    description: "Corps completed 1500 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 1500
+  - id: "endurance_corps_10"
+    category: "endurance"
+    tier: "diamond"
+    scope: "corps"
+    name: "Endurance - Encore Overlord"
+    description: "Corps completed 2000 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 2000
+  - id: "endurance_performer_01"
+    category: "endurance"
+    tier: "bronze"
+    scope: "performer"
+    name: "Endurance - Warmup Wizard"
+    description: "Performer completed 10 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 10
+  - id: "endurance_performer_02"
+    category: "endurance"
+    tier: "bronze"
+    scope: "performer"
+    name: "Endurance - Downbeat Dynamo"
+    description: "Performer completed 25 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 25
+  - id: "endurance_performer_03"
+    category: "endurance"
+    tier: "bronze"
+    scope: "performer"
+    name: "Endurance - Stadium Sparkler"
+    description: "Performer completed 50 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 50
+  - id: "endurance_performer_04"
+    category: "endurance"
+    tier: "silver"
+    scope: "performer"
+    name: "Endurance - Cadence Cyclone"
+    description: "Performer completed 75 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 75
+  - id: "endurance_performer_05"
+    category: "endurance"
+    tier: "silver"
+    scope: "performer"
+    name: "Endurance - Fanfare Frenzy"
+    description: "Performer completed 100 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 100
+  - id: "endurance_performer_06"
+    category: "endurance"
+    tier: "silver"
+    scope: "performer"
+    name: "Endurance - Line-Check Legend"
+    description: "Performer completed 150 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 150
+  - id: "endurance_performer_07"
+    category: "endurance"
+    tier: "gold"
+    scope: "performer"
+    name: "Endurance - Block Finale"
+    description: "Performer completed 200 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 200
+  - id: "endurance_performer_08"
+    category: "endurance"
+    tier: "gold"
+    scope: "performer"
+    name: "Endurance - Field Firestarter"
+    description: "Performer completed 300 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 300
+  - id: "endurance_performer_09"
+    category: "endurance"
+    tier: "platinum"
+    scope: "performer"
+    name: "Endurance - Crowd-Noise Conductor"
+    description: "Performer completed 400 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 400
+  - id: "endurance_performer_10"
+    category: "endurance"
+    tier: "diamond"
+    scope: "performer"
+    name: "Endurance - Encore Overlord"
+    description: "Performer completed 500 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 500
+  - id: "endurance_staff_01"
+    category: "endurance"
+    tier: "bronze"
+    scope: "staff"
+    name: "Endurance - Warmup Wizard"
+    description: "Staff completed 10 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 10
+  - id: "endurance_staff_02"
+    category: "endurance"
+    tier: "bronze"
+    scope: "staff"
+    name: "Endurance - Downbeat Dynamo"
+    description: "Staff completed 25 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 25
+  - id: "endurance_staff_03"
+    category: "endurance"
+    tier: "bronze"
+    scope: "staff"
+    name: "Endurance - Stadium Sparkler"
+    description: "Staff completed 50 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 50
+  - id: "endurance_staff_04"
+    category: "endurance"
+    tier: "silver"
+    scope: "staff"
+    name: "Endurance - Cadence Cyclone"
+    description: "Staff completed 75 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 75
+  - id: "endurance_staff_05"
+    category: "endurance"
+    tier: "silver"
+    scope: "staff"
+    name: "Endurance - Fanfare Frenzy"
+    description: "Staff completed 100 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 100
+  - id: "endurance_staff_06"
+    category: "endurance"
+    tier: "silver"
+    scope: "staff"
+    name: "Endurance - Line-Check Legend"
+    description: "Staff completed 150 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 150
+  - id: "endurance_staff_07"
+    category: "endurance"
+    tier: "gold"
+    scope: "staff"
+    name: "Endurance - Block Finale"
+    description: "Staff completed 200 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 200
+  - id: "endurance_staff_08"
+    category: "endurance"
+    tier: "gold"
+    scope: "staff"
+    name: "Endurance - Field Firestarter"
+    description: "Staff completed 300 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 300
+  - id: "endurance_staff_09"
+    category: "endurance"
+    tier: "platinum"
+    scope: "staff"
+    name: "Endurance - Crowd-Noise Conductor"
+    description: "Staff completed 400 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 400
+  - id: "endurance_staff_10"
+    category: "endurance"
+    tier: "diamond"
+    scope: "staff"
+    name: "Endurance - Encore Overlord"
+    description: "Staff completed 500 reps."
+    trigger:
+      metric: "reps_completed"
+      op: ">="
+      value: 500
+  - id: "velocity_corps_01"
+    category: "velocity"
+    tier: "bronze"
+    scope: "corps"
+    name: "Velocity - Warmup Wizard"
+    description: "Corps logged 5 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 5
+  - id: "velocity_corps_02"
+    category: "velocity"
+    tier: "bronze"
+    scope: "corps"
+    name: "Velocity - Downbeat Dynamo"
+    description: "Corps logged 10 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 10
+  - id: "velocity_corps_03"
+    category: "velocity"
+    tier: "bronze"
+    scope: "corps"
+    name: "Velocity - Stadium Sparkler"
+    description: "Corps logged 15 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 15
+  - id: "velocity_corps_04"
+    category: "velocity"
+    tier: "silver"
+    scope: "corps"
+    name: "Velocity - Cadence Cyclone"
+    description: "Corps logged 20 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 20
+  - id: "velocity_corps_05"
+    category: "velocity"
+    tier: "silver"
+    scope: "corps"
+    name: "Velocity - Fanfare Frenzy"
+    description: "Corps logged 25 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 25
+  - id: "velocity_corps_06"
+    category: "velocity"
+    tier: "silver"
+    scope: "corps"
+    name: "Velocity - Line-Check Legend"
+    description: "Corps logged 30 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 30
+  - id: "velocity_corps_07"
+    category: "velocity"
+    tier: "gold"
+    scope: "corps"
+    name: "Velocity - Block Finale"
+    description: "Corps logged 35 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 35
+  - id: "velocity_corps_08"
+    category: "velocity"
+    tier: "gold"
+    scope: "corps"
+    name: "Velocity - Field Firestarter"
+    description: "Corps logged 40 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 40
+  - id: "velocity_corps_09"
+    category: "velocity"
+    tier: "platinum"
+    scope: "corps"
+    name: "Velocity - Crowd-Noise Conductor"
+    description: "Corps logged 50 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 50
+  - id: "velocity_corps_10"
+    category: "velocity"
+    tier: "diamond"
+    scope: "corps"
+    name: "Velocity - Encore Overlord"
+    description: "Corps logged 60 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 60
+  - id: "velocity_performer_01"
+    category: "velocity"
+    tier: "bronze"
+    scope: "performer"
+    name: "Velocity - Warmup Wizard"
+    description: "Performer logged 2 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 2
+  - id: "velocity_performer_02"
+    category: "velocity"
+    tier: "bronze"
+    scope: "performer"
+    name: "Velocity - Downbeat Dynamo"
+    description: "Performer logged 3 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 3
+  - id: "velocity_performer_03"
+    category: "velocity"
+    tier: "bronze"
+    scope: "performer"
+    name: "Velocity - Stadium Sparkler"
+    description: "Performer logged 4 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 4
+  - id: "velocity_performer_04"
+    category: "velocity"
+    tier: "silver"
+    scope: "performer"
+    name: "Velocity - Cadence Cyclone"
+    description: "Performer logged 5 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 5
+  - id: "velocity_performer_05"
+    category: "velocity"
+    tier: "silver"
+    scope: "performer"
+    name: "Velocity - Fanfare Frenzy"
+    description: "Performer logged 6 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 6
+  - id: "velocity_performer_06"
+    category: "velocity"
+    tier: "silver"
+    scope: "performer"
+    name: "Velocity - Line-Check Legend"
+    description: "Performer logged 7 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 7
+  - id: "velocity_performer_07"
+    category: "velocity"
+    tier: "gold"
+    scope: "performer"
+    name: "Velocity - Block Finale"
+    description: "Performer logged 8 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 8
+  - id: "velocity_performer_08"
+    category: "velocity"
+    tier: "gold"
+    scope: "performer"
+    name: "Velocity - Field Firestarter"
+    description: "Performer logged 10 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 10
+  - id: "velocity_performer_09"
+    category: "velocity"
+    tier: "platinum"
+    scope: "performer"
+    name: "Velocity - Crowd-Noise Conductor"
+    description: "Performer logged 12 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 12
+  - id: "velocity_performer_10"
+    category: "velocity"
+    tier: "diamond"
+    scope: "performer"
+    name: "Velocity - Encore Overlord"
+    description: "Performer logged 15 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 15
+  - id: "velocity_staff_01"
+    category: "velocity"
+    tier: "bronze"
+    scope: "staff"
+    name: "Velocity - Warmup Wizard"
+    description: "Staff logged 2 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 2
+  - id: "velocity_staff_02"
+    category: "velocity"
+    tier: "bronze"
+    scope: "staff"
+    name: "Velocity - Downbeat Dynamo"
+    description: "Staff logged 3 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 3
+  - id: "velocity_staff_03"
+    category: "velocity"
+    tier: "bronze"
+    scope: "staff"
+    name: "Velocity - Stadium Sparkler"
+    description: "Staff logged 4 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 4
+  - id: "velocity_staff_04"
+    category: "velocity"
+    tier: "silver"
+    scope: "staff"
+    name: "Velocity - Cadence Cyclone"
+    description: "Staff logged 5 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 5
+  - id: "velocity_staff_05"
+    category: "velocity"
+    tier: "silver"
+    scope: "staff"
+    name: "Velocity - Fanfare Frenzy"
+    description: "Staff logged 6 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 6
+  - id: "velocity_staff_06"
+    category: "velocity"
+    tier: "silver"
+    scope: "staff"
+    name: "Velocity - Line-Check Legend"
+    description: "Staff logged 7 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 7
+  - id: "velocity_staff_07"
+    category: "velocity"
+    tier: "gold"
+    scope: "staff"
+    name: "Velocity - Block Finale"
+    description: "Staff logged 8 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 8
+  - id: "velocity_staff_08"
+    category: "velocity"
+    tier: "gold"
+    scope: "staff"
+    name: "Velocity - Field Firestarter"
+    description: "Staff logged 10 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 10
+  - id: "velocity_staff_09"
+    category: "velocity"
+    tier: "platinum"
+    scope: "staff"
+    name: "Velocity - Crowd-Noise Conductor"
+    description: "Staff logged 12 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 12
+  - id: "velocity_staff_10"
+    category: "velocity"
+    tier: "diamond"
+    scope: "staff"
+    name: "Velocity - Encore Overlord"
+    description: "Staff logged 15 completed reps in a single session."
+    trigger:
+      metric: "max_reps_in_session"
+      op: ">="
+      value: 15
+  - id: "collaboration_corps_01"
+    category: "collaboration"
+    tier: "bronze"
+    scope: "corps"
+    name: "Collaboration - Warmup Wizard"
+    description: "Corps sent 10 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 10
+  - id: "collaboration_corps_02"
+    category: "collaboration"
+    tier: "bronze"
+    scope: "corps"
+    name: "Collaboration - Downbeat Dynamo"
+    description: "Corps sent 25 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 25
+  - id: "collaboration_corps_03"
+    category: "collaboration"
+    tier: "bronze"
+    scope: "corps"
+    name: "Collaboration - Stadium Sparkler"
+    description: "Corps sent 50 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 50
+  - id: "collaboration_corps_04"
+    category: "collaboration"
+    tier: "silver"
+    scope: "corps"
+    name: "Collaboration - Cadence Cyclone"
+    description: "Corps sent 75 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 75
+  - id: "collaboration_corps_05"
+    category: "collaboration"
+    tier: "silver"
+    scope: "corps"
+    name: "Collaboration - Fanfare Frenzy"
+    description: "Corps sent 100 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 100
+  - id: "collaboration_corps_06"
+    category: "collaboration"
+    tier: "silver"
+    scope: "corps"
+    name: "Collaboration - Line-Check Legend"
+    description: "Corps sent 150 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 150
+  - id: "collaboration_corps_07"
+    category: "collaboration"
+    tier: "gold"
+    scope: "corps"
+    name: "Collaboration - Block Finale"
+    description: "Corps sent 200 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 200
+  - id: "collaboration_corps_08"
+    category: "collaboration"
+    tier: "gold"
+    scope: "corps"
+    name: "Collaboration - Field Firestarter"
+    description: "Corps sent 300 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 300
+  - id: "collaboration_corps_09"
+    category: "collaboration"
+    tier: "platinum"
+    scope: "corps"
+    name: "Collaboration - Crowd-Noise Conductor"
+    description: "Corps sent 400 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 400
+  - id: "collaboration_corps_10"
+    category: "collaboration"
+    tier: "diamond"
+    scope: "corps"
+    name: "Collaboration - Encore Overlord"
+    description: "Corps sent 500 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 500
+  - id: "collaboration_performer_01"
+    category: "collaboration"
+    tier: "bronze"
+    scope: "performer"
+    name: "Collaboration - Warmup Wizard"
+    description: "Performer sent 1 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 1
+  - id: "collaboration_performer_02"
+    category: "collaboration"
+    tier: "bronze"
+    scope: "performer"
+    name: "Collaboration - Downbeat Dynamo"
+    description: "Performer sent 3 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 3
+  - id: "collaboration_performer_03"
+    category: "collaboration"
+    tier: "bronze"
+    scope: "performer"
+    name: "Collaboration - Stadium Sparkler"
+    description: "Performer sent 5 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 5
+  - id: "collaboration_performer_04"
+    category: "collaboration"
+    tier: "silver"
+    scope: "performer"
+    name: "Collaboration - Cadence Cyclone"
+    description: "Performer sent 8 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 8
+  - id: "collaboration_performer_05"
+    category: "collaboration"
+    tier: "silver"
+    scope: "performer"
+    name: "Collaboration - Fanfare Frenzy"
+    description: "Performer sent 12 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 12
+  - id: "collaboration_performer_06"
+    category: "collaboration"
+    tier: "silver"
+    scope: "performer"
+    name: "Collaboration - Line-Check Legend"
+    description: "Performer sent 18 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 18
+  - id: "collaboration_performer_07"
+    category: "collaboration"
+    tier: "gold"
+    scope: "performer"
+    name: "Collaboration - Block Finale"
+    description: "Performer sent 25 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 25
+  - id: "collaboration_performer_08"
+    category: "collaboration"
+    tier: "gold"
+    scope: "performer"
+    name: "Collaboration - Field Firestarter"
+    description: "Performer sent 35 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 35
+  - id: "collaboration_performer_09"
+    category: "collaboration"
+    tier: "platinum"
+    scope: "performer"
+    name: "Collaboration - Crowd-Noise Conductor"
+    description: "Performer sent 50 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 50
+  - id: "collaboration_performer_10"
+    category: "collaboration"
+    tier: "diamond"
+    scope: "performer"
+    name: "Collaboration - Encore Overlord"
+    description: "Performer sent 75 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 75
+  - id: "collaboration_staff_01"
+    category: "collaboration"
+    tier: "bronze"
+    scope: "staff"
+    name: "Collaboration - Warmup Wizard"
+    description: "Staff sent 1 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 1
+  - id: "collaboration_staff_02"
+    category: "collaboration"
+    tier: "bronze"
+    scope: "staff"
+    name: "Collaboration - Downbeat Dynamo"
+    description: "Staff sent 3 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 3
+  - id: "collaboration_staff_03"
+    category: "collaboration"
+    tier: "bronze"
+    scope: "staff"
+    name: "Collaboration - Stadium Sparkler"
+    description: "Staff sent 5 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 5
+  - id: "collaboration_staff_04"
+    category: "collaboration"
+    tier: "silver"
+    scope: "staff"
+    name: "Collaboration - Cadence Cyclone"
+    description: "Staff sent 8 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 8
+  - id: "collaboration_staff_05"
+    category: "collaboration"
+    tier: "silver"
+    scope: "staff"
+    name: "Collaboration - Fanfare Frenzy"
+    description: "Staff sent 12 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 12
+  - id: "collaboration_staff_06"
+    category: "collaboration"
+    tier: "silver"
+    scope: "staff"
+    name: "Collaboration - Line-Check Legend"
+    description: "Staff sent 18 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 18
+  - id: "collaboration_staff_07"
+    category: "collaboration"
+    tier: "gold"
+    scope: "staff"
+    name: "Collaboration - Block Finale"
+    description: "Staff sent 25 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 25
+  - id: "collaboration_staff_08"
+    category: "collaboration"
+    tier: "gold"
+    scope: "staff"
+    name: "Collaboration - Field Firestarter"
+    description: "Staff sent 35 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 35
+  - id: "collaboration_staff_09"
+    category: "collaboration"
+    tier: "platinum"
+    scope: "staff"
+    name: "Collaboration - Crowd-Noise Conductor"
+    description: "Staff sent 50 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 50
+  - id: "collaboration_staff_10"
+    category: "collaboration"
+    tier: "diamond"
+    scope: "staff"
+    name: "Collaboration - Encore Overlord"
+    description: "Staff sent 75 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 75
+  - id: "reliability_corps_01"
+    category: "reliability"
+    tier: "bronze"
+    scope: "corps"
+    name: "Reliability - Warmup Wizard"
+    description: "Corps maintained a 70% success rate across at least 5 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.7
+      min_total_sessions: 5
+  - id: "reliability_corps_02"
+    category: "reliability"
+    tier: "bronze"
+    scope: "corps"
+    name: "Reliability - Downbeat Dynamo"
+    description: "Corps maintained a 75% success rate across at least 10 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.75
+      min_total_sessions: 10
+  - id: "reliability_corps_03"
+    category: "reliability"
+    tier: "bronze"
+    scope: "corps"
+    name: "Reliability - Stadium Sparkler"
+    description: "Corps maintained a 80% success rate across at least 20 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.8
+      min_total_sessions: 20
+  - id: "reliability_corps_04"
+    category: "reliability"
+    tier: "silver"
+    scope: "corps"
+    name: "Reliability - Cadence Cyclone"
+    description: "Corps maintained a 82% success rate across at least 30 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.82
+      min_total_sessions: 30
+  - id: "reliability_corps_05"
+    category: "reliability"
+    tier: "silver"
+    scope: "corps"
+    name: "Reliability - Fanfare Frenzy"
+    description: "Corps maintained a 84% success rate across at least 40 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.84
+      min_total_sessions: 40
+  - id: "reliability_corps_06"
+    category: "reliability"
+    tier: "silver"
+    scope: "corps"
+    name: "Reliability - Line-Check Legend"
+    description: "Corps maintained a 86% success rate across at least 50 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.86
+      min_total_sessions: 50
+  - id: "reliability_corps_07"
+    category: "reliability"
+    tier: "gold"
+    scope: "corps"
+    name: "Reliability - Block Finale"
+    description: "Corps maintained a 88% success rate across at least 60 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.88
+      min_total_sessions: 60
+  - id: "reliability_corps_08"
+    category: "reliability"
+    tier: "gold"
+    scope: "corps"
+    name: "Reliability - Field Firestarter"
+    description: "Corps maintained a 90% success rate across at least 75 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.9
+      min_total_sessions: 75
+  - id: "reliability_corps_09"
+    category: "reliability"
+    tier: "platinum"
+    scope: "corps"
+    name: "Reliability - Crowd-Noise Conductor"
+    description: "Corps maintained a 92% success rate across at least 100 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.92
+      min_total_sessions: 100
+  - id: "reliability_corps_10"
+    category: "reliability"
+    tier: "diamond"
+    scope: "corps"
+    name: "Reliability - Encore Overlord"
+    description: "Corps maintained a 95% success rate across at least 125 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.95
+      min_total_sessions: 125
+  - id: "reliability_performer_01"
+    category: "reliability"
+    tier: "bronze"
+    scope: "performer"
+    name: "Reliability - Warmup Wizard"
+    description: "Performer maintained a 70% success rate across at least 3 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.7
+      min_total_sessions: 3
+  - id: "reliability_performer_02"
+    category: "reliability"
+    tier: "bronze"
+    scope: "performer"
+    name: "Reliability - Downbeat Dynamo"
+    description: "Performer maintained a 75% success rate across at least 5 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.75
+      min_total_sessions: 5
+  - id: "reliability_performer_03"
+    category: "reliability"
+    tier: "bronze"
+    scope: "performer"
+    name: "Reliability - Stadium Sparkler"
+    description: "Performer maintained a 80% success rate across at least 8 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.8
+      min_total_sessions: 8
+  - id: "reliability_performer_04"
+    category: "reliability"
+    tier: "silver"
+    scope: "performer"
+    name: "Reliability - Cadence Cyclone"
+    description: "Performer maintained a 82% success rate across at least 10 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.82
+      min_total_sessions: 10
+  - id: "reliability_performer_05"
+    category: "reliability"
+    tier: "silver"
+    scope: "performer"
+    name: "Reliability - Fanfare Frenzy"
+    description: "Performer maintained a 84% success rate across at least 15 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.84
+      min_total_sessions: 15
+  - id: "reliability_performer_06"
+    category: "reliability"
+    tier: "silver"
+    scope: "performer"
+    name: "Reliability - Line-Check Legend"
+    description: "Performer maintained a 86% success rate across at least 20 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.86
+      min_total_sessions: 20
+  - id: "reliability_performer_07"
+    category: "reliability"
+    tier: "gold"
+    scope: "performer"
+    name: "Reliability - Block Finale"
+    description: "Performer maintained a 88% success rate across at least 25 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.88
+      min_total_sessions: 25
+  - id: "reliability_performer_08"
+    category: "reliability"
+    tier: "gold"
+    scope: "performer"
+    name: "Reliability - Field Firestarter"
+    description: "Performer maintained a 90% success rate across at least 30 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.9
+      min_total_sessions: 30
+  - id: "reliability_performer_09"
+    category: "reliability"
+    tier: "platinum"
+    scope: "performer"
+    name: "Reliability - Crowd-Noise Conductor"
+    description: "Performer maintained a 92% success rate across at least 40 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.92
+      min_total_sessions: 40
+  - id: "reliability_performer_10"
+    category: "reliability"
+    tier: "diamond"
+    scope: "performer"
+    name: "Reliability - Encore Overlord"
+    description: "Performer maintained a 95% success rate across at least 50 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.95
+      min_total_sessions: 50
+  - id: "reliability_staff_01"
+    category: "reliability"
+    tier: "bronze"
+    scope: "staff"
+    name: "Reliability - Warmup Wizard"
+    description: "Staff maintained a 70% success rate across at least 3 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.7
+      min_total_sessions: 3
+  - id: "reliability_staff_02"
+    category: "reliability"
+    tier: "bronze"
+    scope: "staff"
+    name: "Reliability - Downbeat Dynamo"
+    description: "Staff maintained a 75% success rate across at least 5 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.75
+      min_total_sessions: 5
+  - id: "reliability_staff_03"
+    category: "reliability"
+    tier: "bronze"
+    scope: "staff"
+    name: "Reliability - Stadium Sparkler"
+    description: "Staff maintained a 80% success rate across at least 8 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.8
+      min_total_sessions: 8
+  - id: "reliability_staff_04"
+    category: "reliability"
+    tier: "silver"
+    scope: "staff"
+    name: "Reliability - Cadence Cyclone"
+    description: "Staff maintained a 82% success rate across at least 10 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.82
+      min_total_sessions: 10
+  - id: "reliability_staff_05"
+    category: "reliability"
+    tier: "silver"
+    scope: "staff"
+    name: "Reliability - Fanfare Frenzy"
+    description: "Staff maintained a 84% success rate across at least 15 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.84
+      min_total_sessions: 15
+  - id: "reliability_staff_06"
+    category: "reliability"
+    tier: "silver"
+    scope: "staff"
+    name: "Reliability - Line-Check Legend"
+    description: "Staff maintained a 86% success rate across at least 20 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.86
+      min_total_sessions: 20
+  - id: "reliability_staff_07"
+    category: "reliability"
+    tier: "gold"
+    scope: "staff"
+    name: "Reliability - Block Finale"
+    description: "Staff maintained a 88% success rate across at least 25 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.88
+      min_total_sessions: 25
+  - id: "reliability_staff_08"
+    category: "reliability"
+    tier: "gold"
+    scope: "staff"
+    name: "Reliability - Field Firestarter"
+    description: "Staff maintained a 90% success rate across at least 30 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.9
+      min_total_sessions: 30
+  - id: "reliability_staff_09"
+    category: "reliability"
+    tier: "platinum"
+    scope: "staff"
+    name: "Reliability - Crowd-Noise Conductor"
+    description: "Staff maintained a 92% success rate across at least 40 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.92
+      min_total_sessions: 40
+  - id: "reliability_staff_10"
+    category: "reliability"
+    tier: "diamond"
+    scope: "staff"
+    name: "Reliability - Encore Overlord"
+    description: "Staff maintained a 95% success rate across at least 50 sessions."
+    trigger:
+      metric: "success_rate"
+      op: ">="
+      value: 0.95
+      min_total_sessions: 50
+  - id: "creativity_corps_01"
+    category: "creativity"
+    tier: "bronze"
+    scope: "corps"
+    name: "Creativity - Warmup Wizard"
+    description: "Corps created work in 2 distinct segment types."
+    trigger:
+      metric: "unique_segment_types"
+      op: ">="
+      value: 2
+  - id: "creativity_corps_02"
+    category: "creativity"
+    tier: "bronze"
+    scope: "corps"
+    name: "Creativity - Downbeat Dynamo"
+    description: "Corps created work in 3 distinct segment types."
+    trigger:
+      metric: "unique_segment_types"
+      op: ">="
+      value: 3
+  - id: "creativity_corps_03"
+    category: "creativity"
+    tier: "bronze"
+    scope: "corps"
+    name: "Creativity - Stadium Sparkler"
+    description: "Corps created work in 4 distinct segment types."
+    trigger:
+      metric: "unique_segment_types"
+      op: ">="
+      value: 4
+  - id: "creativity_corps_04"
+    category: "creativity"
+    tier: "silver"
+    scope: "corps"
+    name: "Creativity - Cadence Cyclone"
+    description: "Corps created work in 5 distinct segment types."
+    trigger:
+      metric: "unique_segment_types"
+      op: ">="
+      value: 5
+  - id: "creativity_corps_05"
+    category: "creativity"
+    tier: "silver"
+    scope: "corps"
+    name: "Creativity - Fanfare Frenzy"
+    description: "Corps created work in 6 distinct segment types."
+    trigger:
+      metric: "unique_segment_types"
+      op: ">="
+      value: 6
+  - id: "creativity_corps_06"
+    category: "creativity"
+    tier: "silver"
+    scope: "corps"
+    name: "Creativity - Line-Check Legend"
+    description: "Corps created work in 7 distinct segment types."
+    trigger:
+      metric: "unique_segment_types"
+      op: ">="
+      value: 7
+  - id: "creativity_corps_07"
+    category: "creativity"
+    tier: "gold"
+    scope: "corps"
+    name: "Creativity - Block Finale"
+    description: "Corps created work in 8 distinct segment types."
+    trigger:
+      metric: "unique_segment_types"
+      op: ">="
+      value: 8
+  - id: "creativity_corps_08"
+    category: "creativity"
+    tier: "gold"
+    scope: "corps"
+    name: "Creativity - Field Firestarter"
+    description: "Corps created work in 9 distinct segment types."
+    trigger:
+      metric: "unique_segment_types"
+      op: ">="
+      value: 9
+  - id: "creativity_corps_09"
+    category: "creativity"
+    tier: "platinum"
+    scope: "corps"
+    name: "Creativity - Crowd-Noise Conductor"
+    description: "Corps created work in 10 distinct segment types."
+    trigger:
+      metric: "unique_segment_types"
+      op: ">="
+      value: 10
+  - id: "creativity_corps_10"
+    category: "creativity"
+    tier: "diamond"
+    scope: "corps"
+    name: "Creativity - Encore Overlord"
+    description: "Corps created work in 12 distinct segment types."
+    trigger:
+      metric: "unique_segment_types"
+      op: ">="
+      value: 12
+  - id: "creativity_performer_01"
+    category: "creativity"
+    tier: "bronze"
+    scope: "performer"
+    name: "Creativity - Warmup Wizard"
+    description: "Performer worked across 1 distinct captions."
+    trigger:
+      metric: "unique_captions"
+      op: ">="
+      value: 1
+  - id: "creativity_performer_02"
+    category: "creativity"
+    tier: "bronze"
+    scope: "performer"
+    name: "Creativity - Downbeat Dynamo"
+    description: "Performer worked across 2 distinct captions."
+    trigger:
+      metric: "unique_captions"
+      op: ">="
+      value: 2
+  - id: "creativity_performer_03"
+    category: "creativity"
+    tier: "bronze"
+    scope: "performer"
+    name: "Creativity - Stadium Sparkler"
+    description: "Performer worked across 3 distinct captions."
+    trigger:
+      metric: "unique_captions"
+      op: ">="
+      value: 3
+  - id: "creativity_performer_04"
+    category: "creativity"
+    tier: "silver"
+    scope: "performer"
+    name: "Creativity - Cadence Cyclone"
+    description: "Performer worked across 4 distinct captions."
+    trigger:
+      metric: "unique_captions"
+      op: ">="
+      value: 4
+  - id: "creativity_performer_05"
+    category: "creativity"
+    tier: "silver"
+    scope: "performer"
+    name: "Creativity - Fanfare Frenzy"
+    description: "Performer worked across 5 distinct captions."
+    trigger:
+      metric: "unique_captions"
+      op: ">="
+      value: 5
+  - id: "creativity_performer_06"
+    category: "creativity"
+    tier: "silver"
+    scope: "performer"
+    name: "Creativity - Line-Check Legend"
+    description: "Performer worked across 6 distinct captions."
+    trigger:
+      metric: "unique_captions"
+      op: ">="
+      value: 6
+  - id: "creativity_performer_07"
+    category: "creativity"
+    tier: "gold"
+    scope: "performer"
+    name: "Creativity - Block Finale"
+    description: "Performer worked across 7 distinct captions."
+    trigger:
+      metric: "unique_captions"
+      op: ">="
+      value: 7
+  - id: "creativity_performer_08"
+    category: "creativity"
+    tier: "gold"
+    scope: "performer"
+    name: "Creativity - Field Firestarter"
+    description: "Performer worked across 8 distinct captions."
+    trigger:
+      metric: "unique_captions"
+      op: ">="
+      value: 8
+  - id: "creativity_performer_09"
+    category: "creativity"
+    tier: "platinum"
+    scope: "performer"
+    name: "Creativity - Crowd-Noise Conductor"
+    description: "Performer worked across 9 distinct captions."
+    trigger:
+      metric: "unique_captions"
+      op: ">="
+      value: 9
+  - id: "creativity_performer_10"
+    category: "creativity"
+    tier: "diamond"
+    scope: "performer"
+    name: "Creativity - Encore Overlord"
+    description: "Performer worked across 10 distinct captions."
+    trigger:
+      metric: "unique_captions"
+      op: ">="
+      value: 10
+  - id: "creativity_staff_01"
+    category: "creativity"
+    tier: "bronze"
+    scope: "staff"
+    name: "Creativity - Warmup Wizard"
+    description: "Staff worked across 1 distinct captions."
+    trigger:
+      metric: "unique_captions"
+      op: ">="
+      value: 1
+  - id: "creativity_staff_02"
+    category: "creativity"
+    tier: "bronze"
+    scope: "staff"
+    name: "Creativity - Downbeat Dynamo"
+    description: "Staff worked across 2 distinct captions."
+    trigger:
+      metric: "unique_captions"
+      op: ">="
+      value: 2
+  - id: "creativity_staff_03"
+    category: "creativity"
+    tier: "bronze"
+    scope: "staff"
+    name: "Creativity - Stadium Sparkler"
+    description: "Staff worked across 3 distinct captions."
+    trigger:
+      metric: "unique_captions"
+      op: ">="
+      value: 3
+  - id: "creativity_staff_04"
+    category: "creativity"
+    tier: "silver"
+    scope: "staff"
+    name: "Creativity - Cadence Cyclone"
+    description: "Staff worked across 4 distinct captions."
+    trigger:
+      metric: "unique_captions"
+      op: ">="
+      value: 4
+  - id: "creativity_staff_05"
+    category: "creativity"
+    tier: "silver"
+    scope: "staff"
+    name: "Creativity - Fanfare Frenzy"
+    description: "Staff worked across 5 distinct captions."
+    trigger:
+      metric: "unique_captions"
+      op: ">="
+      value: 5
+  - id: "creativity_staff_06"
+    category: "creativity"
+    tier: "silver"
+    scope: "staff"
+    name: "Creativity - Line-Check Legend"
+    description: "Staff worked across 6 distinct captions."
+    trigger:
+      metric: "unique_captions"
+      op: ">="
+      value: 6
+  - id: "creativity_staff_07"
+    category: "creativity"
+    tier: "gold"
+    scope: "staff"
+    name: "Creativity - Block Finale"
+    description: "Staff worked across 7 distinct captions."
+    trigger:
+      metric: "unique_captions"
+      op: ">="
+      value: 7
+  - id: "creativity_staff_08"
+    category: "creativity"
+    tier: "gold"
+    scope: "staff"
+    name: "Creativity - Field Firestarter"
+    description: "Staff worked across 8 distinct captions."
+    trigger:
+      metric: "unique_captions"
+      op: ">="
+      value: 8
+  - id: "creativity_staff_09"
+    category: "creativity"
+    tier: "platinum"
+    scope: "staff"
+    name: "Creativity - Crowd-Noise Conductor"
+    description: "Staff worked across 9 distinct captions."
+    trigger:
+      metric: "unique_captions"
+      op: ">="
+      value: 9
+  - id: "creativity_staff_10"
+    category: "creativity"
+    tier: "diamond"
+    scope: "staff"
+    name: "Creativity - Encore Overlord"
+    description: "Staff worked across 10 distinct captions."
+    trigger:
+      metric: "unique_captions"
+      op: ">="
+      value: 10
+  - id: "mentorship_corps_01"
+    category: "mentorship"
+    tier: "bronze"
+    scope: "corps"
+    name: "Mentorship - Warmup Wizard"
+    description: "Corps sent 10 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 10
+  - id: "mentorship_corps_02"
+    category: "mentorship"
+    tier: "bronze"
+    scope: "corps"
+    name: "Mentorship - Downbeat Dynamo"
+    description: "Corps sent 25 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 25
+  - id: "mentorship_corps_03"
+    category: "mentorship"
+    tier: "bronze"
+    scope: "corps"
+    name: "Mentorship - Stadium Sparkler"
+    description: "Corps sent 50 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 50
+  - id: "mentorship_corps_04"
+    category: "mentorship"
+    tier: "silver"
+    scope: "corps"
+    name: "Mentorship - Cadence Cyclone"
+    description: "Corps sent 75 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 75
+  - id: "mentorship_corps_05"
+    category: "mentorship"
+    tier: "silver"
+    scope: "corps"
+    name: "Mentorship - Fanfare Frenzy"
+    description: "Corps sent 100 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 100
+  - id: "mentorship_corps_06"
+    category: "mentorship"
+    tier: "silver"
+    scope: "corps"
+    name: "Mentorship - Line-Check Legend"
+    description: "Corps sent 150 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 150
+  - id: "mentorship_corps_07"
+    category: "mentorship"
+    tier: "gold"
+    scope: "corps"
+    name: "Mentorship - Block Finale"
+    description: "Corps sent 200 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 200
+  - id: "mentorship_corps_08"
+    category: "mentorship"
+    tier: "gold"
+    scope: "corps"
+    name: "Mentorship - Field Firestarter"
+    description: "Corps sent 300 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 300
+  - id: "mentorship_corps_09"
+    category: "mentorship"
+    tier: "platinum"
+    scope: "corps"
+    name: "Mentorship - Crowd-Noise Conductor"
+    description: "Corps sent 400 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 400
+  - id: "mentorship_corps_10"
+    category: "mentorship"
+    tier: "diamond"
+    scope: "corps"
+    name: "Mentorship - Encore Overlord"
+    description: "Corps sent 500 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 500
+  - id: "mentorship_performer_01"
+    category: "mentorship"
+    tier: "bronze"
+    scope: "performer"
+    name: "Mentorship - Warmup Wizard"
+    description: "Performer sent 1 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 1
+  - id: "mentorship_performer_02"
+    category: "mentorship"
+    tier: "bronze"
+    scope: "performer"
+    name: "Mentorship - Downbeat Dynamo"
+    description: "Performer sent 3 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 3
+  - id: "mentorship_performer_03"
+    category: "mentorship"
+    tier: "bronze"
+    scope: "performer"
+    name: "Mentorship - Stadium Sparkler"
+    description: "Performer sent 5 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 5
+  - id: "mentorship_performer_04"
+    category: "mentorship"
+    tier: "silver"
+    scope: "performer"
+    name: "Mentorship - Cadence Cyclone"
+    description: "Performer sent 8 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 8
+  - id: "mentorship_performer_05"
+    category: "mentorship"
+    tier: "silver"
+    scope: "performer"
+    name: "Mentorship - Fanfare Frenzy"
+    description: "Performer sent 12 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 12
+  - id: "mentorship_performer_06"
+    category: "mentorship"
+    tier: "silver"
+    scope: "performer"
+    name: "Mentorship - Line-Check Legend"
+    description: "Performer sent 18 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 18
+  - id: "mentorship_performer_07"
+    category: "mentorship"
+    tier: "gold"
+    scope: "performer"
+    name: "Mentorship - Block Finale"
+    description: "Performer sent 25 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 25
+  - id: "mentorship_performer_08"
+    category: "mentorship"
+    tier: "gold"
+    scope: "performer"
+    name: "Mentorship - Field Firestarter"
+    description: "Performer sent 35 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 35
+  - id: "mentorship_performer_09"
+    category: "mentorship"
+    tier: "platinum"
+    scope: "performer"
+    name: "Mentorship - Crowd-Noise Conductor"
+    description: "Performer sent 50 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 50
+  - id: "mentorship_performer_10"
+    category: "mentorship"
+    tier: "diamond"
+    scope: "performer"
+    name: "Mentorship - Encore Overlord"
+    description: "Performer sent 75 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 75
+  - id: "mentorship_staff_01"
+    category: "mentorship"
+    tier: "bronze"
+    scope: "staff"
+    name: "Mentorship - Warmup Wizard"
+    description: "Staff sent 1 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 1
+  - id: "mentorship_staff_02"
+    category: "mentorship"
+    tier: "bronze"
+    scope: "staff"
+    name: "Mentorship - Downbeat Dynamo"
+    description: "Staff sent 3 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 3
+  - id: "mentorship_staff_03"
+    category: "mentorship"
+    tier: "bronze"
+    scope: "staff"
+    name: "Mentorship - Stadium Sparkler"
+    description: "Staff sent 5 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 5
+  - id: "mentorship_staff_04"
+    category: "mentorship"
+    tier: "silver"
+    scope: "staff"
+    name: "Mentorship - Cadence Cyclone"
+    description: "Staff sent 8 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 8
+  - id: "mentorship_staff_05"
+    category: "mentorship"
+    tier: "silver"
+    scope: "staff"
+    name: "Mentorship - Fanfare Frenzy"
+    description: "Staff sent 12 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 12
+  - id: "mentorship_staff_06"
+    category: "mentorship"
+    tier: "silver"
+    scope: "staff"
+    name: "Mentorship - Line-Check Legend"
+    description: "Staff sent 18 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 18
+  - id: "mentorship_staff_07"
+    category: "mentorship"
+    tier: "gold"
+    scope: "staff"
+    name: "Mentorship - Block Finale"
+    description: "Staff sent 25 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 25
+  - id: "mentorship_staff_08"
+    category: "mentorship"
+    tier: "gold"
+    scope: "staff"
+    name: "Mentorship - Field Firestarter"
+    description: "Staff sent 35 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 35
+  - id: "mentorship_staff_09"
+    category: "mentorship"
+    tier: "platinum"
+    scope: "staff"
+    name: "Mentorship - Crowd-Noise Conductor"
+    description: "Staff sent 50 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 50
+  - id: "mentorship_staff_10"
+    category: "mentorship"
+    tier: "diamond"
+    scope: "staff"
+    name: "Mentorship - Encore Overlord"
+    description: "Staff sent 75 handoff messages."
+    trigger:
+      metric: "handoffs_sent"
+      op: ">="
+      value: 75
+  - id: "comeback_corps_01"
+    category: "comeback"
+    tier: "bronze"
+    scope: "corps"
+    name: "Comeback - Warmup Wizard"
+    description: "Corps bounced back 5 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 5
+      min_success_rate: 0.55
+  - id: "comeback_corps_02"
+    category: "comeback"
+    tier: "bronze"
+    scope: "corps"
+    name: "Comeback - Downbeat Dynamo"
+    description: "Corps bounced back 10 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 10
+      min_success_rate: 0.55
+  - id: "comeback_corps_03"
+    category: "comeback"
+    tier: "bronze"
+    scope: "corps"
+    name: "Comeback - Stadium Sparkler"
+    description: "Corps bounced back 15 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 15
+      min_success_rate: 0.55
+  - id: "comeback_corps_04"
+    category: "comeback"
+    tier: "silver"
+    scope: "corps"
+    name: "Comeback - Cadence Cyclone"
+    description: "Corps bounced back 20 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 20
+      min_success_rate: 0.55
+  - id: "comeback_corps_05"
+    category: "comeback"
+    tier: "silver"
+    scope: "corps"
+    name: "Comeback - Fanfare Frenzy"
+    description: "Corps bounced back 25 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 25
+      min_success_rate: 0.55
+  - id: "comeback_corps_06"
+    category: "comeback"
+    tier: "silver"
+    scope: "corps"
+    name: "Comeback - Line-Check Legend"
+    description: "Corps bounced back 30 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 30
+      min_success_rate: 0.55
+  - id: "comeback_corps_07"
+    category: "comeback"
+    tier: "gold"
+    scope: "corps"
+    name: "Comeback - Block Finale"
+    description: "Corps bounced back 40 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 40
+      min_success_rate: 0.55
+  - id: "comeback_corps_08"
+    category: "comeback"
+    tier: "gold"
+    scope: "corps"
+    name: "Comeback - Field Firestarter"
+    description: "Corps bounced back 50 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 50
+      min_success_rate: 0.55
+  - id: "comeback_corps_09"
+    category: "comeback"
+    tier: "platinum"
+    scope: "corps"
+    name: "Comeback - Crowd-Noise Conductor"
+    description: "Corps bounced back 60 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 60
+      min_success_rate: 0.55
+  - id: "comeback_corps_10"
+    category: "comeback"
+    tier: "diamond"
+    scope: "corps"
+    name: "Comeback - Encore Overlord"
+    description: "Corps bounced back 75 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 75
+      min_success_rate: 0.55
+  - id: "comeback_performer_01"
+    category: "comeback"
+    tier: "bronze"
+    scope: "performer"
+    name: "Comeback - Warmup Wizard"
+    description: "Performer bounced back 1 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 1
+      min_success_rate: 0.55
+  - id: "comeback_performer_02"
+    category: "comeback"
+    tier: "bronze"
+    scope: "performer"
+    name: "Comeback - Downbeat Dynamo"
+    description: "Performer bounced back 2 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 2
+      min_success_rate: 0.55
+  - id: "comeback_performer_03"
+    category: "comeback"
+    tier: "bronze"
+    scope: "performer"
+    name: "Comeback - Stadium Sparkler"
+    description: "Performer bounced back 3 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 3
+      min_success_rate: 0.55
+  - id: "comeback_performer_04"
+    category: "comeback"
+    tier: "silver"
+    scope: "performer"
+    name: "Comeback - Cadence Cyclone"
+    description: "Performer bounced back 4 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 4
+      min_success_rate: 0.55
+  - id: "comeback_performer_05"
+    category: "comeback"
+    tier: "silver"
+    scope: "performer"
+    name: "Comeback - Fanfare Frenzy"
+    description: "Performer bounced back 5 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 5
+      min_success_rate: 0.55
+  - id: "comeback_performer_06"
+    category: "comeback"
+    tier: "silver"
+    scope: "performer"
+    name: "Comeback - Line-Check Legend"
+    description: "Performer bounced back 6 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 6
+      min_success_rate: 0.55
+  - id: "comeback_performer_07"
+    category: "comeback"
+    tier: "gold"
+    scope: "performer"
+    name: "Comeback - Block Finale"
+    description: "Performer bounced back 8 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 8
+      min_success_rate: 0.55
+  - id: "comeback_performer_08"
+    category: "comeback"
+    tier: "gold"
+    scope: "performer"
+    name: "Comeback - Field Firestarter"
+    description: "Performer bounced back 10 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 10
+      min_success_rate: 0.55
+  - id: "comeback_performer_09"
+    category: "comeback"
+    tier: "platinum"
+    scope: "performer"
+    name: "Comeback - Crowd-Noise Conductor"
+    description: "Performer bounced back 12 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 12
+      min_success_rate: 0.55
+  - id: "comeback_performer_10"
+    category: "comeback"
+    tier: "diamond"
+    scope: "performer"
+    name: "Comeback - Encore Overlord"
+    description: "Performer bounced back 15 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 15
+      min_success_rate: 0.55
+  - id: "comeback_staff_01"
+    category: "comeback"
+    tier: "bronze"
+    scope: "staff"
+    name: "Comeback - Warmup Wizard"
+    description: "Staff bounced back 1 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 1
+      min_success_rate: 0.55
+  - id: "comeback_staff_02"
+    category: "comeback"
+    tier: "bronze"
+    scope: "staff"
+    name: "Comeback - Downbeat Dynamo"
+    description: "Staff bounced back 2 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 2
+      min_success_rate: 0.55
+  - id: "comeback_staff_03"
+    category: "comeback"
+    tier: "bronze"
+    scope: "staff"
+    name: "Comeback - Stadium Sparkler"
+    description: "Staff bounced back 3 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 3
+      min_success_rate: 0.55
+  - id: "comeback_staff_04"
+    category: "comeback"
+    tier: "silver"
+    scope: "staff"
+    name: "Comeback - Cadence Cyclone"
+    description: "Staff bounced back 4 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 4
+      min_success_rate: 0.55
+  - id: "comeback_staff_05"
+    category: "comeback"
+    tier: "silver"
+    scope: "staff"
+    name: "Comeback - Fanfare Frenzy"
+    description: "Staff bounced back 5 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 5
+      min_success_rate: 0.55
+  - id: "comeback_staff_06"
+    category: "comeback"
+    tier: "silver"
+    scope: "staff"
+    name: "Comeback - Line-Check Legend"
+    description: "Staff bounced back 6 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 6
+      min_success_rate: 0.55
+  - id: "comeback_staff_07"
+    category: "comeback"
+    tier: "gold"
+    scope: "staff"
+    name: "Comeback - Block Finale"
+    description: "Staff bounced back 8 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 8
+      min_success_rate: 0.55
+  - id: "comeback_staff_08"
+    category: "comeback"
+    tier: "gold"
+    scope: "staff"
+    name: "Comeback - Field Firestarter"
+    description: "Staff bounced back 10 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 10
+      min_success_rate: 0.55
+  - id: "comeback_staff_09"
+    category: "comeback"
+    tier: "platinum"
+    scope: "staff"
+    name: "Comeback - Crowd-Noise Conductor"
+    description: "Staff bounced back 12 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 12
+      min_success_rate: 0.55
+  - id: "comeback_staff_10"
+    category: "comeback"
+    tier: "diamond"
+    scope: "staff"
+    name: "Comeback - Encore Overlord"
+    description: "Staff bounced back 15 times after a failure."
+    trigger:
+      metric: "comeback_count"
+      op: ">="
+      value: 15
+      min_success_rate: 0.55

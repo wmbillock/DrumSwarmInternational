@@ -203,6 +203,53 @@ def _terminate_session(
         session.context_snapshot = context_snapshot
     db.commit()
     db.refresh(session)
+
+    try:
+        from backend.models.capability_ledger import LedgerEntryType
+        from backend.services.capability_ledger_service import record_entry
+        from backend.services.achievement_detector import check_performer_achievements, check_corps_achievements
+        from backend.models.performer import Performer
+        from backend.models.corps import Corps
+
+        entry_type = None
+        if new_status == SessionStatus.COMPLETED:
+            entry_type = LedgerEntryType.SESSION_COMPLETED
+        elif new_status in (SessionStatus.FAILED, SessionStatus.TIMED_OUT):
+            entry_type = LedgerEntryType.SESSION_FAILED
+
+        role_type = session.definition.role if session.definition else "unknown"
+        performer_name = None
+        performer = None
+        if session.performer_id:
+            performer = db.get(Performer, session.performer_id)
+            if performer:
+                performer_name = performer.name
+
+        if entry_type:
+            record_entry(
+                db,
+                role_type=role_type,
+                entry_type=entry_type,
+                performer_id=session.performer_id,
+                performer_name=performer_name,
+                corps_id=session.corps_id,
+                session_id=session.id,
+            )
+
+        if performer:
+            check_performer_achievements(
+                db,
+                performer.id,
+                performer.name,
+                corps_id=session.corps_id,
+                role_type=performer.role_type,
+            )
+
+        corps = db.get(Corps, session.corps_id)
+        if corps:
+            check_corps_achievements(db, corps.id, corps.name)
+    except Exception:
+        pass
     return session
 
 

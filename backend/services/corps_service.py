@@ -651,6 +651,40 @@ def handoff(
         segment_id=segment_id,
     )
 
+    try:
+        from backend.models.agent_session import AgentSession
+        from backend.models.agent_definition import AgentDefinition
+        from backend.models.performer import Performer
+        from backend.models.corps import Corps
+        from backend.services.achievement_detector import check_performer_achievements, check_corps_achievements
+
+        session = (
+            db.query(AgentSession)
+            .join(AgentDefinition, AgentSession.definition_id == AgentDefinition.id)
+            .filter(
+                AgentSession.corps_id == corps_id,
+                AgentDefinition.role == from_role,
+            )
+            .order_by(AgentSession.started_at.desc())
+            .first()
+        )
+        if session and session.performer_id:
+            performer = db.get(Performer, session.performer_id)
+            if performer:
+                check_performer_achievements(
+                    db,
+                    performer.id,
+                    performer.name,
+                    corps_id=corps_id,
+                    role_type=performer.role_type,
+                )
+
+        corps = db.get(Corps, corps_id)
+        if corps:
+            check_corps_achievements(db, corps.id, corps.name)
+    except Exception:
+        pass
+
 
 def escalate(
     db: Session,

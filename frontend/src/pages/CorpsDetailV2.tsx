@@ -3,8 +3,10 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Tabs, Panel, DataTable, Badge } from "../ui";
 import { ShowDetail } from "../components/ShowDetail";
 import { HiringProgress } from "../components/HiringProgress";
+import { AwardsPanel } from "../components/AwardsPanel";
 import { badgeForRunStatus, badgeForShowStatus, formatMode, formatStatus, formatTimestamp, slugToTitle } from "../utils/formatters";
 import * as v1 from "../services/v1";
+import { useWebSocket } from "../hooks/useWebSocket";
 
 const TAB_ITEMS = [
   { key: "overview", label: "Overview" },
@@ -24,6 +26,8 @@ export function CorpsDetailV2() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [refreshToken, setRefreshToken] = useState(0);
+  const [awardToast, setAwardToast] = useState<{ name: string; description: string; recipient: string } | null>(null);
+  const { lastMessage } = useWebSocket(corpsId || null);
 
   useEffect(() => {
     if (!corpsId) return;
@@ -57,6 +61,16 @@ export function CorpsDetailV2() {
     v1.getCorps(corpsId).then(setCorps).catch(() => {});
   }, [corpsId]);
 
+  useEffect(() => {
+    if (!lastMessage || lastMessage.type !== "award.unlocked") return;
+    const name = String(lastMessage.name || "Achievement unlocked");
+    const description = String(lastMessage.description || "");
+    const recipient = String(lastMessage.recipient_name || "");
+    setAwardToast({ name, description, recipient });
+    const timer = setTimeout(() => setAwardToast(null), 8000);
+    return () => clearTimeout(timer);
+  }, [lastMessage]);
+
   if (loading) return <div className="page-loading">Loading corps...</div>;
   if (error) {
     return (
@@ -70,6 +84,14 @@ export function CorpsDetailV2() {
 
   return (
     <div className="page-content">
+      {awardToast && (
+        <div className="award-toast">
+          <div className="award-toast-title">{awardToast.name}</div>
+          <div className="award-toast-body">{awardToast.description}</div>
+          <div className="award-toast-meta">{awardToast.recipient}</div>
+          <button className="award-toast-close" onClick={() => setAwardToast(null)}>Dismiss</button>
+        </div>
+      )}
       <div className="page-header">
         <button className="back-btn" onClick={() => navigate("/corps")}>Back</button>
         <h2>{corps.display_name}</h2>
@@ -103,6 +125,7 @@ function OverviewTab({ corps, onStateChange }: { corps: v1.V1CorpsDetail; onStat
   const [cmdLoading, setCmdLoading] = useState("");
   const [cmdResult, setCmdResult] = useState("");
   const [staffing, setStaffing] = useState<v1.StaffingStatus | null>(null);
+  const [awards, setAwards] = useState<v1.V1Award[]>([]);
 
   const exec = async (command: string) => {
     setCmdLoading(command);
@@ -127,6 +150,12 @@ function OverviewTab({ corps, onStateChange }: { corps: v1.V1CorpsDetail; onStat
       .then(setStaffing)
       .catch(() => {});
   }, [corps.corps_id, isWinterCamps]);
+
+  useEffect(() => {
+    v1.listAwards({ corps_id: corps.corps_id, recipient_type: "corps" })
+      .then(setAwards)
+      .catch(() => setAwards([]));
+  }, [corps.corps_id]);
 
   return (
     <div>
@@ -215,6 +244,8 @@ function OverviewTab({ corps, onStateChange }: { corps: v1.V1CorpsDetail; onStat
           <div style={{ marginTop: 8, fontSize: 13, color: "var(--text-secondary)" }}>{cmdResult}</div>
         )}
       </Panel>
+
+      <AwardsPanel title="Corps Achievements" awards={awards} emptyText="No corps achievements yet." />
 
       <FeedbackPanel corpsId={corps.corps_id} />
 

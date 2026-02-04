@@ -67,6 +67,54 @@ def transition_rep(
     # Update the segment's status based on its reps
     _sync_segment_from_reps(db, rep.segment_id)
 
+    # Record ledger + achievements on completion/failure
+    if new_status in (RepStatus.COMPLETED, RepStatus.FAILED):
+        try:
+            from backend.models.agent_session import AgentSession
+            from backend.models.capability_ledger import LedgerEntryType
+            from backend.services.capability_ledger_service import record_entry
+            from backend.services.achievement_detector import check_performer_achievements, check_corps_achievements
+            from backend.models.corps import Corps
+
+            session = db.get(AgentSession, rep.assigned_to) if rep.assigned_to else None
+            performer_id = session.performer_id if session else None
+            corps_id = session.corps_id if session else None
+            role_type = session.definition.role if session and session.definition else "unknown"
+            performer_name = None
+            performer = None
+            if performer_id:
+                from backend.models.performer import Performer
+                performer = db.get(Performer, performer_id)
+                if performer:
+                    performer_name = performer.name
+
+            record_entry(
+                db,
+                role_type=role_type,
+                entry_type=LedgerEntryType.REP_COMPLETED if new_status == RepStatus.COMPLETED else LedgerEntryType.REP_FAILED,
+                performer_id=performer_id,
+                performer_name=performer_name,
+                corps_id=corps_id,
+                session_id=session.id if session else None,
+                rep_id=rep.id,
+            )
+
+            if performer:
+                check_performer_achievements(
+                    db,
+                    performer.id,
+                    performer.name,
+                    corps_id=corps_id,
+                    role_type=performer.role_type,
+                )
+
+            if corps_id:
+                corps = db.get(Corps, corps_id)
+                if corps:
+                    check_corps_achievements(db, corps.id, corps.name)
+        except Exception:
+            logger.debug("Ledger/achievement processing failed for rep %s", rep.id, exc_info=True)
+
     # Publish event
     try:
         from backend.services.event_bus import get_event_bus

@@ -10,9 +10,14 @@ router = APIRouter(prefix="/api/v1")
 
 
 @router.get("/awards")
-def list_awards(recipient_id: Optional[str] = None, corps_id: Optional[str] = None, category: Optional[str] = None):
+def list_awards(
+    recipient_id: Optional[str] = None,
+    corps_id: Optional[str] = None,
+    category: Optional[str] = None,
+    recipient_type: Optional[str] = None,
+):
     """List caption awards with optional filters."""
-    from backend.models.caption_award import CaptionAward, AwardCategory
+    from backend.models.caption_award import CaptionAward, AwardCategory, AwardRecipientType
 
     db = _get_db_session()
     try:
@@ -26,6 +31,11 @@ def list_awards(recipient_id: Optional[str] = None, corps_id: Optional[str] = No
                 q = q.filter(CaptionAward.category == AwardCategory(category))
             except ValueError:
                 raise HTTPException(400, f"Invalid category: {category}")
+        if recipient_type:
+            try:
+                q = q.filter(CaptionAward.recipient_type == AwardRecipientType(recipient_type))
+            except ValueError:
+                raise HTTPException(400, f"Invalid recipient_type: {recipient_type}")
         awards = q.order_by(CaptionAward.awarded_at.desc()).limit(100).all()
         return [{
             "id": a.id,
@@ -50,10 +60,15 @@ def check_awards(corps_id: str):
     _validate_id(corps_id, "corps_id")
     from backend.models.agent_session import AgentSession
     from backend.models.performer import Performer
-    from backend.services.achievement_detector import check_performer_achievements
+    from backend.services.achievement_detector import check_performer_achievements, check_corps_achievements
+    from backend.models.corps import Corps
 
     db = _get_db_session()
     try:
+        corps = db.get(Corps, corps_id)
+        if corps:
+            check_corps_achievements(db, corps.id, corps.name)
+
         sessions = db.query(AgentSession).filter(
             AgentSession.corps_id == corps_id,
             AgentSession.performer_id.isnot(None),
@@ -62,7 +77,13 @@ def check_awards(corps_id: str):
         for s in sessions:
             performer = db.get(Performer, s.performer_id)
             if performer:
-                awards = check_performer_achievements(db, performer.id, performer.name, corps_id)
+                awards = check_performer_achievements(
+                    db,
+                    performer.id,
+                    performer.name,
+                    corps_id,
+                    role_type=performer.role_type,
+                )
                 total_awarded += len(awards)
         return {"checked": len(sessions), "awards_granted": total_awarded}
     finally:

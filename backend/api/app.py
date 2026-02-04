@@ -1,6 +1,7 @@
 """FastAPI application — DCI Layer API."""
 
 import json
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -100,6 +101,20 @@ async def lifespan(app: FastAPI):
     tool_executor = ToolExecutor(registry)
     _task_manager = TaskManager(manager, llm_client, tool_executor)
     _task_manager.start_metronome()
+
+    # Broadcast achievement unlocks via websocket
+    from backend.services.event_bus import get_event_bus
+
+    def _broadcast_award(topic: str, payload: dict):
+        if topic != "award.unlocked":
+            return
+        corps_id = payload.get("corps_id")
+        if corps_id:
+            asyncio.create_task(manager.broadcast(corps_id, payload))
+        else:
+            asyncio.create_task(manager.broadcast_all(payload))
+
+    get_event_bus().subscribe("award.unlocked", _broadcast_award)
 
     yield
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import * as v1 from "../services/v1";
 import { Badge, DataTable } from "../ui";
+import { AwardsPanel } from "../components/AwardsPanel";
 import { formatRole, formatStatus, formatTimestamp } from "../utils/formatters";
 
 export function Performers() {
@@ -8,6 +9,7 @@ export function Performers() {
   const [selected, setSelected] = useState<any>(null);
   const [ledger, setLedger] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
+  const [awards, setAwards] = useState<v1.V1Award[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const loadPerformers = () => {
@@ -26,14 +28,16 @@ export function Performers() {
 
   const handleSelect = async (id: string) => {
     try {
-      const [detail, led, st] = await Promise.all([
+      const [detail, led, st, awardList] = await Promise.all([
         v1.getPerformer(id),
         v1.getPerformerLedger(id).catch(() => []),
         v1.getPerformerStats(id).catch(() => null),
+        v1.listAwards({ recipient_id: id }).catch(() => []),
       ]);
       setSelected(detail);
       setLedger(led);
       setStats(st);
+      setAwards(awardList);
     } catch { setSelected(null); }
   };
 
@@ -82,6 +86,11 @@ export function Performers() {
               <div><strong>Avg Score</strong><span>{stats.avg_score != null ? stats.avg_score.toFixed(1) : "-"}</span></div>
             </div>
           )}
+          <AwardsPanel
+            title={selected.role_type === "performer" ? "Performer Achievements" : "Staff Achievements"}
+            awards={awards}
+            emptyText="No achievements yet."
+          />
           {ledger.length > 0 && (
             <>
               <h4>Capability Ledger</h4>

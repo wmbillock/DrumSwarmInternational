@@ -109,6 +109,20 @@ export interface V1RunDetail extends V1Run {
   output: string;
 }
 
+export interface V1Award {
+  id: string;
+  category: string;
+  tier: string;
+  name: string;
+  description: string;
+  recipient_type: string;
+  recipient_id: string;
+  recipient_name: string;
+  corps_id?: string | null;
+  milestone_value?: number | null;
+  awarded_at?: string | null;
+}
+
 export interface V1Thread {
   slug: string;
   status: string;
@@ -941,6 +955,28 @@ export const getCritique = (repId: string, signal?: AbortSignal) =>
 
 export const getBanquet = (corpsId: string, signal?: AbortSignal) =>
   request<any[]>(`/api/v1/corps/${corpsId}/banquet`, { signal });
+
+// --- Awards ---
+
+export const listAwards = (params?: {
+  recipient_id?: string;
+  corps_id?: string;
+  category?: string;
+  recipient_type?: string;
+}, signal?: AbortSignal) => {
+  const search = new URLSearchParams();
+  if (params?.recipient_id) search.set("recipient_id", params.recipient_id);
+  if (params?.corps_id) search.set("corps_id", params.corps_id);
+  if (params?.category) search.set("category", params.category);
+  if (params?.recipient_type) search.set("recipient_type", params.recipient_type);
+  const query = search.toString();
+  return request<V1Award[]>(`/api/v1/awards${query ? `?${query}` : ""}`, { signal });
+};
+
+export const checkAwards = (corpsId: string) =>
+  request<{ checked: number; awards_granted: number }>(`/api/v1/awards/check/${corpsId}`, {
+    method: "POST",
+  });
 
 // --- Messages: Polling ---
 
