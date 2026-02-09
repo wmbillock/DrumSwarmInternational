@@ -189,7 +189,7 @@ def build_schedule(season_dir: Path) -> list[dict]:
     for show_slug in data.get("shows", []):
         corps_ids = divisions.get(show_slug, data.get("registered_corps", []))
         schedule.append({
-            "competition_id": f\"{season_id}-{show_slug}\",
+            "competition_id": f"{season_id}-{show_slug}",
             "show_slug": show_slug,
             "corps_ids": corps_ids,
         })
