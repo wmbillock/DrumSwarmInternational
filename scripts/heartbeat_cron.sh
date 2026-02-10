@@ -11,7 +11,7 @@
 #
 # Adjust DCI_API_URL if the server runs on a different host/port.
 
-DCI_API_URL="${DCI_API_URL:-http://localhost:8000}"
+DCI_API_URL="${DCI_API_URL:-http://localhost:4224}"
 
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 

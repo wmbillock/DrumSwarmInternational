@@ -1049,7 +1049,13 @@ class RetryingClient(LLMClient):
     ) -> LLMResponse:
         last_response = None
         for attempt in range(self._max_retries + 1):
-            response = self._client.chat(messages, model_tier, tools, **kwargs)
+            try:
+                response = self._client.chat(messages, model_tier, tools, **kwargs)
+            except Exception as exc:
+                response = LLMResponse(
+                    content=f"Error: {type(exc).__name__}: {exc}",
+                    stop_reason="error",
+                )
             if response.stop_reason != "error":
                 return response
 
@@ -1186,7 +1192,14 @@ class SmartRouter(LLMClient):
             if name in self._stats:
                 self._stats[name].requests += 1
 
-            response = client.chat(messages, model_tier, tools, **kwargs)
+            try:
+                response = client.chat(messages, model_tier, tools, **kwargs)
+            except Exception as exc:
+                logger.warning("Provider %s raised exception: %s", name, exc)
+                response = LLMResponse(
+                    content=f"Error: {type(exc).__name__}: {exc}",
+                    stop_reason="error",
+                )
 
             if response.stop_reason != "error":
                 self.last_used_provider = name
@@ -1360,8 +1373,13 @@ def build_llm_client(force_mock: bool = False) -> LLMClient:
         return MockLLMClient()
 
     # Wrap each provider with retry logic and create smart router
+    # CLI clients get 1 retry (they work or they don't), API clients get 5
     wrapped = [
-        (name, RetryingClient(client, max_retries=5, base_delay=1.0))
+        (name, RetryingClient(
+            client,
+            max_retries=1 if name.endswith("-cli") else 5,
+            base_delay=1.0,
+        ))
         for name, client in providers
     ]
 

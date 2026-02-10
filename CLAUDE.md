@@ -116,7 +116,7 @@ cd frontend && npm install && cd ..
 Or start services individually:
 
 ```bash
-./dci forward-march        # Backend only (uvicorn --reload on port 8000)
+./dci forward-march        # Backend only (uvicorn --reload on port 4224)
 ./dci company-front        # Frontend only (Vite dev server on port 5173)
 ./dci mark-time            # TMUX monitoring dashboard only
 ```
@@ -125,9 +125,9 @@ Or start services individually:
 
 ```bash
 ./dci check-step                                    # Status of all services
-curl http://localhost:8000/api/v1/system/health      # Backend health JSON
+curl http://localhost:4224/api/v1/system/health      # Backend health JSON
 curl http://localhost:5173                            # Frontend HTML
-open http://localhost:8000/docs                       # Swagger UI
+open http://localhost:4224/docs                       # Swagger UI
 ```
 
 ### Shutdown
@@ -141,7 +141,7 @@ open http://localhost:8000/docs                       # Swagger UI
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `DCI_PORT` | `8000` | Backend port |
+| `DCI_PORT` | `4224` | Backend port |
 | `DCI_SESSION` | `dci-swarm` | TMUX session name |
 
 ---

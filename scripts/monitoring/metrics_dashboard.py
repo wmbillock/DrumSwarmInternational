@@ -19,7 +19,7 @@ BLUE = "\033[34m"
 MAGENTA = "\033[35m"
 CYAN = "\033[36m"
 
-API_BASE = os.environ.get("DCI_API_URL", "http://localhost:8000")
+API_BASE = os.environ.get("DCI_API_URL", "http://localhost:4224")
 PROJECT_ROOT = os.environ.get("DCI_ROOT", os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 

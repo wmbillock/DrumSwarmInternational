@@ -39,7 +39,7 @@ def generate_schedule(season_dir: Path) -> list[dict]:
         for cid in slot:
             counts[cid] -= 1
 
-        show_slug = _pick_show_slug(data, slot)
+        show_slug = _pick_show_slug(data, slot, round_num)
         schedule.append({
             "round": round_num,
             "competition_id": f"{season_id}-round-{round_num}",
@@ -110,14 +110,15 @@ def get_tour_status(season_dir: Path) -> dict:
     }
 
 
-def _pick_show_slug(season_data: dict, corps_ids: list[str]) -> str:
+def _pick_show_slug(season_data: dict, corps_ids: list[str], round_num: int = 1) -> str:
+    """Pick a show slug for a round, distributing evenly via round-robin."""
     shows = list(season_data.get("shows") or [])
     if shows:
-        return random.choice(shows)
+        return shows[(round_num - 1) % len(shows)]
     divisions = season_data.get("divisions") or {}
-    for show_slug, roster in divisions.items():
-        if any(cid in roster for cid in corps_ids):
-            return show_slug
+    div_slugs = list(divisions.keys())
+    if div_slugs:
+        return div_slugs[(round_num - 1) % len(div_slugs)]
     return "tour"
 
 

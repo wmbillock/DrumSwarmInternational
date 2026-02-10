@@ -164,12 +164,12 @@ def v1_list_threads():
         status_path = d / "status.yaml"
         if not status_path.exists():
             continue
-        status = safe_load_yaml_dict(status_path.read_text())
+        status = safe_load_yaml_dict(status_path.read_text(encoding="utf-8"))
         summary = status.get("summary", "")
         if not summary:
             spec_path = d / "spec.md"
             if spec_path.exists():
-                for line in spec_path.read_text().splitlines():
+                for line in spec_path.read_text(encoding="utf-8").splitlines():
                     line = line.strip()
                     if line.startswith("# ") and not line.startswith("---"):
                         summary = line[2:].strip()
@@ -190,7 +190,7 @@ def v1_get_thread_messages(slug: str):
     notes_path = show_dir / "design_notes.md"
     if not notes_path.exists():
         return {"slug": slug, "messages": []}
-    content = notes_path.read_text()
+    content = notes_path.read_text(encoding="utf-8", errors="replace")
     messages = []
     lines = content.split("\n")
     i = 0
@@ -245,12 +245,12 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
     notes_path = show_dir / "design_notes.md"
     tag_comment = f"<!-- tags: {', '.join(tags)} -->\n"
     entry = f"\n**[user]** {req.message}\n"
-    with open(notes_path, "a") as f:
+    with open(notes_path, "a", encoding="utf-8") as f:
         f.write(tag_comment + entry)
 
     # Build context
     spec_content = read_spec(show_dir) or "(no spec yet)"
-    notes_content = notes_path.read_text() if notes_path.exists() else "(no notes yet)"
+    notes_content = notes_path.read_text(encoding="utf-8", errors="replace") if notes_path.exists() else "(no notes yet)"
     if len(notes_content) > 4000:
         notes_content = "...\n" + notes_content[-4000:]
 
@@ -270,7 +270,7 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
             spec_text = _llm_chat(llm_client, system_prompt, req.message)
             if spec_text:
                 spec_entry = f"\n<!-- tags: {', '.join(tags)} -->\n**[{spec_role}]** {spec_text}\n"
-                with open(notes_path, "a") as f:
+                with open(notes_path, "a", encoding="utf-8") as f:
                     f.write(spec_entry)
                 responses.append({
                     "role": spec_role,
@@ -286,7 +286,7 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
             specialist_ctx = "Specialist input:\n" + "\n".join(specialist_inputs)
 
         # Re-read notes after specialist writes
-        notes_content = notes_path.read_text() if notes_path.exists() else "(no notes yet)"
+        notes_content = notes_path.read_text(encoding="utf-8", errors="replace") if notes_path.exists() else "(no notes yet)"
         if len(notes_content) > 4000:
             notes_content = "...\n" + notes_content[-4000:]
 
@@ -300,7 +300,7 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
         pc_text = _llm_chat(llm_client, pc_prompt, req.message)
         if pc_text:
             pc_entry = f"\n<!-- tags: {', '.join(tags)} -->\n**[program_coordinator]** {pc_text}\n"
-            with open(notes_path, "a") as f:
+            with open(notes_path, "a", encoding="utf-8") as f:
                 f.write(pc_entry)
             responses.append({
                 "role": "program_coordinator",
@@ -316,7 +316,7 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
             f"(LLM unavailable — connect an LLM backend for full collaborative design sessions.)"
         )
         fb_entry = f"\n<!-- tags: {', '.join(tags)} -->\n**[program_coordinator]** {fallback_text}\n"
-        with open(notes_path, "a") as f:
+        with open(notes_path, "a", encoding="utf-8") as f:
             f.write(fb_entry)
         responses.append({
             "role": "program_coordinator",
@@ -329,7 +329,7 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
     if llm_client and responses:
         try:
             from backend.services.show_persistence import write_spec
-            notes_for_spec = notes_path.read_text() if notes_path.exists() else ""
+            notes_for_spec = notes_path.read_text(encoding="utf-8", errors="replace") if notes_path.exists() else ""
             if len(notes_for_spec) > 5000:
                 notes_for_spec = "...\n" + notes_for_spec[-5000:]
             spec_prompt = _SPEC_UPDATE_TEMPLATE.format(
@@ -352,7 +352,7 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
 
         brief_content = _read_spec(show_dir) or ""
         prompt_path = show_dir / "show_prompt.md"
-        prompt_content = prompt_path.read_text() if prompt_path.exists() else ""
+        prompt_content = prompt_path.read_text(encoding="utf-8") if prompt_path.exists() else ""
 
         brief_report = lint_brief(brief_content)
         prompt_report = lint_prompt(prompt_content)
@@ -371,7 +371,7 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
             if len(issues) > 5:
                 judge_text += f" (+{len(issues) - 5} more)"
             judge_entry = f"\n<!-- tags: admin -->\n**[judge]** {judge_text}\n"
-            with open(notes_path, "a") as f:
+            with open(notes_path, "a", encoding="utf-8") as f:
                 f.write(judge_entry)
             responses.append({
                 "role": "judge",
@@ -411,7 +411,7 @@ def v1_greet_thread(slug: str):
     # Persist greeting to design notes
     notes_path = show_dir / "design_notes.md"
     entry = f"\n<!-- tags: admin -->\n**[program_coordinator]** {text}\n"
-    with open(notes_path, "a") as f:
+    with open(notes_path, "a", encoding="utf-8") as f:
         f.write(entry)
     return {
         "role": "program_coordinator",
@@ -443,7 +443,7 @@ def v1_get_prompt(slug: str):
     """Get the finalized show prompt markdown."""
     show_dir = _show_dir(slug)
     prompt_path = show_dir / "show_prompt.md"
-    content = prompt_path.read_text() if prompt_path.exists() else ""
+    content = prompt_path.read_text(encoding="utf-8") if prompt_path.exists() else ""
     return {"slug": slug, "content": content}
 
 
@@ -461,7 +461,7 @@ def v1_lint_prompt(slug: str):
     """Run prompt linter on current show_prompt.md."""
     show_dir = _show_dir(slug)
     prompt_path = show_dir / "show_prompt.md"
-    content = prompt_path.read_text() if prompt_path.exists() else ""
+    content = prompt_path.read_text(encoding="utf-8") if prompt_path.exists() else ""
     from backend.services.prompt_linter import lint_prompt
     report = lint_prompt(content)
     return {
@@ -496,7 +496,7 @@ def v1_publish_thread(slug: str):
         raise HTTPException(400, "Thread must be approved before publishing")
 
     prompt_path = show_dir / "show_prompt.md"
-    content = prompt_path.read_text() if prompt_path.exists() else ""
+    content = prompt_path.read_text(encoding="utf-8") if prompt_path.exists() else ""
     from backend.services.prompt_linter import lint_prompt
     report = lint_prompt(content)
     if report.required_fix:

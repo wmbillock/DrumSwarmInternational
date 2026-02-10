@@ -94,7 +94,7 @@ def load_season(season_dir: Path) -> dict:
         if not (season_dir / required).exists():
             raise FileNotFoundError(f"Required file '{required}' missing in {season_dir}")
 
-    data = safe_load_yaml_dict((season_dir / "season.yaml").read_text())
+    data = safe_load_yaml_dict((season_dir / "season.yaml").read_text(encoding="utf-8"))
     data.setdefault("shows", [])
     data.setdefault("divisions", {})
     data.setdefault("config", dict(DEFAULT_CONFIG))
@@ -201,6 +201,7 @@ def start_tour(season_dir: Path) -> dict:
     data.setdefault("metadata", {})
     data["metadata"]["status"] = "touring"
     if not data.get("schedule"):
-        data["schedule"] = build_schedule(season_dir)
+        from backend.services.tour_coordinator import generate_schedule
+        data["schedule"] = generate_schedule(season_dir)
     save_season(season_dir, data)
     return data

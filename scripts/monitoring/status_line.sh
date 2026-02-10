@@ -3,7 +3,7 @@
 # Called by tmux status-right to show live service info
 
 PROJECT_ROOT="${DCI_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
-BACKEND_PORT="${DCI_PORT:-8000}"
+BACKEND_PORT="${DCI_PORT:-4224}"
 API_BASE="http://localhost:$BACKEND_PORT"
 
 # Service checks

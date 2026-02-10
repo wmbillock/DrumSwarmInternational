@@ -6,7 +6,7 @@ set -euo pipefail
 
 PROJECT_ROOT="${DCI_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
 VENV_DIR="$PROJECT_ROOT/.venv"
-BACKEND_PORT="${DCI_PORT:-8000}"
+BACKEND_PORT="${DCI_PORT:-4224}"
 API_BASE="http://localhost:$BACKEND_PORT"
 SESSION_NAME="${DCI_SESSION:-dci-swarm}"
 export DSI_INSTANCE_ID="${DSI_INSTANCE_ID:-$SESSION_NAME}"

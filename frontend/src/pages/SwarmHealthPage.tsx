@@ -536,7 +536,7 @@ export function SwarmHealthPage() {
   useEffect(() => {
     let ws: WebSocket | null = null;
     try {
-      const base = import.meta.env.VITE_API_URL || "http://localhost:8000";
+      const base = import.meta.env.VITE_API_URL || "http://localhost:4224";
       const wsUrl = base.replace(/^http/, "ws") + "/ws/metrics";
       ws = new WebSocket(wsUrl);
       ws.onmessage = () => refresh();

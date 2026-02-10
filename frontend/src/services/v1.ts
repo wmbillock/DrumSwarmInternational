@@ -3,7 +3,7 @@
  * Coexists with the existing api.ts — use this for all /api/v1/ endpoints.
  */
 
-const BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const BASE = import.meta.env.VITE_API_URL || "http://localhost:4224";
 
 export class ApiError extends Error {
   status: number;
@@ -49,6 +49,7 @@ export interface V1Corps {
   theme_id?: string;
   mascot?: string;
   staff_count?: number;
+  color_scheme?: { primary: string; secondary: string; accent: string };
 }
 
 export interface V1ShowInfo {
@@ -452,6 +453,32 @@ export const advanceSeasonTour = (seasonId: string) =>
 
 export const getSeasonTourStatus = (seasonId: string, signal?: AbortSignal) =>
   request<any>(`/api/v1/seasons/${seasonId}/tour-status`, { signal });
+
+// --- Show Draft ---
+
+export interface V1DraftPick {
+  pick: number;
+  corps_id: string;
+  corps_name: string;
+  show_slug: string;
+  affinity_score: number;
+  reason: string;
+}
+
+export interface V1DraftResult {
+  draft_order: { corps_id: string; best_score: number; rank: number }[];
+  picks: V1DraftPick[];
+  assignments: Record<string, string[]>;
+}
+
+export const runShowDraft = (seasonId: string) =>
+  request<V1DraftResult>(`/api/v1/seasons/${seasonId}/draft`, { method: "POST" });
+
+export const applyDraft = (seasonId: string, assignments: Record<string, string[]>) =>
+  request<{ status: string; assignments: Record<string, string[]> }>(`/api/v1/seasons/${seasonId}/draft/apply`, {
+    method: "POST",
+    body: JSON.stringify({ assignments }),
+  });
 
 export interface V1FinalsStandingRow {
   rank: number;

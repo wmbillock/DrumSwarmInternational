@@ -337,7 +337,7 @@ function RecapPanel({ competitionId }: { competitionId: string }) {
 
   const handleCSV = () => {
     window.open(
-      `${(import.meta as any).env?.VITE_API_URL || "http://localhost:8000"}/api/v1/competitions/${competitionId}/recap?format=csv`,
+      `${(import.meta as any).env?.VITE_API_URL || "http://localhost:4224"}/api/v1/competitions/${competitionId}/recap?format=csv`,
       "_blank"
     );
   };

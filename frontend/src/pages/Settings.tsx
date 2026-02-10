@@ -47,7 +47,7 @@ export function Settings() {
           <tbody>
             <tr>
               <td className="cell-primary">API URL</td>
-              <td className="mono">{import.meta.env.VITE_API_URL || "http://localhost:8000"}</td>
+              <td className="mono">{import.meta.env.VITE_API_URL || "http://localhost:4224"}</td>
             </tr>
             <tr>
               <td className="cell-primary">Frontend Mode</td>

@@ -4,7 +4,7 @@ set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 VENV_DIR="$PROJECT_ROOT/.venv"
-PORT="${DCI_PORT:-8000}"
+PORT="${DCI_PORT:-4224}"
 
 # Kill existing backend on port
 lsof -ti:"$PORT" | xargs kill -9 2>/dev/null || true

@@ -13,7 +13,7 @@ LOG_DIR = ROOT / "logs" / "metronome"
 ALERT_LOG = LOG_DIR / "alerts.log"
 STATE_FILE = LOG_DIR / "state.json"
 
-BASE_URL = os.environ.get("DCI_BASE_URL", "http://localhost:8000").rstrip("/")
+BASE_URL = os.environ.get("DCI_BASE_URL", "http://localhost:4224").rstrip("/")
 TIMEOUT_S = 30
 STALL_MINUTES = 5
 FAILURE_THRESHOLD = 3

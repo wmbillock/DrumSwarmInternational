@@ -50,21 +50,32 @@ def _get_llm_client():
 
 def _llm_chat(llm_client, system_prompt: str, user_message: str) -> str | None:
     """Send a chat to the LLM client and return the response text, or None on failure."""
+    import logging
+    logger = logging.getLogger(__name__)
     try:
         from backend.services.llm_client import LLMMessage
         from backend.models.agent_definition import ModelTier
 
-        resp = llm_client.chat(
-            messages=[
-                LLMMessage(role="system", content=system_prompt),
-                LLMMessage(role="user", content=user_message),
-            ],
-            model_tier=ModelTier.HAIKU,
-        )
+        messages = [
+            LLMMessage(role="system", content=system_prompt),
+            LLMMessage(role="user", content=user_message),
+        ]
+
+        # First attempt — normal routing (may try CLI first)
+        try:
+            resp = llm_client.chat(messages=messages, model_tier=ModelTier.HAIKU)
+            if resp.content and resp.stop_reason != "error":
+                return resp.content.strip()
+        except Exception as exc:
+            logger.warning("LLM chat first attempt failed (%s), retrying via API path", exc)
+
+        # Second attempt — hint that we need an API client (skips CLI)
+        resp = llm_client.chat(messages=messages, model_tier=ModelTier.HAIKU, has_images=True)
         if resp.content and resp.stop_reason != "error":
             return resp.content.strip()
-    except Exception:
-        pass
+        logger.warning("LLM chat returned empty or error: %s", resp.stop_reason)
+    except Exception as exc:
+        logger.error("LLM chat failed: %s", exc, exc_info=True)
     return None
 
 
@@ -123,7 +134,7 @@ def _parse_competition_id(competition_id: str, root: Path) -> tuple[str, str]:
         for sdir_name in season_names:
             sdir = seasons_dir / sdir_name
             try:
-                data = safe_load_yaml_dict((sdir / "season.yaml").read_text())
+                data = safe_load_yaml_dict((sdir / "season.yaml").read_text(encoding="utf-8"))
                 sid = data.get("season_id", sdir_name)
             except Exception:
                 sid = sdir_name

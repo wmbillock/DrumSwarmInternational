@@ -4,7 +4,7 @@ set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 VENV_DIR="$PROJECT_ROOT/.venv"
-BACKEND_PORT="${DCI_PORT:-8000}"
+BACKEND_PORT="${DCI_PORT:-4224}"
 FRONTEND_DIR="$PROJECT_ROOT/frontend"
 
 cleanup() {
