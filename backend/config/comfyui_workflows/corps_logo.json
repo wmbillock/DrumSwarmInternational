@@ -1,0 +1,9 @@
+{
+  "description": "Corps logo workflow — generates an emblem/logo for a DCI corps",
+  "prompt_template": "A professional emblem logo for a drum corps called '{corps_name}'. Colors: {primary_color} and {secondary_color}. {style_notes}. Clean vector-style design, symmetrical, bold.",
+  "negative_prompt": "text, watermark, low quality, blurry, photorealistic, 3d render",
+  "width": 512,
+  "height": 512,
+  "steps": 20,
+  "cfg_scale": 8.0
+}

@@ -53,11 +53,17 @@ class MockCrashingLLMClient:
         self.call_count += 1
         raise RuntimeError("LLM connection lost")
 
+    def cleanup_session(self, session_id: str) -> None:
+        pass
+
 
 class MockWorkingLLMClient:
     """LLM client that returns a normal response."""
     def chat(self, messages, model_tier=None, tools=None, **kwargs):
         return LLMResponse(content="Work completed successfully", stop_reason="end_turn")
+
+    def cleanup_session(self, session_id: str) -> None:
+        pass
 
 
 class MockToolExecutor:

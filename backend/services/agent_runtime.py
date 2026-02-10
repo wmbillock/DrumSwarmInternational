@@ -14,6 +14,7 @@ work logging, message bus events, and task manifest injection.
 import enum
 import json
 import logging
+import sys
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
@@ -25,6 +26,7 @@ from backend.services.agent_lifecycle import (
     complete_session,
     fail_session,
 )
+from backend.services.session_guard import SyncSessionGuard
 from backend.services.agent_phases import AgentPhase, PhaseController
 from backend.services.failure_fingerprint import FailureFingerprint, FailureRegistry
 from backend.services.llm_client import LLMClient, LLMMessage, LLMResponse
@@ -60,34 +62,31 @@ class RunResult:
     phase_state: Optional[dict] = None
 
 
-def _get_critique_context(definition: AgentDefinition) -> str:
-    """Get recent critique action items for this agent's corps + role."""
+def _get_critique_context(definition: AgentDefinition, db: Session) -> str:
+    """Get recent critique action items for this agent's corps + role.
+
+    Takes the caller's DB session instead of creating a private engine (was a leak).
+    """
     try:
         from backend.models.critique_session import CritiqueSession, CritiqueStatus
-        from backend.database import create_db_engine, create_session_factory
-        engine = create_db_engine()
-        SessionFactory = create_session_factory(engine)
-        db = SessionFactory()
-        try:
-            critiques = db.query(CritiqueSession).filter(
-                CritiqueSession.corps_id == definition.corps_id,
-                CritiqueSession.status == CritiqueStatus.COMPLETED,
-                CritiqueSession.action_items.isnot(None),
-            ).order_by(CritiqueSession.completed_at.desc()).limit(3).all()
 
-            if not critiques:
-                return ""
+        critiques = db.query(CritiqueSession).filter(
+            CritiqueSession.corps_id == definition.corps_id,
+            CritiqueSession.status == CritiqueStatus.COMPLETED,
+            CritiqueSession.action_items.isnot(None),
+        ).order_by(CritiqueSession.completed_at.desc()).limit(3).all()
 
-            items = []
-            for c in critiques:
-                if c.action_items:
-                    items.append(f"[{c.judge_type}] {c.action_items[:300]}")
-
-            if items:
-                return "## Recent Critique Feedback\nIn your last performance, judges noted:\n" + "\n".join(items) + "\nFocus on addressing these points."
+        if not critiques:
             return ""
-        finally:
-            db.close()
+
+        items = []
+        for c in critiques:
+            if c.action_items:
+                items.append(f"[{c.judge_type}] {c.action_items[:300]}")
+
+        if items:
+            return "## Recent Critique Feedback\nIn your last performance, judges noted:\n" + "\n".join(items) + "\nFocus on addressing these points."
+        return ""
     except Exception:
         return ""
 
@@ -99,6 +98,7 @@ def build_initial_messages(
     phase_guidance: str = "",
     manifest_context: str = "",
     corps_context: str = "",
+    db: Optional[Session] = None,
 ) -> list[LLMMessage]:
     """Build the initial message list for an agent session.
 
@@ -113,9 +113,10 @@ def build_initial_messages(
         system_content += f"\n\n{corps_context}"
 
     # Inject recent critique action items
-    critique_context = _get_critique_context(definition)
-    if critique_context:
-        system_content += f"\n\n{critique_context}"
+    if db is not None:
+        critique_context = _get_critique_context(definition, db)
+        if critique_context:
+            system_content += f"\n\n{critique_context}"
 
     messages = [
         LLMMessage(role="system", content=system_content),
@@ -214,6 +215,11 @@ def run_agent(
         except Exception:
             logger.debug("Work log write failed", exc_info=True)
 
+    # RAII guard: guarantees session cleanup + child cascade on unhandled crash.
+    # The guard is a safety net — run_agent still calls complete_session/fail_session
+    # explicitly on happy/error paths. The guard only fires if those are never reached.
+    guard = SyncSessionGuard(db, session_id, cascade_children=True)
+
     agent_session = db.get(AgentSession, session_id)
     if agent_session is None:
         raise ValueError(f"Session {session_id} not found")
@@ -263,10 +269,12 @@ def run_agent(
         phase_guidance=phase_controller.get_guidance(),
         manifest_context=manifest_context,
         corps_context=corps_context_str,
+        db=db,
     )
     tool_schemas = tool_executor.registry.get_schemas_for_session(db, session_id)
 
     result = RunResult(session_id=session_id)
+    guard.__enter__()
 
     try:
         for i in range(max_iterations):
@@ -439,6 +447,8 @@ def run_agent(
         else:
             complete_session(db, session_id, context_snapshot=snapshot)
 
+        guard.mark_completed()
+
         # Clean up CLI session so it doesn't pollute the user's resume list
         llm_client.cleanup_session(session_id)
 
@@ -534,8 +544,15 @@ def run_agent(
             except Exception:
                 pass  # Session may already be in terminal state
 
+        guard.mark_failed()
+
         # Clean up CLI session on failure too
         llm_client.cleanup_session(session_id)
+
+    finally:
+        # Safety net: if guard wasn't marked, __exit__ will fail the session
+        # and cascade-kill children. No-op if already marked.
+        guard.__exit__(*sys.exc_info())
 
     return result
 

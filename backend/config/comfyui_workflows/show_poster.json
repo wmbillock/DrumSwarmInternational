@@ -1,0 +1,9 @@
+{
+  "description": "Show poster workflow — generates a banner image for a DCI show",
+  "prompt_template": "A dramatic poster for a drum corps international show titled '{title}'. {style_notes}. Professional quality, dramatic lighting, dynamic composition.",
+  "negative_prompt": "text, watermark, low quality, blurry, deformed",
+  "width": 1024,
+  "height": 768,
+  "steps": 25,
+  "cfg_scale": 7.5
+}

@@ -1,0 +1,9 @@
+{
+  "description": "Character portrait — generates an agent/character portrait",
+  "prompt_template": "Portrait of a {role} in a drum corps. {description}. Professional headshot style, dramatic lighting, confident expression.",
+  "negative_prompt": "text, watermark, low quality, blurry, deformed, extra limbs",
+  "width": 512,
+  "height": 768,
+  "steps": 25,
+  "cfg_scale": 7.5
+}

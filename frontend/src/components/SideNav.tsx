@@ -9,7 +9,7 @@ const LIFECYCLE_ITEMS = [
   { to: "/seasons", label: "Season Workshop", icon: "SZN", color: "var(--stage-season)", tooltip: "Group shows into seasons and manage competitions" },
   { to: "/tour", label: "On Tour", icon: "TUR", color: "var(--stage-tour)", tooltip: "Monitor corps performing shows autonomously" },
   { to: "/finals", label: "Finals", icon: "FIN", color: "var(--stage-finals)", tooltip: "Review scores, rank performances, and crown champions" },
-  { to: "/system-health", label: "System Health", icon: "SYS", color: "var(--stage-green)", tooltip: "Real-time operational health dashboard" },
+  { to: "/swarm-health", label: "Swarm Health", icon: "SYS", color: "var(--stage-green)", tooltip: "Unified swarm health dashboard" },
 ] as const;
 
 const QUICK_ACTIONS = [

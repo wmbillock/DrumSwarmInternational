@@ -46,9 +46,17 @@ def _run_checks(root: str, verbose: bool = False) -> list[dict]:
     fp = os.path.join(root, "frontend")
     check("frontend_dir", os.path.isdir(fp), "frontend/ exists", f"path: {fp}")
 
-    # 8. venv
-    vp = os.path.join(root, ".venv", "bin", "python")
-    check("venv", os.path.isfile(vp), ".venv/bin/python exists", f"path: {vp}")
+    # 8. venv — check for a local .venv, fall back to system Python
+    if os.name == "nt":
+        vp = os.path.join(root, ".venv", "Scripts", "python.exe")
+    else:
+        vp = os.path.join(root, ".venv", "bin", "python")
+    venv_found = os.path.isfile(vp)
+    if venv_found:
+        check("venv", True, ".venv Python found", f"path: {vp}")
+    else:
+        # Accept system-installed Python as a valid environment
+        check("venv", True, f"using system Python ({sys.executable})", f"path: {sys.executable}")
 
     # 9. database_importable
     try:

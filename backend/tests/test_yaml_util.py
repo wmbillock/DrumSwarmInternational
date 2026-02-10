@@ -1,5 +1,8 @@
 """Tests for shared YAML utilities."""
 
+import sys
+
+import pytest
 import yaml
 
 from backend.services.yaml_util import atomic_write, safe_dump_yaml
@@ -30,6 +33,10 @@ class TestSafeDumpYamlFormat:
 
 
 class TestAtomicWriteNoPartialOnError:
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Windows does not enforce directory chmod for write protection",
+    )
     def test_failed_write_preserves_existing(self, tmp_path):
         path = tmp_path / "existing.yaml"
         path.write_text("original: true\n")

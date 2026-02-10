@@ -8,11 +8,12 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING, Optional
 
-from backend.database import create_db_engine, create_session_factory
 from backend.services.agent_runtime import RunStatus, run_agent
 from backend.services.autoscaler import AutoScaler
+from backend.services.db_pool import get_db_pool
 from backend.services.llm_client import LLMClient
 from backend.services.message_bus import get_message_bus
+from backend.services.session_guard import cascade_fail_children
 from backend.services.session_lookup import find_or_respawn_session
 from backend.services.tool_executor import ToolExecutor
 
@@ -86,8 +87,8 @@ class TaskManager:
         self.llm_client = llm_client
         self.tool_executor = tool_executor
         self.active_tasks: dict[str, asyncio.Task] = {}
-        self._engine = create_db_engine()
-        self._session_factory = create_session_factory(self._engine)
+        self._db_pool = get_db_pool()
+        self._session_factory = self._db_pool.session_factory
         self._metronome_task: Optional[asyncio.Task] = None
         self._stopped = False
         self.autoscaler = AutoScaler()
@@ -95,22 +96,71 @@ class TaskManager:
         self._retry_counts: dict[str, int] = {}
 
     def start_metronome(self) -> None:
-        """Start the automatic metronome tick loop."""
+        """Start the automatic metronome tick loop and reap orphaned sessions."""
+        # Reap orphaned sessions from previous runs
+        self._reap_orphaned_sessions()
         if self._metronome_task is None or self._metronome_task.done():
             self._metronome_task = asyncio.create_task(self._metronome_loop())
             logger.info("Metronome started (every %ds)", METRONOME_INTERVAL_SECONDS)
 
+    def _reap_orphaned_sessions(self) -> None:
+        """On startup, find sessions marked ACTIVE in DB with no matching asyncio task.
+
+        These are orphans from a previous crash — transition them to FAILED.
+        """
+        from backend.models.agent_session import AgentSession, SessionStatus
+        from backend.services.agent_lifecycle import fail_session, InvalidSessionTransition
+
+        db = self._session_factory()
+        try:
+            orphans = (
+                db.query(AgentSession)
+                .filter(AgentSession.status == SessionStatus.ACTIVE)
+                .all()
+            )
+            reaped = 0
+            for session in orphans:
+                if session.id not in self.active_tasks:
+                    try:
+                        fail_session(db, session.id, error="orphaned: no matching task on startup")
+                        reaped += 1
+                    except InvalidSessionTransition:
+                        pass
+                    except Exception:
+                        logger.debug("Failed to reap orphan session %s", session.id, exc_info=True)
+            if reaped:
+                logger.info("Reaped %d orphaned session(s) on startup", reaped)
+        except Exception:
+            logger.debug("Orphan reaping failed", exc_info=True)
+        finally:
+            db.close()
+
     def stop(self) -> None:
-        """Stop the metronome and all background tasks."""
+        """Stop the metronome and cascade-cancel ALL active tasks."""
         self._stopped = True
         if self._metronome_task and not self._metronome_task.done():
             self._metronome_task.cancel()
+        # Cascade-cancel all active agent tasks
+        for session_id, task in list(self.active_tasks.items()):
+            if not task.done():
+                task.cancel()
+                logger.info("Cancelled active task for session %s on shutdown", session_id)
 
     async def _metronome_loop(self) -> None:
-        """Periodically tick the metronome for all active corps."""
+        """Periodically tick the metronome for all active corps.
+
+        Uses 1-second sleep intervals instead of one long sleep so we can
+        respond to shutdown requests promptly.
+        """
         while not self._stopped:
             try:
-                await asyncio.sleep(METRONOME_INTERVAL_SECONDS)
+                # Sleep in 1-second increments for responsive shutdown
+                for _ in range(METRONOME_INTERVAL_SECONDS):
+                    if self._stopped:
+                        return
+                    await asyncio.sleep(1)
+                if self._stopped:
+                    return
                 self.autoscaler.adjust_limits()
                 await self._tick_all_corps()
             except asyncio.CancelledError:
@@ -446,8 +496,32 @@ class TaskManager:
                             "attempt": retry_count + 2,
                         })
 
+        except asyncio.CancelledError:
+            # Task was cancelled (e.g. parent cascade, shutdown).
+            # run_agent's SyncSessionGuard handles session state — we just
+            # need to cascade-fail any child sessions at the async layer.
+            logger.info("Agent task cancelled for session %s", session_id)
+            try:
+                db = self._session_factory()
+                try:
+                    cascade_fail_children(db, session_id, error="parent task cancelled")
+                finally:
+                    db.close()
+            except Exception:
+                logger.warning("Cascade-fail on cancel failed for %s", session_id, exc_info=True)
+            raise  # Re-raise so asyncio knows it's cancelled
+
         except Exception as e:
             logger.exception("Agent task failed for session %s", session_id)
+            # Cascade-fail children — run_agent may not have reached its guard
+            try:
+                db = self._session_factory()
+                try:
+                    cascade_fail_children(db, session_id, error=f"parent task crashed: {e}")
+                finally:
+                    db.close()
+            except Exception:
+                logger.warning("Cascade-fail on crash failed for %s", session_id, exc_info=True)
             await self.connection_manager.broadcast(corps_id, {
                 "type": "agent_status",
                 "corps_id": corps_id,

@@ -634,6 +634,16 @@ export const bulkArchiveThreads = (
 export const getUnreadMessageCount = (signal?: AbortSignal) =>
   request<{ unread_count: number }>("/api/v1/messaging/unread-count", { signal });
 
+// --- Resource Health & Awards Summary ---
+
+export const getResourceHealth = (signal?: AbortSignal) =>
+  request<import("../types").ResourceHealth>("/api/v1/system/resource-health", { signal });
+
+export const getAwardsSummary = (corpsId?: string, signal?: AbortSignal) => {
+  const params = corpsId ? `?corps_id=${encodeURIComponent(corpsId)}` : "";
+  return request<import("../types").AwardsSummary>(`/api/v1/awards/summary${params}`, { signal });
+};
+
 // --- Admin ---
 
 export interface CleanupResult {

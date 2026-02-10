@@ -50,6 +50,7 @@ class ProcessRegistry:
                 cls._instance._records: dict[int, ProcessRecord] = {}
                 cls._instance._pid_lock = threading.Lock()
                 cls._instance._instance_id = cls._resolve_instance_id()
+                cls._instance._orphans_reaped = 0
         return cls._instance
 
     @property
@@ -185,6 +186,7 @@ class ProcessRegistry:
             "active_processes": self.count,
             "warn_threshold": WARN_THRESHOLD,
             "over_threshold": self.count >= WARN_THRESHOLD,
+            "orphans_reaped": self._orphans_reaped,
             "instance_id": self._instance_id,
             "pid_file": str(self._pid_file()),
         }
@@ -221,6 +223,7 @@ class ProcessRegistry:
         except OSError:
             pass
         if killed:
+            self._orphans_reaped += killed
             logger.info("Startup: reaped %d orphaned subprocess(es)", killed)
         return killed
 

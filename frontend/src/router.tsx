@@ -21,7 +21,6 @@ import { SeasonWorkshop } from "./pages/SeasonWorkshop";
 import { Settings } from "./pages/Settings";
 import { SystemHealth } from "./pages/SystemHealth";
 import { SystemHealthDashboard } from "./pages/SystemHealthDashboard";
-import { SystemHealthDashboard } from "./pages/SystemHealthDashboard";
 import MessageInbox from "./pages/MessageInbox";
 import MessageArchive from "./pages/MessageArchive";
 import MessageAdmin from "./pages/MessageAdmin";
@@ -33,6 +32,7 @@ import { TourDashboard } from "./pages/TourDashboard";
 import { CompetitionLive } from "./pages/CompetitionLive";
 import { Finals } from "./pages/Finals";
 import { CritiquePage } from "./pages/CritiquePage";
+import { SwarmHealthPage } from "./pages/SwarmHealthPage";
 
 export const router = createBrowserRouter([
   {
@@ -56,15 +56,15 @@ export const router = createBrowserRouter([
       { path: "/", element: <CommandCenter /> },
       { path: "/settings", element: <Settings /> },
 
+      // Swarm Health (unified dashboard)
+      { path: "/swarm-health", element: <SwarmHealthPage /> },
+
       // System & Messages (top nav)
       { path: "/system", element: <SystemHealth /> },
-      { path: "/system-health", element: <SystemHealthDashboard /> },
-      { path: "/system-health", element: <SystemHealthDashboard /> },
       { path: "/messages/inbox", element: <MessageInbox /> },
       { path: "/messages/archive", element: <MessageArchive /> },
       { path: "/messages/admin", element: <MessageAdmin /> },
       { path: "/scoreboards", element: <ScoreboardsPage /> },
-      { path: "/metrics", element: <MetricsDashboard /> },
       { path: "/metrics/explorer", element: <PerformanceExplorer /> },
 
       // Legacy routes — still accessible via deep links
@@ -88,6 +88,8 @@ export const router = createBrowserRouter([
       // Redirects from old routes
       { path: "/competitions", element: <Navigate to="/tour" replace /> },
       { path: "/competitions/:competitionId", element: <Navigate to="/tour" replace /> },
+      { path: "/system-health", element: <Navigate to="/swarm-health" replace /> },
+      { path: "/metrics", element: <Navigate to="/swarm-health" replace /> },
     ],
   },
 ]);

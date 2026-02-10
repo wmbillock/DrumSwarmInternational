@@ -71,28 +71,35 @@ async def lifespan(app: FastAPI):
     # Import all models so Base.metadata.create_all() sees every table
     import backend.models  # noqa: F401
 
+    test_mode = os.environ.get("DCI_TEST_MODE") == "1"
+
     from backend.database import init_db
     init_db(engine)
 
-    # Reap any orphaned subprocesses from a previous crash of this instance
-    from backend.services.process_registry import get_process_registry
-    get_process_registry().reap_orphans()
+    if not test_mode:
+        # Reap any orphaned subprocesses from a previous crash of this instance
+        from backend.services.process_registry import get_process_registry
+        get_process_registry().reap_orphans()
 
     # Initialize task manager with real LLM client and tool registry
-    from backend.services.llm_client import build_llm_client
+    from backend.services.llm_client import build_llm_client, MockLLMClient
     from backend.tools import create_tool_registry
     from backend.services.tool_executor import ToolExecutor
     from backend.services.task_manager import TaskManager
 
-    # Seed founding corps on first startup
-    from backend.services.corps_seeder import seed_founding_corps
-    seed_db = SessionFactory()
-    try:
-        seed_founding_corps(seed_db)
-    finally:
-        seed_db.close()
+    if not test_mode:
+        # Seed founding corps on first startup
+        from backend.services.corps_seeder import seed_founding_corps
+        seed_db = SessionFactory()
+        try:
+            seed_founding_corps(seed_db)
+        finally:
+            seed_db.close()
 
-    llm_client = build_llm_client()
+    if test_mode:
+        llm_client = MockLLMClient()
+    else:
+        llm_client = build_llm_client()
 
     # Enable agent code writes so competition dispatch can produce real implementations
     os.environ.setdefault("DSI_ENABLE_CODE_WRITES", "1")
@@ -100,32 +107,35 @@ async def lifespan(app: FastAPI):
     registry = create_tool_registry()
     tool_executor = ToolExecutor(registry)
     _task_manager = TaskManager(manager, llm_client, tool_executor)
-    _task_manager.start_metronome()
 
-    # Broadcast achievement unlocks via websocket
-    from backend.services.event_bus import get_event_bus
+    if not test_mode:
+        _task_manager.start_metronome()
 
-    def _broadcast_award(topic: str, payload: dict):
-        if topic != "award.unlocked":
-            return
-        corps_id = payload.get("corps_id")
-        if corps_id:
-            asyncio.create_task(manager.broadcast(corps_id, payload))
-        else:
-            asyncio.create_task(manager.broadcast_all(payload))
+        # Broadcast achievement unlocks via websocket
+        from backend.services.event_bus import get_event_bus
 
-    get_event_bus().subscribe("award.unlocked", _broadcast_award)
+        def _broadcast_award(topic: str, payload: dict):
+            if topic != "award.unlocked":
+                return
+            corps_id = payload.get("corps_id")
+            if corps_id:
+                asyncio.create_task(manager.broadcast(corps_id, payload))
+            else:
+                asyncio.create_task(manager.broadcast_all(payload))
+
+        get_event_bus().subscribe("award.unlocked", _broadcast_award)
 
     yield
 
     _task_manager.stop()
 
-    # Kill any orphaned subprocesses
-    from backend.services.process_registry import get_process_registry
-    registry = get_process_registry()
-    if registry.count > 0:
-        logger.info("Shutdown: killing %d orphaned subprocess(es)", registry.count)
-        registry.kill_all()
+    if not test_mode:
+        # Kill any orphaned subprocesses
+        from backend.services.process_registry import get_process_registry
+        registry = get_process_registry()
+        if registry.count > 0:
+            logger.info("Shutdown: killing %d orphaned subprocess(es)", registry.count)
+            registry.kill_all()
 
 
 def get_db():
@@ -186,6 +196,9 @@ from backend.api.v1.ci import router as v1_ci_router
 from backend.api.v1.awards import router as v1_awards_router
 from backend.api.v1.misc import router as v1_misc_router
 from backend.api.v1.scoreboards import router as v1_scoreboards_router
+from backend.api.v1.drill_books import router as v1_drill_books_router
+from backend.api.v1.experiments import router as v1_experiments_router
+from backend.api.v1.images import router as v1_images_router
 
 for _r in [
     v1_corps_router, v1_design_router, v1_competitions_router, v1_messaging_router,
@@ -195,6 +208,9 @@ for _r in [
     v1_judging_router, v1_self_improvement_router, v1_agents_router, v1_staff_router,
     v1_templates_router, v1_ci_router, v1_awards_router, v1_misc_router,
     v1_scoreboards_router,
+    v1_drill_books_router,
+    v1_experiments_router,
+    v1_images_router,
 ]:
     app.include_router(_r)
 

@@ -804,9 +804,9 @@ class OllamaClient(LLMClient):
     """
 
     OLLAMA_MODEL_MAP = {
-        ModelTier.OPUS: "llama3.1:70b",
-        ModelTier.SONNET: "llama3.1:8b",
-        ModelTier.HAIKU: "llama3.2:3b",
+        ModelTier.OPUS: "deepseek-coder:33b",  # Best quality coding model
+        ModelTier.SONNET: "deepseek-coder:6.7b",  # Good balance for coding
+        ModelTier.HAIKU: "deepseek-coder:6.7b",  # Fast coding model
     }
 
     def __init__(self, base_url: str = "http://localhost:11434"):
@@ -1298,7 +1298,7 @@ class CircuitBreakerLLMClient(SmartRouter):
 # ---------------------------------------------------------------------------
 
 
-def build_llm_client() -> LLMClient:
+def build_llm_client(force_mock: bool = False) -> LLMClient:
     """Build the best available LLM client chain.
 
     Discovers all available providers and wraps them in a SmartRouter
@@ -1306,7 +1306,12 @@ def build_llm_client() -> LLMClient:
 
     Returns a single LLMClient that transparently handles routing,
     retries, and failover.
+
+    If force_mock is True, returns MockLLMClient immediately (for tests).
     """
+    if force_mock:
+        return MockLLMClient()
+
     import shutil
 
     providers: list[tuple[str, LLMClient]] = []

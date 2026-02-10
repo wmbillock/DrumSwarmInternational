@@ -1,0 +1,9 @@
+{
+  "description": "Performance scene — generates an illustration of a corps performing",
+  "prompt_template": "A dramatic illustration of a marching band performing on a football field at night. {scene_details}. Stadium lights, crowd in background, dynamic motion blur.",
+  "negative_prompt": "text, watermark, low quality, blurry, deformed faces",
+  "width": 1024,
+  "height": 576,
+  "steps": 25,
+  "cfg_scale": 7.0
+}

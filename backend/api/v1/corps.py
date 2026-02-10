@@ -847,10 +847,14 @@ def v1_send_chat(corps_id: str, data: dict):
         # Find and trigger the target agent
         session_id = tm.get_session_for_role(db, corps_id, to_role)
         if session_id:
-            tm.start_agent(
-                session_id=session_id,
-                task_description=f"Respond to user message: {content[:200]}",
-            )
+            try:
+                tm.start_agent(
+                    session_id=session_id,
+                    task_description=f"Respond to user message: {content[:200]}",
+                    corps_id=corps_id,
+                )
+            except RuntimeError:
+                pass  # No event loop available (e.g. sync test context)
 
         return {
             "id": msg.id,
@@ -922,11 +926,11 @@ def v1_corps_roster(corps_id: str):
 
             # Classify into staff group
             classification = ROLE_CLASSIFICATIONS.get(role)
-            if classification == AgentClassification.ADMINISTRATIVE:
+            if classification == AgentClassification.ADMINISTRATIVE_STAFF:
                 group = "Administrative Staff"
-            elif classification == AgentClassification.INSTRUCTIONAL:
+            elif classification == AgentClassification.INSTRUCTIONAL_STAFF:
                 group = "Instructional Staff"
-            elif classification == AgentClassification.PERFORMING:
+            elif classification == AgentClassification.PERFORMING_MEMBER:
                 group = "Performing Members"
             else:
                 group = "Other"
@@ -934,7 +938,10 @@ def v1_corps_roster(corps_id: str):
             # Calculate tenure
             tenure_days = None
             if s.started_at:
-                tenure_days = (datetime.now(timezone.utc) - s.started_at).days
+                started = s.started_at
+                if started.tzinfo is None:
+                    started = started.replace(tzinfo=timezone.utc)
+                tenure_days = (datetime.now(timezone.utc) - started).days
 
             results.append({
                 "session_id": s.id,

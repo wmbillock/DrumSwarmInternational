@@ -25,6 +25,17 @@ from backend.models.messaging_thread import (
     OriginatorRole,
     SenderType,
 )
+from backend.models.drill_book import (
+    DrillBook,
+    DrillStep,
+    DrillEvidence,
+    BookStatus,
+    StepStatus,
+    BookType,
+    EvidenceType,
+)
+from backend.models.corps_config import CorpsConfig
+from backend.models.experiment_result import ExperimentResult
 
 __all__ = [
     "Segment", "SegmentType", "SegmentStatus",
@@ -46,4 +57,7 @@ __all__ = [
     "Thread", "ThreadMessage", "ArchivedThread",
     "ThreadStatus", "OriginatorRole", "SenderType",
     "CaptionAward", "AwardCategory", "AwardTier", "AwardRecipientType",
+    "DrillBook", "DrillStep", "DrillEvidence",
+    "BookStatus", "StepStatus", "BookType", "EvidenceType",
+    "CorpsConfig", "ExperimentResult",
 ]
