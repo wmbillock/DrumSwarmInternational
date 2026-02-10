@@ -273,17 +273,17 @@ function TourSeasonCard({
   const standingsData = (season.standings as any)?.results || [];
 
   const roundColumns = [
-    { key: "round", header: "Round", render: (r: TourRound) => `#${r.round}` },
-    { key: "show_slug", header: "Show", render: (r: TourRound) => slugToTitle(r.show_slug) },
+    { key: "round", label: "Round", render: (_v: unknown, r: TourRound) => `#${r.round}` },
+    { key: "show_slug", label: "Show", render: (_v: unknown, r: TourRound) => slugToTitle(r.show_slug) },
     {
       key: "corps_ids",
-      header: "Corps",
-      render: (r: TourRound) => `${r.corps_ids.length} corps`,
+      label: "Corps",
+      render: (_v: unknown, r: TourRound) => `${r.corps_ids?.length ?? 0} corps`,
     },
     {
       key: "status",
-      header: "Status",
-      render: (r: TourRound) => (
+      label: "Status",
+      render: (_v: unknown, r: TourRound) => (
         <Badge
           variant={
             r.status === "completed" ? "success" : r.status === "pending" ? "default" : "warning"
@@ -296,27 +296,27 @@ function TourSeasonCard({
   ];
 
   const standingsColumns = [
-    { key: "rank", header: "Rank" },
+    { key: "rank", label: "Rank" },
     {
       key: "corps_id",
-      header: "Corps",
-      render: (r: any) => (
+      label: "Corps",
+      render: (_v: unknown, r: any) => (
         <span
           style={{ cursor: "pointer", textDecoration: "underline" }}
-          onClick={(e) => {
+          onClick={(e: React.MouseEvent) => {
             e.stopPropagation();
             onCorpsClick(r.corps_id);
           }}
           title={r.corps_id}
         >
-          {r.corps_id.slice(0, 8)}...
+          {r.corps_id?.slice(0, 8)}...
         </span>
       ),
     },
     {
       key: "final_score",
-      header: "Score",
-      render: (r: any) => (typeof r.final_score === "number" ? r.final_score.toFixed(1) : "-"),
+      label: "Score",
+      render: (_v: unknown, r: any) => (typeof r.final_score === "number" ? r.final_score.toFixed(1) : "-"),
     },
   ];
 
