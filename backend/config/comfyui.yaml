@@ -21,6 +21,10 @@ output:
   quality: 95
 
 workflows:
+  pixel_art_turbo:
+    description: "Pixel art generation using Lumina2 turbo — 4-step, fast (native API)"
+    template: "comfyui_workflows/pixel_art_turbo.json"
+    native: true
   show_poster:
     description: "Generate a show poster/banner image"
     template: "comfyui_workflows/show_poster.json"

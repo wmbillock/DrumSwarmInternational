@@ -46,7 +46,7 @@ def v1_list_competitions():
         season_yaml = season_dir / "season.yaml"
         if not season_yaml.is_file():
             continue
-        season_data = safe_load_yaml_dict(season_yaml.read_text())
+        season_data = safe_load_yaml_dict(season_yaml.read_text(encoding="utf-8"))
         season_id = season_data.get("season_id", season_dir.name)
         from backend.services.season_persistence import list_registered_corps
         corps_ids = list_registered_corps(season_dir)
@@ -61,7 +61,7 @@ def v1_list_competitions():
                     manifest_path = run_dir / "manifest.yaml"
                     if manifest_path.is_file():
                         try:
-                            m = safe_load_yaml_dict(manifest_path.read_text())
+                            m = safe_load_yaml_dict(manifest_path.read_text(encoding="utf-8"))
                             if isinstance(m, dict) and m.get("show_slug"):
                                 show_slugs.add(m["show_slug"])
                         except Exception:
@@ -70,7 +70,7 @@ def v1_list_competitions():
         standings_path = season_dir / "standings.yaml"
         if standings_path.exists():
             try:
-                st = safe_load_yaml_dict(standings_path.read_text())
+                st = safe_load_yaml_dict(standings_path.read_text(encoding="utf-8"))
                 if isinstance(st, dict) and st.get("show_slug"):
                     show_slugs.add(st["show_slug"])
             except Exception:
@@ -83,7 +83,7 @@ def v1_list_competitions():
                 scores_path = corps_dir / "scores.yaml"
                 if scores_path.is_file():
                     try:
-                        sc = safe_load_yaml_dict(scores_path.read_text())
+                        sc = safe_load_yaml_dict(scores_path.read_text(encoding="utf-8"))
                         if isinstance(sc, dict) and sc.get("show_slug"):
                             show_slugs.add(sc["show_slug"])
                     except Exception:
@@ -337,7 +337,7 @@ async def v1_dispatch_competition(competition_id: str):
     if not prompt_path.exists() or prompt_path.stat().st_size == 0:
         raise HTTPException(400, f"Show '{show_slug}' has no show_prompt.md — run Design Room first")
 
-    show_prompt = prompt_path.read_text()
+    show_prompt = prompt_path.read_text(encoding="utf-8")
 
     from backend.services.season_persistence import list_registered_corps
     corps_ids = list_registered_corps(season_dir)
@@ -396,7 +396,7 @@ def v1_get_competition_scores(competition_id: str):
     standings_path = root / "seasons" / season_id / "standings.yaml"
     if not standings_path.exists():
         raise HTTPException(404, "Standings not found — competition may not have run yet")
-    standings = safe_load_yaml_dict(standings_path.read_text())
+    standings = safe_load_yaml_dict(standings_path.read_text(encoding="utf-8"))
     standings["competition_id"] = competition_id
     standings["show_slug"] = _show_slug
 
@@ -410,7 +410,7 @@ def v1_get_competition_scores(competition_id: str):
                 corps_yaml = root / "corps" / cid / "corps.yaml"
                 if corps_yaml.is_file():
                     try:
-                        data = safe_load_yaml_dict(corps_yaml.read_text())
+                        data = safe_load_yaml_dict(corps_yaml.read_text(encoding="utf-8"))
                         corps_name_cache[cid] = data.get("display_name", cid)
                     except Exception:
                         corps_name_cache[cid] = cid
@@ -442,7 +442,7 @@ def v1_get_corps_breakdown(competition_id: str, corps_id: str):
     if not scores_path.exists():
         raise HTTPException(404, "Scores not found for this corps in this competition")
 
-    data = safe_load_yaml_dict(scores_path.read_text())
+    data = safe_load_yaml_dict(scores_path.read_text(encoding="utf-8"))
     caption_scores_raw = data.get("caption_scores", {})
 
     from backend.services.scoring_service import DEFAULT_WEIGHTS

@@ -14,7 +14,7 @@ from backend.services.db_pool import get_db_pool
 from backend.services.llm_client import LLMClient
 from backend.services.message_bus import get_message_bus
 from backend.services.session_guard import cascade_fail_children
-from backend.services.session_lookup import find_or_respawn_session
+from backend.services.session_lookup import find_or_respawn_session, find_session_for_role
 from backend.services.tool_executor import ToolExecutor
 
 if TYPE_CHECKING:
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-METRONOME_INTERVAL_SECONDS = 30
+METRONOME_INTERVAL_SECONDS = 60
 MAX_AUTO_RETRIES = 3
 AUTO_RETRY_ROLES = {"executive_director", "program_coordinator", "drum_major"}
 
@@ -243,12 +243,16 @@ class TaskManager:
                         "mode": r["rehearsal_advanced"],
                     })
 
-            # Respawn dead watchdog chain roles
+            # Respawn dead watchdog chain roles (find-then-respawn to avoid session spam)
             for r in results:
                 corps_id = r["corps_id"]
                 for dead_role in r.get("watchdog_respawned", []):
                     db = self._session_factory()
                     try:
+                        existing = find_session_for_role(db, corps_id, dead_role)
+                        if existing and self.is_active(existing.id):
+                            continue  # Already running, skip
+                        # Only respawn if the session is truly terminal
                         new_session = self.get_session_for_role(db, corps_id, dead_role)
                         if new_session and not self.is_active(new_session):
                             self.start_agent(
@@ -272,6 +276,10 @@ class TaskManager:
                 if met["reclaimed"] > 0 or merge["conflicts"] > 0 or met.get("idle_kicked", 0) > 0:
                     db = self._session_factory()
                     try:
+                        existing = find_session_for_role(db, corps_id, "timing_judge")
+                        if existing and self.is_active(existing.id):
+                            db.close()
+                            continue  # Already running, skip
                         judge_session = self.get_session_for_role(
                             db, corps_id, "timing_judge"
                         )
@@ -292,6 +300,12 @@ class TaskManager:
                         )
             # Ping the DCI admin ED with swarm-wide status
             await self._ping_admin_ed(results)
+
+            # Wake each corps' ED with a status summary
+            await self._wake_corps_eds(results)
+
+            # Auto-advance touring seasons if auto_advance is enabled
+            await self._auto_advance_tours()
 
         except Exception:
             logger.exception("Metronome broadcast error")
@@ -680,6 +694,85 @@ class TaskManager:
         except Exception:
             logger.exception("Error pinging admin ED")
 
+    async def _wake_corps_eds(self, tick_results: list[dict]) -> None:
+        """Wake each corps' ED with a status summary after the metronome tick.
+
+        Skips corps whose ED is already running. Uses find-then-respawn
+        to avoid creating unnecessary new sessions.
+        """
+        from backend.services.corps_service import ADMIN_CORPS_NAME
+
+        for r in tick_results:
+            corps_id = r["corps_id"]
+
+            def _find_and_wake(cid=corps_id, result=r):
+                from backend.models.corps import Corps
+                from backend.models.agent_session import AgentSession, SessionStatus
+
+                db = self._session_factory()
+                try:
+                    corps = db.get(Corps, cid)
+                    if not corps or corps.name == ADMIN_CORPS_NAME:
+                        return None
+
+                    # Check if ED already active — don't spam
+                    existing = find_session_for_role(db, cid, "executive_director")
+                    if existing and self.is_active(existing.id):
+                        return None
+
+                    # Count active sessions for this corps
+                    active_count = (
+                        db.query(AgentSession)
+                        .filter(
+                            AgentSession.corps_id == cid,
+                            AgentSession.status == SessionStatus.ACTIVE,
+                        )
+                        .count()
+                    )
+
+                    # Build status summary
+                    met = result["metronome"]
+                    status_lines = [
+                        f"METRONOME STATUS — Corps '{corps.name}' ({cid[:8]}):",
+                        f"  Status: {result['corps_status']}",
+                        f"  Rehearsal mode: {result.get('rehearsal_mode', 'none')}",
+                        f"  Active sessions: {active_count}",
+                        f"  Reps checked: {met['checked']}, reclaimed: {met['reclaimed']}",
+                    ]
+                    if met.get("idle_kicked", 0) > 0:
+                        status_lines.append(f"  Idle agents kicked: {met['idle_kicked']}")
+                    if result.get("rehearsal_advanced"):
+                        status_lines.append(f"  Rehearsal advanced to: {result['rehearsal_advanced']}")
+                    status_lines.append(
+                        "\nReview corps status. Assign pending work, check on agents, "
+                        "and advance rehearsal if ready."
+                    )
+
+                    ed_session_id = self.get_session_for_role(db, cid, "executive_director")
+                    if not ed_session_id:
+                        return None
+
+                    return (ed_session_id, cid, "\n".join(status_lines))
+                finally:
+                    db.close()
+
+            try:
+                result = await asyncio.to_thread(_find_and_wake)
+                if result is None:
+                    continue
+                session_id, cid, status_text = result
+                if self.is_active(session_id):
+                    continue
+                self.start_agent(
+                    session_id=session_id,
+                    task_description=status_text,
+                    corps_id=cid,
+                    keep_alive=True,
+                )
+                logger.info("Woke ED for corps %s", cid[:8])
+            except Exception:
+                logger.debug("Error waking ED for corps %s", corps_id[:8], exc_info=True)
+
     async def _process_pending_handoffs(self, corps_id: str) -> None:
         """Check for unacknowledged handoff messages and dispatch receiving agents.
 
@@ -745,6 +838,39 @@ class TaskManager:
                 )
         except Exception:
             logger.exception("Error processing handoff messages for corps %s", corps_id)
+
+    async def _auto_advance_tours(self) -> None:
+        """Auto-advance touring seasons that have auto_advance enabled."""
+        def _do_advance():
+            from backend.services.tour_coordinator import find_touring_seasons, run_competition_round
+            results = []
+            for season_dir in find_touring_seasons():
+                try:
+                    result = run_competition_round(season_dir)
+                    results.append({
+                        "season_dir": str(season_dir),
+                        "season_id": season_dir.name,
+                        "result": result,
+                    })
+                    logger.info(
+                        "Auto-advanced tour round for season %s: %s",
+                        season_dir.name, result.get("status"),
+                    )
+                except Exception:
+                    logger.exception("Auto-advance failed for season %s", season_dir.name)
+            return results
+
+        try:
+            results = await asyncio.to_thread(_do_advance)
+            for r in results:
+                await self.connection_manager.broadcast_all({
+                    "type": "tour_advanced",
+                    "season_id": r["season_id"],
+                    "round": r["result"].get("round"),
+                    "status": r["result"].get("status"),
+                })
+        except Exception:
+            logger.debug("Auto-advance tours error", exc_info=True)
 
     # Singleton roles: only one active session per corps at a time.
     # New sessions for these roles require the old one to be completed/failed first.

@@ -76,6 +76,11 @@ async def lifespan(app: FastAPI):
     from backend.database import init_db
     init_db(engine)
 
+    # Ensure generated_images directory exists
+    from pathlib import Path
+    images_dir = Path("generated_images")
+    images_dir.mkdir(exist_ok=True)
+
     if not test_mode:
         # Reap any orphaned subprocesses from a previous crash of this instance
         from backend.services.process_registry import get_process_registry
@@ -214,6 +219,12 @@ for _r in [
 ]:
     app.include_router(_r)
 
+
+from fastapi.staticfiles import StaticFiles
+import pathlib as _pathlib
+_img_dir = _pathlib.Path("generated_images")
+_img_dir.mkdir(exist_ok=True)
+app.mount("/generated_images", StaticFiles(directory=str(_img_dir)), name="generated_images")
 
 app.add_middleware(
     CORSMiddleware,

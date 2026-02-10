@@ -110,6 +110,14 @@ export function CorpsList() {
                 }}
               >
                 <div className="corps-list-header">
+                  {(c as any).logo_path && (
+                    <img
+                      src={`/generated_images/${(c as any).logo_path.split("/").pop()}`}
+                      alt=""
+                      style={{ width: 28, height: 28, borderRadius: 4, objectFit: "cover", flexShrink: 0 }}
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                    />
+                  )}
                   <span className="corps-list-name">{c.display_name}</span>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     <span className="badge">Staff {c.staff_count ?? 0}</span>

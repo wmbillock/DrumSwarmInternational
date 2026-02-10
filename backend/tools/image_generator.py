@@ -75,8 +75,54 @@ class ComfyUIConnector:
             prompt, negative_prompt, width, height, steps, cfg_scale, seed
         )
 
+        return self._queue_and_wait(workflow, output_filename)
+
+    def generate_native(
+        self,
+        workflow: dict,
+        prompt: str,
+        placeholder: str = "<PROMPT GOES HERE>",
+        seed: Optional[int] = None,
+        output_filename: Optional[str] = None,
+    ) -> dict:
+        """Generate an image using a raw ComfyUI API workflow.
+
+        Substitutes `placeholder` with `prompt` in any string value throughout
+        the workflow. Also randomizes seed in KSampler nodes if seed is provided.
+        Returns dict with {success, output_path, error}.
+        """
+        if not self.is_available():
+            return {
+                "success": False,
+                "output_path": None,
+                "error": f"ComfyUI not available at {self.server_url}",
+            }
+
+        import copy
+        import random as _random
+
+        if seed is None:
+            seed = _random.randint(0, 2**32 - 1)
+
+        wf = copy.deepcopy(workflow)
+
+        # Walk all nodes and substitute prompt placeholder + randomize seed
+        for node_id, node in wf.items():
+            inputs = node.get("inputs", {})
+            for key, value in inputs.items():
+                if isinstance(value, str) and placeholder in value:
+                    inputs[key] = value.replace(placeholder, prompt)
+            # Randomize seed on KSampler nodes
+            if node.get("class_type") == "KSampler" and "seed" in inputs:
+                inputs["seed"] = seed
+
+        return self._queue_and_wait(wf, output_filename)
+
+    def _queue_and_wait(self, workflow: dict, output_filename: Optional[str] = None) -> dict:
+        """Queue a workflow on ComfyUI and wait for the result."""
+        import urllib.request
+
         try:
-            # Queue the prompt
             payload = json.dumps({"prompt": workflow}).encode("utf-8")
             req = urllib.request.Request(
                 f"{self.server_url}/prompt",
@@ -95,7 +141,6 @@ class ComfyUIConnector:
                     "error": "No prompt_id returned from ComfyUI",
                 }
 
-            # Poll for completion
             output_path = self._wait_for_result(prompt_id, output_filename)
 
             return {

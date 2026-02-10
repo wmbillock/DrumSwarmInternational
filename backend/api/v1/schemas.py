@@ -101,6 +101,10 @@ class FinalsDeclareWinnerRequest(BaseModel):
     division: Optional[str] = None
 
 
+class DraftApplyRequest(BaseModel):
+    assignments: dict[str, list[str]]
+
+
 # --- Competitions ---
 
 class CreateCompetitionRequest(BaseModel):

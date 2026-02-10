@@ -66,7 +66,7 @@ def missing_show_files(show_dir: Path) -> list[str]:
 
 def load_status(show_dir: Path) -> dict:
     """Read and return status dict from status.yaml."""
-    return safe_load_yaml_dict((Path(show_dir) / "status.yaml").read_text(), {"status": "draft"})
+    return safe_load_yaml_dict((Path(show_dir) / "status.yaml").read_text(encoding="utf-8"), {"status": "draft"})
 
 
 def update_status(show_dir: Path, new_status: str) -> None:
@@ -99,7 +99,7 @@ def synthesize_prompt(show_dir: Path) -> None:
     show_dir = Path(show_dir)
     spec = read_spec(show_dir)
     notes_path = show_dir / "design_notes.md"
-    notes = notes_path.read_text() if notes_path.exists() else ""
+    notes = notes_path.read_text(encoding="utf-8") if notes_path.exists() else ""
 
     # Parse design notes into tag-grouped content
     tagged: dict[str, list[str]] = {}
@@ -243,7 +243,7 @@ def read_spec(show_dir: Path) -> str:
     spec_path = Path(show_dir) / "spec.md"
     if not spec_path.exists():
         return ""
-    return spec_path.read_text()
+    return spec_path.read_text(encoding="utf-8")
 
 
 def write_spec(show_dir: Path, content: str) -> None:
@@ -327,7 +327,7 @@ def list_shows() -> list[dict]:
         status_file = d / "status.yaml"
         if not d.is_dir() or not status_file.exists():
             continue
-        data = safe_load_yaml_dict(status_file.read_text())
+        data = safe_load_yaml_dict(status_file.read_text(encoding="utf-8"))
         spec_text = read_spec(d)
         title = d.name
         if spec_text:
@@ -351,7 +351,7 @@ def get_show(slug: str) -> dict | None:
     status_file = show_dir / "status.yaml"
     if not show_dir.exists() or not status_file.exists():
         return None
-    data = safe_load_yaml_dict(status_file.read_text())
+    data = safe_load_yaml_dict(status_file.read_text(encoding="utf-8"))
     spec_text = read_spec(show_dir)
     title = slug
     if spec_text:

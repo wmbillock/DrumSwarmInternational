@@ -38,7 +38,7 @@ def v1_list_runs(corps_id: Optional[str] = None):
                 if not manifest_path.is_file():
                     continue
                 try:
-                    manifest = safe_load_yaml_dict(manifest_path.read_text())
+                    manifest = safe_load_yaml_dict(manifest_path.read_text(encoding="utf-8"))
                     if isinstance(manifest, dict) and "run_id" in manifest:
                         runs.append(manifest)
                 except Exception:
@@ -67,11 +67,11 @@ def v1_get_run(run_id: str):
             run_dir = corps_dir / run_id
             manifest_path = run_dir / "manifest.yaml"
             if manifest_path.is_file():
-                manifest = safe_load_yaml_dict(manifest_path.read_text())
+                manifest = safe_load_yaml_dict(manifest_path.read_text(encoding="utf-8"))
                 output = ""
                 output_path = run_dir / "output.txt"
                 if output_path.is_file():
-                    output = output_path.read_text()[:10000]
+                    output = output_path.read_text(encoding="utf-8")[:10000]
                 return {**manifest, "output": output}
     raise HTTPException(404, f"Run '{run_id}' not found")
 
@@ -94,7 +94,7 @@ def v1_get_run_logs(run_id: str):
                     continue
                 output_path = corps_dir / run_id / "output.txt"
                 if output_path.is_file():
-                    return {"run_id": run_id, "log": output_path.read_text()[:50000]}
+                    return {"run_id": run_id, "log": output_path.read_text(encoding="utf-8")[:50000]}
     raise HTTPException(404, f"Run '{run_id}' not found")
 
 

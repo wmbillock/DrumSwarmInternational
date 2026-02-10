@@ -1,1 +1,25 @@
-status: on_tour
+status: published
+spec_version: 2.0
+last_updated: 2026-02-09
+sections_completed:
+- show_concept
+- musical_design
+- visual_design
+- guard_design
+- general_effect
+- objective
+- constraints
+- acceptance_criteria
+- deliverables
+- swarm_prompt
+- api_contract
+design_decisions:
+- divisions_stored_in_season_metadata
+- division_field_nullable_on_registration
+- division_assignment_mutable
+- standings_grouped_by_tabs_with_all_view
+- default_divisions:
+  - World Class
+  - Open Class
+  - Div 3
+- backward_compatible_flat_mode

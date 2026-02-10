@@ -49,7 +49,7 @@ def build_history_index(project_root: Path, corps_id: str) -> dict:
     """
     project_root = Path(project_root)
     corps_path = project_root / "corps" / corps_id / "corps.yaml"
-    corps = safe_load_yaml_dict(corps_path.read_text())
+    corps = safe_load_yaml_dict(corps_path.read_text(encoding="utf-8"))
     history = corps.get("history", [])
 
     # Deduplicate: last entry per season wins
@@ -96,7 +96,7 @@ def load_history_index(project_root: Path, corps_id: str) -> dict:
     project_root = Path(project_root)
     index_path = project_root / "corps" / corps_id / "history" / "index.yaml"
     if index_path.exists():
-        return safe_load_yaml_dict(index_path.read_text())
+        return safe_load_yaml_dict(index_path.read_text(encoding="utf-8"))
     return build_history_index(project_root, corps_id)
 
 

@@ -92,8 +92,16 @@ export function CorpsDetailV2() {
           <button className="award-toast-close" onClick={() => setAwardToast(null)}>Dismiss</button>
         </div>
       )}
-      <div className="page-header">
+      <div className="page-header" style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <button className="back-btn" onClick={() => navigate("/corps")}>Back</button>
+        {(corps as any).logo_path && (
+          <img
+            src={`/generated_images/${(corps as any).logo_path.split("/").pop()}`}
+            alt={`${corps.display_name} logo`}
+            style={{ width: 40, height: 40, borderRadius: 6, objectFit: "cover" }}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+          />
+        )}
         <h2>{corps.display_name}</h2>
         <Badge variant={corps.state === "on_tour" ? "success" : "default"}>{formatStatus(corps.state)}</Badge>
       </div>
@@ -124,6 +132,7 @@ export function CorpsDetailV2() {
 function OverviewTab({ corps, onStateChange }: { corps: v1.V1CorpsDetail; onStateChange?: () => void }) {
   const [cmdLoading, setCmdLoading] = useState("");
   const [cmdResult, setCmdResult] = useState("");
+  const [logoGenerating, setLogoGenerating] = useState(false);
   const [staffing, setStaffing] = useState<v1.StaffingStatus | null>(null);
   const [awards, setAwards] = useState<v1.V1Award[]>([]);
 
@@ -172,8 +181,34 @@ function OverviewTab({ corps, onStateChange }: { corps: v1.V1CorpsDetail; onStat
             <tr><td className="cell-primary">Roster Size</td><td>{corps.roster_size}</td></tr>
             {corps.mascot && <tr><td className="cell-primary">Mascot</td><td>{corps.mascot}</td></tr>}
             <tr><td className="cell-primary">History Entries</td><td>{corps.history_count}</td></tr>
+            {(corps as any).logo_path && (
+              <tr><td className="cell-primary">Logo</td><td>
+                <img
+                  src={`/generated_images/${(corps as any).logo_path.split("/").pop()}`}
+                  alt="Logo"
+                  style={{ width: 64, height: 64, borderRadius: 8, objectFit: "cover" }}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
+              </td></tr>
+            )}
           </tbody>
         </table>
+        {!(corps as any).logo_path && (
+          <button
+            style={{ marginTop: 8, fontSize: 12 }}
+            disabled={logoGenerating}
+            onClick={async () => {
+              setLogoGenerating(true);
+              try {
+                await v1.generateCorpsLogo(corps.corps_id);
+                onStateChange?.();
+              } catch { /* ignore */ }
+              setLogoGenerating(false);
+            }}
+          >
+            {logoGenerating ? "Generating..." : "Generate Logo"}
+          </button>
+        )}
       </Panel>
 
       {corps.current_show && (

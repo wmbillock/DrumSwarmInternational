@@ -46,10 +46,18 @@ def generate_from_workflow(
     template_vars: Optional[dict] = None,
     seed: Optional[int] = None,
     output_filename: Optional[str] = None,
+    prompt_override: Optional[str] = None,
 ) -> dict:
     """Generate an image using a named workflow template.
 
-    Template variables are substituted into the prompt_template.
+    Supports two formats:
+    - **Template workflows**: JSON with prompt_template, negative_prompt, etc.
+      Template variables are substituted into the prompt_template, then the
+      hardcoded SDXL pipeline is used.
+    - **Native API workflows**: JSON with `native_api: true` and a `workflow`
+      key containing the raw ComfyUI API graph. The prompt placeholder is
+      substituted with the final prompt text.
+
     Returns {success, output_path, error, workflow_used}.
     """
     from backend.tools.image_generator import load_workflow_template, get_connector
@@ -63,13 +71,48 @@ def generate_from_workflow(
             "workflow_used": workflow_name,
         }
 
-    # Build prompt from template
+    connector = get_connector()
+
+    # Native API workflow — send the raw graph directly
+    if template.get("native_api"):
+        raw_workflow = template.get("workflow")
+        if not raw_workflow:
+            return {
+                "success": False,
+                "output_path": None,
+                "error": f"Native workflow '{workflow_name}' missing 'workflow' key",
+                "workflow_used": workflow_name,
+            }
+        placeholder = template.get("prompt_placeholder", "<PROMPT GOES HERE>")
+
+        # Build the prompt text
+        if prompt_override:
+            prompt = prompt_override
+        else:
+            prompt_template = template.get("prompt_template", "")
+            vars_dict = template_vars or {}
+            try:
+                prompt = prompt_template.format(**vars_dict)
+            except KeyError:
+                prompt = prompt_template
+
+        result = connector.generate_native(
+            workflow=raw_workflow,
+            prompt=prompt,
+            placeholder=placeholder,
+            seed=seed,
+            output_filename=output_filename,
+        )
+        result["workflow_used"] = workflow_name
+        return result
+
+    # Template workflow — build prompt and use the SDXL pipeline
     prompt_template = template.get("prompt_template", "")
     vars_dict = template_vars or {}
     try:
-        prompt = prompt_template.format(**vars_dict)
-    except KeyError as e:
-        prompt = prompt_template  # Use raw template if vars missing
+        prompt = prompt_override or prompt_template.format(**vars_dict)
+    except KeyError:
+        prompt = prompt_override or prompt_template
 
     result = generate_image(
         prompt=prompt,

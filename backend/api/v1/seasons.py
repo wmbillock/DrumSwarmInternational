@@ -14,6 +14,7 @@ from backend.api.v1.schemas import (
     SeasonAssignRequest,
     SeasonConfigRequest,
     FinalsDeclareWinnerRequest,
+    DraftApplyRequest,
 )
 from backend.services.yaml_util import safe_load_yaml_dict
 
@@ -44,7 +45,7 @@ def _build_finals_payload(season_dir: Path) -> dict:
         scores_path = perf_dir / "scores.yaml"
         if scores_path.is_file():
             try:
-                sc = safe_load_yaml_dict(scores_path.read_text())
+                sc = safe_load_yaml_dict(scores_path.read_text(encoding="utf-8"))
                 if isinstance(sc, dict):
                     score_value = float(sc.get("final_score") or sc.get("raw_total") or 0.0)
             except Exception:
@@ -98,7 +99,7 @@ def v1_list_seasons():
         season_yaml = season_dir / "season.yaml"
         if not season_yaml.is_file():
             continue
-        data = safe_load_yaml_dict(season_yaml.read_text())
+        data = safe_load_yaml_dict(season_yaml.read_text(encoding="utf-8"))
         season_id = data.get("season_id", season_dir.name)
         meta = data.get("metadata", {})
         results.append({
@@ -158,7 +159,7 @@ def v1_update_season(season_id: str, req: UpdateSeasonRequest):
     season_yaml = season_dir / "season.yaml"
     if not season_yaml.is_file():
         raise HTTPException(404, f"Season '{season_id}' not found")
-    data = safe_load_yaml_dict(season_yaml.read_text())
+    data = safe_load_yaml_dict(season_yaml.read_text(encoding="utf-8"))
     if req.metadata is not None:
         data["metadata"] = req.metadata
     from backend.services.yaml_util import atomic_write, safe_dump_yaml
@@ -306,7 +307,7 @@ def v1_get_season_standings(season_id: str):
     standings_yaml = season_dir / "standings.yaml"
     if not standings_yaml.is_file():
         return []
-    return safe_load_yaml_dict(standings_yaml.read_text())
+    return safe_load_yaml_dict(standings_yaml.read_text(encoding="utf-8"))
 
 
 @router.post("/seasons/{season_id}/enter-finals")
@@ -340,7 +341,7 @@ def v1_get_finals(season_id: str):
     finals_path = season_dir / "finals.yaml"
     if finals_path.is_file():
         try:
-            existing = safe_load_yaml_dict(finals_path.read_text())
+            existing = safe_load_yaml_dict(finals_path.read_text(encoding="utf-8"))
         except Exception:
             existing = {}
     else:
@@ -391,6 +392,19 @@ def v1_advance_tour(season_id: str):
     return run_competition_round(season_dir)
 
 
+@router.post("/seasons/{season_id}/auto-advance")
+def v1_set_auto_advance(season_id: str, data: dict):
+    """Enable or disable metronome-driven auto-advance for a touring season."""
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    if not (season_dir / "season.yaml").is_file():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+    from backend.services.tour_coordinator import set_auto_advance
+    enabled = bool(data.get("enabled", False))
+    return set_auto_advance(season_dir, enabled)
+
+
 @router.get("/seasons/{season_id}/tour-status")
 def v1_get_tour_status(season_id: str):
     _validate_id(season_id, "season_id")
@@ -400,3 +414,51 @@ def v1_get_tour_status(season_id: str):
         raise HTTPException(404, f"Season '{season_id}' not found")
     from backend.services.tour_coordinator import get_tour_status
     return get_tour_status(season_dir)
+
+
+@router.post("/seasons/{season_id}/draft")
+def v1_run_show_draft(season_id: str):
+    """Preview a show draft — returns picks without saving assignments."""
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    if not (season_dir / "season.yaml").is_file():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+
+    from backend.services.season_persistence import load_season
+    from backend.services.show_draft_service import run_show_draft
+
+    data = load_season(season_dir)
+    show_slugs = data.get("shows", [])
+    corps_ids = data.get("registered_corps", [])
+
+    if not show_slugs:
+        raise HTTPException(400, "No shows assigned to this season")
+    if not corps_ids:
+        raise HTTPException(400, "No corps registered for this season")
+
+    db = _get_db_session()
+    try:
+        result = run_show_draft(db, season_dir, show_slugs, corps_ids)
+        return result
+    finally:
+        db.close()
+
+
+@router.post("/seasons/{season_id}/draft/apply")
+def v1_apply_show_draft(season_id: str, req: DraftApplyRequest):
+    """Apply draft assignments — saves to season divisions."""
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    if not (season_dir / "season.yaml").is_file():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+
+    from backend.services.season_persistence import assign_corps
+
+    results = {}
+    for show_slug, corps_ids in req.assignments.items():
+        data = assign_corps(season_dir, show_slug, corps_ids)
+        results[show_slug] = corps_ids
+
+    return {"status": "applied", "assignments": results}

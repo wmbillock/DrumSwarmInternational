@@ -53,6 +53,8 @@ _DESIGN_SYSTEM_TEMPLATE = """You're on the design staff for show "{slug}".
 Brief so far:
 {spec_content}
 
+{role_context}
+
 RULES — follow these exactly:
 - MAX 30 WORDS. No exceptions. One or two short sentences.
 - The Brief and Prompt tabs update automatically — never mention saving or writing files.
@@ -115,6 +117,32 @@ Write the COMPLETE updated spec in markdown.
 _PC_GREETING_TEMPLATE = """You're the Program Coordinator for show "{slug}".
 The director just entered the Design Room. Greet them in MAX 30 WORDS.
 Mention the show name and ask one question to get started. Be direct and collegial."""
+
+
+def _get_role_context(notes_path, role: str, limit: int = 10) -> str:
+    """Parse design_notes.md for messages relevant to this role.
+
+    Returns the last *limit* messages from: this role, program_coordinator, and user.
+    Excludes other specialists so each role sees only its own thread.
+    """
+    if not notes_path.exists():
+        return ""
+    content = notes_path.read_text(encoding="utf-8", errors="replace")
+    allowed_roles = {role, "program_coordinator", "user"}
+    relevant: list[str] = []
+    lines = content.split("\n")
+    for line in lines:
+        line_stripped = line.strip()
+        m = re.match(r"\*\*\[(\w+)\]\*\*\s*(.*)", line_stripped)
+        if m:
+            msg_role = m.group(1)
+            msg_text = m.group(2)
+            if msg_role in allowed_roles:
+                relevant.append(f"[{msg_role}] {msg_text}")
+    if not relevant:
+        return ""
+    recent = relevant[-limit:]
+    return "Your recent conversation thread:\n" + "\n".join(recent)
 
 
 def _extract_swarm_prompt(show_dir, spec_text: str):
@@ -262,10 +290,12 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
         specialist_inputs: list[str] = []
         for spec_role in sorted(specialist_roles):
             role_prompt = _DESIGN_ROLE_PROMPTS[spec_role]
+            role_context = _get_role_context(notes_path, spec_role)
             system_prompt = _DESIGN_SYSTEM_TEMPLATE.format(
                 role_prompt=role_prompt,
                 slug=slug,
                 spec_content=spec_content[:2000],
+                role_context=role_context,
             )
             spec_text = _llm_chat(llm_client, system_prompt, req.message)
             if spec_text:

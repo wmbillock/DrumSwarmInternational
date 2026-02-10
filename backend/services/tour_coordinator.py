@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import random
 from datetime import datetime, timezone
 from pathlib import Path
@@ -9,6 +10,7 @@ from pathlib import Path
 from backend.services.season_persistence import load_season, save_season
 from backend.services.yaml_util import atomic_write, safe_dump_yaml
 
+logger = logging.getLogger(__name__)
 
 CAPTIONS = ["brass", "percussion", "guard", "visual", "general_effect", "ensemble_technique"]
 
@@ -183,6 +185,47 @@ def _score_round(season_dir: Path, round_entry: dict) -> dict:
     }
     atomic_write(season_dir / "standings.yaml", safe_dump_yaml(standings_data))
     return standings_data
+
+
+def set_auto_advance(season_dir: Path, enabled: bool) -> dict:
+    """Enable or disable metronome-driven auto-advance for a touring season."""
+    data = load_season(season_dir)
+    data.setdefault("config", {})["auto_advance"] = enabled
+    save_season(season_dir, data)
+    return {"auto_advance": enabled}
+
+
+def get_auto_advance(season_dir: Path) -> bool:
+    """Check if auto_advance is enabled for a season."""
+    data = load_season(season_dir)
+    return bool((data.get("config") or {}).get("auto_advance", False))
+
+
+def find_touring_seasons() -> list[Path]:
+    """Find all season directories with status=touring and pending rounds."""
+    from backend.api.v1.helpers import _get_root
+    root = _get_root()
+    seasons_dir = root / "seasons"
+    if not seasons_dir.exists():
+        return []
+    touring = []
+    for season_dir in seasons_dir.iterdir():
+        if not season_dir.is_dir():
+            continue
+        yaml_path = season_dir / "season.yaml"
+        if not yaml_path.is_file():
+            continue
+        try:
+            data = load_season(season_dir)
+            status = (data.get("metadata") or {}).get("status", "")
+            if status == "touring" and get_auto_advance(season_dir):
+                schedule = data.get("schedule") or []
+                has_pending = any(e.get("status") != "completed" for e in schedule)
+                if has_pending:
+                    touring.append(season_dir)
+        except Exception:
+            continue
+    return touring
 
 
 def _trigger_improvements(corps_ids: list[str], standings: dict) -> dict:

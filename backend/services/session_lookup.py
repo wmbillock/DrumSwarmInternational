@@ -12,6 +12,44 @@ from backend.services.agent_lifecycle import spawn_session
 logger = logging.getLogger(__name__)
 
 
+def find_session_for_role(
+    db: Session,
+    corps_id: str,
+    role: str,
+) -> Optional[AgentSession]:
+    """Find the most relevant session for a role WITHOUT creating a new one.
+
+    Returns an active session if one exists, otherwise the most recent
+    terminal (completed/failed) session. Returns None if no session exists
+    at all for this role in this corps.
+    """
+    # Try active first
+    active = (
+        db.query(AgentSession)
+        .join(AgentDefinition, AgentSession.definition_id == AgentDefinition.id)
+        .filter(
+            AgentSession.corps_id == corps_id,
+            AgentDefinition.role == role,
+            AgentSession.status == SessionStatus.ACTIVE,
+        )
+        .first()
+    )
+    if active:
+        return active
+
+    # Return most recent terminal session (caller decides whether to respawn)
+    return (
+        db.query(AgentSession)
+        .join(AgentDefinition, AgentSession.definition_id == AgentDefinition.id)
+        .filter(
+            AgentSession.corps_id == corps_id,
+            AgentDefinition.role == role,
+        )
+        .order_by(AgentSession.started_at.desc())
+        .first()
+    )
+
+
 def find_or_respawn_session(
     db: Session,
     corps_id: str,

@@ -267,6 +267,12 @@ export const clarifyCorpsCritique = (corpsId: string, round: number, question: s
     body: JSON.stringify({ question }),
   });
 
+export const generateCorpsLogo = (corpsId: string) =>
+  request<{ corps_id: string; logo_path: string | null; success: boolean; error?: string }>(
+    `/api/v1/corps/${corpsId}/generate-logo`,
+    { method: "POST" }
+  );
+
 // --- Runs ---
 
 export const listRuns = (corpsId?: string, signal?: AbortSignal) =>
@@ -453,6 +459,12 @@ export const advanceSeasonTour = (seasonId: string) =>
 
 export const getSeasonTourStatus = (seasonId: string, signal?: AbortSignal) =>
   request<any>(`/api/v1/seasons/${seasonId}/tour-status`, { signal });
+
+export const setSeasonAutoAdvance = (seasonId: string, enabled: boolean) =>
+  request<{ auto_advance: boolean }>(`/api/v1/seasons/${seasonId}/auto-advance`, {
+    method: "POST",
+    body: JSON.stringify({ enabled }),
+  });
 
 // --- Show Draft ---
 

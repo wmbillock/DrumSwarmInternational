@@ -121,7 +121,7 @@ def v1_list_corps(include_system: bool = False):
             if not corps_path.is_file():
                 continue
             try:
-                data = safe_load_yaml_dict(corps_path.read_text())
+                data = safe_load_yaml_dict(corps_path.read_text(encoding="utf-8"))
                 name = data.get("display_name", corps_dir.name)
                 seen_names.add(name)
                 result.append({
@@ -130,6 +130,7 @@ def v1_list_corps(include_system: bool = False):
                     "philosophy": data.get("philosophy", ""),
                     "state": data.get("state", "unknown"),
                     "corps_type": data.get("corps_type", "competing"),
+                    "color_scheme": _generate_color_scheme(name),
                 })
             except Exception as e:
                 logger.warning("Failed to read corps.yaml at %s: %s", corps_path, e)
@@ -156,6 +157,10 @@ def v1_list_corps(include_system: bool = False):
             for c in db_corps:
                 if c.name not in seen_names:
                     seen_names.add(c.name)
+                    try:
+                        cs = json.loads(c.color_scheme) if c.color_scheme else _generate_color_scheme(c.name)
+                    except (json.JSONDecodeError, TypeError):
+                        cs = _generate_color_scheme(c.name)
                     result.append({
                         "corps_id": c.id,
                         "display_name": c.name,
@@ -165,6 +170,8 @@ def v1_list_corps(include_system: bool = False):
                         "theme_id": c.theme_id,
                         "mascot": c.mascot,
                         "staff_count": staff_counts.get(c.id, 0),
+                        "color_scheme": cs,
+                        "logo_path": c.logo_path,
                     })
         finally:
             db.close()
@@ -216,6 +223,122 @@ def v1_generate_corps_identity():
         "icon_theme": icon_theme,
         "icon_prompt": icon_prompt,
     }
+
+
+@router.post("/corps/{corps_id}/generate-logo")
+def v1_generate_corps_logo(corps_id: str):
+    """Generate a logo for a corps using ComfyUI."""
+    _validate_id(corps_id, "corps_id")
+    from backend.models.corps import Corps
+    from backend.services.image_service import generate_from_workflow
+
+    db = _get_db_session()
+    try:
+        corps = db.get(Corps, corps_id)
+        if not corps:
+            raise HTTPException(404, f"Corps '{corps_id}' not found")
+
+        # Build template vars from corps data
+        try:
+            cs = json.loads(corps.color_scheme) if corps.color_scheme else _generate_color_scheme(corps.name)
+        except (json.JSONDecodeError, TypeError):
+            cs = _generate_color_scheme(corps.name)
+
+        style_notes = ""
+        if corps.mascot:
+            style_notes += f"Mascot motif: {corps.mascot}. "
+        if corps.caption_affinity:
+            style_notes += f"Musical emphasis: {corps.caption_affinity}. "
+        style_notes += "Suitable for embroidery on uniforms."
+
+        template_vars = {
+            "corps_name": corps.name,
+            "primary_color": cs.get("primary", "#1a1a2e"),
+            "secondary_color": cs.get("secondary", "#16213e"),
+            "style_notes": style_notes,
+        }
+
+        result = generate_from_workflow(
+            "corps_logo",
+            template_vars=template_vars,
+            output_filename=f"logo_{corps_id[:8]}.png",
+        )
+
+        if result.get("success") and result.get("output_path"):
+            corps.logo_path = result["output_path"]
+            db.commit()
+            return {
+                "corps_id": corps_id,
+                "logo_path": result["output_path"],
+                "success": True,
+            }
+
+        return {
+            "corps_id": corps_id,
+            "logo_path": None,
+            "success": False,
+            "error": result.get("error", "ComfyUI unavailable"),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Failed to generate logo: {e}")
+    finally:
+        db.close()
+
+
+@router.post("/corps/generate-all-logos")
+def v1_generate_all_logos():
+    """Generate logos for all corps that don't have one yet."""
+    from backend.models.corps import Corps, CorpsStatus
+    from backend.services.image_service import generate_from_workflow
+
+    db = _get_db_session()
+    try:
+        corps_list = (
+            db.query(Corps)
+            .filter(Corps.status != CorpsStatus.DISBANDED, Corps.logo_path.is_(None))
+            .all()
+        )
+        results = []
+        for corps in corps_list:
+            try:
+                cs = json.loads(corps.color_scheme) if corps.color_scheme else _generate_color_scheme(corps.name)
+            except (json.JSONDecodeError, TypeError):
+                cs = _generate_color_scheme(corps.name)
+
+            style_notes = ""
+            if corps.mascot:
+                style_notes += f"Mascot motif: {corps.mascot}. "
+            style_notes += "Suitable for embroidery on uniforms."
+
+            template_vars = {
+                "corps_name": corps.name,
+                "primary_color": cs.get("primary", "#1a1a2e"),
+                "secondary_color": cs.get("secondary", "#16213e"),
+                "style_notes": style_notes,
+            }
+
+            result = generate_from_workflow(
+                "corps_logo",
+                template_vars=template_vars,
+                output_filename=f"logo_{corps.id[:8]}.png",
+            )
+
+            if result.get("success") and result.get("output_path"):
+                corps.logo_path = result["output_path"]
+                results.append({"corps_id": corps.id, "name": corps.name, "success": True})
+            else:
+                results.append({"corps_id": corps.id, "name": corps.name, "success": False, "error": result.get("error")})
+
+        db.commit()
+        return {"generated": len([r for r in results if r["success"]]), "total": len(results), "details": results}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Batch logo generation failed: {e}")
+    finally:
+        db.close()
 
 
 @router.post("/corps/generate-icon")
@@ -277,10 +400,14 @@ def v1_create_corps(req: CreateCorpsRequest):
         import uuid
         corps_id = str(uuid.uuid4())
 
-        # Store color scheme + uniform concept together
+        # Compute color scheme if not provided
+        color_scheme = req.color_scheme or _generate_color_scheme(req.name)
+        color_scheme_json = _json.dumps(color_scheme)
+
+        # Store color scheme + uniform concept together in uniform_concept for backward compat
         theme_data = {}
-        if req.color_scheme:
-            theme_data["color_scheme"] = req.color_scheme
+        if color_scheme:
+            theme_data["color_scheme"] = color_scheme
         if req.uniform_concept:
             theme_data["uniform_concept"] = req.uniform_concept
 
@@ -291,19 +418,44 @@ def v1_create_corps(req: CreateCorpsRequest):
             mode=CorpsMode.DESIGN_ROOM,
             mascot=req.mascot,
             uniform_concept=_json.dumps(theme_data) if theme_data else None,
+            color_scheme=color_scheme_json,
         )
         db.add(corps)
         db.commit()
         initialize_corps(db, corps_id)
 
+        # Fire-and-forget logo generation (best-effort, non-blocking)
+        try:
+            from backend.services.image_service import generate_from_workflow
+            style_notes = ""
+            if req.mascot:
+                style_notes += f"Mascot motif: {req.mascot}. "
+            style_notes += "Suitable for embroidery on uniforms."
+            logo_result = generate_from_workflow(
+                "corps_logo",
+                template_vars={
+                    "corps_name": req.name,
+                    "primary_color": color_scheme.get("primary", "#1a1a2e"),
+                    "secondary_color": color_scheme.get("secondary", "#16213e"),
+                    "style_notes": style_notes,
+                },
+                output_filename=f"logo_{corps_id[:8]}.png",
+            )
+            if logo_result.get("success") and logo_result.get("output_path"):
+                corps.logo_path = logo_result["output_path"]
+                db.commit()
+        except Exception:
+            pass  # Logo generation is best-effort
+
         return {
             "corps_id": corps_id,
             "display_name": req.name,
             "mascot": req.mascot,
-            "color_scheme": req.color_scheme,
+            "color_scheme": color_scheme,
             "uniform_concept": req.uniform_concept,
             "philosophy": req.philosophy or "",
             "state": "winter_camps",
+            "logo_path": corps.logo_path,
         }
     except HTTPException:
         raise
@@ -339,11 +491,11 @@ def v1_get_corps(corps_id: str):
     root = _get_root()
     corps_path = root / "corps" / corps_id / "corps.yaml"
     if corps_path.is_file():
-        data = safe_load_yaml_dict(corps_path.read_text())
+        data = safe_load_yaml_dict(corps_path.read_text(encoding="utf-8"))
         roster_path = root / "corps" / corps_id / "roster.yaml"
         roster_size = 0
         if roster_path.is_file():
-            roster = safe_load_yaml_dict(roster_path.read_text())
+            roster = safe_load_yaml_dict(roster_path.read_text(encoding="utf-8"))
             roster_size = len(roster.get("assignments", []))
         history = data.get("history", [])
         return {
@@ -406,6 +558,7 @@ def v1_get_corps(corps_id: str):
                 "mode": corps.mode.value if corps.mode else None,
                 "rehearsal_mode": corps.rehearsal_mode.value if corps.rehearsal_mode else None,
                 "current_show": show_info,
+                "logo_path": corps.logo_path,
             }
         finally:
             db.close()
@@ -565,7 +718,7 @@ def v1_get_corps_history(corps_id: str):
             # Check standings for this corps
             if standings_path.exists():
                 try:
-                    standings = safe_load_yaml_dict(standings_path.read_text())
+                    standings = safe_load_yaml_dict(standings_path.read_text(encoding="utf-8"))
                     for result in standings.get("results", []):
                         if result.get("corps_id") == corps_id:
                             has_standing = True
@@ -579,7 +732,7 @@ def v1_get_corps_history(corps_id: str):
             scores_path = perf_dir / "scores.yaml" if has_perf else None
             if scores_path and scores_path.exists():
                 try:
-                    scores = safe_load_yaml_dict(scores_path.read_text())
+                    scores = safe_load_yaml_dict(scores_path.read_text(encoding="utf-8"))
                     show_slug = scores.get("show_slug")
                 except Exception:
                     pass
@@ -591,7 +744,7 @@ def v1_get_corps_history(corps_id: str):
                     manifest_path = season_dir / "performances" / corps_id / run_id / "manifest.yaml"
                     if manifest_path.exists():
                         try:
-                            m = safe_load_yaml_dict(manifest_path.read_text())
+                            m = safe_load_yaml_dict(manifest_path.read_text(encoding="utf-8"))
                             if m.get("show_slug"):
                                 show_slug = m["show_slug"]
                                 break
@@ -636,7 +789,7 @@ def v1_list_corps_seances(corps_id: str):
         if not session_path.is_file():
             continue
         try:
-            data = safe_load_yaml_dict(session_path.read_text())
+            data = safe_load_yaml_dict(session_path.read_text(encoding="utf-8"))
             if isinstance(data, dict) and data.get("corps_id") == corps_id:
                 results.append({
                     "seance_id": data.get("seance_id", sdir.name),
@@ -669,7 +822,7 @@ def v1_clarify_critique(corps_id: str, round_num: int, req: CritiqueClarifyReque
     if not critique_path:
         raise HTTPException(404, "Critique round not found")
 
-    critique_text = critique_path.read_text()
+    critique_text = critique_path.read_text(encoding="utf-8")
 
     from backend.api.app import get_task_manager
     tm = get_task_manager()
@@ -1134,8 +1287,13 @@ def v1_get_corps_theme(corps_id: str):
         corps = db.get(Corps, corps_id)
         if not corps:
             raise HTTPException(404, "Corps not found")
+        try:
+            cs = json.loads(corps.color_scheme) if corps.color_scheme else _generate_color_scheme(corps.name)
+        except (json.JSONDecodeError, TypeError):
+            cs = _generate_color_scheme(corps.name)
         return {"corps_id": corps.id, "theme_id": corps.theme_id,
-                "mascot": corps.mascot, "uniform_concept": corps.uniform_concept}
+                "mascot": corps.mascot, "uniform_concept": corps.uniform_concept,
+                "color_scheme": cs}
     finally:
         db.close()
 

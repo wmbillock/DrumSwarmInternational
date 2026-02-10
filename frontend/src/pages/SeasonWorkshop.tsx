@@ -25,7 +25,6 @@ export function SeasonWorkshop() {
   const [config, setConfig] = useState({ corps_per_contest: 12, required_scores: 1 });
   const [assignments, setAssignments] = useState<Record<string, string[]>>({});
   const [savingConfig, setSavingConfig] = useState(false);
-  const [assigning, setAssigning] = useState(false);
   const [locking, setLocking] = useState(false);
   const [startingTour, setStartingTour] = useState(false);
   const [competitions, setCompetitions] = useState<v1.V1Competition[]>([]);
@@ -40,6 +39,7 @@ export function SeasonWorkshop() {
   const [tourCompetitions, setTourCompetitions] = useState<v1.V1Competition[]>([]);
   const [tourLoading, setTourLoading] = useState(false);
   const [enteringFinals, setEnteringFinals] = useState(false);
+  const [finalizing, setFinalizing] = useState(false);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -239,17 +239,19 @@ export function SeasonWorkshop() {
     }
   };
 
-  const handleSaveAssignments = async (showSlug: string) => {
+  const handleFinalize = async () => {
     if (!seasonId) return;
-    setAssigning(true);
+    setFinalizing(true);
     try {
-      const updated = await v1.assignSeasonCorps(seasonId, showSlug, assignments[showSlug] || []);
+      const result = await v1.runShowDraft(seasonId);
+      await v1.applyDraft(seasonId, result.assignments);
+      const updated = await v1.getSeason(seasonId);
       setDetail(updated);
       setAssignments(updated.divisions || {});
     } catch (e: any) {
       setError(e.message);
     } finally {
-      setAssigning(false);
+      setFinalizing(false);
     }
   };
 
@@ -349,9 +351,15 @@ export function SeasonWorkshop() {
     const unregisteredCorps = corps.filter(c => c.corps_type !== "system" && !registeredCorps.includes(c.corps_id));
     const selectedShows = detail.shows || [];
     const availableShows = showThreads.filter(t => t.status === "published" || t.status === "approved" || t.status === "needs_review");
+    const hasDraftAssignments = Object.values(assignments).some(a => a.length > 0);
+    const canStartTour = registeredCorps.length > 0
+      && selectedShows.length > 0
+      && hasDraftAssignments
+      && Boolean(detail.locked);
     const checklist = [
       { key: "corps", label: "Add Corps", done: registeredCorps.length > 0 },
-      { key: "shows", label: "Assign Shows (creates divisions)", done: selectedShows.length > 0 },
+      { key: "shows", label: "Add Shows", done: selectedShows.length > 0 },
+      { key: "draft", label: "Finalize Draft", done: hasDraftAssignments },
       { key: "config", label: "Competition Settings", done: !!config.corps_per_contest && !!config.required_scores },
       { key: "lock", label: "Lock & Prepare", done: Boolean(detail.locked) },
       { key: "tour", label: "Start Tour", done: detail.metadata?.status === "touring" },
@@ -411,6 +419,77 @@ export function SeasonWorkshop() {
               )}
             </Panel>
 
+            <Panel title="Corps" style={{ marginTop: 16 }}>
+              {registeredCorps.length === 0 && <p className="empty">No corps registered yet. Add corps below to get started.</p>}
+              {registeredCorps.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 16 }}>
+                  {registeredCorps.map(id => {
+                    const c = corpsById[id];
+                    const colors = c?.color_scheme || { primary: "#334155", secondary: "#475569", accent: "#94a3b8" };
+                    const name = c?.display_name || `Corps ${id.slice(0, 8)}`;
+                    const monogram = name.charAt(0).toUpperCase();
+                    return (
+                      <div
+                        key={id}
+                        onClick={() => navigate(`/corps/${id}`)}
+                        style={{
+                          width: 160,
+                          padding: "16px 12px",
+                          borderRadius: 8,
+                          background: `linear-gradient(135deg, ${colors.primary}, ${colors.secondary})`,
+                          borderLeft: `4px solid ${colors.accent}`,
+                          cursor: "pointer",
+                          transition: "transform 0.15s, box-shadow 0.15s",
+                          color: "#fff",
+                          textShadow: "0 1px 2px rgba(0,0,0,0.4)",
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.3)"; }}
+                        onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}
+                      >
+                        <div style={{
+                          fontSize: 48,
+                          fontWeight: 800,
+                          lineHeight: 1,
+                          marginBottom: 8,
+                          fontFamily: "var(--font-display, inherit)",
+                          opacity: 0.9,
+                        }}>
+                          {monogram}
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.2 }}>{name}</div>
+                        {c?.mascot && (
+                          <div style={{ fontSize: 11, opacity: 0.75, marginTop: 4 }}>{c.mascot}</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {unregisteredCorps.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {unregisteredCorps.map(c => {
+                    const colors = c.color_scheme || { primary: "#334155", secondary: "#475569", accent: "#94a3b8" };
+                    return (
+                      <button
+                        key={c.corps_id}
+                        className="small"
+                        onClick={() => handleRegisterCorps(c.corps_id)}
+                        style={{
+                          borderColor: colors.accent,
+                          color: colors.accent,
+                        }}
+                      >
+                        + {c.display_name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {unregisteredCorps.length === 0 && registeredCorps.length > 0 && (
+                <p className="text-muted" style={{ fontSize: 12 }}>All available corps are registered.</p>
+              )}
+            </Panel>
+
             <Panel title="Assign Shows" style={{ marginTop: 16 }}>
               {availableShows.length === 0 && <p className="empty">No shows available. Publish a show first.</p>}
               {availableShows.length > 0 && (
@@ -427,42 +506,72 @@ export function SeasonWorkshop() {
                   ))}
                 </div>
               )}
-              {selectedShows.length === 0 && <p className="empty">No shows assigned yet.</p>}
-              {selectedShows.map(showSlug => (
-                <div key={showSlug} style={{ marginBottom: 16, padding: 12, border: "1px solid var(--border)", borderRadius: 6 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                    <strong>{slugToTitle(showSlug)}</strong>
-                    <button className="small danger" onClick={() => handleRemoveShow(showSlug)}>Remove</button>
-                  </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
-                    {registeredCorps.map(cid => {
-                      const checked = (assignments[showSlug] || []).includes(cid);
-                      return (
-                        <label key={cid} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }}>
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={(e) => {
-                              setAssignments(prev => {
-                                const next = { ...prev };
-                                const list = new Set(next[showSlug] || []);
-                                if (e.target.checked) list.add(cid);
-                                else list.delete(cid);
-                                next[showSlug] = Array.from(list);
-                                return next;
-                              });
-                            }}
-                          />
-                          {corpsById[cid]?.display_name || `Corps • ${cid.slice(0, 8)}`}
-                        </label>
-                      );
-                    })}
-                  </div>
-                  <button className="small" onClick={() => handleSaveAssignments(showSlug)} disabled={assigning}>
-                    {assigning ? "Saving..." : "Save Assignments"}
-                  </button>
+              {selectedShows.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+                  {selectedShows.map(showSlug => (
+                    <span key={showSlug} style={{
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      padding: "4px 10px", borderRadius: 4,
+                      background: "var(--bg-secondary, #1e293b)",
+                      border: "1px solid var(--border)",
+                      fontSize: 12,
+                    }}>
+                      {slugToTitle(showSlug)}
+                      <button
+                        onClick={() => handleRemoveShow(showSlug)}
+                        style={{
+                          background: "none", border: "none", cursor: "pointer",
+                          color: "var(--text-muted)", fontSize: 14, padding: 0, lineHeight: 1,
+                        }}
+                        title="Remove show"
+                      >
+                        x
+                      </button>
+                    </span>
+                  ))}
                 </div>
-              ))}
+              )}
+              {selectedShows.length === 0 && <p className="empty">No shows assigned yet.</p>}
+
+              {registeredCorps.length > 0 && selectedShows.length > 0 && (
+                <>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, marginBottom: 16 }}>
+                    <thead>
+                      <tr style={{ borderBottom: "2px solid var(--border)" }}>
+                        <th style={{ textAlign: "left", padding: "8px 12px", fontWeight: 600 }}>Corps</th>
+                        <th style={{ textAlign: "left", padding: "8px 12px", fontWeight: 600 }}>Assigned Show</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {registeredCorps.map(cid => {
+                        const c = corpsById[cid];
+                        const assignedShow = Object.entries(assignments).find(
+                          ([, corpsIds]) => corpsIds.includes(cid)
+                        );
+                        return (
+                          <tr key={cid} style={{ borderBottom: "1px solid var(--border)" }}>
+                            <td style={{ padding: "8px 12px" }}>
+                              {c?.display_name || `Corps ${cid.slice(0, 8)}`}
+                            </td>
+                            <td style={{ padding: "8px 12px", color: assignedShow ? "var(--text)" : "var(--text-muted)" }}>
+                              {assignedShow ? slugToTitle(assignedShow[0]) : "\u2014"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+
+                  <button
+                    className="primary"
+                    onClick={handleFinalize}
+                    disabled={finalizing || registeredCorps.length === 0 || selectedShows.length === 0}
+                    style={{ padding: "10px 24px" }}
+                  >
+                    {finalizing ? "Finalizing..." : "Finalize Corps and Shows"}
+                  </button>
+                </>
+              )}
             </Panel>
 
             <Panel title="Competition Settings" style={{ marginTop: 16 }}>
@@ -499,8 +608,15 @@ export function SeasonWorkshop() {
             </Panel>
 
             <Panel title="Start Tour" style={{ marginTop: 16 }}>
-              <p className="text-muted">Starts tour and generates schedule based on assignments.</p>
-              <button className="primary" onClick={handleStartTour} disabled={startingTour || detail.metadata?.status === "touring"}>
+              {!canStartTour && (
+                <p className="text-muted" style={{ marginBottom: 8 }}>Complete all setup steps before starting the tour.</p>
+              )}
+              <button
+                className="primary"
+                onClick={handleStartTour}
+                disabled={!canStartTour || startingTour || detail.metadata?.status === "touring"}
+                style={{ opacity: canStartTour ? 1 : 0.5 }}
+              >
                 {detail.metadata?.status === "touring" ? "Tour Active" : startingTour ? "Starting..." : "Start Tour"}
               </button>
               {detail.schedule && detail.schedule.length > 0 && (
@@ -509,8 +625,8 @@ export function SeasonWorkshop() {
                   <DataTable<Record<string, unknown>>
                     columns={[
                       { key: "competition_id", label: "Competition" },
-                      { key: "show_slug", label: "Show", render: (v) => slugToTitle(String(v || \"\")) },
-                      { key: "corps_ids", label: "Corps", render: (v) => Array.isArray(v) ? `${v.length} corps` : \"0 corps\" },
+                      { key: "show_slug", label: "Show", render: (v) => slugToTitle(String(v || "")) },
+                      { key: "corps_ids", label: "Corps", render: (v) => Array.isArray(v) ? `${v.length} corps` : "0 corps" },
                     ]}
                     data={detail.schedule as Record<string, unknown>[]}
                     emptyMessage="No schedule generated."
@@ -518,28 +634,6 @@ export function SeasonWorkshop() {
                 </div>
               )}
             </Panel>
-
-            <Panel title="Registered Corps" style={{ marginTop: 16 }}>
-              {registeredCorps.length === 0 && <p className="empty">No corps registered yet.</p>}
-              {registeredCorps.map(id => (
-                <div key={id} style={{ padding: "8px 0", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between" }}>
-                  <span title={id}>{corpsById[id]?.display_name || `Corps • ${id.slice(0, 8)}`}</span>
-                  <button className="small" onClick={() => navigate(`/corps/${id}`)}>View</button>
-                </div>
-              ))}
-            </Panel>
-
-            {unregisteredCorps.length > 0 && (
-              <Panel title="Add Corps" style={{ marginTop: 16 }}>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {unregisteredCorps.map(c => (
-                    <button key={c.corps_id} className="small" onClick={() => handleRegisterCorps(c.corps_id)}>
-                      + {c.display_name}
-                    </button>
-                  ))}
-                </div>
-              </Panel>
-            )}
           </div>
         )}
 
