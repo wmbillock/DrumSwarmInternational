@@ -6,6 +6,7 @@ events via WebSocket ConnectionManager. Also runs the metronome on a timer.
 
 import asyncio
 import logging
+import time
 from typing import TYPE_CHECKING, Optional
 
 from backend.services.agent_runtime import RunStatus, run_agent
@@ -25,6 +26,13 @@ logger = logging.getLogger(__name__)
 METRONOME_INTERVAL_SECONDS = 60
 MAX_AUTO_RETRIES = 3
 AUTO_RETRY_ROLES = {"executive_director", "program_coordinator", "drum_major"}
+
+# Hard cap on concurrent agent subprocesses to prevent process leakage
+MAX_CONCURRENT_AGENTS = int(__import__("os").environ.get("DSI_MAX_CONCURRENT_AGENTS", "5"))
+# Max agents the metronome can spawn in a single tick
+MAX_AGENTS_PER_TICK = 3
+# Cooldown in seconds before the same role+corps can be re-woken
+ROLE_COOLDOWN_SECONDS = 300  # 5 minutes
 
 
 def _segment_ids_under_root(db, root_id: str) -> list[str]:
@@ -94,6 +102,10 @@ class TaskManager:
         self.autoscaler = AutoScaler()
         self.message_bus = get_message_bus()
         self._retry_counts: dict[str, int] = {}
+        # Cooldown tracking: (corps_id, role) -> last_started_timestamp
+        self._role_cooldowns: dict[tuple[str, str], float] = {}
+        # Counter for agents spawned in the current tick
+        self._tick_spawn_count = 0
 
     def start_metronome(self) -> None:
         """Start the automatic metronome tick loop and reap orphaned sessions."""
@@ -170,6 +182,9 @@ class TaskManager:
 
     async def _tick_all_corps(self) -> None:
         """Run metronome tick for every active corps and broadcast results."""
+        # Reset per-tick spawn counter
+        self._tick_spawn_count = 0
+
         def _do_tick():
             from backend.models.corps import Corps, CorpsStatus
             from backend.tools.metronome import tick
@@ -245,8 +260,12 @@ class TaskManager:
 
             # Respawn dead watchdog chain roles (find-then-respawn to avoid session spam)
             for r in results:
+                if self._tick_spawn_count >= MAX_AGENTS_PER_TICK:
+                    break
                 corps_id = r["corps_id"]
                 for dead_role in r.get("watchdog_respawned", []):
+                    if self._tick_spawn_count >= MAX_AGENTS_PER_TICK:
+                        break
                     db = self._session_factory()
                     try:
                         existing = find_session_for_role(db, corps_id, dead_role)
@@ -260,6 +279,7 @@ class TaskManager:
                                 task_description=f"You are being respawned by the watchdog chain. Resume monitoring duties for role {dead_role}.",
                                 corps_id=corps_id,
                             )
+                            self._tick_spawn_count += 1
                             logger.info("Watchdog respawned %s in corps %s", dead_role, corps_id)
                     finally:
                         db.close()
@@ -270,6 +290,8 @@ class TaskManager:
 
             # Feed health summary to timing_judge if issues detected
             for r in results:
+                if self._tick_spawn_count >= MAX_AGENTS_PER_TICK:
+                    break
                 corps_id = r["corps_id"]
                 met = r["metronome"]
                 merge = r["merge"]
@@ -278,7 +300,6 @@ class TaskManager:
                     try:
                         existing = find_session_for_role(db, corps_id, "timing_judge")
                         if existing and self.is_active(existing.id):
-                            db.close()
                             continue  # Already running, skip
                         judge_session = self.get_session_for_role(
                             db, corps_id, "timing_judge"
@@ -298,6 +319,7 @@ class TaskManager:
                             task_description=health_summary,
                             corps_id=corps_id,
                         )
+                        self._tick_spawn_count += 1
             # Ping the DCI admin ED with swarm-wide status
             await self._ping_admin_ed(results)
 
@@ -309,6 +331,19 @@ class TaskManager:
 
         except Exception:
             logger.exception("Metronome broadcast error")
+
+    def _active_count(self) -> int:
+        """Count currently running (not done) agent tasks."""
+        return sum(1 for t in self.active_tasks.values() if not t.done())
+
+    def _check_cooldown(self, corps_id: str, role: str) -> bool:
+        """Return True if this role+corps is still in cooldown."""
+        key = (corps_id, role)
+        last = self._role_cooldowns.get(key, 0)
+        return (time.time() - last) < ROLE_COOLDOWN_SECONDS
+
+    def _record_cooldown(self, corps_id: str, role: str) -> None:
+        self._role_cooldowns[(corps_id, role)] = time.time()
 
     def start_agent(
         self,
@@ -334,6 +369,14 @@ class TaskManager:
             logger.warning("Session %s already has an active task", session_id)
             return
 
+        # Hard cap on concurrent agents
+        if self._active_count() >= MAX_CONCURRENT_AGENTS:
+            logger.warning(
+                "Concurrent agent cap reached (%d/%d), refusing session %s",
+                self._active_count(), MAX_CONCURRENT_AGENTS, session_id,
+            )
+            return
+
         # Budget gate check
         try:
             from backend.services.budget_manager import get_budget_manager
@@ -347,6 +390,12 @@ class TaskManager:
 
         # Singleton guard: check if this role already has a running task in this corps
         role, nickname = self._get_agent_identity(session_id)
+
+        # Role cooldown: don't re-start same role+corps within cooldown window
+        if self._check_cooldown(corps_id, role):
+            logger.debug("Role %s in corps %s is in cooldown, skipping", role, corps_id[:8])
+            return
+
         if role in self.SINGLETON_ROLES:
             for other_sid, other_task in self.active_tasks.items():
                 if other_sid == session_id or other_task.done():
@@ -366,6 +415,8 @@ class TaskManager:
                             return
                     finally:
                         db.close()
+
+        self._record_cooldown(corps_id, role)
 
         task = asyncio.create_task(
             self._run_agent_task(session_id, task_description, corps_id, context_snapshot, keep_alive, reply_to_user)
@@ -484,9 +535,13 @@ class TaskManager:
                         "Auto-retrying %s (attempt %d/%d) for session %s",
                         role, retry_count + 1, MAX_AUTO_RETRIES, session_id,
                     )
-                    new_session_id = self.get_session_for_role(
-                        self._session_factory(), corps_id, role
-                    )
+                    db_retry = self._session_factory()
+                    try:
+                        new_session_id = self.get_session_for_role(
+                            db_retry, corps_id, role
+                        )
+                    finally:
+                        db_retry.close()
                     if new_session_id:
                         retry_desc = (
                             f"You are resuming after a failure (attempt {retry_count + 2}). "
@@ -672,6 +727,9 @@ class TaskManager:
                 db.close()
 
         try:
+            if self._tick_spawn_count >= MAX_AGENTS_PER_TICK:
+                return
+
             result = await asyncio.to_thread(_build_status_and_dispatch)
             if result is None:
                 return
@@ -689,6 +747,7 @@ class TaskManager:
                 corps_id=admin_corps_id,
                 keep_alive=True,
             )
+            self._tick_spawn_count += 1
             logger.info("Pinged admin ED with swarm status")
 
         except Exception:
@@ -703,6 +762,8 @@ class TaskManager:
         from backend.services.corps_service import ADMIN_CORPS_NAME
 
         for r in tick_results:
+            if self._tick_spawn_count >= MAX_AGENTS_PER_TICK:
+                break
             corps_id = r["corps_id"]
 
             def _find_and_wake(cid=corps_id, result=r):
@@ -769,6 +830,7 @@ class TaskManager:
                     corps_id=cid,
                     keep_alive=True,
                 )
+                self._tick_spawn_count += 1
                 logger.info("Woke ED for corps %s", cid[:8])
             except Exception:
                 logger.debug("Error waking ED for corps %s", corps_id[:8], exc_info=True)
@@ -830,12 +892,16 @@ class TaskManager:
         try:
             dispatches = await asyncio.to_thread(_find_and_dispatch)
             for session_id, task_desc, target_role in dispatches:
+                if self._tick_spawn_count >= MAX_AGENTS_PER_TICK:
+                    logger.debug("Tick spawn cap reached, deferring handoff %s", target_role)
+                    break
                 logger.info("Dispatching %s for handoff in corps %s", target_role, corps_id)
                 self.start_agent(
                     session_id=session_id,
                     task_description=task_desc,
                     corps_id=corps_id,
                 )
+                self._tick_spawn_count += 1
         except Exception:
             logger.exception("Error processing handoff messages for corps %s", corps_id)
 
@@ -853,8 +919,10 @@ class TaskManager:
                         "result": result,
                     })
                     logger.info(
-                        "Auto-advanced tour round for season %s: %s",
-                        season_dir.name, result.get("status"),
+                        "Auto-advanced tour round for season %s: status=%s, dispatched=%d",
+                        season_dir.name,
+                        result.get("status"),
+                        len(result.get("dispatch", {}).get("dispatched", [])),
                     )
                 except Exception:
                     logger.exception("Auto-advance failed for season %s", season_dir.name)

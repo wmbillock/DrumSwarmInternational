@@ -49,3 +49,16 @@ Thumbs.db
 # Agent file-based memory
 memory_store/
 logs/
+
+# External projects (not part of DCI Swarm)
+island_detector/
+island_detector.zip
+
+# Generated images
+generated_images/
+
+# Screenshots (reviewed separately)
+screenshots/
+
+# Temp files
+nul

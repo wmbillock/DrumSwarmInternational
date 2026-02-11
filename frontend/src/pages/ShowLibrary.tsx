@@ -16,8 +16,10 @@ interface LibraryShow {
 }
 
 const STATUS_ORDER: Record<string, number> = {
-  published: 0, approved: 1, needs_review: 2, draft: 3, archived: 4,
+  published: 0, approved: 1, needs_review: 2, draft: 3, on_tour: 4, completed: 5, archived: 6,
 };
+
+const ACTIVE_STATUSES = new Set(["draft", "needs_review", "approved", "published", "on_tour"]);
 
 const STATUS_COLORS: Record<string, string> = {
   published: "#DC143C",
@@ -49,7 +51,7 @@ export function ShowLibrary() {
   const [shows, setShows] = useState<LibraryShow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("active");
 
   useEffect(() => {
     const ac = new AbortController();
@@ -75,7 +77,9 @@ export function ShowLibrary() {
         s.slug.includes(q) || (s.title || "").toLowerCase().includes(q)
       );
     }
-    if (statusFilter !== "all") {
+    if (statusFilter === "active") {
+      result = result.filter(s => ACTIVE_STATUSES.has(s.status));
+    } else if (statusFilter !== "all") {
       result = result.filter(s => s.status === statusFilter);
     }
     result.sort((a, b) => (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99));
@@ -84,15 +88,17 @@ export function ShowLibrary() {
 
   const statuses = useMemo(() => {
     const s = new Set(shows.map(s => s.status));
-    return ["all", ...Array.from(s).sort()];
+    return ["active", "all", ...Array.from(s).sort()];
   }, [shows]);
 
   const stats = {
     total: shows.length,
+    active: shows.filter(s => ACTIVE_STATUSES.has(s.status)).length,
     published: shows.filter(s => s.status === "published").length,
     approved: shows.filter(s => s.status === "approved").length,
     draft: shows.filter(s => s.status === "draft").length,
     review: shows.filter(s => s.status === "needs_review").length,
+    completed: shows.filter(s => s.status === "completed").length,
   };
 
   const handleDeleteShow = async (slug: string, e: React.MouseEvent) => {
@@ -127,8 +133,8 @@ export function ShowLibrary() {
       {/* Stats Bar */}
       <div className="show-library-stats">
         <div className="show-library-stat-item">
-          <div className="show-library-stat-value">{stats.total}</div>
-          <div className="show-library-stat-label">TOTAL</div>
+          <div className="show-library-stat-value">{stats.active}</div>
+          <div className="show-library-stat-label">ACTIVE</div>
         </div>
         <div className="show-library-stat-divider"></div>
         <div className="show-library-stat-item">
@@ -158,6 +164,13 @@ export function ShowLibrary() {
           </div>
           <div className="show-library-stat-label">DRAFT</div>
         </div>
+        <div className="show-library-stat-divider"></div>
+        <div className="show-library-stat-item">
+          <div className="show-library-stat-value" style={{ color: "var(--text-muted)" }}>
+            {stats.completed}
+          </div>
+          <div className="show-library-stat-label">COMPLETED</div>
+        </div>
       </div>
 
       {/* Toolbar */}
@@ -176,7 +189,7 @@ export function ShowLibrary() {
         >
           {statuses.map(s => (
             <option key={s} value={s}>
-              {s === "all" ? "All Statuses" : formatStatus(s)}
+              {s === "active" ? "Active Shows" : s === "all" ? "All Statuses" : formatStatus(s)}
             </option>
           ))}
         </select>

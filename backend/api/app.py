@@ -242,6 +242,20 @@ app.add_middleware(
 )
 
 
+# --- Ensure unhandled exceptions still return CORS-safe JSON ---
+
+from fastapi.requests import Request
+from fastapi.responses import JSONResponse
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled error: %s", exc)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc)},
+    )
+
+
 # --- WebSocket for real-time updates ---
 
 @app.websocket("/ws/{corps_id}")

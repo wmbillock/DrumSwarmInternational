@@ -40,6 +40,7 @@ def v1_list_competitions():
     if not seasons_dir.exists():
         return []
     results = []
+    seen_ids: set[str] = set()
     for season_dir in sorted(seasons_dir.iterdir()):
         if not season_dir.is_dir():
             continue
@@ -50,6 +51,30 @@ def v1_list_competitions():
         season_id = season_data.get("season_id", season_dir.name)
         from backend.services.season_persistence import list_registered_corps
         corps_ids = list_registered_corps(season_dir)
+
+        # Collect competitions from schedule (tour coordinator creates these)
+        schedule = season_data.get("schedule") or []
+        for entry in schedule:
+            cid = entry.get("competition_id")
+            slug = entry.get("show_slug", "")
+            if cid and cid not in seen_ids:
+                entry_corps = entry.get("corps_ids", corps_ids)
+                status = entry.get("status", "pending")
+                if status == "completed":
+                    status = "completed"
+                elif status in ("running", "in_progress"):
+                    status = "active"
+                else:
+                    status = "pending"
+                results.append({
+                    "competition_id": cid,
+                    "season_id": season_id,
+                    "show_slug": slug,
+                    "corps_ids": entry_corps,
+                    "status": status,
+                })
+                seen_ids.add(cid)
+
         # Find shows used in this season by scanning performances
         show_slugs: set[str] = set()
         perf_root = season_dir / "performances"
@@ -88,25 +113,18 @@ def v1_list_competitions():
                             show_slugs.add(sc["show_slug"])
                     except Exception:
                         pass
-        if not show_slugs:
-            # No shows found — list season as a competition with no show
-            results.append({
-                "competition_id": season_id,
-                "season_id": season_id,
-                "show_slug": "",
-                "corps_ids": corps_ids,
-                "status": "ready",
-            })
-            continue
         for show_slug in show_slugs:
             competition_id = f"{season_id}-{show_slug}"
+            if competition_id in seen_ids:
+                continue
             results.append({
                 "competition_id": competition_id,
                 "season_id": season_id,
                 "show_slug": show_slug,
                 "corps_ids": corps_ids,
-                "status": "completed" if (season_dir / "standings.yaml").exists() else "ready",
+                "status": "completed" if standings_path.exists() else "ready",
             })
+            seen_ids.add(competition_id)
     return results
 
 
@@ -611,7 +629,9 @@ def v1_get_recap(competition_id: str, format: str = "json"):
 
     rows = generate_recap_sheet(season_id, show_slug)
     if not rows:
-        raise HTTPException(404, "No standings data for this competition")
+        if format == "json":
+            return []
+        rows = []
 
     if format == "markdown":
         return {"markdown": export_recap_markdown(rows)}

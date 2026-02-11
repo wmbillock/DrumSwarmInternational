@@ -105,6 +105,10 @@ class DraftApplyRequest(BaseModel):
     assignments: dict[str, list[str]]
 
 
+class AutoAdvanceRequest(BaseModel):
+    enabled: bool = False
+
+
 # --- Competitions ---
 
 class CreateCompetitionRequest(BaseModel):

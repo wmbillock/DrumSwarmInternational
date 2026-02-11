@@ -146,12 +146,19 @@ def _get_role_context(notes_path, role: str, limit: int = 10) -> str:
 
 
 def _extract_swarm_prompt(show_dir, spec_text: str):
-    """Extract the ## Swarm Prompt section from a spec and write it to show_prompt.md."""
+    """Extract the ## Swarm Prompt section from a spec and write it to show_prompt.md.
+
+    Since the swarm prompt lives under ## Swarm Prompt in the spec, the LLM
+    writes its sub-sections as ### (one level deeper). We promote all headings
+    by one level so the standalone show_prompt.md uses ## as expected by the linter.
+    """
     import re as _re
     m = _re.search(r"^## Swarm Prompt\s*\n(.*?)(?=\n## |\Z)", spec_text, _re.DOTALL | _re.MULTILINE)
     if m:
         prompt_text = m.group(1).strip()
         if prompt_text and "TBD" not in prompt_text and "awaiting" not in prompt_text.lower():
+            # Promote heading levels: ### → ##, #### → ###, etc.
+            prompt_text = _re.sub(r"^###(#*\s)", r"##\1", prompt_text, flags=_re.MULTILINE)
             from backend.services.yaml_util import atomic_write
             atomic_write(show_dir / "show_prompt.md", prompt_text)
 

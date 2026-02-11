@@ -2,13 +2,11 @@
 
 ## Show Concept
 
-Five integrated UI/UX deliverables grounded in Field Commander Brutalism to improve user onboarding, task discoverability, and visual coherence. The spec balances infrastructure (React-tooltip provider), user guidance (Quick Start panel), content clarity (status badges), and visual polish (MessageArchive.css completion). This show runs in the Command Center, Show Library, Design Room, and MessageArchive—each a stage where users need immediate clarity on "where to start," "what this does," "what state we're in," and "how to navigate."
-
-The show executes in strict waterfall for Phase 1 (infrastructure blocker), then runs Phases 2–3 in parallel once the provider is live, enabling rapid badge and tooltip deployment across all UI surfaces. Phase 4 (tooltip decoration) follows Phase 1 QA; Phase 5 (MessageArchive CSS) runs independent; Phase 6 (button polish) completes the suite.
+Five integrated UI/UX deliverables grounded in Field Commander Brutalism to improve user onboarding, task discoverability, and visual coherence. The spec balances infrastructure (React-tooltip provider), user guidance (Quick Start panel), content clarity (status badges), and visual polish (MessageArchive.css completion). This show runs in the Command Center, Show Library, Design Room, and MessageArchive—each a stage where users need immediate clarity on "where to start," "what this does," "what state we're in," and "how to navigate." Success is measured by time-to-first-task reduction (≥30%), zero support questions about button purpose or state ambiguity, accessibility audit ≥95/100, and responsive rendering across mobile/tablet/desktop without layout shift.
 
 ## Musical Design
 
-N/A — This is a UI/UX infrastructure show, not a visual performance narrative. The "rhythm" of this show is **cognitive clarity**: users encounter Quick Start → status badges → tooltips → MessageArchive organization in a natural progression that teaches the application semantics through immediate visual feedback and next-action hints.
+N/A — This is a UI/UX infrastructure show, not a visual performance narrative.
 
 ## Visual Design
 
@@ -24,37 +22,37 @@ N/A — This is a UI/UX infrastructure show, not a visual performance narrative.
   - Yellow: #f39c12 (caution, RECORDING badge)
   - Blue: #3498db (info, EDITING badge)
   - Green: #27ae60 (success, PUBLISHED badge)
-- **Spacing**: 16px grid gutters (MessageArchive, Quick Start steps), 8px internal padding (badges, tooltips)
-- **Border Radius**: 4px on all cards, badges, tooltip containers, buttons
+- **Spacing**: 16px grid gutters (MessageArchive, Quick Start steps), 8px internal padding (badges, tooltips), 4px fine details
+- **Border Radius**: 4px on all cards, badges, tooltip containers, buttons (no other values used)
 - **Status Badges**:
-  - Solid color fill with white (#f5f5f5) text
-  - Monospace label (e.g., "DRAFT", "RECORDING", "PUBLISHED")
+  - Solid color fill with white (#f5f5f5) text, monospace label (e.g., "DRAFT", "RECORDING", "PUBLISHED")
   - Optional next-action hint below label (e.g., "waiting for input", "ready to archive")
   - 4px border-radius, 8px horizontal padding, 4px vertical padding
+  - Color contrast ≥4.5:1 (WCAG AA) verified for all status colors
 - **Tooltips**:
-  - Dark background (#1a1a1a), white text (#f5f5f5)
-  - Monospace label, max-width 200px
-  - 4px rounded corners, 8px padding
-  - 100ms hover delay
-  - Keyboard-accessible (Enter/Space to trigger)
+  - Dark background (#1a1a1a), white text (#f5f5f5), monospace label
+  - Max-width 200px, 4px rounded corners, 8px padding
+  - 100ms hover delay, keyboard-accessible (Enter/Space to trigger), Escape to close all
+  - Semantic HTML triggers, no focus trap or flicker
 - **Quick Start Panel**:
-  - Left sidebar (above existing SideNav content)
-  - Dark background (#1a1a1a), white text
+  - Left sidebar (above existing SideNav content), dark background (#1a1a1a), white text
   - Step indicators: numbered badge (1–7), monospace font
   - Each step: icon + title + description (max 140 chars) + optional "Learn More" link
   - Dismiss button (X icon) with tooltip "Don't show this again"
-  - Collapsible/expandable state
+  - Collapsible/expandable state persisted to localStorage
 - **MessageArchive Grid**:
   - CSS Grid 12-column layout, 16px gap
   - Message cards: dark background (#0a0a0a), white text, monospace headers, 4px border-radius
   - Hover state: subtle shadow lift (box-shadow: 0 4px 16px rgba(255, 255, 255, 0.1))
   - Responsive: 1 col (mobile <768px), 2 col (tablet 768–1023px), 3 col (desktop ≥1024px)
+  - No layout shift on load; all grid cells consistent height
 - **Design Room Buttons**:
   - Primary: red accent (#e74c3c) background, white text, monospace label, 4px corners
   - Secondary: monospace border (#f5f5f5), transparent background, hover lift
   - Icon-only: gray background (#7f8c8d), white icon, tooltip on hover
   - Undo/Redo: gray border, monospace icons, tooltip with keyboard shortcut (Ctrl+Z / Ctrl+Shift+Z)
-  - Hover/active: slight background shift (opacity +10%), no transition lag
+  - Hover/active: subtle background shift (opacity +10%), no transition lag
+  - Focus visible: outline or border highlight on keyboard focus
 
 ## Guard Design
 
@@ -114,8 +112,7 @@ Users immediately understand:
 - **No additional npm dependencies** beyond react-tooltip@5.x (no new icon libraries, form libraries, etc.)
 - **Existing Tailwind CSS must not be overridden** — all new styles use CSS classes or inline styles that respect Tailwind utility classes
 - **All new strings are marked for i18n** (prepared for future translation, but English-only at ship)
-- **Strict waterfall for Phase 1** — no other phases may begin until infrastructure QA passes
-- **Parallel execution allowed** — Phases 2 & 3 may run in parallel once Phase 1 is live; Phase 4 starts after Phase 1 QA; Phase 5 runs independent; Phase 6 starts after Phase 4 QA
+- **Execution model**: Strict waterfall for Phase 1 (critical path blocker); Phases 2–3 in parallel after Phase 1 QA; Phase 4 after Phase 1 QA; Phase 5 independent (parallel with 2–4); Phase 6 after Phase 4 QA
 
 ## Deliverables
 
@@ -191,28 +188,102 @@ Deliver production-ready tooltip infrastructure, Quick Start onboarding, status 
 
 ### Deliverables
 
-- **React-Tooltip Provider** — `TooltipProvider` wrapper in `AppLayout.tsx` with `useTooltip` hook (100ms delay, dark theme #1a1a1a, monospace styling, max-width 200px); zero console errors; responsive positioning on mobile
-- **Quick Start Panel** — 7-step collapsible guide (left sidebar above SideNav); localStorage persistence (`cc_quick_start_dismissed` boolean); dismiss button clears state; graceful migration of old state
-- **Status Badge Component** — Enum-driven badge system (DRAFT/RECORDING/EDITING/PUBLISHED/ARCHIVED); deployed to Show Library, Show Detail header, Design Room status bar; color-coded with next-action hints; WCAG AA contrast verified
-- **Tooltip Deployment** — Tooltips on vitals cards, SideNav items, Design Room buttons (with keyboard shortcuts), MessageArchive filters; 100ms delay; semantic HTML triggers; keyboard-accessible (Enter/Space to show, Escape to close)
-- **MessageArchive CSS Grid** — 12-column layout (16px gap); dark message cards (#0a0a0a) with monospace headers; hover shadow lift; responsive 1–3 column breakpoints (<768px / 768–1023px / ≥1024px); pagination controls; no layout shift on load
-- **Design Room Button Suite** — Consistent button family (primary red #e74c3c, secondary border #f5f5f5, icon-only gray #7f8c8d); hover/active states with subtle opacity shift; focus visible on keyboard; tooltips with keyboard shortcut hints
-- **Accessibility & QA Verification** — Zero console errors; TypeScript strict mode pass; Lighthouse audit ≥95/100; cross-browser smoke test (Chrome, Firefox, Safari, Edge); mobile/tablet/desktop responsive rendering; all strings marked for i18n
+- React-tooltip provider infrastructure (TooltipProvider wrapper + useTooltip hook, zero console errors, responsive positioning)
+- Command Center Quick Start panel (7-step collapsible guide, localStorage persistence, dismiss button)
+- Status badge system (enum-driven DRAFT/RECORDING/EDITING/PUBLISHED/ARCHIVED, color-coded next-action hints, deployed to Show Library/Show Detail/Design Room)
+- Tooltip deployment across vitals cards, SideNav items, Design Room buttons, MessageArchive filters (100ms delay, keyboard-accessible, semantic HTML)
+- MessageArchive CSS Grid (12-column layout, responsive 1–3 cols, dark cards, hover state, no layout shift)
+- Design Room button styling (primary/secondary/icon-only variants, Ctrl+Z shortcuts, focus visible)
+- General polish & QA (zero console errors, TypeScript strict mode, Lighthouse ≥95/100, cross-browser smoke test, i18n-ready strings)
 
 ### Constraints
 
-- **Phase 1 (Infrastructure) is a critical blocker** — no other phases begin until Phase 1 passes QA and zero console errors confirmed
-- **Parallel execution authorized** — Phases 2 & 3 run in parallel after Phase 1 live; Phase 4 starts after Phase 1 QA; Phase 5 runs independent; Phase 6 starts after Phase 4 QA
-- **No breaking changes** — all phases maintain backwards compatibility; existing API contracts, routing, and component props untouched
-- **No new npm dependencies** beyond `react-tooltip@5.x`; no new fonts, colors, or border-radius values outside 4px/8px/16px grid
-- **TypeScript strict mode required** — all new code passes `tsc --noEmit` without `@ts-ignore` or implicit `any`
-- **Performance budgets** — react-tooltip < 15KB gzipped; Quick Start state < 1KB; MessageArchive grid render < 100ms for 100 messages
-- **Backwards compatibility** — localStorage/sessionStorage migration must gracefully handle old state; invalid badge enums fallback to DRAFT with dev warning only
-- **Tailwind CSS preservation** — no overrides; all new styles use CSS classes or inline styles that respect existing Tailwind utilities
-- **All new strings marked for i18n** — prepared for translation (English-only at ship, but infrastructure ready)
+- **Phase sequencing**: Infrastructure (Phase 1) is blocking—no other phases start until Phase 1 passes QA
+- **Parallel execution**: Phases 2 & 3 can run in parallel after Phase 1; Phase 4 can run after Phase 1; Phase 5 is independent
+- **No breaking changes**: All phases maintain backwards compatibility; existing API contracts untouched
+- **Performance**: react-tooltip < 15KB gzipped, Quick Start state < 1KB, MessageArchive grid render < 100ms for 100 messages
+- **TypeScript strict mode**: All new code passes `tsc --noEmit` without errors or `@ts-ignore`
+- **Design system adherence**: Only colors/spacing from spec'd palette; no new fonts, shadows, or border-radius values outside 4px/8px/16px
+- **Backwards compatibility**: localStorage/sessionStorage migration must handle old state gracefully; invalid badge enums fallback to DRAFT with dev warning
 
 ### Acceptance Criteria
 
 **Phase 1: Infrastructure (MUST PASS before other phases proceed)**
 
-- [ ] `react-tooltip@5.x` installed; zero version conflicts in `package.
+- [ ] `react-tooltip@5.x` installed; zero version conflicts in `package.json`
+- [ ] `TooltipProvider` wraps entire app in `AppLayout.tsx`; no console errors on app load
+- [ ] `useTooltip` hook exported with 100ms delay, dark theme (#1a1a1a), monospace styling, max-width 200px
+- [ ] Responsive positioning tested on mobile (no overflow off-viewport; smart reposition on scroll)
+- [ ] Keyboard access verified (Enter/Space to trigger, Escape to close all, no focus trap)
+- [ ] Zero Tailwind collisions; existing styles unmodified
+- [ ] Lighthouse accessibility audit ≥95/100
+
+**Phase 2: Quick Start Onboarding**
+
+- [ ] `QuickStartPanel.tsx` component created, integrated into Command Center left sidebar above SideNav
+- [ ] 7 steps render with icon + title + description (max 140 chars) + "Learn More" link
+- [ ] localStorage key `cc_quick_start_dismissed` (boolean) persists across reload
+- [ ] Dismiss button (X icon) clears state; panel hidden until next browser session
+- [ ] Old localStorage state migrates gracefully (no errors, default to panel shown)
+- [ ] Styling matches spec: dark background (#1a1a1a), numbered badges (1–7), monospace labels, 16px padding
+- [ ] Accessibility: all text keyboard-accessible, aria-labels present, color contrast ≥4.5:1
+- [ ] Mobile responsive: no layout shift on <768px
+
+**Phase 3: Status Badges**
+
+- [ ] Badge enum defined: `DRAFT | RECORDING | EDITING | PUBLISHED | ARCHIVED` (shared TypeScript file)
+- [ ] `StatusBadge.tsx` component created with color mapping + optional next-action hint
+- [ ] Badges deployed to: Show Library grid (top-right), Show Detail header, Design Room status bar
+- [ ] All badge colors verified: gray #7f8c8d (DRAFT), yellow #f39c12 (RECORDING), blue #3498db (EDITING), green #27ae60 (PUBLISHED), red #e74c3c (ARCHIVED)
+- [ ] Color contrast ≥4.5:1 against white text (WCAG AA verified)
+- [ ] Invalid status values render as DRAFT with dev console warning (no production breakage)
+- [ ] All shows display correct badge (manual spot-check of 5+ shows)
+
+**Phase 4: Tooltip Deployment**
+
+- [ ] Tooltips added to vitals cards (Command Center), SideNav items, Design Room buttons, MessageArchive filters
+- [ ] All tooltips: 100ms delay, monospace label, semantic HTML trigger, keyboard-accessible (Enter/Space to show)
+- [ ] Keyboard access verified: Enter/Space to show, Escape to close all, no focus trap
+- [ ] Mobile fallback tested (long-press if supported by react-tooltip)
+- [ ] Zero tooltip flicker; no focus trap on any element
+- [ ] Keyboard shortcut hints present on Design Room undo/redo (Ctrl+Z, Ctrl+Shift+Z)
+- [ ] Accessibility: aria-labels present, no duplicate IDs, color contrast ≥4.5:1
+
+**Phase 5: MessageArchive CSS**
+
+- [ ] CSS Grid 12-column layout implemented (gap: 16px)
+- [ ] Message cards styled: dark background (#0a0a0a), white text (#f5f5f5), monospace headers, 4px border-radius
+- [ ] Hover state: subtle shadow lift (box-shadow: 0 4px 16px rgba(255, 255, 255, 0.1))
+- [ ] Responsive breakpoints functional: 1 col (<768px), 2 col (768–1023px), 3 col (≥1024px)
+- [ ] Pagination controls styled (monospace, high-contrast buttons, no rounded corners/gradients)
+- [ ] Archive header: "Messages" title + sort/filter controls + clear button (left-aligned, monospace)
+- [ ] No layout shift on load; all grid cells consistent height
+- [ ] Zero Tailwind collisions; existing styles unmodified
+- [ ] Mobile responsive: no layout shift on <768px
+
+**Phase 6: Design Room Button Styling**
+
+- [ ] Button family consistent: primary (red #e74c3c bg, white text), secondary (monospace border #f5f5f5), icon-only (gray #7f8c8d bg with tooltip)
+- [ ] Save/export/preview buttons styled: red accent, white text, monospace label, 4px corners
+- [ ] Undo/redo buttons styled: gray border, monospace icons, tooltip with keyboard shortcut (Ctrl+Z / Ctrl+Shift+Z)
+- [ ] Hover/active states: subtle background shift (+10% opacity), no transition lag
+- [ ] Focus visible: outline or border highlight on keyboard focus
+- [ ] All buttons keyboard-accessible (Tab navigation, Enter/Space to activate)
+- [ ] Accessibility: aria-labels present, color contrast ≥4.5:1, no focus trap
+- [ ] Cross-browser smoke test passed (Chrome, Firefox, Safari, Edge)
+
+**General Polish & QA**
+
+- [ ] Zero console errors or warnings (including deprecation warnings) across all phases
+- [ ] TypeScript strict mode: `"strict": true` passes all new files (no `@ts-ignore`, no implicit `any`)
+- [ ] Accessibility audit (Lighthouse) ≥95/100
+- [ ] Pixel-perfect rendering matches design spec (color hex verified, spacing matches 4px/8px/16px grid)
+- [ ] No new fonts or colors introduced outside spec'd palette
+- [ ] Cross-browser smoke test: Chrome, Firefox, Safari, Edge (all viewports)
+- [ ] Mobile/tablet/desktop responsive: verified on <768px, 768–1023px, ≥1024px (no layout shift on load)
+- [ ] All new strings marked for i18n (comment format: `i18n("label", "English text")`) even if English-only at ship
+- [ ] Performance benchmarks met: react-tooltip < 15KB gzipped, Quick Start state < 1KB, MessageArchive grid render < 100ms for 100 messages
+
+---
+
+**Execution timeline**: Strict waterfall for Phase 1 (critical path blocker); Phases 2–3 in parallel after Phase 1 QA; Phase 4 after Phase 1 QA; Phase 5 independent (parallel with 2–4); Phase 6 after Phase 4 QA. Total estimated duration: 5–7 business days for all phases.

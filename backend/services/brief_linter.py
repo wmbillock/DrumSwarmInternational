@@ -60,8 +60,11 @@ def _parse_sections(content: str) -> dict[str, str]:
     return sections
 
 
-def _count_bullets(text: str) -> int:
-    return len(re.findall(r"^\s*[-*]\s+", text, re.MULTILINE))
+def _count_list_items(text: str) -> int:
+    """Count bullet points (- / *) and numbered list items (1. / 2.) etc."""
+    bullets = len(re.findall(r"^\s*[-*]\s+", text, re.MULTILINE))
+    numbered = len(re.findall(r"^\s*\d+[.)]\s+", text, re.MULTILINE))
+    return bullets + numbered
 
 
 def lint_brief(content: str) -> LintReport:
@@ -96,15 +99,15 @@ def lint_brief(content: str) -> LintReport:
             )
 
     # Constraints bullets
-    if "Constraints" in sections and _count_bullets(sections["Constraints"]) < 2:
+    if "Constraints" in sections and _count_list_items(sections["Constraints"]) < 2:
         report.nice_to_have.append(
-            LintFinding("Constraints", "Fewer than 2 bullet items")
+            LintFinding("Constraints", "Fewer than 2 list items")
         )
 
     # Deliverables bullets
-    if "Deliverables" in sections and _count_bullets(sections["Deliverables"]) < 1:
+    if "Deliverables" in sections and _count_list_items(sections["Deliverables"]) < 1:
         report.required_fix.append(
-            LintFinding("Deliverables", "No bullet items listed")
+            LintFinding("Deliverables", "No list items — use bullets or numbered list")
         )
 
     return report

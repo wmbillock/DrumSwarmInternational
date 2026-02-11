@@ -82,6 +82,43 @@ CORPS_COMMANDS = {
 }
 
 
+def _generate_svg_logo(name: str, color_scheme: dict, corps_id: str) -> Optional[Path]:
+    """Generate a simple SVG logo when ComfyUI is unavailable."""
+    primary = color_scheme.get("primary", "#1a1a2e")
+    secondary = color_scheme.get("secondary", "#16213e")
+    accent = color_scheme.get("accent", "#e94560")
+    monogram = name[0].upper() if name else "?"
+
+    svg = f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="{primary}"/>
+      <stop offset="100%" stop-color="{secondary}"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="32" fill="url(#bg)"/>
+  <circle cx="128" cy="110" r="70" fill="none" stroke="{accent}" stroke-width="4" opacity="0.5"/>
+  <text x="128" y="130" text-anchor="middle" dominant-baseline="middle"
+        font-family="Georgia, serif" font-size="96" font-weight="bold" fill="#ffffff">
+    {monogram}
+  </text>
+  <text x="128" y="210" text-anchor="middle"
+        font-family="Arial, sans-serif" font-size="14" fill="{accent}" letter-spacing="4">
+    {name[:20].upper()}
+  </text>
+</svg>"""
+
+    try:
+        output_dir = Path("generated_images")
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_path = output_dir / f"logo_{corps_id[:8]}.svg"
+        output_path.write_text(svg, encoding="utf-8")
+        return output_path
+    except Exception:
+        logger.debug("Failed to generate SVG logo", exc_info=True)
+        return None
+
+
 def _find_critique_file(root: Path, corps_id: str, round_num: int) -> Optional[Path]:
     seasons_dir = root / "seasons"
     if not seasons_dir.exists():
@@ -273,6 +310,19 @@ def v1_generate_corps_logo(corps_id: str):
                 "success": True,
             }
 
+        # ComfyUI unavailable — generate SVG placeholder logo
+        svg_path = _generate_svg_logo(corps.name, cs, corps_id)
+        if svg_path:
+            normalized = str(svg_path).replace("\\", "/")
+            corps.logo_path = normalized
+            db.commit()
+            return {
+                "corps_id": corps_id,
+                "logo_path": normalized,
+                "success": True,
+                "fallback": True,
+            }
+
         return {
             "corps_id": corps_id,
             "logo_path": None,
@@ -330,7 +380,13 @@ def v1_generate_all_logos():
                 corps.logo_path = result["output_path"]
                 results.append({"corps_id": corps.id, "name": corps.name, "success": True})
             else:
-                results.append({"corps_id": corps.id, "name": corps.name, "success": False, "error": result.get("error")})
+                # Fallback to SVG
+                svg_path = _generate_svg_logo(corps.name, cs, corps.id)
+                if svg_path:
+                    corps.logo_path = str(svg_path).replace("\\", "/")
+                    results.append({"corps_id": corps.id, "name": corps.name, "success": True, "fallback": True})
+                else:
+                    results.append({"corps_id": corps.id, "name": corps.name, "success": False, "error": result.get("error")})
 
         db.commit()
         return {"generated": len([r for r in results if r["success"]]), "total": len(results), "details": results}

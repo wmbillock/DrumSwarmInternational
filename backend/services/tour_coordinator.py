@@ -62,6 +62,11 @@ def run_competition_round(season_dir: Path) -> dict:
         schedule = generate_schedule(season_dir)
         data["schedule"] = schedule
 
+    # Backfill missing round/status fields for legacy schedule entries
+    for idx, entry in enumerate(schedule):
+        entry.setdefault("round", idx + 1)
+        entry.setdefault("status", "pending")
+
     next_round = next((entry for entry in schedule if entry.get("status") != "completed"), None)
     if not next_round:
         return {"status": "complete", "message": "All rounds completed", "schedule": schedule}
@@ -71,6 +76,13 @@ def run_competition_round(season_dir: Path) -> dict:
         next_round["status"] = "completed"
         save_season(season_dir, data)
         return {"status": "skipped", "round": next_round.get("round"), "schedule": schedule}
+
+    # Dispatch agents before scoring
+    dispatch_result = {}
+    try:
+        dispatch_result = dispatch_round_agents(next_round, season_dir)
+    except Exception:
+        logger.warning("Agent dispatch failed for round %s, continuing with scoring", next_round.get("round"), exc_info=True)
 
     standings = _score_round(season_dir, next_round)
     next_round["status"] = "completed"
@@ -84,6 +96,7 @@ def run_competition_round(season_dir: Path) -> dict:
         "round": next_round.get("round"),
         "competition_id": next_round.get("competition_id"),
         "standings": standings.get("results", []),
+        "dispatch": dispatch_result,
         "improvements": improvement_summary,
         "schedule": schedule,
     }
@@ -97,6 +110,11 @@ def get_tour_status(season_dir: Path) -> dict:
         schedule = generate_schedule(season_dir)
         data["schedule"] = schedule
         save_season(season_dir, data)
+
+    # Backfill missing round/status fields for legacy schedule entries
+    for idx, entry in enumerate(schedule):
+        entry.setdefault("round", idx + 1)
+        entry.setdefault("status", "pending")
 
     history = [entry for entry in schedule if entry.get("status") == "completed"]
     current = next((entry for entry in schedule if entry.get("status") != "completed"), None)
@@ -144,24 +162,27 @@ def _score_round(season_dir: Path, round_entry: dict) -> dict:
     db = _get_db_session()
     try:
         for cid in corps_ids:
-            judge_results = judge_corps_performance(db, cid, show_slug, llm_client)
-            caption_scores = {jt: jr.total_score for jt, jr in judge_results.items()}
-            raw_total = sum(caption_scores[jt] * DEFAULT_WEIGHTS.get(jt, 0) for jt in caption_scores)
-            composites[cid] = CompositeScore(
-                caption_scores=caption_scores,
-                raw_total=raw_total,
-                penalties_total=0.0,
-                final_score=raw_total,
-                needs_rework=False,
-                needs_escalation=False,
-            )
-            for jt, jr in judge_results.items():
-                record_score(
-                    db, corps_id=cid, judge_type=jt,
-                    value=jr.total_score, box=max(1, min(5, int(jr.total_score / 20))),
-                    feedback=jr.feedback,
-                    rep_score=jr.rep_score, perf_score=jr.perf_score,
+            try:
+                judge_results = judge_corps_performance(db, cid, show_slug, llm_client)
+                caption_scores = {jt: jr.total_score for jt, jr in judge_results.items()}
+                raw_total = sum(caption_scores[jt] * DEFAULT_WEIGHTS.get(jt, 0) for jt in caption_scores)
+                composites[cid] = CompositeScore(
+                    caption_scores=caption_scores,
+                    raw_total=raw_total,
+                    penalties_total=0.0,
+                    final_score=raw_total,
+                    needs_rework=False,
+                    needs_escalation=False,
                 )
+                for jt, jr in judge_results.items():
+                    record_score(
+                        db, corps_id=cid, judge_type=jt,
+                        value=jr.total_score, box=max(1, min(5, int(jr.total_score / 20))),
+                        feedback=jr.feedback,
+                        rep_score=jr.rep_score, perf_score=jr.perf_score,
+                    )
+            except Exception:
+                logger.warning("Scoring failed for corps %s in %s, skipping", cid, show_slug, exc_info=True)
     finally:
         db.close()
 
@@ -226,6 +247,57 @@ def find_touring_seasons() -> list[Path]:
         except Exception:
             continue
     return touring
+
+
+def dispatch_round_agents(round_entry: dict, season_dir: Path) -> dict:
+    """Dispatch executive_directors for each corps in a round."""
+    from backend.api.app import get_task_manager
+    from backend.api.v1.helpers import _get_root, _get_db_session
+
+    root = _get_root()
+    tm = get_task_manager()
+    if not tm:
+        return {"dispatched": [], "skipped": [], "error": "Task manager not running"}
+
+    show_slug = round_entry.get("show_slug", "")
+    show_dir = root / "shows" / show_slug
+    prompt_path = show_dir / "show_prompt.md"
+
+    if not prompt_path.exists() or prompt_path.stat().st_size == 0:
+        return {"dispatched": [], "skipped": [], "error": f"No show_prompt.md for {show_slug}"}
+
+    show_prompt = prompt_path.read_text(encoding="utf-8")
+    competition_id = round_entry.get("competition_id", "")
+    corps_ids = round_entry.get("corps_ids", [])
+
+    dispatched, skipped = [], []
+    for cid in corps_ids:
+        db = _get_db_session()
+        try:
+            session_id = tm.get_session_for_role(db, cid, "executive_director")
+            if not session_id:
+                skipped.append({"corps_id": cid, "reason": "no ED session"})
+                continue
+            if tm.is_active(session_id):
+                skipped.append({"corps_id": cid, "reason": "ED already active"})
+                continue
+            task_desc = (
+                f"COMPETITION DISPATCH — Execute show for {competition_id}.\n\n"
+                f"Implement the following show prompt:\n\n---\n\n{show_prompt}"
+            )
+            tm.start_agent(session_id=session_id, task_description=task_desc, corps_id=cid)
+            dispatched.append({"corps_id": cid, "session_id": session_id})
+        except Exception:
+            logger.warning("Failed to dispatch ED for corps %s", cid, exc_info=True)
+            skipped.append({"corps_id": cid, "reason": "dispatch error"})
+        finally:
+            db.close()
+
+    logger.info(
+        "Round dispatch: %d dispatched, %d skipped for %s",
+        len(dispatched), len(skipped), competition_id,
+    )
+    return {"dispatched": dispatched, "skipped": skipped}
 
 
 def _trigger_improvements(corps_ids: list[str], standings: dict) -> dict:

@@ -1,0 +1,27 @@
+season_id: drum-swarm-international-season-1
+competition_id: drum-swarm-international-season-1-be-able-to-click-into-a-corps-detail-page-from-an-entry-on-the-performance-stats-scoreboards-page
+show_slug: be-able-to-click-into-a-corps-detail-page-from-an-entry-on-the-performance-stats-scoreboards-page
+generated_at: '2026-02-10T08:17:36.901928+00:00'
+results:
+- corps_id: 914f78aa-0d75-400d-bc9c-2c5a658149e3
+  rank: 1
+  final_score: 49.715
+  raw_score: 49.715
+  caption_scores:
+    visual: 73.5
+    brass: 73.5
+    percussion: 40.0
+    guard: 40.0
+    general_effect: 40.0
+    ensemble_technique: 40.0
+- corps_id: 5adef4c9-0202-40a4-a0c3-9575829cc2cf
+  rank: 2
+  final_score: 40.0
+  raw_score: 40.0
+  caption_scores:
+    brass: 40.0
+    visual: 40.0
+    percussion: 40.0
+    guard: 40.0
+    general_effect: 40.0
+    ensemble_technique: 40.0

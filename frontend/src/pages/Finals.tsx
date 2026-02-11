@@ -29,19 +29,19 @@ export function Finals() {
         v1.listCorps(ac.signal),
         v1.listRuns(undefined, ac.signal),
       ]).then(([finalsRes, corpsRes, runsRes]) => {
+        if (ac.signal.aborted) return;
         if (finalsRes.status === "fulfilled") setFinals(finalsRes.value);
+        else setFinals(null);
         if (corpsRes.status === "fulfilled") setCorps(corpsRes.value);
         if (runsRes.status === "fulfilled") setRuns(runsRes.value);
-        setLoading(false);
-      }).catch((e) => {
-        setError(e instanceof Error ? e.message : "Failed to load finals");
-        setLoading(false);
+      }).finally(() => {
+        if (!ac.signal.aborted) setLoading(false);
       });
     } else {
       v1.listSeasons(ac.signal)
-        .then(setSeasons)
-        .catch((e) => setError(e instanceof Error ? e.message : "Failed to load seasons"))
-        .finally(() => setLoading(false));
+        .then((data) => { if (!ac.signal.aborted) setSeasons(data); })
+        .catch((e) => { if (!ac.signal.aborted) setError(e instanceof Error ? e.message : "Failed to load seasons"); })
+        .finally(() => { if (!ac.signal.aborted) setLoading(false); });
     }
     return () => ac.abort();
   }, [refreshToken, seasonId]);

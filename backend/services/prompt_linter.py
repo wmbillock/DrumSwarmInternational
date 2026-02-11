@@ -61,8 +61,11 @@ def _parse_sections(content: str) -> dict[str, str]:
     return sections
 
 
-def _count_bullets(text: str) -> int:
-    return len(re.findall(r"^\s*[-*]\s+", text, re.MULTILINE))
+def _count_list_items(text: str) -> int:
+    """Count bullet points (- / *) and numbered list items (1. / 2.) etc."""
+    bullets = len(re.findall(r"^\s*[-*]\s+", text, re.MULTILINE))
+    numbered = len(re.findall(r"^\s*\d+[.)]\s+", text, re.MULTILINE))
+    return bullets + numbered
 
 
 def lint_prompt(content: str) -> LintReport:
@@ -104,15 +107,15 @@ def lint_prompt(content: str) -> LintReport:
             )
 
     # Deliverables should have bullet items
-    if "Deliverables" in sections and _count_bullets(sections["Deliverables"]) < 1:
+    if "Deliverables" in sections and _count_list_items(sections["Deliverables"]) < 1:
         report.required_fix.append(
-            LintFinding("Deliverables", "Deliverables section has no bullet items — list what the swarm should produce")
+            LintFinding("Deliverables", "Deliverables section has no list items — use bullets or numbered list")
         )
 
     # Constraints bullets
-    if "Constraints" in sections and _count_bullets(sections["Constraints"]) < 1:
+    if "Constraints" in sections and _count_list_items(sections["Constraints"]) < 1:
         report.nice_to_have.append(
-            LintFinding("Constraints", "Constraints section has no bullet items")
+            LintFinding("Constraints", "Constraints section has no list items")
         )
 
     return report

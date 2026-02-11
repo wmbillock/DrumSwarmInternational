@@ -1,6 +1,6 @@
 season_id: drum-swarm-international-season-1
-status: finals
-generated_at: '2026-02-10T07:23:59.566354+00:00'
+status: completed
+generated_at: '2026-02-10T08:39:58.945935+00:00'
 required_scores: 4
 qualification:
   0857c9cd-ab79-414c-810f-698392bab1e6: false
@@ -145,12 +145,66 @@ divisions:
 - show_slug: be-able-to-click-into-a-corps-detail-page-from-an-entry-on-the-performance-stats-scoreboards-page
   standings:
   - rank: 1
-    corps_id: 5adef4c9-0202-40a4-a0c3-9575829cc2cf
+    corps_id: 0857c9cd-ab79-414c-810f-698392bab1e6
     score: 0.0
     qualified: false
     scores_count: 0
   - rank: 2
+    corps_id: 3eb60a4b-8ceb-4f95-bf30-ed15184a445d
+    score: 0.0
+    qualified: false
+    scores_count: 0
+  - rank: 3
+    corps_id: 4bfd7b68-2260-4b69-b389-9a8eda907da1
+    score: 0.0
+    qualified: false
+    scores_count: 0
+  - rank: 4
+    corps_id: 5adef4c9-0202-40a4-a0c3-9575829cc2cf
+    score: 0.0
+    qualified: false
+    scores_count: 0
+  - rank: 5
+    corps_id: 66b819e1-3c06-4182-814e-0fc8d55d3ea0
+    score: 0.0
+    qualified: false
+    scores_count: 0
+  - rank: 6
+    corps_id: 8f886480-cab4-4450-bb13-b10bb1272a10
+    score: 0.0
+    qualified: false
+    scores_count: 0
+  - rank: 7
     corps_id: 914f78aa-0d75-400d-bc9c-2c5a658149e3
     score: 0.0
     qualified: false
     scores_count: 0
+  - rank: 8
+    corps_id: 9f5170f4-0f5b-45c3-bb54-b5fd7a4dc5d8
+    score: 0.0
+    qualified: false
+    scores_count: 0
+  - rank: 9
+    corps_id: e181f559-c533-417c-86b1-0accc832c7fe
+    score: 0.0
+    qualified: false
+    scores_count: 0
+  - rank: 10
+    corps_id: ead51175-ac76-4b90-883d-b32e19561e34
+    score: 0.0
+    qualified: false
+    scores_count: 0
+  - rank: 11
+    corps_id: f36c6c19-04a6-48ea-996d-6cec06b73a42
+    score: 0.0
+    qualified: false
+    scores_count: 0
+  - rank: 12
+    corps_id: fc11e2a2-72fb-42d7-8b18-7731203b631f
+    score: 0.0
+    qualified: false
+    scores_count: 0
+winner:
+  corps_id: 914f78aa-0d75-400d-bc9c-2c5a658149e3
+  division: null
+  declared_at: '2026-02-10T08:39:58.945974+00:00'

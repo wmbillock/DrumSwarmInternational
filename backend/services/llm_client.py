@@ -568,8 +568,12 @@ Available tools:
             try:
                 stdout, stderr = proc.communicate(timeout=_effective_timeout)
             except subprocess.TimeoutExpired:
-                proc.kill()
-                proc.wait()
+                from backend.services.process_registry import _kill_tree
+                _kill_tree(proc.pid)
+                try:
+                    proc.wait(timeout=5)
+                except Exception:
+                    pass
                 return LLMResponse(content=f"Error: Claude CLI timed out after {_effective_timeout}s", stop_reason="error")
             finally:
                 _registry.unregister(proc.pid)
@@ -602,12 +606,17 @@ Available tools:
                         stderr=subprocess.PIPE,
                         text=True,
                         cwd=self._project_root,
+                        env=env,
                     )
                     try:
                         stdout, stderr = proc2.communicate(timeout=_effective_timeout)
                     except subprocess.TimeoutExpired:
-                        proc2.kill()
-                        proc2.wait()
+                        from backend.services.process_registry import _kill_tree
+                        _kill_tree(proc2.pid)
+                        try:
+                            proc2.wait(timeout=5)
+                        except Exception:
+                            pass
                         return LLMResponse(content=f"Error: Claude CLI timed out after {_effective_timeout}s", stop_reason="error")
                     finally:
                         _registry.unregister(proc2.pid)

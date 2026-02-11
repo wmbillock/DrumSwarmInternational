@@ -101,15 +101,15 @@ export function SeasonWorkshop() {
       })
       .then((id) => {
         if (!id) return;
-        return Promise.all([
+        return Promise.allSettled([
           v1.getScores(id, ac.signal),
           v1.getRecap(id, "json", ac.signal),
         ]);
       })
-      .then((data) => {
-        if (!data) return;
-        setStandings(data[0]);
-        setRecap(data[1]);
+      .then((results) => {
+        if (!results) return;
+        if (results[0].status === "fulfilled") setStandings(results[0].value);
+        if (results[1].status === "fulfilled") setRecap(results[1].value);
       })
       .catch(() => {})
       .finally(() => setStandingsLoading(false));
@@ -539,22 +539,22 @@ export function SeasonWorkshop() {
                     <thead>
                       <tr style={{ borderBottom: "2px solid var(--border)" }}>
                         <th style={{ textAlign: "left", padding: "8px 12px", fontWeight: 600 }}>Corps</th>
-                        <th style={{ textAlign: "left", padding: "8px 12px", fontWeight: 600 }}>Assigned Show</th>
+                        <th style={{ textAlign: "left", padding: "8px 12px", fontWeight: 600 }}>Assigned Shows</th>
                       </tr>
                     </thead>
                     <tbody>
                       {registeredCorps.map(cid => {
                         const c = corpsById[cid];
-                        const assignedShow = Object.entries(assignments).find(
-                          ([, corpsIds]) => corpsIds.includes(cid)
-                        );
+                        const assignedShows = Object.entries(assignments)
+                          .filter(([, corpsIds]) => corpsIds.includes(cid))
+                          .map(([slug]) => slug);
                         return (
                           <tr key={cid} style={{ borderBottom: "1px solid var(--border)" }}>
                             <td style={{ padding: "8px 12px" }}>
                               {c?.display_name || `Corps ${cid.slice(0, 8)}`}
                             </td>
-                            <td style={{ padding: "8px 12px", color: assignedShow ? "var(--text)" : "var(--text-muted)" }}>
-                              {assignedShow ? slugToTitle(assignedShow[0]) : "\u2014"}
+                            <td style={{ padding: "8px 12px", color: assignedShows.length > 0 ? "var(--text)" : "var(--text-muted)" }}>
+                              {assignedShows.length > 0 ? assignedShows.map(s => slugToTitle(s)).join(", ") : "\u2014"}
                             </td>
                           </tr>
                         );

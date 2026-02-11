@@ -1,3 +1,29 @@
 season_id: drum-swarm-international-season-2
 metadata:
   name: Drum Swarm International Season 2
+shows:
+- be-able-to-click-into-a-corps-detail-page-from-an-entry-on-the-performance-stats-scoreboards-page
+- divisions-and-competition-classes
+- corps-auto-staffing-with-visible-hiring
+divisions:
+  be-able-to-click-into-a-corps-detail-page-from-an-entry-on-the-performance-stats-scoreboards-page:
+  - 0857c9cd-ab79-414c-810f-698392bab1e6
+  - 5adef4c9-0202-40a4-a0c3-9575829cc2cf
+  - 914f78aa-0d75-400d-bc9c-2c5a658149e3
+  - 9f5170f4-0f5b-45c3-bb54-b5fd7a4dc5d8
+  - e181f559-c533-417c-86b1-0accc832c7fe
+  - f36c6c19-04a6-48ea-996d-6cec06b73a42
+  divisions-and-competition-classes: []
+  corps-auto-staffing-with-visible-hiring: []
+config:
+  corps_per_contest: 12
+  required_scores: 1
+schedule: []
+locked: false
+registered_corps:
+- 0857c9cd-ab79-414c-810f-698392bab1e6
+- 5adef4c9-0202-40a4-a0c3-9575829cc2cf
+- 914f78aa-0d75-400d-bc9c-2c5a658149e3
+- 9f5170f4-0f5b-45c3-bb54-b5fd7a4dc5d8
+- e181f559-c533-417c-86b1-0accc832c7fe
+- f36c6c19-04a6-48ea-996d-6cec06b73a42

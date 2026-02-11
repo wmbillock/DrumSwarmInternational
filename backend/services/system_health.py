@@ -39,7 +39,10 @@ def get_swarm_health(db: Session) -> SwarmHealth:
     """
     active_corps_list = (
         db.query(Corps)
-        .filter(Corps.status.in_([CorpsStatus.WINTER_CAMPS, CorpsStatus.ON_TOUR]))
+        .filter(
+            Corps.status.in_([CorpsStatus.WINTER_CAMPS, CorpsStatus.ON_TOUR]),
+            Corps.corps_type != "system",
+        )
         .all()
     )
 

@@ -27,6 +27,12 @@ const KNOWN_STATUS = new Set([
   "rejected",
   "needs_review",
   "closed",
+  "error",
+  "locked",
+  "finals",
+  "failed",
+  "skipped",
+  "running",
 ]);
 
 const KNOWN_MODES = new Set([

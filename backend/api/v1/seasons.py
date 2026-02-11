@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException
 
 from backend.api.v1.helpers import _get_root, _validate_id, _get_db_session, _slugify
 from backend.api.v1.schemas import (
+    AutoAdvanceRequest,
     CreateSeasonRequest,
     UpdateSeasonRequest,
     RegisterCorpsRequest,
@@ -389,11 +390,16 @@ def v1_advance_tour(season_id: str):
     if not (season_dir / "season.yaml").is_file():
         raise HTTPException(404, f"Season '{season_id}' not found")
     from backend.services.tour_coordinator import run_competition_round
-    return run_competition_round(season_dir)
+    try:
+        return run_competition_round(season_dir)
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).exception("Tour advance failed for %s", season_id)
+        raise HTTPException(500, f"Tour advance failed: {exc}")
 
 
 @router.post("/seasons/{season_id}/auto-advance")
-def v1_set_auto_advance(season_id: str, data: dict):
+def v1_set_auto_advance(season_id: str, req: AutoAdvanceRequest):
     """Enable or disable metronome-driven auto-advance for a touring season."""
     _validate_id(season_id, "season_id")
     root = _get_root()
@@ -401,8 +407,7 @@ def v1_set_auto_advance(season_id: str, data: dict):
     if not (season_dir / "season.yaml").is_file():
         raise HTTPException(404, f"Season '{season_id}' not found")
     from backend.services.tour_coordinator import set_auto_advance
-    enabled = bool(data.get("enabled", False))
-    return set_auto_advance(season_dir, enabled)
+    return set_auto_advance(season_dir, req.enabled)
 
 
 @router.get("/seasons/{season_id}/tour-status")

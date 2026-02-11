@@ -1,46 +1,31 @@
-# Show Prompt: UI Usability Quick Start Tooltips Next-Action Badges CSS Fix
+### Objective
 
-## Show Concept
-Implement 5 integrated UI usability improvements for the DCI Swarm frontend: react-tooltip infrastructure, Command Center Quick Start guide, Show Library next-action badges, contextual tooltips across vitals/SideNav/Design Room, and MessageArchive.css completion. All adhering to Field Commander Brutalism aesthetic.
+Deliver production-ready tooltip infrastructure, Quick Start onboarding, status badges, and MessageArchive CSS across Command Center, Show Library, Design Room, and MessageArchive—zero breaking changes, Field Commander Brutalism aesthetic, accessibility ≥95/100, all constraints honored.
 
-## Musical Design
-Phased execution with clear dependencies:
-- Phase 1: Install react-tooltip, add TooltipProvider in AppLayout.tsx. Black bg, white text, JetBrains Mono, no border-radius, 1px solid white border.
-- Phase 2 (parallel): Quick Start guide in CommandCenter.tsx (7 steps, collapsible, localStorage dci-quickstart-dismissed) AND MessageArchive.css completion.
-- Phase 3 (parallel): Show Library status badges in ShowLibrary.tsx AND tooltip rollout on vitals, SideNav, Design Room buttons.
+### Deliverables
 
-## Visual Design
-- Tooltips: black background, white text, JetBrains Mono font, no border-radius, 1px solid white border
-- Quick Start: monospace step numbers, bordered cards, no rounded corners, collapsible header
-- Badges: uppercase monospace text, 1px solid border, no border-radius. Colors by status: draft=yellow/black, needs_review=orange/black, approved=green/black, published=white/black
-- MessageArchive: thread list, message cards, search input, bulk actions bar, empty states all styled to Brutalism patterns
+- **React-Tooltip Provider** — `TooltipProvider` wrapper in `AppLayout.tsx` with `useTooltip` hook (100ms delay, dark theme #1a1a1a, monospace styling, max-width 200px); zero console errors; responsive positioning on mobile
+- **Quick Start Panel** — 7-step collapsible guide (left sidebar above SideNav); localStorage persistence (`cc_quick_start_dismissed` boolean); dismiss button clears state; graceful migration of old state
+- **Status Badge Component** — Enum-driven badge system (DRAFT/RECORDING/EDITING/PUBLISHED/ARCHIVED); deployed to Show Library, Show Detail header, Design Room status bar; color-coded with next-action hints; WCAG AA contrast verified
+- **Tooltip Deployment** — Tooltips on vitals cards, SideNav items, Design Room buttons (with keyboard shortcuts), MessageArchive filters; 100ms delay; semantic HTML triggers; keyboard-accessible (Enter/Space to show, Escape to close)
+- **MessageArchive CSS Grid** — 12-column layout (16px gap); dark message cards (#0a0a0a) with monospace headers; hover shadow lift; responsive 1–3 column breakpoints (<768px / 768–1023px / ≥1024px); pagination controls; no layout shift on load
+- **Design Room Button Suite** — Consistent button family (primary red #e74c3c, secondary border #f5f5f5, icon-only gray #7f8c8d); hover/active states with subtle opacity shift; focus visible on keyboard; tooltips with keyboard shortcut hints
+- **Accessibility & QA Verification** — Zero console errors; TypeScript strict mode pass; Lighthouse audit ≥95/100; cross-browser smoke test (Chrome, Firefox, Safari, Edge); mobile/tablet/desktop responsive rendering; all strings marked for i18n
 
-## Guard Design
-- Zero TypeScript errors (npx tsc --noEmit)
-- Zero console errors in browser
-- localStorage persistence for Quick Start dismissal
-- Tooltips render on hover without layout shift
-- MessageArchive.css produces no unstyled elements
-- All badges display correct text and color per status
+### Constraints
 
-## General Effect
-- New users see Quick Start guide on first visit to Command Center, can dismiss permanently
-- Show Library communicates next action at a glance via status badges
-- Tooltips provide contextual help without cluttering the UI
-- MessageArchive looks complete and consistent with the rest of the app
+- **Phase 1 (Infrastructure) is a critical blocker** — no other phases begin until Phase 1 passes QA and zero console errors confirmed
+- **Parallel execution authorized** — Phases 2 & 3 run in parallel after Phase 1 live; Phase 4 starts after Phase 1 QA; Phase 5 runs independent; Phase 6 starts after Phase 4 QA
+- **No breaking changes** — all phases maintain backwards compatibility; existing API contracts, routing, and component props untouched
+- **No new npm dependencies** beyond `react-tooltip@5.x`; no new fonts, colors, or border-radius values outside 4px/8px/16px grid
+- **TypeScript strict mode required** — all new code passes `tsc --noEmit` without `@ts-ignore` or implicit `any`
+- **Performance budgets** — react-tooltip < 15KB gzipped; Quick Start state < 1KB; MessageArchive grid render < 100ms for 100 messages
+- **Backwards compatibility** — localStorage/sessionStorage migration must gracefully handle old state; invalid badge enums fallback to DRAFT with dev warning only
+- **Tailwind CSS preservation** — no overrides; all new styles use CSS classes or inline styles that respect existing Tailwind utilities
+- **All new strings marked for i18n** — prepared for translation (English-only at ship, but infrastructure ready)
 
-## Constraints
-- No breaking changes to existing components
-- React 18+ compatible
-- All new components must be accessible (aria labels, keyboard navigation)
-- Field Commander Brutalism: JetBrains Mono for code/labels, IBM Plex Sans for body, stage colors only
-- No border-radius anywhere
+### Acceptance Criteria
 
-## Deliverables
-- frontend/src/layouts/AppLayout.tsx - add react-tooltip TooltipProvider
-- frontend/src/pages/CommandCenter.tsx - add Quick Start guide component
-- frontend/src/pages/ShowLibrary.tsx - add next-action status badges
-- frontend/src/pages/DesignRoom.tsx - add tooltips to action buttons
-- frontend/src/components/SideNav.tsx - add tooltips to nav items
-- frontend/src/styles/MessageArchive.css - complete all missing styles
-- frontend/package.json - add react-tooltip dependency
+**Phase 1: Infrastructure (MUST PASS before other phases proceed)**
+
+- [ ] `react-tooltip@5.x` installed; zero version conflicts in `package.

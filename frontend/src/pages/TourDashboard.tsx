@@ -273,7 +273,7 @@ function TourSeasonCard({
   const standingsData = (season.standings as any)?.results || [];
 
   const roundColumns = [
-    { key: "round", label: "Round", render: (_v: unknown, r: TourRound) => `#${r.round}` },
+    { key: "round", label: "Round", render: (_v: unknown, r: TourRound) => `#${r.round ?? "?"}` },
     { key: "show_slug", label: "Show", render: (_v: unknown, r: TourRound) => slugToTitle(r.show_slug) },
     {
       key: "corps_ids",
@@ -286,10 +286,10 @@ function TourSeasonCard({
       render: (_v: unknown, r: TourRound) => (
         <Badge
           variant={
-            r.status === "completed" ? "success" : r.status === "pending" ? "default" : "warning"
+            r.status === "completed" ? "success" : r.status === "pending" || !r.status ? "default" : "warning"
           }
         >
-          {formatStatus(r.status)}
+          {formatStatus(r.status || "pending")}
         </Badge>
       ),
     },
