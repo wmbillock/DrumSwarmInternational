@@ -2,7 +2,7 @@
 
 import httpx
 
-DEFAULT_BASE_URL = "http://localhost:8000"
+DEFAULT_BASE_URL = "http://localhost:4224"
 
 
 class APIClient:

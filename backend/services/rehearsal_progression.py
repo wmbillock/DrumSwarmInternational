@@ -58,22 +58,50 @@ def _basics_met(db: Session, corps_id: str) -> bool:
     return movements >= 1
 
 
+def _get_corps_segment_ids(db: Session, corps_id: str) -> list[str]:
+    """Get all segment IDs belonging to this corps' show tree."""
+    show = _get_show_for_corps(db, corps_id)
+    if not show or not show.segment_root_id:
+        return []
+    # Collect root + all descendants (2 levels deep: movements + sets)
+    root_id = show.segment_root_id
+    ids = [root_id]
+    children = db.query(Segment.id).filter(Segment.parent_id == root_id).all()
+    child_ids = [c[0] for c in children]
+    ids.extend(child_ids)
+    if child_ids:
+        grandchildren = db.query(Segment.id).filter(Segment.parent_id.in_(child_ids)).all()
+        ids.extend(g[0] for g in grandchildren)
+    return ids
+
+
 def _sectionals_met(db: Session, corps_id: str) -> bool:
-    """SECTIONALS → FULL_ENSEMBLE: >=1 rep created."""
-    rep_count = db.query(Rep).count()
+    """SECTIONALS → FULL_ENSEMBLE: >=1 rep created for this corps."""
+    seg_ids = _get_corps_segment_ids(db, corps_id)
+    if not seg_ids:
+        return False
+    rep_count = (
+        db.query(Rep)
+        .filter(Rep.segment_id.in_(seg_ids))
+        .count()
+    )
     return rep_count >= 1
 
 
 def _full_ensemble_met(db: Session, corps_id: str) -> bool:
-    """FULL_ENSEMBLE → RUN_THROUGH: cross-section messages exist, no blocked segments."""
-    from backend.models.message import MessageType
+    """FULL_ENSEMBLE → RUN_THROUGH: cross-section messages exist, no blocked segments for this corps."""
     cross_msgs = (
         db.query(Message)
         .filter(Message.corps_id == corps_id)
         .count()
     )
+    seg_ids = _get_corps_segment_ids(db, corps_id)
+    if not seg_ids:
+        # No show/segments at all — can't have blocked ones, so only check messages
+        return cross_msgs >= 1
     blocked = (
         db.query(Segment)
+        .filter(Segment.id.in_(seg_ids))
         .filter(Segment.status == SegmentStatus.BLOCKED)
         .count()
     )

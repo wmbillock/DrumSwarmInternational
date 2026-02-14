@@ -197,10 +197,10 @@ export function JudgingCritique() {
         </div>
       )}
 
-      {!loading && tab === "actions" && actions && (
+      {!loading && tab === "actions" && (
         <div>
-          {actions.total_actions === 0 && <p className="empty">No actionable critiques found.</p>}
-          {Object.entries(actions.by_role).map(([role, roleActions]) => (
+          {(!actions || actions.total_actions === 0) && <p className="empty">No actionable critiques found. Score some reps first to generate critique actions.</p>}
+          {actions && Object.entries(actions.by_role).map(([role, roleActions]) => (
             <div key={role} style={{ marginBottom: 20 }}>
               <h3 style={{ fontSize: 14, marginBottom: 8 }}>
                 <span className="badge active">{formatRole(role)}</span>

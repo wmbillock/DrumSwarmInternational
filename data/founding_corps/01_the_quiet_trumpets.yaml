@@ -43,3 +43,10 @@ staff_archetypes:
   brass_caption_head: "The Closer — one draft, no revisions, ships it"
   percussion_caption_head: "The Metronome — keeps the sparse schedule on time"
   guard_caption_head: "The Polisher — makes the small output gleam"
+
+strategy:
+  model_policy: single_provider
+  preferred_provider: anthropic
+  risk_tolerance: 0.1
+  exploration_rate: 0.05
+  adaptation_style: prompt_only

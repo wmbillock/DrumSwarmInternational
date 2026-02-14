@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git fetch:*)",
+      "Bash(git checkout:*)",
+      "Bash(find:*)",
+      "Bash(wc:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(.venv\\\\Scripts\\\\python.exe -m pytest:*)",
+      "Bash(pip install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd unified Swarm Health dashboard with guard metrics, trophy system, and resource monitoring\n\n- Add _GuardMetrics singleton to session_guard.py tracking activations, cascades, and unhandled exceptions\n- Add orphans_reaped counter to process_registry.py\n- Add GET /api/v1/system/resource-health endpoint \\(guard metrics, process stats, budget, session saturation\\)\n- Add GET /api/v1/awards/summary endpoint \\(category/tier breakdowns, recent unlocks, top recipients\\)\n- Add ResourceHealth and AwardsSummary TypeScript types + API client functions\n- Create TrophyShowcase component \\(tier distribution bar, 12-category grid, recent unlocks, leaderboard\\)\n- Create SwarmHealthPage with 5 tabs \\(Overview, Providers, Agents, Resources, Trophies\\)\n- Fix duplicate SystemHealthDashboard import and route in router.tsx\n- Redirect /system-health and /metrics to /swarm-health\n- Update SideNav link to /swarm-health\n- Include prior session work: RAII guards, db_pool, drill books, vector store, corps config, image gen, lifecycle transitions\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push:*)",
+      "Bash(python -c:*)",
+      "Bash(grep:*)",
+      "Bash(du -sh:*)",
+      "Bash(echo:*)",
+      "Bash(done)"
+    ]
+  }
+}

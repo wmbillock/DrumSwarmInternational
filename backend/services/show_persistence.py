@@ -66,7 +66,7 @@ def missing_show_files(show_dir: Path) -> list[str]:
 
 def load_status(show_dir: Path) -> dict:
     """Read and return status dict from status.yaml."""
-    return safe_load_yaml_dict((Path(show_dir) / "status.yaml").read_text(), {"status": "draft"})
+    return safe_load_yaml_dict((Path(show_dir) / "status.yaml").read_text(encoding="utf-8"), {"status": "draft"})
 
 
 def update_status(show_dir: Path, new_status: str) -> None:
@@ -99,7 +99,7 @@ def synthesize_prompt(show_dir: Path) -> None:
     show_dir = Path(show_dir)
     spec = read_spec(show_dir)
     notes_path = show_dir / "design_notes.md"
-    notes = notes_path.read_text() if notes_path.exists() else ""
+    notes = notes_path.read_text(encoding="utf-8") if notes_path.exists() else ""
 
     # Parse design notes into tag-grouped content
     tagged: dict[str, list[str]] = {}
@@ -243,7 +243,7 @@ def read_spec(show_dir: Path) -> str:
     spec_path = Path(show_dir) / "spec.md"
     if not spec_path.exists():
         return ""
-    return spec_path.read_text()
+    return spec_path.read_text(encoding="utf-8")
 
 
 def write_spec(show_dir: Path, content: str) -> None:
@@ -327,7 +327,7 @@ def list_shows() -> list[dict]:
         status_file = d / "status.yaml"
         if not d.is_dir() or not status_file.exists():
             continue
-        data = safe_load_yaml_dict(status_file.read_text())
+        data = safe_load_yaml_dict(status_file.read_text(encoding="utf-8"))
         spec_text = read_spec(d)
         title = d.name
         if spec_text:
@@ -346,25 +346,41 @@ def list_shows() -> list[dict]:
 
 
 def get_show(slug: str) -> dict | None:
-    """Get a single show's details by slug."""
+    """Get a single show's details by slug, including full content."""
     show_dir = _shows_base_dir() / slug
     status_file = show_dir / "status.yaml"
     if not show_dir.exists() or not status_file.exists():
         return None
-    data = safe_load_yaml_dict(status_file.read_text())
+    data = safe_load_yaml_dict(status_file.read_text(encoding="utf-8"))
     spec_text = read_spec(show_dir)
     title = slug
     if spec_text:
         heading = re.match(r"^#\s+(.+)$", spec_text, re.MULTILINE)
         if heading:
             title = heading.group(1).strip()
+
+    # Read content files
+    design_notes_path = show_dir / "design_notes.md"
+    design_notes = ""
+    if design_notes_path.exists():
+        design_notes = design_notes_path.read_text(encoding="utf-8")
+
+    prompt_path = show_dir / "show_prompt.md"
+    show_prompt_content = ""
+    if prompt_path.exists():
+        show_prompt_content = prompt_path.read_text(encoding="utf-8")
+
     return {
         "slug": slug,
         "title": title,
         "status": data.get("status", "draft"),
+        "summary": data.get("summary", ""),
         "has_spec": bool(spec_text.strip()),
-        "has_prompt": (show_dir / "show_prompt.md").exists() and (show_dir / "show_prompt.md").stat().st_size > 0,
+        "has_prompt": prompt_path.exists() and prompt_path.stat().st_size > 0,
         "versions": list_spec_versions(show_dir),
+        "spec_content": spec_text or "",
+        "design_notes": design_notes,
+        "show_prompt_content": show_prompt_content,
     }
 
 

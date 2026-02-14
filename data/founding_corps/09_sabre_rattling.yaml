@@ -49,3 +49,10 @@ staff_archetypes:
   brass_caption_head: "The Virtuoso — writes elegant code that reads like prose"
   percussion_caption_head: "The Hype Agent — every commit message is a celebration"
   guard_caption_head: "The Choreographer — presentation layer is their entire personality"
+
+strategy:
+  model_policy: single_provider
+  preferred_provider: anthropic
+  risk_tolerance: 0.3
+  exploration_rate: 0.1
+  adaptation_style: prompt_only

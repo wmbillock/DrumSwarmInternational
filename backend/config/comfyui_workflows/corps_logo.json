@@ -1,0 +1,9 @@
+{
+  "description": "Corps logo workflow — generates an emblem/logo for a DCI corps using SDXL",
+  "prompt_template": "A professional heraldic emblem logo for a drum corps called '{corps_name}'. Colors: {primary_color} and {secondary_color}. {style_notes}. Vector-style graphic design, clean sharp lines, symmetrical composition, bold iconic silhouette, shield or crest motif, marching band insignia, no text, isolated on dark background",
+  "negative_prompt": "text, words, letters, typography, watermark, low quality, blurry, photorealistic, 3d render, photograph, human face, anime, cartoon, pixelated, noise, artifacts, busy background, multiple objects",
+  "width": 1024,
+  "height": 1024,
+  "steps": 25,
+  "cfg_scale": 7.5
+}

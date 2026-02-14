@@ -17,14 +17,14 @@
 # ╚══════════════════════════════════════════════════════════════════╝
 #
 # Environment:
-#   DCI_PORT      Backend port (default: 8000)
+#   DCI_PORT      Backend port (default: 4224)
 #   DCI_SESSION   TMUX session name (default: dci-swarm)
 
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "$0")" && pwd)"
 VENV_DIR="$PROJECT_ROOT/.venv"
-BACKEND_PORT="${DCI_PORT:-8000}"
+BACKEND_PORT="${DCI_PORT:-4224}"
 FRONTEND_DIR="$PROJECT_ROOT/frontend"
 SCRIPTS_DIR="$PROJECT_ROOT/scripts"
 
@@ -172,11 +172,40 @@ cmd_mark_time() {
     echo ""
     echo -e "${BOLD}  MARK TIME — HUT!${NC}"
     echo ""
+
+    local use_tui=false
+    local subcmd="${1:-start}"
+
+    # Check for --tui flag
+    for arg in "$@"; do
+        if [ "$arg" = "--tui" ]; then
+            use_tui=true
+            subcmd="start"
+        fi
+    done
+
+    # Auto-detect: use TUI on Windows (MSYS/Git Bash/Cygwin) or when tmux is unavailable
+    if [ "$use_tui" = false ]; then
+        case "$(uname -s)" in
+            MINGW*|MSYS*|CYGWIN*) use_tui=true ;;
+        esac
+        if [ "$use_tui" = false ] && ! command -v tmux &>/dev/null; then
+            log_warn "tmux not found — falling back to TUI dashboard"
+            use_tui=true
+        fi
+    fi
+
+    if [ "$use_tui" = true ]; then
+        activate_venv
+        cd "$PROJECT_ROOT"
+        exec python -m backend.tui.app
+    fi
+
     if [ ! -f "$SCRIPTS_DIR/monitoring/start_monitor.sh" ]; then
         log_error "Monitoring scripts not found at $SCRIPTS_DIR/monitoring/"
         exit 1
     fi
-    exec bash "$SCRIPTS_DIR/monitoring/start_monitor.sh" "${1:-start}"
+    exec bash "$SCRIPTS_DIR/monitoring/start_monitor.sh" "$subcmd"
 }
 
 cmd_forward_march() {
@@ -229,9 +258,11 @@ cmd_check_step() {
         echo -e "  Frontend:   ${RED}at rest${NC}"
     fi
 
-    # TMUX
+    # Dashboard (tmux or TUI)
     if tmux has-session -t "${DCI_SESSION:-dci-swarm}" 2>/dev/null; then
         echo -e "  Dashboard:  ${GREEN}marking time${NC}  (tmux: ${DCI_SESSION:-dci-swarm})"
+    elif pgrep -f "backend.tui.app" >/dev/null 2>&1; then
+        echo -e "  Dashboard:  ${GREEN}marking time${NC}  (TUI)"
     else
         echo -e "  Dashboard:  ${RED}at rest${NC}"
     fi
@@ -322,7 +353,7 @@ cmd_horns_up() {
     echo ""
     echo -e "  ${GREEN}ten-hut${NC}          Full stack + monitoring dashboard — everything"
     echo -e "  ${GREEN}parade-rest${NC}      Halt all services — stand down"
-    echo -e "  ${GREEN}mark-time${NC}        Launch TMUX monitoring dashboard"
+    echo -e "  ${GREEN}mark-time${NC}        Launch monitoring dashboard (tmux or --tui)"
     echo -e "  ${GREEN}forward-march${NC}    Start backend API server only"
     echo -e "  ${GREEN}company-front${NC}    Start frontend dev server only"
     echo -e "  ${GREEN}run-through${NC}      Run the full test suite"
@@ -339,7 +370,8 @@ cmd_horns_up() {
     echo -e "${BOLD}  Examples:${NC}"
     echo ""
     echo -e "  ${DIM}./dci ten-hut${NC}                   # Bring the full corps to attention"
-    echo -e "  ${DIM}./dci mark-time${NC}                 # Open the TMUX press box"
+    echo -e "  ${DIM}./dci mark-time${NC}                 # Open the dashboard (tmux on Unix)"
+    echo -e "  ${DIM}./dci mark-time --tui${NC}           # Force cross-platform TUI dashboard"
     echo -e "  ${DIM}./dci drill -p 1${NC}                 # Run Euler problem #1"
     echo -e "  ${DIM}./dci drill -l 1,2,3${NC}             # Calibration loop on problems 1-3"
     echo -e "  ${DIM}./dci run-through -k scoring${NC}    # Run scoring tests only"
@@ -357,7 +389,7 @@ cmd_horns_up() {
     echo ""
     echo -e "${BOLD}  Environment:${NC}"
     echo ""
-    echo -e "  DCI_PORT=8000               Backend port"
+    echo -e "  DCI_PORT=4224               Backend port"
     echo -e "  DCI_SESSION=dci-swarm       TMUX session name"
     echo ""
 }
@@ -367,7 +399,7 @@ cmd_horns_up() {
 case "${1:-horns-up}" in
     ten-hut)         cmd_ten_hut ;;
     parade-rest)     cmd_parade_rest ;;
-    mark-time)       cmd_mark_time "${2:-start}" ;;
+    mark-time)       shift; cmd_mark_time "$@" ;;
     forward-march)   cmd_forward_march ;;
     company-front)   cmd_company_front ;;
     run-through)     shift; cmd_run_through "$@" ;;

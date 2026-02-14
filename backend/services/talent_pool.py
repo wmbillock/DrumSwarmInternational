@@ -71,11 +71,11 @@ def export_talent_pool(db: Session, output_dir: Path) -> None:
 def load_talent_pool(pool_dir: Path) -> dict:
     """Read ledger.yaml, load each agent file, return structured dict."""
     pool_dir = Path(pool_dir)
-    ledger = safe_load_yaml_dict((pool_dir / "ledger.yaml").read_text(), {"agents": []})
+    ledger = safe_load_yaml_dict((pool_dir / "ledger.yaml").read_text(encoding="utf-8"), {"agents": []})
     agents = []
     for entry in ledger.get("agents", []):
         agent_path = pool_dir / "agents" / f"{entry['agent_id']}.yaml"
-        agents.append(safe_load_yaml_dict(agent_path.read_text()))
+        agents.append(safe_load_yaml_dict(agent_path.read_text(encoding="utf-8")))
     return {"agents": agents}
 
 

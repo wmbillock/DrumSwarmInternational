@@ -1,5 +1,8 @@
 # Swarm Prompt: Divisions and Competition Classes
 
+## Objective
+TO add additional dynamism to the competition aspect, giving corps a goal to grow towards, introducing a motivation of moving up and down a class.
+
 ## Show Concept
 Add division support to the DCI swarm season and competition system. Corps are assigned to divisions (World Class, Open Class, Div 3) within a season. Standings and scores are grouped by division. This enables tiered competition just like real DCI.
 
@@ -11,11 +14,11 @@ Backend data model and API changes:
 3. **Standings** calculated per-division via query-time grouping
 
 Endpoints to add/modify in `backend/api/v1/router.py`:
-- `PUT /seasons/{season_id}` — Accept `divisions` list in metadata
-- `POST /seasons/{season_id}/corps` — Accept optional `division` field
-- `PUT /seasons/{season_id}/corps/{corps_id}` — NEW: update division assignment
-- `GET /seasons/{season_id}/standings` — NEW: division-grouped standings
-- `GET /competitions/{competition_id}/scores` — Accept `?division=` query filter
+- `PUT /seasons/{season_id}` â€” Accept `divisions` list in metadata
+- `POST /seasons/{season_id}/corps` â€” Accept optional `division` field
+- `PUT /seasons/{season_id}/corps/{corps_id}` â€” NEW: update division assignment
+- `GET /seasons/{season_id}/standings` â€” NEW: division-grouped standings
+- `GET /competitions/{competition_id}/scores` â€” Accept `?division=` query filter
 
 Standings response shape:
 ```json
@@ -25,10 +28,10 @@ Standings response shape:
 ## Visual Design
 Frontend changes:
 
-1. **SeasonWorkshop page** — Division config section: editable list of divisions with add/remove. Default: [World Class, Open Class, Div 3]. Division dropdown in corps registration.
-2. **Standings component** — Tab bar at top: one tab per division + All tab. Each division tab shows only that division corps ranked. All tab shows everyone with division column.
-3. **v1.ts API client** — Add typed methods: updateSeasonDivisions, updateCorpsDivision, getSeasonStandings
-4. **types/index.ts** — Add Division types, SeasonStandings interface
+1. **SeasonWorkshop page** â€” Division config section: editable list of divisions with add/remove. Default: [World Class, Open Class, Div 3]. Division dropdown in corps registration.
+2. **Standings component** â€” Tab bar at top: one tab per division + All tab. Each division tab shows only that division corps ranked. All tab shows everyone with division column.
+3. **v1.ts API client** â€” Add typed methods: updateSeasonDivisions, updateCorpsDivision, getSeasonStandings
+4. **types/index.ts** â€” Add Division types, SeasonStandings interface
 
 ## Guard Design
 Edge cases and validation:
@@ -38,7 +41,7 @@ Edge cases and validation:
 - Unassigned corps (division=null) appear in All tab only, not in any division tab
 
 ## General Effect
-This feature enables the core DCI experience of tiered competition. Users can configure divisions per season, assign corps, and view standings filtered by division. It is backward compatible — seasons without divisions work exactly as before.
+This feature enables the core DCI experience of tiered competition. Users can configure divisions per season, assign corps, and view standings filtered by division. It is backward compatible â€” seasons without divisions work exactly as before.
 
 ## Constraints
 - Use existing v1.ts API client patterns (do NOT use legacy api.ts)

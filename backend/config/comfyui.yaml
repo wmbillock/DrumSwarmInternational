@@ -1,0 +1,66 @@
+# ComfyUI configuration for local image generation
+# Requires ComfyUI running locally with RTX GPU
+
+server:
+  url: "http://localhost:8188"
+  timeout_seconds: 120
+  max_retries: 3
+
+defaults:
+  width: 1024
+  height: 1024
+  steps: 20
+  cfg_scale: 7.0
+  sampler: "euler"
+  scheduler: "normal"
+  model: "sd_xl_base_1.0.safetensors"
+
+output:
+  directory: "generated_images"
+  format: "png"
+  quality: 95
+
+workflows:
+  pixel_art_turbo:
+    description: "Pixel art generation using Lumina2 turbo — 4-step, fast (native API)"
+    template: "comfyui_workflows/pixel_art_turbo.json"
+    native: true
+  web_icons:
+    description: "Web icons, UI elements, and navigation art"
+    template: "comfyui_workflows/web_icons.json"
+  pixel_art_8bit:
+    description: "8-bit pixel art for retro game graphics"
+    template: "comfyui_workflows/pixel_art_8bit.json"
+  pixel_art_16bit:
+    description: "16-bit pixel art in SNES/Genesis style"
+    template: "comfyui_workflows/pixel_art_16bit.json"
+  game_art_2d:
+    description: "2D game sprites, characters, and scene art"
+    template: "comfyui_workflows/game_art_2d.json"
+  photo_realistic:
+    description: "Photorealistic portraits and scenes"
+    template: "comfyui_workflows/photo_realistic.json"
+  stylized_icon:
+    description: "Stylized iconography, emblems, crests, and badges"
+    template: "comfyui_workflows/stylized_icon.json"
+  corporate_logo:
+    description: "Logos, brand marks, and corporate symbols"
+    template: "comfyui_workflows/corporate_logo.json"
+  cartoon_animation:
+    description: "Cartoon and animation style illustrations"
+    template: "comfyui_workflows/cartoon_animation.json"
+  show_poster:
+    description: "Show posters, banners, and flyer artwork"
+    template: "comfyui_workflows/show_poster.json"
+  character_portrait:
+    description: "Agent and character portrait illustrations"
+    template: "comfyui_workflows/character_portrait.json"
+  corps_logo:
+    description: "Generate a corps logo or emblem"
+    template: "comfyui_workflows/corps_logo.json"
+  performance_scene:
+    description: "Generate a performance scene illustration"
+    template: "comfyui_workflows/performance_scene.json"
+  abstract_visual:
+    description: "Generate abstract visual design elements"
+    template: "comfyui_workflows/abstract_visual.json"

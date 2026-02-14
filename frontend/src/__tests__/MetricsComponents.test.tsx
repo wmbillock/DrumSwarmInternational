@@ -1,5 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { render, fireEvent, cleanup } from "@testing-library/react";
+
+afterEach(() => cleanup());
 import { MetricsCard } from "../components/metrics/MetricsCard";
 import { TrendChart } from "../components/metrics/TrendChart";
 import { Leaderboard } from "../components/metrics/Leaderboard";
@@ -45,13 +47,13 @@ describe("Metrics components", () => {
 
   it("fires Leaderboard row click", () => {
     const onRowClick = vi.fn();
-    const { getByText } = render(
+    const { getAllByText } = render(
       <Leaderboard
         rows={[{ id: "a", rank: 1, label: "Alpha" }]}
         onRowClick={onRowClick}
       />
     );
-    fireEvent.click(getByText("Alpha"));
+    fireEvent.click(getAllByText("Alpha")[0]);
     expect(onRowClick).toHaveBeenCalled();
   });
 

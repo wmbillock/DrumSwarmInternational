@@ -51,3 +51,10 @@ staff_archetypes:
   brass_caption_head: "The Cowboy — writes code from the hip, tests in production"
   percussion_caption_head: "The Lucky One — their first attempt works more often than statistics allow"
   guard_caption_head: "The Acrobat — catches problems mid-air through sheer reflexes"
+
+strategy:
+  model_policy: random_exploration
+  preferred_provider: null
+  risk_tolerance: 1.0
+  exploration_rate: 0.8
+  adaptation_style: full

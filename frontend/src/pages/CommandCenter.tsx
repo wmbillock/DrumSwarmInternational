@@ -75,7 +75,12 @@ export function CommandCenter() {
     }
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+    // Auto-refresh every 30 seconds for live updates
+    const interval = setInterval(refresh, 30000);
+    return () => clearInterval(interval);
+  }, [refresh]);
   useEffect(() => {
     const iv = setInterval(refresh, 15000);
     return () => clearInterval(iv);
@@ -157,7 +162,7 @@ export function CommandCenter() {
           <span className="vital-label">Stale Reps</span>
         </div>
         <div className="vital-card" data-tooltip-id="main" data-tooltip-content={VITALS_TOOLTIPS["Failure Rate"]}>
-          <span className="vital-value">{((health?.failure_rate ?? 0) * 100).toFixed(1)}%</span>
+          <span className="vital-value">{(health?.failure_rate ?? 0).toFixed(1)}%</span>
           <span className="vital-label">Failure Rate</span>
         </div>
       </div>
@@ -215,7 +220,6 @@ export function CommandCenter() {
       {/* Active Shows */}
       <section className="cc-section">
         <h2>Active Shows ({activeShows.length})</h2>
-        {activeShows.length === 0 && <p className="empty">No active shows. Create and activate a show to begin.</p>}
         <DataTable<Show & Record<string, unknown>>
           columns={[
             { key: "title", label: "Show", render: (v) => String(v || "—") },

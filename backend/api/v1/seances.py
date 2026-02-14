@@ -100,7 +100,7 @@ def v1_preview_artifact(seance_id: str, path: str = ""):
     if not abs_path.is_file():
         raise HTTPException(404, "Artifact file not found")
 
-    content = abs_path.read_text()
+    content = abs_path.read_text(encoding="utf-8")
     max_chars = 10_000
     truncated = len(content) > max_chars
     return {"path": path, "content": content[:max_chars], "truncated": truncated}

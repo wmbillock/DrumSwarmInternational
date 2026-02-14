@@ -1,140 +1,36 @@
-# Asynchronous Messaging System — Implementation Prompt
+### Objective
+Build a production-ready asynchronous messaging system with threaded conversations, AI-powered archival with searchable summaries, and real-time notification updates. The system must support role-based operations (agents create threads, users reply and mark complete, admins bulk-archive) and serve as a permanent knowledge record with audit trail.
 
-You are implementing a **threaded inbox system** for the DCI Swarm that enables asynchronous collaboration between agents and human users (EDs, PCs, and admins) without cognitive overload.
+### Deliverables
+- **Database schema** (PostgreSQL): `message_threads` (UUID PK, status enum, created_at, archived_at, creator_id FK), `messages` (UUID PK, thread_id FK, sender_id FK, content TEXT, created_at, immutable), `archived_threads` (UUID PK, original_thread_id FK, summary TEXT, tags JSONB, full_text_index TSVECTOR, decision_labels JSONB, archived_at); cascade delete on threads only; full-text search index on archived_threads.full_text_index
+- **REST API (v1.ts)**: 8 endpoints (GET/POST /threads, GET /threads/{id}, POST /threads/{id}/messages, PATCH /threads/{id}, GET /unread-count, GET /archive/search, POST /archive/bulk-archive); permission checks via middleware (403 Forbidden on violation); correct status codes (200, 201, 404, 403)
+- **Backend service** (message_service.py): `create_thread()`, `add_message()`, `mark_complete()`, `search_archive()` with BM25(0.5)+recency_decay(0.3)+tag_match(0.15)+decision_label(0.05) ranking returning top 10, `bulk_archive()` filtering 30+ day threads, `generate_summary_async()` background task (non-blocking), `calculate_thread_age()`
+- **React components**: `MessageInbox.tsx` (two-column list+detail, unread badges, 14-day readiness indicator), `MessageArchive.tsx` (search bar, tag/decision filters, ranked results with LLM summaries), `MessageAdmin.tsx` (30+ day thread selection, bulk-archive confirmation), TopNav badge (unread count display, pulse animation on new thread, click-to-inbox navigation)
+- **WebSocket integration**: 5 event types (message:new, thread:created, thread:status_changed, thread:archived, unread_count:updated) emitting synchronously with database commits; user context authentication; unauthenticated connections rejected (401); payload validation
+- **Tests**: unit tests for service layer (thread lifecycle, search ranking algorithm, date threshold calculations); integration tests for all 8 endpoints (200/201/404/403 scenarios, permission enforcement); WebSocket event tests (emission, authentication, schema validation); >80% coverage
+- **Documentation**: API contract (request/response schemas, HTTP status codes), permission matrix (agents/users/admins × create/reply/complete/archive operations), archive search algorithm specification (BM25 formula, recency decay implementation, tag matching logic), deployment guide
 
-## Core Requirements
+### Constraints
+- All messages are immutable and permanent (no deletion allowed; archive is permanent, read-only record)
+- Thread status transitions: `open` → `ready_for_archive` (14+ days elapsed OR user marks complete) → `archived` (eligible at 30+ days; requires admin bulk-archive)
+- Permissions: agents=`create_thread` only; users=`add_message` + `mark_complete`; admins=`bulk_archive` only; enforce via middleware; return 403 Forbidden on permission violation
+- Archive search ranking formula: **0.5 × BM25(query) + 0.3 × recency_decay(archived_at) + 0.15 × tag_match(tags) + 0.05 × decision_label_match(decision_labels)**; return top 10 results by default
+- Use `v1.ts` client utilities exclusively for all API calls
+- WebSocket events fire synchronously with database state changes; no asynchronous drift between events and persisted state
+- LLM summary generation runs as background task without blocking API response (fire-and-forget pattern)
+- All database primary keys are UUID v4; cascade delete enforced only on message_threads deletion (not on archived_threads)
+- 14-day server-side threshold enforced for "Ready to Archive" UI suggestion; 30-day server-side threshold enforced for bulk-archive eligibility filter
 
-### 1. Thread & Message Persistence
-
-- **Database Schema**:
-  - `message_threads` table: `id (UUID)`, `originator_role`, `subject`, `status (pending|completed)`, `created_at`, `updated_at`, `completed_at`, `completed_by`
-  - `messages` table: `id (UUID)`, `thread_id (FK)`, `sender_type (user|agent)`, `sender_role`, `sender_name`, `body`, `created_at`
-  - Indexes on `thread_id`, `status`, `created_at` for fast queries
-  - Cascade delete: archived threads → archived messages
-
-- **Archive Schema**:
-  - `archived_threads` table: `id (UUID)`, `original_thread_id`, `originator_role`, `subject`, `summary`, `message_count`, `created_at`, `archived_at`, `archived_by`, `full_text`, `tags` (JSONB), `decision` (nullable)
-  - Full-text search index on `full_text` column
-
-### 2. API Endpoints (V1)
-
-#### Active Threads
-- `GET /api/v1/messaging/threads` — List with filters (status, originator_role, sort)
-- `POST /api/v1/messaging/threads` — Create thread (agent initiates, user receives)
-- `GET /api/v1/messaging/threads/{thread_id}` — Thread detail + full message history
-- `POST /api/v1/messaging/threads/{thread_id}/messages` — Add message (user or agent)
-- `PATCH /api/v1/messaging/threads/{thread_id}` — Mark complete (user only, with role check)
-- `GET /api/v1/messaging/unread-count` — Badge count for nav bar
-
-#### Archive
-- `GET /api/v1/messaging/archive` — Search archived threads (params: search, originator_role, date_range, sort=relevance|date)
-- `POST /api/v1/messaging/archive/bulk-archive` — Admin bulk-archive (takes thread_ids list, triggers LLM summaries)
-- `GET /api/v1/messaging/archive/{archived_thread_id}` — Archived thread read-only view
-
-### 3. Services Layer
-
-**New file: `backend/services/message_service.py`**
-
-Core functions:
-- `create_thread(corps_id, originator_role, subject, initial_message)` — Create thread + first message
-- `add_message(thread_id, sender_type, sender_role, sender_name, body)` — Append message
-- `mark_complete(thread_id, completed_by_user_id)` — Set status=completed, record timestamp
-- `get_unread_count(user_id)` — Count threads user has not viewed
-- `mark_viewed(thread_id)` — Set viewed_at timestamp
-- `search_archive(query, corps_id, date_range, limit=20)` — Full-text search with ranking
-- `bulk_archive(thread_ids, archived_by_user_id)` — Archive threads + generate LLM summaries async
-
-**Summary Generation (async background task)**:
-```python
-async def generate_archive_summary(thread_id: str) -> str:
-    # Fetch all messages for thread
-    # Concatenate in chronological order
-    # Call LLM: "Summarize this conversation in 2-3 sentences, including the core decision:"
-    # Extract tags from summary (design, schedule, personnel, etc.)
-    # Update archived_thread record
-```
-
-### 4. WebSocket Events (Real-Time Sync)
-
-Emit from backend when:
-- **`message:new`** — New message arrives in thread (update unread badge, thread list)
-- **`thread:created`** — Thread created in user's inbox (new thread appears in list, badge increments)
-- **`thread:status_changed`** — Thread marked complete (thread moves to "completed" visual state)
-- **`thread:archived`** — Thread bulk-archived (removed from active list, added to archive)
-- **`unread_count:updated`** — Unread count changed (badge updates in nav bar)
-
-### 5. Frontend Components
-
-**Pages:**
-- **`frontend/src/pages/MessageInbox.tsx`**
-  - Left sidebar: Active thread list with filters (status, originator_role)
-  - Center pane: Thread detail view (conversation, originator info, creation date)
-  - "Mark Complete" button (visible only for authorized users)
-  - Reply box for user responses
-  - Real-time WebSocket sync (threads appear immediately, badges update)
-
-- **`frontend/src/pages/MessageArchive.tsx`**
-  - Search interface with query input
-  - Filters: originator_role, date_range, tags
-  - Results ranked by relevance (BM25 + recency + tags)
-  - Click result → read-only archived thread view with summary and metadata
-
-- **`frontend/src/pages/MessageAdmin.tsx`**
-  - Bulk-archive interface: multi-select completed threads
-  - Confirmation modal showing summary previews
-  - Execute bulk-archive button (admin only)
-  - Archive operation status / log
-
-**Components:**
-- **`TopNav.tsx` update**: Add notification badge showing unread count; click → navigate to inbox
-- **`ThreadListItem.tsx`**: Render thread row with sender, subject, timestamp, unread count, status badge
-- **`ThreadDetail.tsx`**: Display full conversation, originator info, reply box
-- **`ArchiveResultCard.tsx`**: Display archived thread summary with tags, metadata, decision highlight
-
-**Service:**
-- **`frontend/src/services/messageService.ts`**
-  - Typed V1 API client with methods:
-    - `listThreads(filters)`, `createThread()`, `getThread(id)`, `addMessage()`, `markComplete()`
-    - `getUnreadCount()`, `searchArchive(query, filters)`, `bulkArchive(thread_ids)`
-
-### 6. Permission Guards
-
-- **Create Thread**: Agents only (ED/PC/Caption Heads/Techs escalate)
-- **Mark Complete**: Thread receiver (human user) + original sender with authority
-- **Bulk Archive**: Admin role only
-- **Search Archive**: Admin + ED (read-only); others forbidden (403)
-
-### 7. Ranking Logic (Archive Search)
-
-BM25 full-text match (0.5 weight) + recency boost within 6 months (0.3) + exact tag match (0.15) + decision prominence (0.05)
-
-```
-score = (bm25 × 0.5) + (recency_boost × 0.3) + (tag_match × 0.15) + (decision_exists × 0.05)
-```
-
-### 8. Acceptance Criteria
-
-- ✅ Thread creation → immediate notification, inbox appears in sidebar
-- ✅ User marks thread complete → status changes, completion timestamp recorded
-- ✅ Admin bulk-archives 50 threads → <2 minutes, LLM summaries generated, removed from active list
-- ✅ Archive search → <1 second response, results ranked by relevance
-- ✅ Role-based guards enforce permissions (unauthorized actions → 403)
-- ✅ All messages persist (no deletions); archive as long-term memory
-- ✅ Subsequent messages in thread update badge only (no new notification)
-
-## Implementation Order
-
-1. **Database migrations**: Create `message_threads`, `messages`, `archived_threads` tables with indexes
-2. **Backend services**: `message_service.py` with CRUD + search + summary generation
-3. **API endpoints**: All 8 routes in `backend/api/v1/router.py`
-4. **WebSocket events**: Emit from service layer when threads/messages change
-5. **Frontend pages**: MessageInbox + MessageArchive + MessageAdmin
-6. **TopNav integration**: Add notification badge + link to inbox
-7. **Testing**: E2E tests for thread creation → completion → archive flow
-
-## Notes
-
-- Notifications are sent once per thread (not batched); subsequent messages update badge only
-- 14-day threshold for "Ready to Archive" UI suggestion; 30-day threshold for bulk-archive eligibility
-- LLM summaries may require human review for accuracy
-- All messages persist forever; nothing is deleted—archive is the permanent record
+### Acceptance Criteria
+1. ✅ All 3 database tables created with UUID primary keys, correct foreign keys, cascade delete on message_threads only, full-text index on archived_threads.full_text_index
+2. ✅ All 8 API endpoints implemented, tested, returning correct status codes (200, 201, 404, 403); response schemas match documentation
+3. ✅ Permission checks enforced via middleware on all endpoints; agents cannot reply/archive (403), users cannot create/archive (403), admins cannot create/reply (403)
+4. ✅ WebSocket events emit for all 5 scenarios (message:new, thread:created, thread:status_changed, thread:archived, unread_count:updated) with correct payloads; unauthenticated connections rejected (401)
+5. ✅ Archive search returns results ranked by algorithm formula; top 10 default; tag and decision_label filters functional
+6. ✅ MessageInbox, MessageArchive, MessageAdmin components render correctly; navigation between views functional; 14-day readiness indicator displays on eligible threads
+7. ✅ Unread count badge displays correct count, updates in real-time via WebSocket, pulse animation triggers on new thread creation
+8. ✅ TypeScript compilation zero errors (strict mode); test suite >80% coverage (unit + integration); all tests passing
+9. ✅ 14-day "Ready to Archive" threshold enforced server-side; threads 14+ days old display ready indicator; 30-day bulk-archive eligibility enforced server-side
+10. ✅ LLM summary generation runs asynchronously without blocking API response; summary appears in archive within 30 seconds of archival
+11. ✅ All messages persist forever; archive records immutable; no deletion endpoints; audit trail complete
+12. ✅ Backend starts on port 4224 with `uvicorn backend.api.app:app --host 0.0.0.0 --port 4224 --reload`; frontend builds without errors; WebSocket connections established and authenticated from browser

@@ -127,7 +127,7 @@ export function SystemHealth() {
           <Stat label="Completed" value={data.completed_reps} />
           <Stat label="Failed Reps" value={data.failed_reps} />
           <Stat label="Stale Reps" value={data.stale_reps} />
-          <Stat label="Failure Rate" value={`${(data.failure_rate * 100).toFixed(1)}%`} />
+          <Stat label="Failure Rate" value={`${data.failure_rate.toFixed(1)}%`} />
         </div>
       </Panel>
 

@@ -325,22 +325,54 @@ export function CorpsThemeProvider({ children }: { children: ReactNode }) {
 
   const corpsTheme = CORPS_THEMES[activeThemeId] || CORPS_THEMES.default;
 
-  // Apply theme to CSS custom properties
+  // Apply theme to CSS custom properties — respects dark/light mode toggle
   useEffect(() => {
     const root = document.documentElement;
-    root.style.setProperty("--bg-primary", corpsTheme.background);
-    root.style.setProperty("--bg-secondary", corpsTheme.surface);
-    root.style.setProperty("--bg-card", corpsTheme.surface);
-    root.style.setProperty("--bg-hover", adjustBrightness(corpsTheme.surface, 15));
-    root.style.setProperty("--text-primary", corpsTheme.text);
-    root.style.setProperty("--text-secondary", corpsTheme.textSecondary);
-    root.style.setProperty("--text-muted", adjustBrightness(corpsTheme.textSecondary, -20));
-    root.style.setProperty("--border", corpsTheme.border);
-    root.style.setProperty("--accent", corpsTheme.accent);
-    root.style.setProperty("--accent-hover", adjustBrightness(corpsTheme.accent, 20));
-    root.style.setProperty("--success", corpsTheme.success);
-    root.style.setProperty("--warning", corpsTheme.warning);
-    root.style.setProperty("--danger", corpsTheme.danger);
+    const cssVars = [
+      "--bg-primary", "--bg-secondary", "--bg-card", "--bg-hover",
+      "--text-primary", "--text-secondary", "--text-muted", "--border",
+      "--accent", "--accent-hover", "--success", "--warning", "--danger",
+    ];
+
+    const applyTheme = () => {
+      const isLight = root.getAttribute("data-theme") === "light";
+      if (isLight) {
+        // In light mode, clear inline styles so [data-theme="light"] CSS applies.
+        // Only keep accent colors if a non-default corps theme is selected.
+        cssVars.forEach((v) => root.style.removeProperty(v));
+        if (corpsTheme.id !== "default") {
+          root.style.setProperty("--accent", corpsTheme.primary);
+          root.style.setProperty("--accent-hover", adjustBrightness(corpsTheme.primary, -15));
+        }
+      } else {
+        // Dark mode: apply full corps theme as inline CSS variables
+        root.style.setProperty("--bg-primary", corpsTheme.background);
+        root.style.setProperty("--bg-secondary", corpsTheme.surface);
+        root.style.setProperty("--bg-card", corpsTheme.surface);
+        root.style.setProperty("--bg-hover", adjustBrightness(corpsTheme.surface, 15));
+        root.style.setProperty("--text-primary", corpsTheme.text);
+        root.style.setProperty("--text-secondary", corpsTheme.textSecondary);
+        root.style.setProperty("--text-muted", adjustBrightness(corpsTheme.textSecondary, -20));
+        root.style.setProperty("--border", corpsTheme.border);
+        root.style.setProperty("--accent", corpsTheme.accent);
+        root.style.setProperty("--accent-hover", adjustBrightness(corpsTheme.accent, 20));
+        root.style.setProperty("--success", corpsTheme.success);
+        root.style.setProperty("--warning", corpsTheme.warning);
+        root.style.setProperty("--danger", corpsTheme.danger);
+      }
+    };
+
+    applyTheme();
+
+    // Re-apply when dark/light toggle changes data-theme attribute
+    const observer = new MutationObserver((mutations) => {
+      if (mutations.some((m) => m.attributeName === "data-theme")) {
+        applyTheme();
+      }
+    });
+    observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+
+    return () => observer.disconnect();
   }, [corpsTheme]);
 
   // Persist user theme preference

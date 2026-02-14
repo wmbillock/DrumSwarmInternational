@@ -98,7 +98,7 @@ class TestLLMClient:
         assert response.tool_calls[0].tool_name == "tuner"
 
     def test_model_tier_mapping(self):
-        assert MODEL_TIER_MAP[ModelTier.OPUS] == "claude-opus-4-5-20251101"
+        assert MODEL_TIER_MAP[ModelTier.OPUS] == "claude-opus-4-6"
         assert MODEL_TIER_MAP[ModelTier.SONNET] == "claude-sonnet-4-5-20250929"
         assert MODEL_TIER_MAP[ModelTier.HAIKU] == "claude-haiku-4-5-20251001"
 

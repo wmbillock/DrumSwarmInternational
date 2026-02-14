@@ -177,3 +177,39 @@ Assign or change division (mutable, no versioning).
 
 <!-- tags: visual -->
 **[drill_writer]** What's the show slug for the divisions-and-competition-classes work? (I see several shows in the system, but need the specific one you want me to update.)
+<!-- tags: admin -->
+
+**[user]** Required Fixes (1) Objective: Missing required section: ## Objective Nice to Have (1) Acceptance Criteria: Consider adding: ## Acceptance Criteria
+
+<!-- tags: admin -->
+**[program_coordinator]** I hear you on that. Let me think about how this fits into the overall design. (LLM unavailable — connect an LLM backend for full collaborative design sessions.)
+
+<!-- tags: admin -->
+**[judge]** Open issues: Brief — Show Concept: Missing required section: ## Show Concept; Brief — Musical Design: Missing required section: ## Musical Design; Brief — Visual Design: Missing required section: ## Visual Design; Brief — Guard Design: Missing required section: ## Guard Design; Brief — General Effect: Missing required section: ## General Effect (+2 more)
+<!-- tags: admin -->
+
+**[user]** We need to add an objective
+
+<!-- tags: admin -->
+**[program_coordinator]** I hear you on that. Let me think about how this fits into the overall design. (LLM unavailable — connect an LLM backend for full collaborative design sessions.)
+
+<!-- tags: admin -->
+**[judge]** Open issues: Brief — Musical Design: Unfilled placeholder: \bTBD\b; Brief — Guard Design: Unfilled placeholder: \bTBD\b; Prompt — Objective: Missing required section: ## Objective
+<!-- tags: admin -->
+
+**[user]** Let's generate the prompt for this
+
+<!-- tags: admin -->
+**[program_coordinator]** I hear you on that. Let me think about how this fits into the overall design. (LLM unavailable — connect an LLM backend for full collaborative design sessions.)
+<!-- tags: admin -->
+
+**[user]** let's generate the prompt
+
+<!-- tags: admin -->
+**[program_coordinator]** I hear you on that. Let me think about how this fits into the overall design. (LLM unavailable — connect an LLM backend for full collaborative design sessions.)
+<!-- tags: questions -->
+
+**[user]** hello?
+
+<!-- tags: questions -->
+**[program_coordinator]** I hear you on that. Let me think about how this fits into the overall design. (LLM unavailable — connect an LLM backend for full collaborative design sessions.)

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Badge } from "../ui";
 import * as v1 from "../services/v1";
+import { slugToTitle } from "../utils/formatters";
 
 interface HealthData {
   status: string;
@@ -10,10 +12,10 @@ interface HealthData {
 }
 
 export function TelemetryPanel() {
+  const navigate = useNavigate();
   const [health, setHealth] = useState<HealthData | null>(null);
-  const [recentRuns, setRecentRuns] = useState<v1.V1Run[]>([]);
+  const [recentActivity, setRecentActivity] = useState<v1.V1RecentActivity[]>([]);
   const [corpsCount, setCorpsCount] = useState(0);
-  const [topScores, setTopScores] = useState<v1.V1StandingEntry[]>([]);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -22,37 +24,36 @@ export function TelemetryPanel() {
       .then(setHealth)
       .catch(() => {});
 
-    v1.listRuns(undefined, ac.signal)
-      .then((runs) => setRecentRuns(runs.slice(0, 5)))
+    v1.getRecentActivity(ac.signal)
+      .then((activity) => setRecentActivity(activity.slice(0, 5)))
       .catch(() => {});
 
     v1.listCorps(ac.signal, true)
       .then((corps) => setCorpsCount(corps.length))
       .catch(() => {});
 
-    v1.listCompetitions(ac.signal)
-      .then((comps) => {
-        const completed = comps.filter((c) => c.status === "completed");
-        if (completed.length === 0) return;
-        const latest = completed[completed.length - 1];
-        return v1.getScores(latest.competition_id, ac.signal);
-      })
-      .then((standings) => {
-        if (standings) {
-          setTopScores(standings.results.slice(0, 3));
-        }
-      })
-      .catch(() => {});
-
     return () => ac.abort();
   }, []);
+
+  // Extract latest scores from the most recent activity entry
+  const latestScores = recentActivity.length > 0
+    ? recentActivity[0].top_standings || []
+    : [];
 
   return (
     <aside className="telemetry-panel">
       <div className="telemetry-section">
-        <h4 className="telemetry-heading">System Health</h4>
+        <h4
+          className="telemetry-heading telemetry-clickable"
+          onClick={() => navigate("/swarm-health")}
+        >
+          System Health
+        </h4>
         {health ? (
-          <div className="telemetry-health">
+          <div
+            className="telemetry-health telemetry-clickable"
+            onClick={() => navigate("/swarm-health")}
+          >
             <Badge variant={health.status === "ok" ? "success" : "warning"}>
               {health.status || "unknown"}
             </Badge>
@@ -66,30 +67,41 @@ export function TelemetryPanel() {
       </div>
 
       <div className="telemetry-section">
-        <h4 className="telemetry-heading">Corps</h4>
-        <span className="telemetry-stat">{corpsCount} registered</span>
+        <h4
+          className="telemetry-heading telemetry-clickable"
+          onClick={() => navigate("/corps")}
+        >
+          Corps
+        </h4>
+        <span
+          className="telemetry-stat telemetry-clickable"
+          onClick={() => navigate("/corps")}
+        >
+          {health?.active_corps ?? 0} active / {corpsCount} total
+        </span>
       </div>
 
       <div className="telemetry-section">
-        <h4 className="telemetry-heading">Recent Runs</h4>
-        {recentRuns.length === 0 ? (
-          <span className="text-muted">No runs</span>
+        <h4
+          className="telemetry-heading telemetry-clickable"
+          onClick={() => navigate("/tour")}
+        >
+          Recent Rounds
+        </h4>
+        {recentActivity.length === 0 ? (
+          <span className="text-muted">No rounds completed</span>
         ) : (
           <ul className="telemetry-run-list">
-            {recentRuns.map((r) => (
-              <li key={r.run_id} className="telemetry-run-item">
-                <span className="mono">{r.run_id.slice(0, 20)}</span>
-                <Badge
-                  variant={
-                    r.status === "completed"
-                      ? "success"
-                      : r.status === "failed"
-                        ? "danger"
-                        : "warning"
-                  }
-                >
-                  {r.status}
-                </Badge>
+            {recentActivity.map((r) => (
+              <li
+                key={r.competition_id}
+                className="telemetry-run-item telemetry-clickable"
+                onClick={() => navigate(`/competitions/${r.competition_id}`)}
+              >
+                <span className="mono" title={r.competition_id}>
+                  R{r.round} {slugToTitle(r.show_slug)}
+                </span>
+                <Badge variant="success">done</Badge>
               </li>
             ))}
           </ul>
@@ -97,15 +109,24 @@ export function TelemetryPanel() {
       </div>
 
       <div className="telemetry-section">
-        <h4 className="telemetry-heading">Latest Scores</h4>
-        {topScores.length === 0 ? (
+        <h4
+          className="telemetry-heading telemetry-clickable"
+          onClick={() => navigate("/competitions")}
+        >
+          Latest Scores
+        </h4>
+        {latestScores.length === 0 ? (
           <span className="text-muted">No scores</span>
         ) : (
           <ul className="telemetry-run-list">
-            {topScores.map((s) => (
-              <li key={s.corps_id} className="telemetry-run-item">
-                <span className="mono">#{s.rank} {s.display_name || s.corps_id}</span>
-                <span className="show-score">{s.final_score.toFixed(2)}</span>
+            {latestScores.map((s) => (
+              <li
+                key={s.corps_id}
+                className="telemetry-run-item telemetry-clickable"
+                onClick={() => navigate(`/corps/${s.corps_id}`)}
+              >
+                <span className="mono">#{s.rank} {(s as any).corps_name || s.corps_id.slice(0, 8)}</span>
+                <span className="show-score">{Number(s.final_score).toFixed(2)}</span>
               </li>
             ))}
           </ul>

@@ -53,6 +53,8 @@ _DESIGN_SYSTEM_TEMPLATE = """You're on the design staff for show "{slug}".
 Brief so far:
 {spec_content}
 
+{role_context}
+
 RULES — follow these exactly:
 - MAX 30 WORDS. No exceptions. One or two short sentences.
 - The Brief and Prompt tabs update automatically — never mention saving or writing files.
@@ -117,13 +119,46 @@ The director just entered the Design Room. Greet them in MAX 30 WORDS.
 Mention the show name and ask one question to get started. Be direct and collegial."""
 
 
+def _get_role_context(notes_path, role: str, limit: int = 10) -> str:
+    """Parse design_notes.md for messages relevant to this role.
+
+    Returns the last *limit* messages from: this role, program_coordinator, and user.
+    Excludes other specialists so each role sees only its own thread.
+    """
+    if not notes_path.exists():
+        return ""
+    content = notes_path.read_text(encoding="utf-8", errors="replace")
+    allowed_roles = {role, "program_coordinator", "user"}
+    relevant: list[str] = []
+    lines = content.split("\n")
+    for line in lines:
+        line_stripped = line.strip()
+        m = re.match(r"\*\*\[(\w+)\]\*\*\s*(.*)", line_stripped)
+        if m:
+            msg_role = m.group(1)
+            msg_text = m.group(2)
+            if msg_role in allowed_roles:
+                relevant.append(f"[{msg_role}] {msg_text}")
+    if not relevant:
+        return ""
+    recent = relevant[-limit:]
+    return "Your recent conversation thread:\n" + "\n".join(recent)
+
+
 def _extract_swarm_prompt(show_dir, spec_text: str):
-    """Extract the ## Swarm Prompt section from a spec and write it to show_prompt.md."""
+    """Extract the ## Swarm Prompt section from a spec and write it to show_prompt.md.
+
+    Since the swarm prompt lives under ## Swarm Prompt in the spec, the LLM
+    writes its sub-sections as ### (one level deeper). We promote all headings
+    by one level so the standalone show_prompt.md uses ## as expected by the linter.
+    """
     import re as _re
     m = _re.search(r"^## Swarm Prompt\s*\n(.*?)(?=\n## |\Z)", spec_text, _re.DOTALL | _re.MULTILINE)
     if m:
         prompt_text = m.group(1).strip()
         if prompt_text and "TBD" not in prompt_text and "awaiting" not in prompt_text.lower():
+            # Promote heading levels: ### → ##, #### → ###, etc.
+            prompt_text = _re.sub(r"^###(#*\s)", r"##\1", prompt_text, flags=_re.MULTILINE)
             from backend.services.yaml_util import atomic_write
             atomic_write(show_dir / "show_prompt.md", prompt_text)
 
@@ -164,12 +199,12 @@ def v1_list_threads():
         status_path = d / "status.yaml"
         if not status_path.exists():
             continue
-        status = safe_load_yaml_dict(status_path.read_text())
+        status = safe_load_yaml_dict(status_path.read_text(encoding="utf-8"))
         summary = status.get("summary", "")
         if not summary:
             spec_path = d / "spec.md"
             if spec_path.exists():
-                for line in spec_path.read_text().splitlines():
+                for line in spec_path.read_text(encoding="utf-8").splitlines():
                     line = line.strip()
                     if line.startswith("# ") and not line.startswith("---"):
                         summary = line[2:].strip()
@@ -190,7 +225,7 @@ def v1_get_thread_messages(slug: str):
     notes_path = show_dir / "design_notes.md"
     if not notes_path.exists():
         return {"slug": slug, "messages": []}
-    content = notes_path.read_text()
+    content = notes_path.read_text(encoding="utf-8", errors="replace")
     messages = []
     lines = content.split("\n")
     i = 0
@@ -245,12 +280,12 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
     notes_path = show_dir / "design_notes.md"
     tag_comment = f"<!-- tags: {', '.join(tags)} -->\n"
     entry = f"\n**[user]** {req.message}\n"
-    with open(notes_path, "a") as f:
+    with open(notes_path, "a", encoding="utf-8") as f:
         f.write(tag_comment + entry)
 
     # Build context
     spec_content = read_spec(show_dir) or "(no spec yet)"
-    notes_content = notes_path.read_text() if notes_path.exists() else "(no notes yet)"
+    notes_content = notes_path.read_text(encoding="utf-8", errors="replace") if notes_path.exists() else "(no notes yet)"
     if len(notes_content) > 4000:
         notes_content = "...\n" + notes_content[-4000:]
 
@@ -262,15 +297,17 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
         specialist_inputs: list[str] = []
         for spec_role in sorted(specialist_roles):
             role_prompt = _DESIGN_ROLE_PROMPTS[spec_role]
+            role_context = _get_role_context(notes_path, spec_role)
             system_prompt = _DESIGN_SYSTEM_TEMPLATE.format(
                 role_prompt=role_prompt,
                 slug=slug,
                 spec_content=spec_content[:2000],
+                role_context=role_context,
             )
             spec_text = _llm_chat(llm_client, system_prompt, req.message)
             if spec_text:
                 spec_entry = f"\n<!-- tags: {', '.join(tags)} -->\n**[{spec_role}]** {spec_text}\n"
-                with open(notes_path, "a") as f:
+                with open(notes_path, "a", encoding="utf-8") as f:
                     f.write(spec_entry)
                 responses.append({
                     "role": spec_role,
@@ -286,7 +323,7 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
             specialist_ctx = "Specialist input:\n" + "\n".join(specialist_inputs)
 
         # Re-read notes after specialist writes
-        notes_content = notes_path.read_text() if notes_path.exists() else "(no notes yet)"
+        notes_content = notes_path.read_text(encoding="utf-8", errors="replace") if notes_path.exists() else "(no notes yet)"
         if len(notes_content) > 4000:
             notes_content = "...\n" + notes_content[-4000:]
 
@@ -300,7 +337,7 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
         pc_text = _llm_chat(llm_client, pc_prompt, req.message)
         if pc_text:
             pc_entry = f"\n<!-- tags: {', '.join(tags)} -->\n**[program_coordinator]** {pc_text}\n"
-            with open(notes_path, "a") as f:
+            with open(notes_path, "a", encoding="utf-8") as f:
                 f.write(pc_entry)
             responses.append({
                 "role": "program_coordinator",
@@ -316,7 +353,7 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
             f"(LLM unavailable — connect an LLM backend for full collaborative design sessions.)"
         )
         fb_entry = f"\n<!-- tags: {', '.join(tags)} -->\n**[program_coordinator]** {fallback_text}\n"
-        with open(notes_path, "a") as f:
+        with open(notes_path, "a", encoding="utf-8") as f:
             f.write(fb_entry)
         responses.append({
             "role": "program_coordinator",
@@ -329,7 +366,7 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
     if llm_client and responses:
         try:
             from backend.services.show_persistence import write_spec
-            notes_for_spec = notes_path.read_text() if notes_path.exists() else ""
+            notes_for_spec = notes_path.read_text(encoding="utf-8", errors="replace") if notes_path.exists() else ""
             if len(notes_for_spec) > 5000:
                 notes_for_spec = "...\n" + notes_for_spec[-5000:]
             spec_prompt = _SPEC_UPDATE_TEMPLATE.format(
@@ -352,7 +389,7 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
 
         brief_content = _read_spec(show_dir) or ""
         prompt_path = show_dir / "show_prompt.md"
-        prompt_content = prompt_path.read_text() if prompt_path.exists() else ""
+        prompt_content = prompt_path.read_text(encoding="utf-8") if prompt_path.exists() else ""
 
         brief_report = lint_brief(brief_content)
         prompt_report = lint_prompt(prompt_content)
@@ -371,7 +408,7 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
             if len(issues) > 5:
                 judge_text += f" (+{len(issues) - 5} more)"
             judge_entry = f"\n<!-- tags: admin -->\n**[judge]** {judge_text}\n"
-            with open(notes_path, "a") as f:
+            with open(notes_path, "a", encoding="utf-8") as f:
                 f.write(judge_entry)
             responses.append({
                 "role": "judge",
@@ -411,7 +448,7 @@ def v1_greet_thread(slug: str):
     # Persist greeting to design notes
     notes_path = show_dir / "design_notes.md"
     entry = f"\n<!-- tags: admin -->\n**[program_coordinator]** {text}\n"
-    with open(notes_path, "a") as f:
+    with open(notes_path, "a", encoding="utf-8") as f:
         f.write(entry)
     return {
         "role": "program_coordinator",
@@ -443,7 +480,7 @@ def v1_get_prompt(slug: str):
     """Get the finalized show prompt markdown."""
     show_dir = _show_dir(slug)
     prompt_path = show_dir / "show_prompt.md"
-    content = prompt_path.read_text() if prompt_path.exists() else ""
+    content = prompt_path.read_text(encoding="utf-8") if prompt_path.exists() else ""
     return {"slug": slug, "content": content}
 
 
@@ -461,7 +498,7 @@ def v1_lint_prompt(slug: str):
     """Run prompt linter on current show_prompt.md."""
     show_dir = _show_dir(slug)
     prompt_path = show_dir / "show_prompt.md"
-    content = prompt_path.read_text() if prompt_path.exists() else ""
+    content = prompt_path.read_text(encoding="utf-8") if prompt_path.exists() else ""
     from backend.services.prompt_linter import lint_prompt
     report = lint_prompt(content)
     return {
@@ -496,7 +533,7 @@ def v1_publish_thread(slug: str):
         raise HTTPException(400, "Thread must be approved before publishing")
 
     prompt_path = show_dir / "show_prompt.md"
-    content = prompt_path.read_text() if prompt_path.exists() else ""
+    content = prompt_path.read_text(encoding="utf-8") if prompt_path.exists() else ""
     from backend.services.prompt_linter import lint_prompt
     report = lint_prompt(content)
     if report.required_fix:

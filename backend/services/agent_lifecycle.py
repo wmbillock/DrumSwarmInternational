@@ -253,6 +253,20 @@ def _terminate_session(
     return session
 
 
+def cascade_fail_children(
+    db: Session,
+    parent_session_id: str,
+    error: str = "parent session terminated",
+) -> int:
+    """Transition all ACTIVE child sessions to FAILED when parent dies.
+
+    Delegates to session_guard.cascade_fail_children for the actual logic.
+    Returns the number of children cascade-failed.
+    """
+    from backend.services.session_guard import cascade_fail_children as _cascade
+    return _cascade(db, parent_session_id, error=error)
+
+
 def is_alive(db: Session, session_id: str) -> bool:
     session = db.get(AgentSession, session_id)
     if session is None:

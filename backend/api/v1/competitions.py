@@ -40,16 +40,41 @@ def v1_list_competitions():
     if not seasons_dir.exists():
         return []
     results = []
+    seen_ids: set[str] = set()
     for season_dir in sorted(seasons_dir.iterdir()):
         if not season_dir.is_dir():
             continue
         season_yaml = season_dir / "season.yaml"
         if not season_yaml.is_file():
             continue
-        season_data = safe_load_yaml_dict(season_yaml.read_text())
+        season_data = safe_load_yaml_dict(season_yaml.read_text(encoding="utf-8"))
         season_id = season_data.get("season_id", season_dir.name)
         from backend.services.season_persistence import list_registered_corps
         corps_ids = list_registered_corps(season_dir)
+
+        # Collect competitions from schedule (tour coordinator creates these)
+        schedule = season_data.get("schedule") or []
+        for entry in schedule:
+            cid = entry.get("competition_id")
+            slug = entry.get("show_slug", "")
+            if cid and cid not in seen_ids:
+                entry_corps = entry.get("corps_ids", corps_ids)
+                status = entry.get("status", "pending")
+                if status == "completed":
+                    status = "completed"
+                elif status in ("running", "in_progress"):
+                    status = "active"
+                else:
+                    status = "pending"
+                results.append({
+                    "competition_id": cid,
+                    "season_id": season_id,
+                    "show_slug": slug,
+                    "corps_ids": entry_corps,
+                    "status": status,
+                })
+                seen_ids.add(cid)
+
         # Find shows used in this season by scanning performances
         show_slugs: set[str] = set()
         perf_root = season_dir / "performances"
@@ -61,7 +86,7 @@ def v1_list_competitions():
                     manifest_path = run_dir / "manifest.yaml"
                     if manifest_path.is_file():
                         try:
-                            m = safe_load_yaml_dict(manifest_path.read_text())
+                            m = safe_load_yaml_dict(manifest_path.read_text(encoding="utf-8"))
                             if isinstance(m, dict) and m.get("show_slug"):
                                 show_slugs.add(m["show_slug"])
                         except Exception:
@@ -70,7 +95,7 @@ def v1_list_competitions():
         standings_path = season_dir / "standings.yaml"
         if standings_path.exists():
             try:
-                st = safe_load_yaml_dict(standings_path.read_text())
+                st = safe_load_yaml_dict(standings_path.read_text(encoding="utf-8"))
                 if isinstance(st, dict) and st.get("show_slug"):
                     show_slugs.add(st["show_slug"])
             except Exception:
@@ -83,31 +108,86 @@ def v1_list_competitions():
                 scores_path = corps_dir / "scores.yaml"
                 if scores_path.is_file():
                     try:
-                        sc = safe_load_yaml_dict(scores_path.read_text())
+                        sc = safe_load_yaml_dict(scores_path.read_text(encoding="utf-8"))
                         if isinstance(sc, dict) and sc.get("show_slug"):
                             show_slugs.add(sc["show_slug"])
                     except Exception:
                         pass
-        if not show_slugs:
-            # No shows found — list season as a competition with no show
-            results.append({
-                "competition_id": season_id,
-                "season_id": season_id,
-                "show_slug": "",
-                "corps_ids": corps_ids,
-                "status": "ready",
-            })
-            continue
         for show_slug in show_slugs:
             competition_id = f"{season_id}-{show_slug}"
+            if competition_id in seen_ids:
+                continue
             results.append({
                 "competition_id": competition_id,
                 "season_id": season_id,
                 "show_slug": show_slug,
                 "corps_ids": corps_ids,
-                "status": "completed" if (season_dir / "standings.yaml").exists() else "ready",
+                "status": "completed" if standings_path.exists() else "ready",
             })
+            seen_ids.add(competition_id)
     return results
+
+
+@router.get("/competitions/recent-activity")
+def v1_recent_activity():
+    """Return the most recent completed competition rounds across all seasons."""
+    root = _get_root()
+    seasons_dir = root / "seasons"
+    if not seasons_dir.exists():
+        return []
+
+    completed_rounds: list[dict] = []
+    for season_dir in seasons_dir.iterdir():
+        if not season_dir.is_dir():
+            continue
+        season_yaml = season_dir / "season.yaml"
+        if not season_yaml.is_file():
+            continue
+        data = safe_load_yaml_dict(season_yaml.read_text(encoding="utf-8"))
+        season_id = data.get("season_id", season_dir.name)
+        for entry in (data.get("schedule") or []):
+            if entry.get("status") != "completed":
+                continue
+            standings = entry.get("standings") or []
+            top3 = standings[:3] if isinstance(standings, list) else []
+            completed_rounds.append({
+                "round": entry.get("round"),
+                "competition_id": entry.get("competition_id", ""),
+                "season_id": season_id,
+                "show_slug": entry.get("show_slug", ""),
+                "completed_at": entry.get("completed_at", ""),
+                "top_standings": top3,
+            })
+
+    completed_rounds.sort(key=lambda r: r.get("completed_at") or "", reverse=True)
+    result = completed_rounds[:10]
+
+    # Enrich standings with corps names from DB
+    all_corps_ids = set()
+    for rnd in result:
+        for s in rnd.get("top_standings", []):
+            cid = s.get("corps_id")
+            if cid:
+                all_corps_ids.add(cid)
+    if all_corps_ids:
+        try:
+            from backend.api.v1.helpers import _get_db_session
+            from backend.models.corps import Corps
+            db = _get_db_session()
+            try:
+                corps_rows = db.query(Corps.id, Corps.name).filter(Corps.id.in_(all_corps_ids)).all()
+                name_map = {c.id: c.name for c in corps_rows}
+            finally:
+                db.close()
+            for rnd in result:
+                for s in rnd.get("top_standings", []):
+                    cid = s.get("corps_id")
+                    if cid and cid in name_map:
+                        s["corps_name"] = name_map[cid]
+        except Exception:
+            pass  # Graceful degradation — UUIDs still shown
+
+    return result
 
 
 @router.post("/competitions")
@@ -163,7 +243,7 @@ def v1_create_competition(req: CreateCompetitionRequest):
 
 @router.post("/competitions/{competition_id}/run")
 def v1_run_competition(competition_id: str):
-    """Run a competition heat — deterministic stub scoring + standings."""
+    """Run a competition heat — full scoring pipeline with tapes + critique."""
     root = _get_root()
     season_id, show_slug = _parse_competition_id(competition_id, root)
 
@@ -174,6 +254,11 @@ def v1_run_competition(competition_id: str):
     show_dir = root / "shows" / show_slug
     if not (show_dir / "status.yaml").exists():
         raise HTTPException(404, f"Show '{show_slug}' not found")
+
+    # Validate show_prompt.md exists
+    prompt_path = show_dir / "show_prompt.md"
+    if not prompt_path.exists() or prompt_path.stat().st_size == 0:
+        logger.warning("No show_prompt.md for %s — scoring will use stubs", show_slug)
 
     from backend.services.season_persistence import list_registered_corps
     corps_ids = list_registered_corps(season_dir)
@@ -195,125 +280,35 @@ def v1_run_competition(competition_id: str):
                 finally:
                     db.close()
             except Exception:
-                pass  # Skip corps that can't be found
+                pass
     corps_ids = valid_corps_ids
     if not corps_ids:
         raise HTTPException(400, "No valid corps remaining for this competition")
 
-    from backend.models.score import JudgeType
-    from backend.services.scoring_service import CompositeScore, DEFAULT_WEIGHTS
-    from backend.services.scoring_engine import compute_standings
-    from backend.services.yaml_util import atomic_write, safe_dump_yaml
-
-    from backend.services.judge_service import judge_corps_performance
-
-    # Get LLM client for real judging
     from backend.api.app import get_task_manager
     tm = get_task_manager()
     llm_client = tm.llm_client if tm else None
 
-    composites = {}
-    judge_results_all = {}
-    db = None
+    from backend.services.competition_executor import execute_competition
+    db = _get_db_session()
     try:
-        db = _get_db_session()
-        for cid in corps_ids:
-            judge_results = judge_corps_performance(db, cid, show_slug, llm_client)
-            judge_results_all[cid] = judge_results
-            caption_scores = {jt: jr.total_score for jt, jr in judge_results.items()}
-            raw_total = sum(caption_scores[jt] * DEFAULT_WEIGHTS.get(jt, 0) for jt in caption_scores)
-            composites[cid] = CompositeScore(
-                caption_scores=caption_scores,
-                raw_total=raw_total,
-                penalties_total=0.0,
-                final_score=raw_total,
-                needs_rework=False,
-                needs_escalation=False,
-            )
-
-            # Store scores in DB with rep/perf split
-            from backend.services.scoring_service import record_score
-            for jt, jr in judge_results.items():
-                record_score(
-                    db, corps_id=cid, judge_type=jt,
-                    value=jr.total_score, box=max(1, min(5, int(jr.total_score / 20))),
-                    feedback=jr.feedback,
-                    rep_score=jr.rep_score, perf_score=jr.perf_score,
-                )
+        result = execute_competition(
+            db=db,
+            competition_id=competition_id,
+            season_id=season_id,
+            show_slug=show_slug,
+            corps_ids=corps_ids,
+            season_dir=season_dir,
+            llm_client=llm_client,
+        )
     finally:
-        if db:
-            db.close()
-
-    standings = compute_standings(season_id, DEFAULT_WEIGHTS, composites)
-
-    standings_data = {
-        "season_id": standings.season_id,
-        "generated_at": standings.generated_at,
-        "results": [
-            {
-                "corps_id": r.corps_id,
-                "rank": r.rank,
-                "final_score": r.final_score,
-                "raw_score": r.raw_score,
-                "caption_scores": {jt.value: v for jt, v in r.caption_scores.items()},
-            }
-            for r in standings.results
-        ],
-    }
-    atomic_write(season_dir / "standings.yaml", safe_dump_yaml(standings_data))
-
-    for cid in corps_ids:
-        composite = composites[cid]
-        scores_data = {
-            "corps_id": cid,
-            "show_slug": show_slug,
-            "caption_scores": {jt.value: v for jt, v in composite.caption_scores.items()},
-            "raw_total": composite.raw_total,
-            "final_score": composite.final_score,
-        }
-        perf_dir = season_dir / "performances" / cid
-        atomic_write(perf_dir / "scores.yaml", safe_dump_yaml(scores_data))
-
-    from backend.services.reputation import record_corps_placement
-    for r in standings.results:
-        corps_dir = root / "corps" / r.corps_id
-        if corps_dir.exists():
-            record_corps_placement(corps_dir, season_id, r.rank, r.final_score,
-                                   notes=f"show:{show_slug}")
-
-    # Persist critique markdown per corps
-    from backend.services.judge_service import generate_judges_tape, export_tape_markdown
-    critique_db = _get_db_session()
-    try:
-        for cid in corps_ids:
-            perf_dir = season_dir / "performances" / cid
-            perf_dir.mkdir(parents=True, exist_ok=True)
-            round_num = _next_critique_round(perf_dir)
-            tape = generate_judges_tape(critique_db, competition_id, cid, llm_client)
-            critique_md = export_tape_markdown(tape)
-            atomic_write(perf_dir / f"critique_round_{round_num}.md", critique_md)
-    finally:
-        critique_db.close()
-
-    # Auto-critique bottom 75% corps
-    auto_critique_summary = {}
-    try:
-        from backend.services.auto_critique import run_auto_critique
-        critique_db = _get_db_session()
-        try:
-            auto_critique_summary = run_auto_critique(
-                critique_db, competition_id, standings_data["results"], llm_client
-            )
-        finally:
-            critique_db.close()
-    except Exception as e:
-        logger.warning("Auto-critique failed: %s", e)
+        db.close()
 
     return {
         "competition_id": competition_id,
         "status": "completed",
-        "standings": standings_data["results"],
-        "auto_critique_summary": auto_critique_summary,
+        "standings": result["standings_data"]["results"],
+        "auto_critique_summary": result.get("auto_critique_summary", {}),
     }
 
 
@@ -337,7 +332,7 @@ async def v1_dispatch_competition(competition_id: str):
     if not prompt_path.exists() or prompt_path.stat().st_size == 0:
         raise HTTPException(400, f"Show '{show_slug}' has no show_prompt.md — run Design Room first")
 
-    show_prompt = prompt_path.read_text()
+    show_prompt = prompt_path.read_text(encoding="utf-8")
 
     from backend.services.season_persistence import list_registered_corps
     corps_ids = list_registered_corps(season_dir)
@@ -392,13 +387,41 @@ def v1_get_competition_scores(competition_id: str):
     """Retrieve scores/standings for a completed competition."""
     root = _get_root()
     season_id, _show_slug = _parse_competition_id(competition_id, root)
+    season_dir = root / "seasons" / season_id
 
-    standings_path = root / "seasons" / season_id / "standings.yaml"
-    if not standings_path.exists():
+    standings = None
+
+    # 1. Try per-round standings file (written by tour_coordinator)
+    per_round_path = season_dir / f"standings_{competition_id}.yaml"
+    if per_round_path.is_file():
+        standings = safe_load_yaml_dict(per_round_path.read_text(encoding="utf-8"))
+
+    # 2. Try schedule entry embedded standings (tour_coordinator saves here)
+    if not standings or not standings.get("results"):
+        season_yaml = season_dir / "season.yaml"
+        if season_yaml.is_file():
+            season_data = safe_load_yaml_dict(season_yaml.read_text(encoding="utf-8"))
+            for entry in (season_data.get("schedule") or []):
+                if entry.get("competition_id") == competition_id and entry.get("standings"):
+                    standings = {
+                        "season_id": season_id,
+                        "show_slug": entry.get("show_slug", _show_slug),
+                        "generated_at": entry.get("completed_at", ""),
+                        "results": entry["standings"],
+                    }
+                    break
+
+    # 3. Fall back to global standings.yaml (legacy / non-round competitions)
+    if not standings or not standings.get("results"):
+        standings_path = season_dir / "standings.yaml"
+        if standings_path.is_file():
+            standings = safe_load_yaml_dict(standings_path.read_text(encoding="utf-8"))
+
+    if not standings or not standings.get("results"):
         raise HTTPException(404, "Standings not found — competition may not have run yet")
-    standings = safe_load_yaml_dict(standings_path.read_text())
+
     standings["competition_id"] = competition_id
-    standings["show_slug"] = _show_slug
+    standings["show_slug"] = standings.get("show_slug", _show_slug)
 
     # Resolve corps_id → display_name for each result
     if "results" in standings:
@@ -410,7 +433,7 @@ def v1_get_competition_scores(competition_id: str):
                 corps_yaml = root / "corps" / cid / "corps.yaml"
                 if corps_yaml.is_file():
                     try:
-                        data = safe_load_yaml_dict(corps_yaml.read_text())
+                        data = safe_load_yaml_dict(corps_yaml.read_text(encoding="utf-8"))
                         corps_name_cache[cid] = data.get("display_name", cid)
                     except Exception:
                         corps_name_cache[cid] = cid
@@ -442,7 +465,7 @@ def v1_get_corps_breakdown(competition_id: str, corps_id: str):
     if not scores_path.exists():
         raise HTTPException(404, "Scores not found for this corps in this competition")
 
-    data = safe_load_yaml_dict(scores_path.read_text())
+    data = safe_load_yaml_dict(scores_path.read_text(encoding="utf-8"))
     caption_scores_raw = data.get("caption_scores", {})
 
     from backend.services.scoring_service import DEFAULT_WEIGHTS
@@ -611,7 +634,9 @@ def v1_get_recap(competition_id: str, format: str = "json"):
 
     rows = generate_recap_sheet(season_id, show_slug)
     if not rows:
-        raise HTTPException(404, "No standings data for this competition")
+        if format == "json":
+            return []
+        rows = []
 
     if format == "markdown":
         return {"markdown": export_recap_markdown(rows)}

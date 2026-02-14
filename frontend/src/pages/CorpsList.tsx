@@ -29,7 +29,9 @@ function getCorpsColors(c: v1.V1Corps): { primary: string; secondary: string; te
   const theme = c.theme_id ? CORPS_THEMES[c.theme_id] : undefined;
   const primary = theme?.primary || "var(--accent, #58a6ff)";
   const secondary = theme?.secondary || "var(--bg-secondary, #1a1a2e)";
-  const textColor = theme?.primary ? (luminance(theme.primary) < 0.15 ? "#e0e0e0" : "#1a1a2e") : "var(--text-primary, #e0e0e0)";
+  // Card background is always near-transparent (~7% opacity), so text should
+  // always use the page's text color to guarantee contrast.
+  const textColor = "var(--text-primary, #e0e0e0)";
   return { primary, secondary, textColor };
 }
 
@@ -108,6 +110,14 @@ export function CorpsList() {
                 }}
               >
                 <div className="corps-list-header">
+                  {(c as any).logo_path && (
+                    <img
+                      src={`/generated_images/${(c as any).logo_path.split("/").pop()}`}
+                      alt=""
+                      style={{ width: 28, height: 28, borderRadius: 4, objectFit: "cover", flexShrink: 0 }}
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                    />
+                  )}
                   <span className="corps-list-name">{c.display_name}</span>
                   <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                     <span className="badge">Staff {c.staff_count ?? 0}</span>

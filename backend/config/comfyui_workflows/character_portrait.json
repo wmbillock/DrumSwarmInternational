@@ -1,0 +1,12 @@
+{
+  "description": "Agent and character portrait illustrations",
+  "category": "character_portrait",
+  "prompt_template": "character portrait, detailed face, {description}, professional headshot style, dramatic lighting, confident expression, high quality illustration",
+  "negative_prompt": "text, watermark, low quality, blurry, deformed, extra limbs, bad anatomy, disfigured",
+  "width": 768,
+  "height": 1024,
+  "steps": 25,
+  "cfg_scale": 7.0,
+  "recommended_models": ["sd_xl_base_1.0.safetensors"],
+  "upgrade_models": ["portrait-xl LoRA"]
+}

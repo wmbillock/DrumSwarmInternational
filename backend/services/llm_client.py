@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 # Model tier -> actual model ID mapping (Anthropic)
 MODEL_TIER_MAP = {
-    ModelTier.OPUS: "claude-opus-4-5-20251101",
+    ModelTier.OPUS: "claude-opus-4-6",
     ModelTier.SONNET: "claude-sonnet-4-5-20250929",
     ModelTier.HAIKU: "claude-haiku-4-5-20251001",
 }
@@ -86,7 +86,13 @@ class LLMClient(ABC):
         tools: Optional[list[dict]] = None,
         **kwargs,
     ) -> LLMResponse:
-        """Send messages to the LLM and get a response."""
+        """Send messages to the LLM and get a response.
+
+        Kwargs:
+            model_override: Optional model ID string. When provided, use this
+                specific model instead of the tier-based mapping. Allows
+                ModelSpec-driven selection to bypass the coarse tier system.
+        """
         ...
 
     @property
@@ -157,6 +163,7 @@ class AnthropicLLMClient(LLMClient):
         tools: Optional[list[dict]] = None,
         **kwargs,
     ) -> LLMResponse:
+        model_override = kwargs.pop("model_override", None)
         batchable = bool(kwargs.pop("batchable", False))
         allow_deferred = bool(kwargs.pop("allow_deferred", False))
         workload = str(kwargs.pop("workload", "default"))
@@ -172,7 +179,7 @@ class AnthropicLLMClient(LLMClient):
                 submit_batch=submit_batch,
             )
 
-        return self._chat_sync(messages, model_tier, tools)
+        return self._chat_sync(messages, model_tier, tools, model_override=model_override)
 
     def submit_batch(self) -> Optional[str]:
         return self._submit_batch(force=True)
@@ -194,8 +201,9 @@ class AnthropicLLMClient(LLMClient):
         messages: list[LLMMessage],
         model_tier: ModelTier,
         tools: Optional[list[dict]] = None,
+        model_override: Optional[str] = None,
     ) -> LLMResponse:
-        model_id = MODEL_TIER_MAP[model_tier]
+        model_id = model_override or MODEL_TIER_MAP[model_tier]
         api_kwargs = self._build_api_kwargs(messages, model_id, tools)
         response = self._client.messages.create(**api_kwargs)
         return self._parse_response(response)
@@ -424,13 +432,8 @@ Available tools:
 """
 
     def __init__(self, max_budget_usd: Optional[float] = None):
-        # Auto-inject from budget config if not explicitly set
-        if max_budget_usd is None:
-            try:
-                from backend.services.budget_manager import get_budget_manager
-                max_budget_usd = get_budget_manager().config.max_session_spend_usd
-            except Exception:
-                pass
+        # Budget caps disabled — API providers handle their own rate limits.
+        # The budget manager still tracks spend for observability but doesn't gate sessions.
         self.max_budget_usd = max_budget_usd
         self._project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         self._active_sessions: set[str] = set()  # session IDs that have been initialized
@@ -498,7 +501,8 @@ Available tools:
             elif msg.role == "user":
                 user_content = msg.content  # take last user message
 
-        model_alias = self.MODEL_ALIAS.get(model_tier, "sonnet")
+        model_override = kwargs.pop("model_override", None)
+        model_alias = model_override or self.MODEL_ALIAS.get(model_tier, "sonnet")
 
         cmd = [
             "claude",
@@ -568,8 +572,12 @@ Available tools:
             try:
                 stdout, stderr = proc.communicate(timeout=_effective_timeout)
             except subprocess.TimeoutExpired:
-                proc.kill()
-                proc.wait()
+                from backend.services.process_registry import _kill_tree
+                _kill_tree(proc.pid)
+                try:
+                    proc.wait(timeout=5)
+                except Exception:
+                    pass
                 return LLMResponse(content=f"Error: Claude CLI timed out after {_effective_timeout}s", stop_reason="error")
             finally:
                 _registry.unregister(proc.pid)
@@ -602,12 +610,17 @@ Available tools:
                         stderr=subprocess.PIPE,
                         text=True,
                         cwd=self._project_root,
+                        env=env,
                     )
                     try:
                         stdout, stderr = proc2.communicate(timeout=_effective_timeout)
                     except subprocess.TimeoutExpired:
-                        proc2.kill()
-                        proc2.wait()
+                        from backend.services.process_registry import _kill_tree
+                        _kill_tree(proc2.pid)
+                        try:
+                            proc2.wait(timeout=5)
+                        except Exception:
+                            pass
                         return LLMResponse(content=f"Error: Claude CLI timed out after {_effective_timeout}s", stop_reason="error")
                     finally:
                         _registry.unregister(proc2.pid)
@@ -700,7 +713,8 @@ class OpenAIClient(LLMClient):
         tools: Optional[list[dict]] = None,
         **kwargs,
     ) -> LLMResponse:
-        model_id = self.OPENAI_MODEL_MAP.get(model_tier, "gpt-4o-mini")
+        model_override = kwargs.pop("model_override", None)
+        model_id = model_override or self.OPENAI_MODEL_MAP.get(model_tier, "gpt-4o-mini")
 
         # Convert messages
         oai_messages = []
@@ -804,9 +818,9 @@ class OllamaClient(LLMClient):
     """
 
     OLLAMA_MODEL_MAP = {
-        ModelTier.OPUS: "llama3.1:70b",
-        ModelTier.SONNET: "llama3.1:8b",
-        ModelTier.HAIKU: "llama3.2:3b",
+        ModelTier.OPUS: "qwen3-coder:30b",  # Best quality coding model
+        ModelTier.SONNET: "qwen3-coder:30b",  # Good balance for coding
+        ModelTier.HAIKU: "deepseek-coder:6.7b",  # Fast coding model
     }
 
     def __init__(self, base_url: str = "http://localhost:11434"):
@@ -857,7 +871,8 @@ class OllamaClient(LLMClient):
         import urllib.request
         import urllib.error
 
-        model = self._get_best_model(model_tier)
+        model_override = kwargs.pop("model_override", None)
+        model = model_override or self._get_best_model(model_tier)
 
         # Convert messages to Ollama format
         ollama_messages = []
@@ -1000,10 +1015,12 @@ class MockLLMClient(LLMClient):
         tools: Optional[list[dict]] = None,
         **kwargs,
     ) -> LLMResponse:
+        model_override = kwargs.pop("model_override", None)
         self.calls.append({
             "messages": messages,
             "model_tier": model_tier,
-            "model_id": MODEL_TIER_MAP[model_tier],
+            "model_id": model_override or MODEL_TIER_MAP[model_tier],
+            "model_override": model_override,
             "tools": tools,
         })
         if self._responses:
@@ -1049,7 +1066,13 @@ class RetryingClient(LLMClient):
     ) -> LLMResponse:
         last_response = None
         for attempt in range(self._max_retries + 1):
-            response = self._client.chat(messages, model_tier, tools, **kwargs)
+            try:
+                response = self._client.chat(messages, model_tier, tools, **kwargs)
+            except Exception as exc:
+                response = LLMResponse(
+                    content=f"Error: {type(exc).__name__}: {exc}",
+                    stop_reason="error",
+                )
             if response.stop_reason != "error":
                 return response
 
@@ -1186,7 +1209,14 @@ class SmartRouter(LLMClient):
             if name in self._stats:
                 self._stats[name].requests += 1
 
-            response = client.chat(messages, model_tier, tools, **kwargs)
+            try:
+                response = client.chat(messages, model_tier, tools, **kwargs)
+            except Exception as exc:
+                logger.warning("Provider %s raised exception: %s", name, exc)
+                response = LLMResponse(
+                    content=f"Error: {type(exc).__name__}: {exc}",
+                    stop_reason="error",
+                )
 
             if response.stop_reason != "error":
                 self.last_used_provider = name
@@ -1298,7 +1328,7 @@ class CircuitBreakerLLMClient(SmartRouter):
 # ---------------------------------------------------------------------------
 
 
-def build_llm_client() -> LLMClient:
+def build_llm_client(force_mock: bool = False) -> LLMClient:
     """Build the best available LLM client chain.
 
     Discovers all available providers and wraps them in a SmartRouter
@@ -1306,17 +1336,37 @@ def build_llm_client() -> LLMClient:
 
     Returns a single LLMClient that transparently handles routing,
     retries, and failover.
+
+    If force_mock is True, returns MockLLMClient immediately (for tests).
     """
+    if force_mock:
+        return MockLLMClient()
+
     import shutil
 
     providers: list[tuple[str, LLMClient]] = []
 
-    # 1. Claude CLI (highest priority for simple text)
+    # 1. Anthropic API (highest priority — direct, reliable, no context injection)
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        providers.append(("anthropic-api", AnthropicLLMClient()))
+        logger.info("LLM provider available: Anthropic API")
+
+    # 2. OpenAI API
+    if os.environ.get("OPENAI_API_KEY"):
+        providers.append(("openai-api", OpenAIClient()))
+        logger.info("LLM provider available: OpenAI API")
+
+    # 3. Ollama (local — free, no API limits)
+    if OllamaClient.is_available():
+        providers.append(("ollama", OllamaClient()))
+        logger.info("LLM provider available: Ollama (local)")
+
+    # 4. Claude CLI (deprioritized — injects CLAUDE.md and full agent context)
     if shutil.which("claude"):
         providers.append(("claude-cli", ClaudeCLIClient()))
-        logger.info("LLM provider available: Claude CLI")
+        logger.info("LLM provider available: Claude CLI (deprioritized)")
 
-    # 2. GitHub Copilot CLI
+    # 5. GitHub Copilot CLI
     if shutil.which("gh"):
         import subprocess as _sp
         try:
@@ -1326,37 +1376,27 @@ def build_llm_client() -> LLMClient:
         except Exception:
             pass
 
-    # 3. Anthropic API (highest priority for complex requests)
-    if os.environ.get("ANTHROPIC_API_KEY"):
-        providers.append(("anthropic-api", AnthropicLLMClient()))
-        logger.info("LLM provider available: Anthropic API")
-
-    # 3. Codex CLI (OpenAI's agent CLI)
+    # 6. Codex CLI (OpenAI's agent CLI)
     if shutil.which("codex"):
         providers.append(("codex-cli", ChatGPTCLIClient(command="codex")))
         logger.info("LLM provider available: Codex CLI")
-    # 3b. ChatGPT CLI (fallback if codex not found)
+    # 6b. ChatGPT CLI (fallback if codex not found)
     elif shutil.which("chatgpt"):
         providers.append(("chatgpt-cli", ChatGPTCLIClient()))
         logger.info("LLM provider available: ChatGPT CLI")
-
-    # 4. OpenAI API
-    if os.environ.get("OPENAI_API_KEY"):
-        providers.append(("openai-api", OpenAIClient()))
-        logger.info("LLM provider available: OpenAI API")
-
-    # 5. Ollama (local fallback)
-    if OllamaClient.is_available():
-        providers.append(("ollama", OllamaClient()))
-        logger.info("LLM provider available: Ollama (local)")
 
     if not providers:
         logger.warning("No LLM providers available — using MockLLMClient")
         return MockLLMClient()
 
     # Wrap each provider with retry logic and create smart router
+    # CLI clients get 1 retry (they work or they don't), API clients get 5
     wrapped = [
-        (name, RetryingClient(client, max_retries=5, base_delay=1.0))
+        (name, RetryingClient(
+            client,
+            max_retries=1 if name.endswith("-cli") else 5,
+            base_delay=1.0,
+        ))
         for name, client in providers
     ]
 

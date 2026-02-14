@@ -215,6 +215,11 @@ def build_parser() -> argparse.ArgumentParser:
     ss_binder = seance_sub.add_parser("binder", help="Print resolved artifact list")
     ss_binder.add_argument("seance_id", help="Seance ID")
 
+    # --- dashboard ---
+    dash = sub.add_parser("dashboard", help="Launch cross-platform TUI dashboard")
+    dash.add_argument("--terminal", action="store_true", help="Enable embedded terminal pane (split view)")
+    dash.add_argument("--refresh", type=int, default=3, help="Refresh interval in seconds")
+
     # --- doctor ---
     doc = sub.add_parser("doctor", help="Validate repo layout and environment")
     doc.add_argument("--json", action="store_true", dest="json_output", help="Machine-readable JSON output")
@@ -237,6 +242,11 @@ def main(argv=None):
         sys.exit(0)
 
     # Commands that run without a client (filesystem-only)
+    if args.command == "dashboard":
+        from backend.tui.app import main as tui_main
+        tui_main()
+        return
+
     if args.command == "doctor":
         from backend.cli.commands.doctor import cmd_doctor
         cmd_doctor(args)

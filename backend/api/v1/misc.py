@@ -232,6 +232,57 @@ def v1_seance_query(payload: dict):
         db.close()
 
 
+# --- Operations tracking ---
+
+@router.get("/operations")
+def v1_list_operations(status: str = "", limit: int = 20):
+    """List recent operations, optionally filtered by status."""
+    from backend.models.operation import Operation, OperationStatus
+    db = _get_db_session()
+    try:
+        q = db.query(Operation).order_by(Operation.created_at.desc())
+        if status:
+            try:
+                q = q.filter(Operation.status == OperationStatus(status))
+            except ValueError:
+                pass
+        ops = q.limit(limit).all()
+        return [op.to_dict() for op in ops]
+    finally:
+        db.close()
+
+
+@router.get("/operations/active")
+def v1_active_operations():
+    """Get all pending/running operations — used by frontend polling."""
+    from backend.models.operation import Operation, OperationStatus
+    db = _get_db_session()
+    try:
+        ops = (
+            db.query(Operation)
+            .filter(Operation.status.in_([OperationStatus.PENDING, OperationStatus.RUNNING]))
+            .order_by(Operation.created_at.desc())
+            .all()
+        )
+        return [op.to_dict() for op in ops]
+    finally:
+        db.close()
+
+
+@router.get("/operations/{operation_id}")
+def v1_get_operation(operation_id: str):
+    """Get a single operation's status."""
+    from backend.models.operation import Operation
+    db = _get_db_session()
+    try:
+        op = db.get(Operation, operation_id)
+        if not op:
+            raise HTTPException(404, "Operation not found")
+        return op.to_dict()
+    finally:
+        db.close()
+
+
 @router.get("/sessions/{session_id}/activity")
 def v1_session_activity(session_id: str):
     """Get activity log for a session."""

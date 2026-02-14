@@ -1,0 +1,12 @@
+{
+  "description": "Photorealistic portraits and scenes",
+  "category": "photo_realistic",
+  "prompt_template": "photorealistic, high quality photograph, {description}, professional photography, natural lighting, sharp focus, detailed, 8k resolution",
+  "negative_prompt": "cartoon, anime, painting, drawing, illustration, low quality, blurry, watermark, deformed, extra limbs, bad anatomy",
+  "width": 1024,
+  "height": 1024,
+  "steps": 30,
+  "cfg_scale": 7.0,
+  "recommended_models": ["sd_xl_base_1.0.safetensors"],
+  "upgrade_models": ["juggernaut-xl, realistic-vision-xl"]
+}

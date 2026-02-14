@@ -10,7 +10,7 @@ import { RunDetail } from "./pages/RunDetail";
 import { AdminChat } from "./pages/AdminChat";
 import { Templates } from "./pages/Templates";
 import { Performers } from "./pages/Performers";
-import { Seance } from "./pages/Seance";
+// Seance is now embedded in CorpsDetailV2 (seance tab)
 import { DesignRoom } from "./pages/DesignRoom";
 import { JudgingCritique } from "./pages/JudgingCritique";
 import { EvolutionTalentPool } from "./pages/EvolutionTalentPool";
@@ -21,7 +21,6 @@ import { SeasonWorkshop } from "./pages/SeasonWorkshop";
 import { Settings } from "./pages/Settings";
 import { SystemHealth } from "./pages/SystemHealth";
 import { SystemHealthDashboard } from "./pages/SystemHealthDashboard";
-import { SystemHealthDashboard } from "./pages/SystemHealthDashboard";
 import MessageInbox from "./pages/MessageInbox";
 import MessageArchive from "./pages/MessageArchive";
 import MessageAdmin from "./pages/MessageAdmin";
@@ -29,10 +28,12 @@ import { StaffMarketplace } from "./pages/StaffMarketplace";
 import { ScoreboardsPage } from "./pages/ScoreboardsPage";
 import PerformanceExplorer from "./pages/PerformanceExplorer";
 import MetricsDashboard from "./pages/MetricsDashboard";
+import { ShowDetail } from "./pages/ShowDetail";
 import { TourDashboard } from "./pages/TourDashboard";
 import { CompetitionLive } from "./pages/CompetitionLive";
 import { Finals } from "./pages/Finals";
 import { CritiquePage } from "./pages/CritiquePage";
+import { SwarmHealthPage } from "./pages/SwarmHealthPage";
 
 export const router = createBrowserRouter([
   {
@@ -42,6 +43,7 @@ export const router = createBrowserRouter([
       { path: "/design", element: <DesignRoom /> },
       { path: "/design/:showSlug", element: <DesignRoom /> },
       { path: "/shows", element: <ShowLibrary /> },
+      { path: "/shows/:slug", element: <ShowDetail /> },
       { path: "/seasons", element: <SeasonWorkshop /> },
       { path: "/seasons/:seasonId", element: <SeasonWorkshop /> },
       { path: "/tour", element: <TourDashboard /> },
@@ -56,15 +58,15 @@ export const router = createBrowserRouter([
       { path: "/", element: <CommandCenter /> },
       { path: "/settings", element: <Settings /> },
 
+      // Swarm Health (unified dashboard)
+      { path: "/swarm-health", element: <SwarmHealthPage /> },
+
       // System & Messages (top nav)
       { path: "/system", element: <SystemHealth /> },
-      { path: "/system-health", element: <SystemHealthDashboard /> },
-      { path: "/system-health", element: <SystemHealthDashboard /> },
       { path: "/messages/inbox", element: <MessageInbox /> },
       { path: "/messages/archive", element: <MessageArchive /> },
       { path: "/messages/admin", element: <MessageAdmin /> },
       { path: "/scoreboards", element: <ScoreboardsPage /> },
-      { path: "/metrics", element: <MetricsDashboard /> },
       { path: "/metrics/explorer", element: <PerformanceExplorer /> },
 
       // Legacy routes — still accessible via deep links
@@ -75,7 +77,7 @@ export const router = createBrowserRouter([
       { path: "/admin", element: <AdminChat /> },
       { path: "/templates", element: <Templates /> },
       { path: "/performers", element: <Performers /> },
-      { path: "/seance", element: <Seance /> },
+      { path: "/seance", element: <Navigate to="/corps" replace /> },
       { path: "/judging", element: <JudgingCritique /> },
       { path: "/judging/:corpsId", element: <JudgingCritique /> },
       { path: "/critique/:competitionId/:corpsId", element: <CritiquePage /> },
@@ -88,6 +90,8 @@ export const router = createBrowserRouter([
       // Redirects from old routes
       { path: "/competitions", element: <Navigate to="/tour" replace /> },
       { path: "/competitions/:competitionId", element: <Navigate to="/tour" replace /> },
+      { path: "/system-health", element: <Navigate to="/swarm-health" replace /> },
+      { path: "/metrics", element: <Navigate to="/swarm-health" replace /> },
     ],
   },
 ]);

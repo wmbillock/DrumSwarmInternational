@@ -1,0 +1,384 @@
+season_id: lets-gooooo-1
+metadata:
+  name: Lets gooooo 1
+  status: completed
+  winner: null
+shows:
+- be-able-to-click-into-a-corps-detail-page-from-an-entry-on-the-performance-stats-scoreboards-page
+- corps-auto-staffing-with-visible-hiring
+- corps-lifecycle-redesign
+- corps-logo-generation
+- divisions-and-competition-classes
+- implement-caption-awards-an-achievement-system-which-awards-humorous-achievements-at-significant-activity-milestones-corps-can-earn-caption-awards-as-can-individual-performers-and-staff-members
+- ui-usability-quick-start-tooltips-next-actions-css-fix
+- wire-up-the-trophy-system
+divisions:
+  be-able-to-click-into-a-corps-detail-page-from-an-entry-on-the-performance-stats-scoreboards-page:
+  - 0857c9cd-ab79-414c-810f-698392bab1e6
+  - 3eb60a4b-8ceb-4f95-bf30-ed15184a445d
+  - 4bfd7b68-2260-4b69-b389-9a8eda907da1
+  - 5adef4c9-0202-40a4-a0c3-9575829cc2cf
+  - 66b819e1-3c06-4182-814e-0fc8d55d3ea0
+  - 914f78aa-0d75-400d-bc9c-2c5a658149e3
+  - 9f5170f4-0f5b-45c3-bb54-b5fd7a4dc5d8
+  - c5f1d328-685a-4c60-9c8c-fd880e516571
+  - f36c6c19-04a6-48ea-996d-6cec06b73a42
+  - fc11e2a2-72fb-42d7-8b18-7731203b631f
+  corps-auto-staffing-with-visible-hiring:
+  - 914f78aa-0d75-400d-bc9c-2c5a658149e3
+  - ec4c11f9-faaa-4113-86b3-902d19200bcb
+  - pit-happens
+  - quiet-trumpets
+  - toss-and-pray
+  corps-lifecycle-redesign:
+  - 3eb60a4b-8ceb-4f95-bf30-ed15184a445d
+  - 4bfd7b68-2260-4b69-b389-9a8eda907da1
+  - 66b819e1-3c06-4182-814e-0fc8d55d3ea0
+  - 9f5170f4-0f5b-45c3-bb54-b5fd7a4dc5d8
+  - fc11e2a2-72fb-42d7-8b18-7731203b631f
+  corps-logo-generation:
+  - 0857c9cd-ab79-414c-810f-698392bab1e6
+  - 5adef4c9-0202-40a4-a0c3-9575829cc2cf
+  - c5f1d328-685a-4c60-9c8c-fd880e516571
+  - ec4c11f9-faaa-4113-86b3-902d19200bcb
+  - f36c6c19-04a6-48ea-996d-6cec06b73a42
+  divisions-and-competition-classes:
+  - 66b819e1-3c06-4182-814e-0fc8d55d3ea0
+  - 914f78aa-0d75-400d-bc9c-2c5a658149e3
+  - pit-happens
+  - quiet-trumpets
+  - toss-and-pray
+  ? implement-caption-awards-an-achievement-system-which-awards-humorous-achievements-at-significant-activity-milestones-corps-can-earn-caption-awards-as-can-individual-performers-and-staff-members
+  : - 0857c9cd-ab79-414c-810f-698392bab1e6
+    - 3eb60a4b-8ceb-4f95-bf30-ed15184a445d
+    - 4bfd7b68-2260-4b69-b389-9a8eda907da1
+    - 9f5170f4-0f5b-45c3-bb54-b5fd7a4dc5d8
+    - fc11e2a2-72fb-42d7-8b18-7731203b631f
+  ui-usability-quick-start-tooltips-next-actions-css-fix:
+  - 5adef4c9-0202-40a4-a0c3-9575829cc2cf
+  - c5f1d328-685a-4c60-9c8c-fd880e516571
+  - ec4c11f9-faaa-4113-86b3-902d19200bcb
+  - f36c6c19-04a6-48ea-996d-6cec06b73a42
+  - pit-happens
+  wire-up-the-trophy-system:
+  - quiet-trumpets
+  - toss-and-pray
+config:
+  corps_per_contest: 5
+  required_scores: 3
+  auto_advance: true
+schedule:
+- round: 1
+  competition_id: lets-gooooo-1-round-1
+  show_slug: be-able-to-click-into-a-corps-detail-page-from-an-entry-on-the-performance-stats-scoreboards-page
+  corps_ids:
+  - toss-and-pray
+  - 0857c9cd-ab79-414c-810f-698392bab1e6
+  - 914f78aa-0d75-400d-bc9c-2c5a658149e3
+  - fc11e2a2-72fb-42d7-8b18-7731203b631f
+  - 3eb60a4b-8ceb-4f95-bf30-ed15184a445d
+  status: completed
+  completed_at: '2026-02-14T08:43:22.407681+00:00'
+  standings:
+  - corps_id: 914f78aa-0d75-400d-bc9c-2c5a658149e3
+    rank: 1
+    final_score: 70.955
+    raw_score: 70.955
+    caption_scores:
+      guard: 41.5
+      visual: 83.5
+      brass: 70.0
+      ensemble_technique: 70.0
+      general_effect: 89.0
+      percussion: 70.0
+  - corps_id: fc11e2a2-72fb-42d7-8b18-7731203b631f
+    rank: 2
+    final_score: 65.8
+    raw_score: 65.8
+    caption_scores:
+      guard: 41.5
+      general_effect: 93.5
+      ensemble_technique: 0.0
+      visual: 86.5
+      brass: 93.5
+      percussion: 70.0
+  - corps_id: 3eb60a4b-8ceb-4f95-bf30-ed15184a445d
+    rank: 3
+    final_score: 61.9
+    raw_score: 61.9
+    caption_scores:
+      brass: 40.0
+      guard: 70.0
+      ensemble_technique: 38.5
+      general_effect: 70.0
+      visual: 86.5
+      percussion: 68.5
+  - corps_id: 0857c9cd-ab79-414c-810f-698392bab1e6
+    rank: 4
+    final_score: 60.0
+    raw_score: 60.0
+    caption_scores:
+      guard: 41.5
+      visual: 83.5
+      general_effect: 93.5
+      ensemble_technique: 0.0
+      brass: 90.0
+      percussion: 41.5
+  - corps_id: toss-and-pray
+    rank: 5
+    final_score: 53.480000000000004
+    raw_score: 53.480000000000004
+    caption_scores:
+      guard: 41.5
+      visual: 86.5
+      ensemble_technique: 0.0
+      general_effect: 80.0
+      brass: 68.5
+      percussion: 40.0
+- round: 2
+  competition_id: lets-gooooo-1-round-2
+  show_slug: corps-auto-staffing-with-visible-hiring
+  corps_ids:
+  - ec4c11f9-faaa-4113-86b3-902d19200bcb
+  - pit-happens
+  - 9f5170f4-0f5b-45c3-bb54-b5fd7a4dc5d8
+  - 914f78aa-0d75-400d-bc9c-2c5a658149e3
+  - 4bfd7b68-2260-4b69-b389-9a8eda907da1
+  status: completed
+  completed_at: '2026-02-14T09:39:27.678071+00:00'
+  standings:
+  - corps_id: 9f5170f4-0f5b-45c3-bb54-b5fd7a4dc5d8
+    rank: 1
+    final_score: 51.67
+    raw_score: 51.67
+    caption_scores:
+      guard: 40.0
+      visual: 38.5
+      general_effect: 68.5
+      ensemble_technique: 41.5
+      percussion: 41.5
+      brass: 70.0
+  - corps_id: ec4c11f9-faaa-4113-86b3-902d19200bcb
+    rank: 2
+    final_score: 48.67
+    raw_score: 48.67
+    caption_scores:
+      visual: 70.0
+      guard: 40.0
+      brass: 38.5
+      ensemble_technique: 31.5
+      general_effect: 70.0
+      percussion: 40.0
+  - corps_id: 914f78aa-0d75-400d-bc9c-2c5a658149e3
+    rank: 3
+    final_score: 45.400000000000006
+    raw_score: 45.400000000000006
+    caption_scores:
+      guard: 30.0
+      visual: 40.0
+      percussion: 40.0
+      general_effect: 41.5
+      ensemble_technique: 41.5
+      brass: 78.5
+  - corps_id: 4bfd7b68-2260-4b69-b389-9a8eda907da1
+    rank: 4
+    final_score: 45.035000000000004
+    raw_score: 45.035000000000004
+    caption_scores:
+      visual: 70.0
+      guard: 41.5
+      brass: 41.5
+      ensemble_technique: 41.5
+      percussion: 70.0
+      general_effect: 20.0
+  - corps_id: pit-happens
+    rank: 5
+    final_score: 41.5
+    raw_score: 41.5
+    caption_scores:
+      brass: 41.5
+      guard: 41.5
+      percussion: 41.5
+      ensemble_technique: 41.5
+      general_effect: 41.5
+      visual: 41.5
+- round: 3
+  competition_id: lets-gooooo-1-round-3
+  show_slug: corps-lifecycle-redesign
+  corps_ids:
+  - toss-and-pray
+  - 914f78aa-0d75-400d-bc9c-2c5a658149e3
+  - 66b819e1-3c06-4182-814e-0fc8d55d3ea0
+  - 9f5170f4-0f5b-45c3-bb54-b5fd7a4dc5d8
+  - 0857c9cd-ab79-414c-810f-698392bab1e6
+  status: completed
+  completed_at: '2026-02-14T09:40:30.914070+00:00'
+  standings: []
+- round: 4
+  competition_id: lets-gooooo-1-round-4
+  show_slug: corps-logo-generation
+  corps_ids:
+  - 5adef4c9-0202-40a4-a0c3-9575829cc2cf
+  - quiet-trumpets
+  - pit-happens
+  - 0857c9cd-ab79-414c-810f-698392bab1e6
+  - 66b819e1-3c06-4182-814e-0fc8d55d3ea0
+  status: completed
+  completed_at: '2026-02-14T09:41:32.428816+00:00'
+  standings: []
+- round: 5
+  competition_id: lets-gooooo-1-round-5
+  show_slug: divisions-and-competition-classes
+  corps_ids:
+  - 3eb60a4b-8ceb-4f95-bf30-ed15184a445d
+  - 9f5170f4-0f5b-45c3-bb54-b5fd7a4dc5d8
+  - 4bfd7b68-2260-4b69-b389-9a8eda907da1
+  - pit-happens
+  - quiet-trumpets
+  status: completed
+  completed_at: '2026-02-14T09:42:34.357313+00:00'
+  standings: []
+- round: 6
+  competition_id: lets-gooooo-1-round-6
+  show_slug: implement-caption-awards-an-achievement-system-which-awards-humorous-achievements-at-significant-activity-milestones-corps-can-earn-caption-awards-as-can-individual-performers-and-staff-members
+  corps_ids:
+  - fc11e2a2-72fb-42d7-8b18-7731203b631f
+  - ec4c11f9-faaa-4113-86b3-902d19200bcb
+  - toss-and-pray
+  - 3eb60a4b-8ceb-4f95-bf30-ed15184a445d
+  - 4bfd7b68-2260-4b69-b389-9a8eda907da1
+  status: completed
+  completed_at: '2026-02-14T09:43:36.016130+00:00'
+  standings: []
+- round: 7
+  competition_id: lets-gooooo-1-round-7
+  show_slug: ui-usability-quick-start-tooltips-next-actions-css-fix
+  corps_ids:
+  - ec4c11f9-faaa-4113-86b3-902d19200bcb
+  - f36c6c19-04a6-48ea-996d-6cec06b73a42
+  - 5adef4c9-0202-40a4-a0c3-9575829cc2cf
+  - quiet-trumpets
+  - fc11e2a2-72fb-42d7-8b18-7731203b631f
+  status: completed
+  completed_at: '2026-02-14T10:37:43.042162+00:00'
+  standings:
+  - corps_id: fc11e2a2-72fb-42d7-8b18-7731203b631f
+    rank: 1
+    final_score: 58.28
+    raw_score: 58.28
+    caption_scores:
+      guard: 70.0
+      visual: 70.0
+      brass: 41.5
+      ensemble_technique: 31.5
+      general_effect: 65.0
+      percussion: 70.0
+  - corps_id: f36c6c19-04a6-48ea-996d-6cec06b73a42
+    rank: 2
+    final_score: 48.81
+    raw_score: 48.81
+    caption_scores:
+      brass: 40.0
+      guard: 41.5
+      ensemble_technique: 41.5
+      visual: 70.0
+      general_effect: 61.5
+      percussion: 40.0
+  - corps_id: quiet-trumpets
+    rank: 3
+    final_score: 45.190000000000005
+    raw_score: 45.190000000000005
+    caption_scores:
+      guard: 41.5
+      percussion: 41.5
+      ensemble_technique: 41.5
+      brass: 41.5
+      general_effect: 40.0
+      visual: 75.0
+  - corps_id: 5adef4c9-0202-40a4-a0c3-9575829cc2cf
+    rank: 4
+    final_score: 45.035000000000004
+    raw_score: 45.035000000000004
+    caption_scores:
+      guard: 41.5
+      brass: 41.5
+      general_effect: 20.0
+      ensemble_technique: 41.5
+      visual: 70.0
+      percussion: 70.0
+  - corps_id: ec4c11f9-faaa-4113-86b3-902d19200bcb
+    rank: 5
+    final_score: 42.04
+    raw_score: 42.04
+    caption_scores:
+      brass: 40.0
+      visual: 41.5
+      percussion: 41.5
+      guard: 40.0
+      ensemble_technique: 48.5
+      general_effect: 41.5
+- round: 8
+  competition_id: lets-gooooo-1-round-8
+  show_slug: wire-up-the-trophy-system
+  corps_ids:
+  - 5adef4c9-0202-40a4-a0c3-9575829cc2cf
+  - c5f1d328-685a-4c60-9c8c-fd880e516571
+  - 66b819e1-3c06-4182-814e-0fc8d55d3ea0
+  - f36c6c19-04a6-48ea-996d-6cec06b73a42
+  status: completed
+  completed_at: '2026-02-14T10:38:26.470707+00:00'
+  standings: []
+- round: 9
+  competition_id: lets-gooooo-1-round-9
+  show_slug: be-able-to-click-into-a-corps-detail-page-from-an-entry-on-the-performance-stats-scoreboards-page
+  corps_ids:
+  - c5f1d328-685a-4c60-9c8c-fd880e516571
+  - f36c6c19-04a6-48ea-996d-6cec06b73a42
+  status: completed
+  completed_at: '2026-02-14T10:59:03.097628+00:00'
+  standings:
+  - corps_id: f36c6c19-04a6-48ea-996d-6cec06b73a42
+    rank: 1
+    final_score: 62.0
+    raw_score: 62.0
+    caption_scores:
+      visual: 70.0
+      brass: 70.0
+      guard: 40.0
+      ensemble_technique: 70.0
+      general_effect: 80.0
+      percussion: 40.0
+  - corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+    rank: 2
+    final_score: 57.83
+    raw_score: 57.83
+    caption_scores:
+      guard: 31.5
+      brass: 70.0
+      ensemble_technique: 41.5
+      general_effect: 83.5
+      visual: 76.5
+      percussion: 40.0
+- round: 10
+  competition_id: lets-gooooo-1-round-10
+  show_slug: corps-auto-staffing-with-visible-hiring
+  corps_ids:
+  - c5f1d328-685a-4c60-9c8c-fd880e516571
+  status: completed
+  completed_at: '2026-02-14T11:07:15.345402+00:00'
+  standings:
+  - corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+    rank: 1
+    final_score: 62.1
+    raw_score: 62.1
+    caption_scores:
+      visual: 70.0
+      brass: 40.0
+      guard: 40.0
+      ensemble_technique: 41.5
+      percussion: 81.5
+      general_effect: 91.0
+locked: true
+registered_corps:
+- c5f1d328-685a-4c60-9c8c-fd880e516571
+- ec4c11f9-faaa-4113-86b3-902d19200bcb

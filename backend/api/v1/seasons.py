@@ -1,12 +1,16 @@
 """V1 API — Seasons routes."""
 
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, HTTPException
 
 from backend.api.v1.helpers import _get_root, _validate_id, _get_db_session, _slugify
 from backend.api.v1.schemas import (
+    AutoAdvanceRequest,
     CreateSeasonRequest,
     UpdateSeasonRequest,
     RegisterCorpsRequest,
@@ -14,6 +18,7 @@ from backend.api.v1.schemas import (
     SeasonAssignRequest,
     SeasonConfigRequest,
     FinalsDeclareWinnerRequest,
+    DraftApplyRequest,
 )
 from backend.services.yaml_util import safe_load_yaml_dict
 
@@ -44,7 +49,7 @@ def _build_finals_payload(season_dir: Path) -> dict:
         scores_path = perf_dir / "scores.yaml"
         if scores_path.is_file():
             try:
-                sc = safe_load_yaml_dict(scores_path.read_text())
+                sc = safe_load_yaml_dict(scores_path.read_text(encoding="utf-8"))
                 if isinstance(sc, dict):
                     score_value = float(sc.get("final_score") or sc.get("raw_total") or 0.0)
             except Exception:
@@ -98,13 +103,35 @@ def v1_list_seasons():
         season_yaml = season_dir / "season.yaml"
         if not season_yaml.is_file():
             continue
-        data = safe_load_yaml_dict(season_yaml.read_text())
+        data = safe_load_yaml_dict(season_yaml.read_text(encoding="utf-8"))
         season_id = data.get("season_id", season_dir.name)
         meta = data.get("metadata", {})
+        # Derive status from metadata or schedule progress
+        status = meta.get("status", "")
+        if not status:
+            schedule = data.get("schedule") or []
+            completed = sum(1 for e in schedule if e.get("status") == "completed")
+            total = len(schedule)
+            if total > 0 and completed == total:
+                status = "completed"
+            elif completed > 0:
+                status = "touring"
+            elif data.get("shows"):
+                status = "active"
+            else:
+                status = "planning"
+        corps_ids = set()
+        for div_corps in (data.get("divisions") or {}).values():
+            if isinstance(div_corps, list):
+                corps_ids.update(div_corps)
+        registered = data.get("registered_corps") or []
+        corps_count = len(corps_ids) or len(registered)
         results.append({
             "season_id": season_id,
             "name": meta.get("name", season_id),
             "dir_name": season_dir.name,
+            "status": status,
+            "registered_corps_count": corps_count,
             "metadata": meta,
         })
     return results
@@ -158,7 +185,7 @@ def v1_update_season(season_id: str, req: UpdateSeasonRequest):
     season_yaml = season_dir / "season.yaml"
     if not season_yaml.is_file():
         raise HTTPException(404, f"Season '{season_id}' not found")
-    data = safe_load_yaml_dict(season_yaml.read_text())
+    data = safe_load_yaml_dict(season_yaml.read_text(encoding="utf-8"))
     if req.metadata is not None:
         data["metadata"] = req.metadata
     from backend.services.yaml_util import atomic_write, safe_dump_yaml
@@ -306,7 +333,7 @@ def v1_get_season_standings(season_id: str):
     standings_yaml = season_dir / "standings.yaml"
     if not standings_yaml.is_file():
         return []
-    return safe_load_yaml_dict(standings_yaml.read_text())
+    return safe_load_yaml_dict(standings_yaml.read_text(encoding="utf-8"))
 
 
 @router.post("/seasons/{season_id}/enter-finals")
@@ -340,7 +367,7 @@ def v1_get_finals(season_id: str):
     finals_path = season_dir / "finals.yaml"
     if finals_path.is_file():
         try:
-            existing = safe_load_yaml_dict(finals_path.read_text())
+            existing = safe_load_yaml_dict(finals_path.read_text(encoding="utf-8"))
         except Exception:
             existing = {}
     else:
@@ -377,7 +404,90 @@ def v1_declare_winner(season_id: str, req: FinalsDeclareWinnerRequest):
     }
     from backend.services.yaml_util import atomic_write, safe_dump_yaml
     atomic_write(season_dir / "finals.yaml", safe_dump_yaml(finals))
+
+    # Generate post-mortem documents for all participating corps
+    try:
+        from backend.services.post_mortem import generate_season_post_mortems
+        from backend.api.v1.helpers import _get_db_session
+        db = _get_db_session()
+        try:
+            generate_season_post_mortems(root, season_id, db=db)
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning(f"Post-mortem generation failed for season {season_id}: {e}")
+
     return finals
+
+
+@router.post("/seasons/{season_id}/deploy-winner")
+def v1_deploy_winner(season_id: str):
+    """Dispatch the winning corps' ED with the season's show prompt."""
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    if not (season_dir / "season.yaml").is_file():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+
+    finals_path = season_dir / "finals.yaml"
+    if not finals_path.is_file():
+        raise HTTPException(400, "Finals not declared yet")
+
+    finals = safe_load_yaml_dict(finals_path.read_text(encoding="utf-8"))
+    winner = finals.get("winner")
+    if not winner or not isinstance(winner, dict) or not winner.get("corps_id"):
+        raise HTTPException(400, "No winner declared — declare a winner first")
+
+    winner_corps_id = winner["corps_id"]
+
+    # Find show_prompt from the season's show slugs
+    from backend.services.season_persistence import load_season
+    data = load_season(season_dir)
+    show_slugs = data.get("shows") or []
+    show_prompt = ""
+    show_slug = ""
+    for slug in show_slugs:
+        prompt_path = root / "shows" / slug / "show_prompt.md"
+        if prompt_path.exists() and prompt_path.stat().st_size > 0:
+            show_prompt = prompt_path.read_text(encoding="utf-8")
+            show_slug = slug
+            break
+
+    if not show_prompt:
+        raise HTTPException(400, "No show_prompt.md found for any show in this season")
+
+    from backend.api.app import get_task_manager
+    tm = get_task_manager()
+    if not tm:
+        raise HTTPException(503, "Task manager not initialized")
+
+    dispatched = []
+    skipped = []
+    db = _get_db_session()
+    try:
+        ed_session = tm.get_session_for_role(db, winner_corps_id, "executive_director")
+        if not ed_session:
+            skipped.append({"corps_id": winner_corps_id, "reason": "no ED session found"})
+        elif tm.is_active(ed_session):
+            skipped.append({"corps_id": winner_corps_id, "reason": "ED already active"})
+        else:
+            task_desc = (
+                f"WINNER DEPLOYMENT — Your corps won season {season_id}!\n\n"
+                f"Execute the winning show prompt:\n\n---\n\n{show_prompt}"
+            )
+            tm.start_agent(session_id=ed_session, task_description=task_desc, corps_id=winner_corps_id)
+            dispatched.append({"corps_id": winner_corps_id, "session_id": ed_session})
+    finally:
+        db.close()
+
+    return {
+        "season_id": season_id,
+        "winner_corps_id": winner_corps_id,
+        "show_slug": show_slug,
+        "dispatched": dispatched,
+        "skipped": skipped,
+        "status": "deployed" if dispatched else "skipped",
+    }
 
 
 @router.post("/seasons/{season_id}/advance")
@@ -387,8 +497,50 @@ def v1_advance_tour(season_id: str):
     season_dir = root / "seasons" / season_id
     if not (season_dir / "season.yaml").is_file():
         raise HTTPException(404, f"Season '{season_id}' not found")
+
+    # Track as an operation so frontend can poll status
+    from backend.services.operation_tracker import (
+        create_operation, start_operation, complete_operation, fail_operation,
+    )
+    import json as _json
+    db = _get_db_session()
+    try:
+        op = create_operation(
+            db, "advance_round",
+            target_type="season", target_id=season_id,
+            label=f"Advancing tour round for {season_id}",
+        )
+        operation_id = op.id
+    finally:
+        db.close()
+
     from backend.services.tour_coordinator import run_competition_round
-    return run_competition_round(season_dir)
+    db2 = _get_db_session()
+    try:
+        start_operation(db2, operation_id)
+        result = run_competition_round(season_dir)
+        complete_operation(db2, operation_id, result=_json.dumps(result, default=str))
+        result["operation_id"] = operation_id
+        return result
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).exception("Tour advance failed for %s", season_id)
+        fail_operation(db2, operation_id, error=str(exc))
+        raise HTTPException(500, f"Tour advance failed: {exc}")
+    finally:
+        db2.close()
+
+
+@router.post("/seasons/{season_id}/auto-advance")
+def v1_set_auto_advance(season_id: str, req: AutoAdvanceRequest):
+    """Enable or disable metronome-driven auto-advance for a touring season."""
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    if not (season_dir / "season.yaml").is_file():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+    from backend.services.tour_coordinator import set_auto_advance
+    return set_auto_advance(season_dir, req.enabled)
 
 
 @router.get("/seasons/{season_id}/tour-status")
@@ -400,3 +552,112 @@ def v1_get_tour_status(season_id: str):
         raise HTTPException(404, f"Season '{season_id}' not found")
     from backend.services.tour_coordinator import get_tour_status
     return get_tour_status(season_dir)
+
+
+@router.post("/seasons/{season_id}/draft")
+def v1_run_show_draft(season_id: str):
+    """Preview a show draft — returns picks without saving assignments."""
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    if not (season_dir / "season.yaml").is_file():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+
+    from backend.services.season_persistence import load_season
+    from backend.services.show_draft_service import run_show_draft
+
+    data = load_season(season_dir)
+    show_slugs = data.get("shows", [])
+    corps_ids = data.get("registered_corps", [])
+
+    if not show_slugs:
+        raise HTTPException(400, "No shows assigned to this season")
+    if not corps_ids:
+        raise HTTPException(400, "No corps registered for this season")
+
+    db = _get_db_session()
+    try:
+        result = run_show_draft(db, season_dir, show_slugs, corps_ids)
+        return result
+    finally:
+        db.close()
+
+
+@router.post("/seasons/{season_id}/draft/apply")
+def v1_apply_show_draft(season_id: str, req: DraftApplyRequest):
+    """Apply draft assignments — saves to season divisions."""
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    if not (season_dir / "season.yaml").is_file():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+
+    from backend.services.season_persistence import assign_corps
+
+    results = {}
+    for show_slug, corps_ids in req.assignments.items():
+        data = assign_corps(season_dir, show_slug, corps_ids)
+        results[show_slug] = corps_ids
+
+    return {"status": "applied", "assignments": results}
+
+
+# =========================================================================
+# POST-MORTEMS
+# =========================================================================
+
+@router.get("/seasons/{season_id}/post-mortems")
+def v1_list_season_post_mortems(season_id: str):
+    """List all post-mortem documents for a season."""
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    pm_dir = root / "seasons" / season_id / "post_mortems"
+    if not pm_dir.is_dir():
+        return []
+    results = []
+    for f in sorted(pm_dir.iterdir()):
+        if f.suffix == ".md":
+            corps_id = f.stem
+            results.append({
+                "corps_id": corps_id,
+                "season_id": season_id,
+                "generated_at": datetime.fromtimestamp(
+                    f.stat().st_mtime, tz=timezone.utc
+                ).isoformat(),
+            })
+    return results
+
+
+@router.get("/seasons/{season_id}/post-mortems/{corps_id}")
+def v1_get_post_mortem(season_id: str, corps_id: str):
+    """Get a post-mortem document for a specific corps in a season."""
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    from backend.services.post_mortem import get_corps_post_mortem
+    content = get_corps_post_mortem(root, season_id, corps_id)
+    if content is None:
+        raise HTTPException(404, f"No post-mortem found for {corps_id} in season {season_id}")
+    return {"corps_id": corps_id, "season_id": season_id, "content": content}
+
+
+@router.post("/seasons/{season_id}/post-mortems/generate")
+def v1_generate_post_mortems(season_id: str):
+    """Manually trigger post-mortem generation for a season."""
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    if not (season_dir / "season.yaml").is_file():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+
+    from backend.services.post_mortem import generate_season_post_mortems
+    db = _get_db_session()
+    try:
+        results = generate_season_post_mortems(root, season_id, db=db)
+    finally:
+        db.close()
+
+    return {
+        "season_id": season_id,
+        "generated": len(results),
+        "corps_ids": list(results.keys()),
+    }

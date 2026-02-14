@@ -128,3 +128,71 @@
   font-size: 12px;
   color: var(--text-secondary);
 }
+
+/* Trophy Showcase */
+
+.trophy-category-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 1100px) {
+  .trophy-category-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .trophy-category-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.trophy-category-card {
+  border: 1px solid var(--border);
+  padding: 12px;
+  background: var(--surface-1, #0f1014);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.trophy-tier-bar {
+  padding: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-2, #11131a);
+}
+
+.trophy-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.trophy-unlock-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.trophy-unlock-tier {
+  font-family: "JetBrains Mono", "SFMono-Regular", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 64px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.trophy-unlock-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.trophy-unlock-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+}

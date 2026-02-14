@@ -1,12 +1,18 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 
-vi.mock("../services/v1", () => ({
-  getMetricsSeries: vi.fn().mockResolvedValue({ data: [{ timestamp: "t1", rep_completed: 1 }] }),
-}));
+vi.mock("../services/v1", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../services/v1")>();
+  return {
+    ...actual,
+    getMetricsSeries: vi.fn().mockResolvedValue({ data: [{ timestamp: "t1", rep_completed: 1 }] }),
+  };
+});
 
 import PerformanceExplorer from "../pages/PerformanceExplorer";
 import * as v1 from "../services/v1";
+
+afterEach(() => cleanup());
 
 describe("PerformanceExplorer", () => {
 

@@ -311,7 +311,13 @@ class TestSeance:
         (show_dir / "spec.md").write_text("# Past Show\n")
 
         # Create season dir structure so build_history_index finds entries
-        scores_dir = project_root / "seasons" / "s1" / "performances" / "blue-devils"
+        season_dir = project_root / "seasons" / "s1"
+        season_dir.mkdir(parents=True, exist_ok=True)
+        (season_dir / "standings.yaml").write_text(yaml.dump({
+            "season_id": "s1",
+            "standings": [{"corps_id": "blue-devils", "placement": 1, "final_score": 85.0}],
+        }))
+        scores_dir = season_dir / "performances" / "blue-devils"
         scores_dir.mkdir(parents=True, exist_ok=True)
         (scores_dir / "scores.yaml").write_text(yaml.dump({
             "corps_id": "blue-devils",

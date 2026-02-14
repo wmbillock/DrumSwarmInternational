@@ -148,3 +148,38 @@ def get_processes():
     """Return process registry stats."""
     from backend.services.process_registry import get_process_registry
     return get_process_registry().get_stats()
+
+
+@router.get("/system/resource-health")
+def get_resource_health():
+    """Return combined resource health: guard metrics, process stats, budget, session saturation."""
+    from backend.services.session_guard import get_guard_metrics
+    from backend.services.process_registry import get_process_registry
+    from backend.services.budget_manager import get_budget_manager
+    from backend.models.agent_session import AgentSession, SessionStatus
+
+    guard_metrics = get_guard_metrics().get_stats()
+    process_stats = get_process_registry().get_stats()
+    budget = get_budget_manager().get_stats()
+
+    db = _get_db_session()
+    try:
+        active_sessions = db.query(AgentSession).filter(
+            AgentSession.status == SessionStatus.ACTIVE
+        ).count()
+    finally:
+        db.close()
+
+    max_concurrent = 5
+    session_saturation = {
+        "active_sessions": active_sessions,
+        "max_concurrent": max_concurrent,
+        "utilization_pct": round((active_sessions / max_concurrent) * 100, 1) if max_concurrent > 0 else 0.0,
+    }
+
+    return {
+        "guard_metrics": guard_metrics,
+        "process_stats": process_stats,
+        "budget": budget,
+        "session_saturation": session_saturation,
+    }

@@ -36,6 +36,9 @@ class JudgeContext:
     agent_sessions: list[dict] = field(default_factory=list)
     corps_metadata: dict = field(default_factory=dict)
     rep_results: list[dict] = field(default_factory=list)
+    # Artifact completeness: 0.0 (nothing produced) to 1.0 (all expected artifacts present)
+    artifact_completeness: float = 0.0
+    artifact_details: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -176,12 +179,37 @@ def build_judge_context(
         for s in sessions
     ]
 
+    # Compute artifact completeness — what did the corps actually produce?
+    artifact_checks = {
+        "has_spec": bool(ctx.spec_text and ctx.spec_text.strip()),
+        "has_show_prompt": bool(ctx.show_prompt and ctx.show_prompt.strip()),
+        "has_design_notes": bool(ctx.design_notes and len(ctx.design_notes.strip()) > 50),
+        "has_work_logs": len(ctx.work_logs) > 0,
+        "has_active_agents": any(
+            s["status"] in ("active", "completed") for s in ctx.agent_sessions
+        ),
+    }
+    ctx.artifact_details = artifact_checks
+    completed_checks = sum(1 for v in artifact_checks.values() if v)
+    ctx.artifact_completeness = completed_checks / max(1, len(artifact_checks))
+
     return ctx
 
 
 def _build_judge_user_message(context: JudgeContext) -> str:
     """Build the user message containing all artifacts for evaluation."""
     parts = [f"## Show: {context.show_slug}\n## Corps: {context.corps_metadata.get('display_name', context.corps_id)}\n"]
+
+    # Artifact completeness report — judges must factor this in
+    pct = int(context.artifact_completeness * 100)
+    parts.append(f"### Artifact Completeness: {pct}%")
+    for check, present in context.artifact_details.items():
+        status = "PRESENT" if present else "MISSING"
+        parts.append(f"  - {check}: {status}")
+    if context.artifact_completeness < 0.4:
+        parts.append("\n**WARNING: This corps has produced minimal or no artifacts. "
+                     "Score accordingly — missing work should result in scores below 50.**\n")
+    parts.append("")
 
     if context.show_prompt:
         parts.append(f"### Show Prompt\n{context.show_prompt}\n")
@@ -263,16 +291,42 @@ def invoke_judge(
         return _stub_judge_result(judge_type, context.corps_id, context.show_slug)
 
 
-def _stub_judge_result(judge_type: JudgeType, corps_id: str, show_slug: str) -> JudgeResult:
-    """Deterministic fallback scores when LLM is unavailable."""
+def _stub_judge_result(
+    judge_type: JudgeType,
+    corps_id: str,
+    show_slug: str,
+    artifact_completeness: float = 1.0,
+) -> JudgeResult:
+    """Deterministic fallback scores when LLM is unavailable.
+
+    Scores are scaled by artifact_completeness (0.0-1.0). A corps that
+    produced nothing gets ~20-30 points; a corps with all artifacts gets 60-90.
+    """
     import hashlib
     seed = hashlib.sha256(f"{corps_id}:{show_slug}:{judge_type.value}".encode()).hexdigest()
-    base_score = (int(seed[:8], 16) % 30) + 60
+
+    # Base scores: 60-90 range for a fully-complete corps
+    raw_rep = (int(seed[:8], 16) % 30) + 60
+    raw_perf = (int(seed[8:16], 16) % 30) + 60
+
+    # Scale by artifact completeness: floor of 20, ceiling of raw score
+    # 0% artifacts → 20 points, 100% artifacts → full score
+    floor = 20
+    rep_score = floor + (raw_rep - floor) * artifact_completeness
+    perf_score = floor + (raw_perf - floor) * artifact_completeness
+
+    if artifact_completeness < 0.2:
+        feedback = "Stub score — corps produced no meaningful artifacts."
+    elif artifact_completeness < 0.6:
+        feedback = "Stub score — corps produced partial work. Significant artifacts missing."
+    else:
+        feedback = "Stub score — LLM judging unavailable."
+
     return JudgeResult(
         judge_type=judge_type,
-        rep_score=float(base_score),
-        perf_score=float((int(seed[8:16], 16) % 30) + 60),
-        feedback="Stub score — LLM judging unavailable.",
+        rep_score=float(rep_score),
+        perf_score=float(perf_score),
+        feedback=feedback,
     )
 
 
@@ -286,11 +340,12 @@ def judge_corps_performance(
     context = build_judge_context(db, corps_id, show_slug)
 
     judge_types = [jt for jt in DEFAULT_WEIGHTS if jt != JudgeType.TIMING]
+    completeness = context.artifact_completeness
 
     # If real judging disabled or no LLM client, use stubs
     if not ENABLE_REAL_JUDGING or llm_client is None:
         return {
-            jt: _stub_judge_result(jt, corps_id, show_slug)
+            jt: _stub_judge_result(jt, corps_id, show_slug, completeness)
             for jt in judge_types
         }
 
@@ -308,7 +363,7 @@ def judge_corps_performance(
                 results[jt] = future.result()
             except Exception as e:
                 logger.error("Judge %s raised: %s", jt.value, e)
-                results[jt] = _stub_judge_result(jt, corps_id, show_slug)
+                results[jt] = _stub_judge_result(jt, corps_id, show_slug, completeness)
 
     return results
 

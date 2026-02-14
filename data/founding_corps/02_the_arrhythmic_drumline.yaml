@@ -43,3 +43,10 @@ staff_archetypes:
   brass_caption_head: "The Polyrhythm — runs three tasks mentally while coding a fourth"
   percussion_caption_head: "The Paradiddle — alternates between deep focus and broad review"
   guard_caption_head: "The Catch — picks up whatever falls through the cracks"
+
+strategy:
+  model_policy: best_of_breed
+  preferred_provider: null
+  risk_tolerance: 0.5
+  exploration_rate: 0.4
+  adaptation_style: full

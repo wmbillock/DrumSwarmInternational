@@ -14,6 +14,7 @@ const MetricOptions = [
   "agent_session_started",
   "message_sent",
   "task_latency",
+  "model_performance",
 ];
 
 interface MetricDataPoint {
@@ -28,6 +29,7 @@ const PerformanceExplorer = () => {
   const [chartData, setChartData] = useState<MetricDataPoint[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fetched, setFetched] = useState(false);
 
   const handleMetricToggle = (metric: string) => {
     if (selectedMetrics.includes(metric)) {
@@ -50,6 +52,7 @@ const PerformanceExplorer = () => {
       const periodDays = getPeriodDays();
       const data = await v1.getMetricsSeries(selectedMetrics, periodDays, granularity);
       setChartData(data.data || []);
+      setFetched(true);
     } catch (error) {
       setError("Failed to fetch metrics");
     } finally {
@@ -171,6 +174,8 @@ const PerformanceExplorer = () => {
           <p className="empty">
             {selectedMetrics.length === 0
               ? "Select metrics to display"
+              : fetched
+              ? "No metrics data recorded for the selected time range. Run some agent sessions to generate metrics."
               : "Click 'Update Chart' to load data"}
           </p>
         )}

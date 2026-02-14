@@ -3,7 +3,9 @@
  * Coexists with the existing api.ts — use this for all /api/v1/ endpoints.
  */
 
-const BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+import { API_BASE } from "../config";
+
+const BASE = API_BASE;
 
 export class ApiError extends Error {
   status: number;
@@ -49,6 +51,7 @@ export interface V1Corps {
   theme_id?: string;
   mascot?: string;
   staff_count?: number;
+  color_scheme?: { primary: string; secondary: string; accent: string };
 }
 
 export interface V1ShowInfo {
@@ -74,6 +77,30 @@ export interface V1Placement {
   placement: number;
   final_score: number;
   notes: string;
+}
+
+export interface V1CompetitionHistoryEntry {
+  competition_id: string;
+  season_id: string;
+  round: number;
+  show_slug: string;
+  status: string;
+  completed_at: string | null;
+  placement: number | null;
+  final_score: number | null;
+  caption_scores: Record<string, number>;
+}
+
+export interface V1PostMortemSummary {
+  corps_id: string;
+  season_id: string;
+  generated_at: string;
+}
+
+export interface V1PostMortemDetail {
+  corps_id: string;
+  season_id: string;
+  content: string;
 }
 
 export interface V1HistoryIndex {
@@ -260,11 +287,32 @@ export const getCorps = (id: string, signal?: AbortSignal) =>
 export const getCorpsHistory = (id: string, signal?: AbortSignal) =>
   request<V1HistoryIndex>(`/api/v1/corps/${id}/history`, { signal });
 
+export const getCorpsCompetitionHistory = (id: string, signal?: AbortSignal) =>
+  request<V1CompetitionHistoryEntry[]>(`/api/v1/corps/${id}/competition-history`, { signal });
+
+export const getCorpsPostMortems = (corpsId: string, signal?: AbortSignal) =>
+  request<V1PostMortemSummary[]>(`/api/v1/corps/${corpsId}/post-mortems`, { signal });
+
+export const getPostMortem = (seasonId: string, corpsId: string, signal?: AbortSignal) =>
+  request<V1PostMortemDetail>(`/api/v1/seasons/${seasonId}/post-mortems/${corpsId}`, { signal });
+
+export const generateSeasonPostMortems = (seasonId: string) =>
+  request<{ season_id: string; generated: number; corps_ids: string[] }>(
+    `/api/v1/seasons/${seasonId}/post-mortems/generate`,
+    { method: "POST" }
+  );
+
 export const clarifyCorpsCritique = (corpsId: string, round: number, question: string) =>
   request<{ answer: string; critique_path: string }>(`/api/v1/corps/${corpsId}/critique/${round}/clarify`, {
     method: "POST",
     body: JSON.stringify({ question }),
   });
+
+export const generateCorpsLogo = (corpsId: string) =>
+  request<{ corps_id: string; logo_path: string | null; success: boolean; error?: string }>(
+    `/api/v1/corps/${corpsId}/generate-logo`,
+    { method: "POST" }
+  );
 
 // --- Runs ---
 
@@ -348,6 +396,28 @@ export const createCompetition = (data: CreateCompReq) =>
 
 export const runCompetition = (id: string) =>
   request<V1CompResult>(`/api/v1/competitions/${id}/run`, { method: "POST" });
+
+export const dispatchAgents = (competitionId: string) =>
+  request<{
+    competition_id: string;
+    show_slug: string;
+    dispatched: { corps_id: string; session_id: string }[];
+    skipped: { corps_id: string; reason: string }[];
+    total_dispatched: number;
+    total_skipped: number;
+  }>(`/api/v1/competitions/${competitionId}/dispatch`, { method: "POST" });
+
+export interface V1RecentActivity {
+  round: number;
+  competition_id: string;
+  season_id: string;
+  show_slug: string;
+  completed_at: string;
+  top_standings: { corps_id: string; rank: number; final_score: number }[];
+}
+
+export const getRecentActivity = (signal?: AbortSignal) =>
+  request<V1RecentActivity[]>("/api/v1/competitions/recent-activity", { signal });
 
 export const getScores = (id: string, signal?: AbortSignal) =>
   request<V1Standings>(`/api/v1/competitions/${id}/scores`, { signal });
@@ -453,6 +523,38 @@ export const advanceSeasonTour = (seasonId: string) =>
 export const getSeasonTourStatus = (seasonId: string, signal?: AbortSignal) =>
   request<any>(`/api/v1/seasons/${seasonId}/tour-status`, { signal });
 
+export const setSeasonAutoAdvance = (seasonId: string, enabled: boolean) =>
+  request<{ auto_advance: boolean }>(`/api/v1/seasons/${seasonId}/auto-advance`, {
+    method: "POST",
+    body: JSON.stringify({ enabled }),
+  });
+
+// --- Show Draft ---
+
+export interface V1DraftPick {
+  pick: number;
+  corps_id: string;
+  corps_name: string;
+  show_slug: string;
+  affinity_score: number;
+  reason: string;
+}
+
+export interface V1DraftResult {
+  draft_order: { corps_id: string; best_score: number; rank: number }[];
+  picks: V1DraftPick[];
+  assignments: Record<string, string[]>;
+}
+
+export const runShowDraft = (seasonId: string) =>
+  request<V1DraftResult>(`/api/v1/seasons/${seasonId}/draft`, { method: "POST" });
+
+export const applyDraft = (seasonId: string, assignments: Record<string, string[]>) =>
+  request<{ status: string; assignments: Record<string, string[]> }>(`/api/v1/seasons/${seasonId}/draft/apply`, {
+    method: "POST",
+    body: JSON.stringify({ assignments }),
+  });
+
 export interface V1FinalsStandingRow {
   rank: number;
   corps_id: string;
@@ -489,6 +591,18 @@ export const declareSeasonWinner = (seasonId: string, corpsId: string, division?
     method: "POST",
     body: JSON.stringify({ corps_id: corpsId, division }),
   });
+
+export interface V1DeployResult {
+  season_id: string;
+  winner_corps_id: string;
+  show_slug: string;
+  dispatched: { corps_id: string; session_id: string }[];
+  skipped: { corps_id: string; reason: string }[];
+  status: string;
+}
+
+export const deploySeasonWinner = (seasonId: string) =>
+  request<V1DeployResult>(`/api/v1/seasons/${seasonId}/deploy-winner`, { method: "POST" });
 
 // --- Messaging ---
 
@@ -633,6 +747,16 @@ export const bulkArchiveThreads = (
 
 export const getUnreadMessageCount = (signal?: AbortSignal) =>
   request<{ unread_count: number }>("/api/v1/messaging/unread-count", { signal });
+
+// --- Resource Health & Awards Summary ---
+
+export const getResourceHealth = (signal?: AbortSignal) =>
+  request<import("../types").ResourceHealth>("/api/v1/system/resource-health", { signal });
+
+export const getAwardsSummary = (corpsId?: string, signal?: AbortSignal) => {
+  const params = corpsId ? `?corps_id=${encodeURIComponent(corpsId)}` : "";
+  return request<import("../types").AwardsSummary>(`/api/v1/awards/summary${params}`, { signal });
+};
 
 // --- Admin ---
 
@@ -1033,11 +1157,36 @@ export const adminListCorps = (signal?: AbortSignal) =>
 
 // --- Shows: Additional ---
 
+export interface V1ShowDetail {
+  slug: string;
+  title: string;
+  status: string;
+  summary: string;
+  has_spec: boolean;
+  has_prompt: boolean;
+  versions: string[];
+  spec_content: string;
+  design_notes: string;
+  show_prompt_content: string;
+}
+
+export interface V1ShowCompetition {
+  competition_id: string;
+  season_id: string;
+  round: number | null;
+  status: string;
+  completed_at: string | null;
+  standings: { corps_id: string; rank: number; final_score: number }[];
+}
+
 export const getShowsOverview = (signal?: AbortSignal) =>
   request<any>(`/api/v1/shows-overview`, { signal });
 
 export const getShow = (slug: string, signal?: AbortSignal) =>
-  request<any>(`/api/v1/shows/${slug}/detail`, { signal });
+  request<V1ShowDetail>(`/api/v1/shows/${slug}/detail`, { signal });
+
+export const getShowCompetitions = (slug: string, signal?: AbortSignal) =>
+  request<V1ShowCompetition[]>(`/api/v1/shows/${slug}/competitions`, { signal });
 
 export const toggleTour = (slug: string, enable: boolean) =>
   request<any>(`/api/v1/shows/${slug}/tour`, { method: "POST", body: JSON.stringify({ enable }) });
@@ -1172,3 +1321,147 @@ export const startEDChat = (corpsId: string) =>
   request<V1CritiqueSession>(`/api/v1/corps/${corpsId}/ed-chat`, {
     method: "POST",
   });
+
+// --- Model Specs & Strategy ---
+
+export interface V1ModelSpecPerf {
+  avg_score: number;
+  total_attempts: number;
+  successful_attempts: number;
+}
+
+export interface V1ModelSpec {
+  id: string;
+  name: string;
+  provider: string;
+  model_id: string;
+  task_categories: string[];
+  is_active: boolean;
+  performance: Record<string, V1ModelSpecPerf>;
+}
+
+export interface V1SpecPerformanceDetail {
+  spec_id: string;
+  name: string;
+  provider: string;
+  model_id: string;
+  global: Array<{
+    task_category: string;
+    avg_score: number;
+    total_attempts: number;
+    successful_attempts: number;
+    success_rate: number;
+    last_used_at: string | null;
+  }>;
+  by_corps: Array<{
+    corps_id: string;
+    task_category: string;
+    avg_score: number;
+    total_attempts: number;
+    successful_attempts: number;
+    success_rate: number;
+    last_used_at: string | null;
+  }>;
+}
+
+export interface V1CorpsStrategy {
+  corps_id: string;
+  corps_name: string;
+  color_scheme: { primary?: string; secondary?: string; accent?: string };
+  strategy: {
+    id: string;
+    model_policy: string;
+    preferred_provider: string | null;
+    risk_tolerance: number;
+    exploration_rate: number;
+    adaptation_style: string;
+    section_overrides: Record<string, string>;
+    created_at: string | null;
+    updated_at: string | null;
+  };
+  performance: Record<string, {
+    model_spec_id: string;
+    avg_score: number;
+    total_attempts: number;
+    successful_attempts: number;
+  }>;
+}
+
+export interface V1StrategyHistoryEntry {
+  season_id: string;
+  description: string;
+  changes: Record<string, unknown>;
+}
+
+export interface V1LeaderboardEntry {
+  model_spec_id: string;
+  name: string;
+  provider: string;
+  avg_score: number;
+  total_attempts: number;
+  successful_attempts: number;
+  success_rate: number;
+}
+
+export const listModelSpecs = (signal?: AbortSignal) =>
+  request<V1ModelSpec[]>("/api/v1/model-specs", { signal });
+
+export const getSpecPerformance = (specId: string, signal?: AbortSignal) =>
+  request<V1SpecPerformanceDetail>(`/api/v1/model-specs/${specId}/performance`, { signal });
+
+export const getCorpsStrategy = (corpsId: string, signal?: AbortSignal) =>
+  request<V1CorpsStrategy>(`/api/v1/corps/${corpsId}/strategy`, { signal });
+
+export const getCorpsStrategyHistory = (corpsId: string, signal?: AbortSignal) =>
+  request<{ corps_id: string; history: V1StrategyHistoryEntry[] }>(`/api/v1/corps/${corpsId}/strategy/history`, { signal });
+
+export const updateCorpsStrategy = (corpsId: string, data: {
+  model_policy?: string;
+  preferred_provider?: string;
+  risk_tolerance?: number;
+  exploration_rate?: number;
+  adaptation_style?: string;
+  section_overrides?: Record<string, string>;
+}) =>
+  request<{
+    corps_id: string;
+    updated_fields: string[];
+    strategy: V1CorpsStrategy["strategy"];
+  }>(`/api/v1/corps/${corpsId}/strategy`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+
+export const getLeaderboard = (taskCategory: string, limit = 10, signal?: AbortSignal) =>
+  request<{ task_category: string; entries: V1LeaderboardEntry[] }>(
+    `/api/v1/leaderboard/${encodeURIComponent(taskCategory)}?limit=${limit}`,
+    { signal },
+  );
+
+// --- Operations tracking ---
+
+export interface V1Operation {
+  id: string;
+  operation_type: string;
+  status: "pending" | "running" | "completed" | "failed";
+  target_type: string | null;
+  target_id: string | null;
+  label: string | null;
+  result: string | null;
+  error: string | null;
+  created_at: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export const getActiveOperations = (signal?: AbortSignal) =>
+  request<V1Operation[]>("/api/v1/operations/active", { signal });
+
+export const getOperation = (operationId: string, signal?: AbortSignal) =>
+  request<V1Operation>(`/api/v1/operations/${operationId}`, { signal });
+
+export const listOperations = (status?: string, limit = 20, signal?: AbortSignal) =>
+  request<V1Operation[]>(
+    `/api/v1/operations?limit=${limit}${status ? `&status=${status}` : ""}`,
+    { signal },
+  );

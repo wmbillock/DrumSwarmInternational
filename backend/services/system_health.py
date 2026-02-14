@@ -39,7 +39,10 @@ def get_swarm_health(db: Session) -> SwarmHealth:
     """
     active_corps_list = (
         db.query(Corps)
-        .filter(Corps.status.in_([CorpsStatus.WINTER_CAMPS, CorpsStatus.ON_TOUR]))
+        .filter(
+            Corps.status.in_([CorpsStatus.WINTER_CAMPS, CorpsStatus.ON_TOUR]),
+            Corps.corps_type != "system",
+        )
         .all()
     )
 
@@ -126,12 +129,13 @@ def get_swarm_health(db: Session) -> SwarmHealth:
     failure_rate = round(failed_reps / total_reps * 100, 1) if total_reps > 0 else 0.0
 
     # Calculate overall health status
-    # "error" if any agents failed or failure rate > 20%
-    # "warning" if inactive agents > 10% or failure rate > 5%
+    # "error" if majority of agents failed or failure rate > 50%
+    # "warning" if >25% agents failed or failure rate > 10%
     # "ok" otherwise
-    if failed_agents > 0 or failure_rate > 20:
+    failed_pct = (failed_agents / total_agents * 100) if total_agents > 0 else 0
+    if failed_pct > 50 or failure_rate > 50:
         health_status = "error"
-    elif total_agents > 0 and active_agents / total_agents < 0.9 or failure_rate > 5:
+    elif failed_pct > 25 or failure_rate > 10 or (total_agents > 0 and active_agents / total_agents < 0.5):
         health_status = "warning"
     else:
         health_status = "ok"

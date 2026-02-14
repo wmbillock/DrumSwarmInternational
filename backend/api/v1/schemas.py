@@ -17,6 +17,7 @@ class CreateCorpsRequest(BaseModel):
     color_scheme: Optional[dict] = None
     uniform_concept: Optional[str] = None
     philosophy: Optional[str] = ""
+    caption_affinity: Optional[str] = None
 
 
 class CorpsFeedbackRequest(BaseModel):
@@ -99,6 +100,14 @@ class SeasonConfigRequest(BaseModel):
 class FinalsDeclareWinnerRequest(BaseModel):
     corps_id: str
     division: Optional[str] = None
+
+
+class DraftApplyRequest(BaseModel):
+    assignments: dict[str, list[str]]
+
+
+class AutoAdvanceRequest(BaseModel):
+    enabled: bool = False
 
 
 # --- Competitions ---

@@ -1,0 +1,49 @@
+# Corps Template: Madison Scouts
+# Use this as a reference when defining a new corps.
+# Copy this file, change the fields, and place in data/founding_corps/ to auto-seed.
+
+name: "Madison Scouts"
+division: world_class
+category: aggressive
+caption_affinity: percussion
+
+identity:
+  motto: "Play loud, march fast, leave nothing on the field"
+  philosophy: >
+    The Scouts are the chaos engineers of the circuit. Their agents move fast,
+    break things intentionally to find failure modes, and ship experimental
+    solutions that push boundaries. They embrace parallel execution — five
+    agents working on the same problem from different angles, with the PC
+    selecting the best result. Messy? Sometimes. Effective? Always.
+  founding_year: 2026
+  home_city: "Madison, WI"
+
+colors:
+  primary: "#006A3F"
+  secondary: "#C8102E"
+  accent: "#FFFFFF"
+
+mascot:
+  name: "Badger"
+  species: "Honey badger with drumsticks"
+  personality: "Fearless, relentless, doesn't care about your architectural opinions"
+
+visual_identity:
+  uniform_concept: "Hunter green with red sash — aggressive and unapologetic"
+  field_style: "Loose scatter formations that suddenly snap into tight clusters"
+  signature_move: "The Blitz — all agents execute simultaneously, PC merges the chaos"
+
+performance_style:
+  approach: >
+    Parallel chaos with ruthless selection. The ED launches multiple movements
+    simultaneously. The PC doesn't wait for completion — they sample partial
+    results and pivot. Caption heads compete with each other for the best
+    approach. The result is high variance but occasional brilliance that no
+    methodical corps would discover.
+
+staff_archetypes:
+  executive_director: "The Launcher — ships five experiments before breakfast"
+  program_coordinator: "The Selector — picks winners from parallel attempts"
+  brass_caption_head: "The Improviser — rewrites the solution mid-rep"
+  percussion_caption_head: "The Driver — pushes tempo until something breaks"
+  guard_caption_head: "The Risk-Taker — tries the impossible toss, sometimes catches it"

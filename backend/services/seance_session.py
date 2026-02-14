@@ -86,7 +86,7 @@ def load_session(project_root: Path, seance_id: str) -> dict:
     session_path = sdir / "session.yaml"
     if not session_path.exists():
         raise FileNotFoundError(f"Seance session not found: {seance_id}")
-    return safe_load_yaml_dict(session_path.read_text())
+    return safe_load_yaml_dict(session_path.read_text(encoding="utf-8"))
 
 
 def append_transcript(project_root: Path, seance_id: str, role: str, message: str) -> None:
@@ -102,7 +102,7 @@ def read_transcript(project_root: Path, seance_id: str) -> str:
     """Read transcript.md."""
     project_root = Path(project_root)
     sdir = _session_dir(project_root, seance_id)
-    return (sdir / "transcript.md").read_text()
+    return (sdir / "transcript.md").read_text(encoding="utf-8")
 
 
 def assemble_context(project_root: Path, session: dict) -> str:
@@ -115,7 +115,7 @@ def assemble_context(project_root: Path, session: dict) -> str:
         abs_path = project_root / item["path"]
         if not abs_path.exists():
             continue
-        content = abs_path.read_text().strip()
+        content = abs_path.read_text(encoding="utf-8").strip()
         if content:
             parts.append(f"--- {item['type']} ---\n{content}")
     return "\n\n".join(parts)
@@ -126,6 +126,6 @@ def close_session(project_root: Path, seance_id: str) -> None:
     project_root = Path(project_root)
     sdir = _session_dir(project_root, seance_id)
     session_path = sdir / "session.yaml"
-    session = safe_load_yaml_dict(session_path.read_text())
+    session = safe_load_yaml_dict(session_path.read_text(encoding="utf-8"))
     session["status"] = "closed"
     atomic_write(session_path, safe_dump_yaml(session))

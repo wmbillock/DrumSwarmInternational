@@ -12,9 +12,29 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from backend.models.corps import Corps, CorpsStatus
+from backend.models.corps_strategy import CorpsStrategy
 from backend.services.yaml_util import safe_load_yaml_dict
 
 logger = logging.getLogger(__name__)
+
+
+def _seed_corps_strategy(db: Session, corps_id: str, strategy_data: dict) -> None:
+    """Create a CorpsStrategy from YAML data if one doesn't exist for this corps."""
+    existing = db.query(CorpsStrategy).filter(CorpsStrategy.corps_id == corps_id).first()
+    if existing:
+        return
+
+    strategy = CorpsStrategy(
+        corps_id=corps_id,
+        model_policy=strategy_data.get("model_policy", "single_provider"),
+        preferred_provider=strategy_data.get("preferred_provider"),
+        risk_tolerance=float(strategy_data.get("risk_tolerance", 0.5)),
+        exploration_rate=float(strategy_data.get("exploration_rate", 0.1)),
+        adaptation_style=strategy_data.get("adaptation_style", "prompt_only"),
+    )
+    db.add(strategy)
+    db.commit()
+    logger.info("Seeded strategy for corps %s: policy=%s", corps_id, strategy.model_policy)
 
 FOUNDING_CORPS_DIR = Path(__file__).parent.parent.parent / "data" / "founding_corps"
 
@@ -57,6 +77,10 @@ def seed_founding_corps(db: Session, corps_dir: Optional[Path] = None) -> list[C
                 if changed:
                     db.commit()
                     logger.info("Fixed up corps '%s': type=%s status=%s", name, existing.corps_type, existing.status.value)
+
+                # Seed strategy for existing corps if missing
+                if data.get("strategy"):
+                    _seed_corps_strategy(db, existing.id, data["strategy"])
                 continue
 
             # Create the corps record
@@ -91,6 +115,19 @@ def seed_founding_corps(db: Session, corps_dir: Optional[Path] = None) -> list[C
 
             db.commit()
             db.refresh(corps)
+
+            # Hire staff for the newly created corps
+            try:
+                from backend.services.corps_service import initialize_corps
+                initialize_corps(db, corps.id, use_auditions=True)
+                logger.info("Hired staff for corps '%s'", name)
+            except Exception as hire_err:
+                logger.error("Failed to hire staff for corps '%s': %s", name, hire_err)
+
+            # Seed strategy for newly created corps
+            if data.get("strategy"):
+                _seed_corps_strategy(db, corps.id, data["strategy"])
+
             created.append(corps)
             logger.info("Seeded founding corps: %s (id=%s)", name, corps.id)
 

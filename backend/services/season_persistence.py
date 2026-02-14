@@ -94,7 +94,7 @@ def load_season(season_dir: Path) -> dict:
         if not (season_dir / required).exists():
             raise FileNotFoundError(f"Required file '{required}' missing in {season_dir}")
 
-    data = safe_load_yaml_dict((season_dir / "season.yaml").read_text())
+    data = safe_load_yaml_dict((season_dir / "season.yaml").read_text(encoding="utf-8"))
     data.setdefault("shows", [])
     data.setdefault("divisions", {})
     data.setdefault("config", dict(DEFAULT_CONFIG))
@@ -189,18 +189,22 @@ def build_schedule(season_dir: Path) -> list[dict]:
     for show_slug in data.get("shows", []):
         corps_ids = divisions.get(show_slug, data.get("registered_corps", []))
         schedule.append({
-            "competition_id": f\"{season_id}-{show_slug}\",
+            "competition_id": f"{season_id}-{show_slug}",
             "show_slug": show_slug,
             "corps_ids": corps_ids,
         })
     return schedule
 
 
-def start_tour(season_dir: Path) -> dict:
+def start_tour(season_dir: Path, *, auto_advance: bool = True) -> dict:
     data = load_season(season_dir)
     data.setdefault("metadata", {})
     data["metadata"]["status"] = "touring"
+    # Enable auto-advance by default so metronome picks up the season
+    data.setdefault("config", {})
+    data["config"]["auto_advance"] = auto_advance
     if not data.get("schedule"):
-        data["schedule"] = build_schedule(season_dir)
+        from backend.services.tour_coordinator import generate_schedule
+        data["schedule"] = generate_schedule(season_dir)
     save_season(season_dir, data)
     return data

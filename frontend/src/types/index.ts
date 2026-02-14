@@ -508,6 +508,67 @@ export interface SessionActivity {
   }>;
 }
 
+// --- Resource Health types ---
+
+export interface GuardMetrics {
+  sync_guard_activations: number;
+  async_guard_activations: number;
+  total_cascades: number;
+  total_children_cascaded: number;
+  unhandled_exceptions_caught: number;
+}
+
+export interface ProcessStats {
+  active_processes: number;
+  warn_threshold: number;
+  over_threshold: boolean;
+  orphans_reaped: number;
+  instance_id: string;
+  pid_file: string;
+}
+
+export interface SessionSaturation {
+  active_sessions: number;
+  max_concurrent: number;
+  utilization_pct: number;
+}
+
+export interface ResourceHealth {
+  guard_metrics: GuardMetrics;
+  process_stats: ProcessStats;
+  budget: Record<string, unknown>;
+  session_saturation: SessionSaturation;
+}
+
+// --- Awards Summary types ---
+
+export interface AwardCategorySummary {
+  total: number;
+  tiers: Record<string, number>;
+  highest_tier: string | null;
+}
+
+export interface AwardRecentUnlock {
+  name: string;
+  category: string;
+  tier: string;
+  recipient_name: string;
+  awarded_at: string | null;
+}
+
+export interface AwardTopRecipient {
+  name: string;
+  count: number;
+}
+
+export interface AwardsSummary {
+  total_awards: number;
+  by_category: Record<string, AwardCategorySummary>;
+  by_tier: Record<string, number>;
+  recent_unlocks: AwardRecentUnlock[];
+  top_recipients: AwardTopRecipient[];
+}
+
 // --- LLM Usage types ---
 
 export interface LLMProviderStats {

@@ -181,7 +181,7 @@ def api_preview_artifact(seance_id: str, path: str = ""):
     if not abs_path.is_file():
         raise HTTPException(status_code=404, detail="Artifact file not found")
 
-    content = abs_path.read_text()
+    content = abs_path.read_text(encoding="utf-8")
     # Truncate large files
     max_chars = 10_000
     truncated = len(content) > max_chars

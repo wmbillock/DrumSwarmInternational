@@ -1,0 +1,12 @@
+{
+  "description": "Web icons, UI elements, and navigation art",
+  "category": "web_icons",
+  "prompt_template": "clean vector-style web icon, flat design, UI element, minimalist, {description}, solid background, crisp edges, modern interface design, professional quality",
+  "negative_prompt": "blurry, photorealistic, noisy, text, watermark, 3d render, gradients, complex background, low quality",
+  "width": 512,
+  "height": 512,
+  "steps": 25,
+  "cfg_scale": 8.0,
+  "recommended_models": ["sd_xl_base_1.0.safetensors"],
+  "upgrade_models": ["flat-icon-xl LoRA"]
+}

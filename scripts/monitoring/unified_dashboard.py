@@ -29,7 +29,7 @@ CYAN = "\033[36m"
 WHITE = "\033[37m"
 BG_DIM = "\033[48;5;236m"
 
-BACKEND_PORT = os.environ.get("DCI_PORT", "8000")
+BACKEND_PORT = os.environ.get("DCI_PORT", "4224")
 API_BASE = os.environ.get("DCI_API_URL", f"http://localhost:{BACKEND_PORT}")
 PROJECT_ROOT = os.environ.get("DCI_ROOT", os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 LOG_FILE = os.path.join(PROJECT_ROOT, "backend.log")

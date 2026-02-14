@@ -1,0 +1,60 @@
+season_id: lets-gooooo-1
+competition_id: lets-gooooo-1-round-1
+show_slug: be-able-to-click-into-a-corps-detail-page-from-an-entry-on-the-performance-stats-scoreboards-page
+generated_at: '2026-02-14T08:43:22.403736+00:00'
+results:
+- corps_id: 914f78aa-0d75-400d-bc9c-2c5a658149e3
+  rank: 1
+  final_score: 70.955
+  raw_score: 70.955
+  caption_scores:
+    guard: 41.5
+    visual: 83.5
+    brass: 70.0
+    ensemble_technique: 70.0
+    general_effect: 89.0
+    percussion: 70.0
+- corps_id: fc11e2a2-72fb-42d7-8b18-7731203b631f
+  rank: 2
+  final_score: 65.8
+  raw_score: 65.8
+  caption_scores:
+    guard: 41.5
+    general_effect: 93.5
+    ensemble_technique: 0.0
+    visual: 86.5
+    brass: 93.5
+    percussion: 70.0
+- corps_id: 3eb60a4b-8ceb-4f95-bf30-ed15184a445d
+  rank: 3
+  final_score: 61.9
+  raw_score: 61.9
+  caption_scores:
+    brass: 40.0
+    guard: 70.0
+    ensemble_technique: 38.5
+    general_effect: 70.0
+    visual: 86.5
+    percussion: 68.5
+- corps_id: 0857c9cd-ab79-414c-810f-698392bab1e6
+  rank: 4
+  final_score: 60.0
+  raw_score: 60.0
+  caption_scores:
+    guard: 41.5
+    visual: 83.5
+    general_effect: 93.5
+    ensemble_technique: 0.0
+    brass: 90.0
+    percussion: 41.5
+- corps_id: toss-and-pray
+  rank: 5
+  final_score: 53.480000000000004
+  raw_score: 53.480000000000004
+  caption_scores:
+    guard: 41.5
+    visual: 86.5
+    ensemble_technique: 0.0
+    general_effect: 80.0
+    brass: 68.5
+    percussion: 40.0

@@ -14,6 +14,7 @@ work logging, message bus events, and task manifest injection.
 import enum
 import json
 import logging
+import sys
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
@@ -25,6 +26,7 @@ from backend.services.agent_lifecycle import (
     complete_session,
     fail_session,
 )
+from backend.services.session_guard import SyncSessionGuard
 from backend.services.agent_phases import AgentPhase, PhaseController
 from backend.services.failure_fingerprint import FailureFingerprint, FailureRegistry
 from backend.services.llm_client import LLMClient, LLMMessage, LLMResponse
@@ -58,36 +60,66 @@ class RunResult:
     status: str = RunStatus.COMPLETED
     error: Optional[str] = None
     phase_state: Optional[dict] = None
+    model_spec_id: Optional[str] = None
+    task_category: Optional[str] = None
 
 
-def _get_critique_context(definition: AgentDefinition) -> str:
-    """Get recent critique action items for this agent's corps + role."""
+# ---- task category inference ----
+
+_CATEGORY_KEYWORDS: list[tuple[str, list[str]]] = [
+    ("frontend", ["react", "component", "jsx", "tsx", "css", "html", "ui", "layout", "style", "vite", "tailwind"]),
+    ("backend", ["api", "endpoint", "database", "query", "sql", "fastapi", "route", "model", "migration", "server"]),
+    ("testing", ["test", "spec", "assert", "pytest", "vitest", "coverage", "mock", "fixture"]),
+    ("architecture", ["design", "architecture", "system", "refactor", "pattern", "structure", "module"]),
+    ("documentation", ["document", "readme", "docstring", "comment", "explain", "guide"]),
+    ("image_gen", ["image", "comfyui", "stable diffusion", "generate image", "logo", "artwork"]),
+]
+
+
+def infer_task_category(description: str, role: str = "") -> str:
+    """Infer a task category from description text and agent role.
+
+    Uses simple keyword matching. Returns the category with the most
+    keyword hits, defaulting to "general".
+    """
+    text = f"{description} {role}".lower()
+    best_cat = "general"
+    best_count = 0
+
+    for category, keywords in _CATEGORY_KEYWORDS:
+        count = sum(1 for kw in keywords if kw in text)
+        if count > best_count:
+            best_count = count
+            best_cat = category
+
+    return best_cat
+
+
+def _get_critique_context(definition: AgentDefinition, db: Session) -> str:
+    """Get recent critique action items for this agent's corps + role.
+
+    Takes the caller's DB session instead of creating a private engine (was a leak).
+    """
     try:
         from backend.models.critique_session import CritiqueSession, CritiqueStatus
-        from backend.database import create_db_engine, create_session_factory
-        engine = create_db_engine()
-        SessionFactory = create_session_factory(engine)
-        db = SessionFactory()
-        try:
-            critiques = db.query(CritiqueSession).filter(
-                CritiqueSession.corps_id == definition.corps_id,
-                CritiqueSession.status == CritiqueStatus.COMPLETED,
-                CritiqueSession.action_items.isnot(None),
-            ).order_by(CritiqueSession.completed_at.desc()).limit(3).all()
 
-            if not critiques:
-                return ""
+        critiques = db.query(CritiqueSession).filter(
+            CritiqueSession.corps_id == definition.corps_id,
+            CritiqueSession.status == CritiqueStatus.COMPLETED,
+            CritiqueSession.action_items.isnot(None),
+        ).order_by(CritiqueSession.completed_at.desc()).limit(3).all()
 
-            items = []
-            for c in critiques:
-                if c.action_items:
-                    items.append(f"[{c.judge_type}] {c.action_items[:300]}")
-
-            if items:
-                return "## Recent Critique Feedback\nIn your last performance, judges noted:\n" + "\n".join(items) + "\nFocus on addressing these points."
+        if not critiques:
             return ""
-        finally:
-            db.close()
+
+        items = []
+        for c in critiques:
+            if c.action_items:
+                items.append(f"[{c.judge_type}] {c.action_items[:300]}")
+
+        if items:
+            return "## Recent Critique Feedback\nIn your last performance, judges noted:\n" + "\n".join(items) + "\nFocus on addressing these points."
+        return ""
     except Exception:
         return ""
 
@@ -99,6 +131,7 @@ def build_initial_messages(
     phase_guidance: str = "",
     manifest_context: str = "",
     corps_context: str = "",
+    db: Optional[Session] = None,
 ) -> list[LLMMessage]:
     """Build the initial message list for an agent session.
 
@@ -113,9 +146,10 @@ def build_initial_messages(
         system_content += f"\n\n{corps_context}"
 
     # Inject recent critique action items
-    critique_context = _get_critique_context(definition)
-    if critique_context:
-        system_content += f"\n\n{critique_context}"
+    if db is not None:
+        critique_context = _get_critique_context(definition, db)
+        if critique_context:
+            system_content += f"\n\n{critique_context}"
 
     messages = [
         LLMMessage(role="system", content=system_content),
@@ -214,6 +248,11 @@ def run_agent(
         except Exception:
             logger.debug("Work log write failed", exc_info=True)
 
+    # RAII guard: guarantees session cleanup + child cascade on unhandled crash.
+    # The guard is a safety net — run_agent still calls complete_session/fail_session
+    # explicitly on happy/error paths. The guard only fires if those are never reached.
+    guard = SyncSessionGuard(db, session_id, cascade_children=True)
+
     agent_session = db.get(AgentSession, session_id)
     if agent_session is None:
         raise ValueError(f"Session {session_id} not found")
@@ -244,6 +283,61 @@ def run_agent(
         except Exception:
             logger.debug("Failed to load corps context", exc_info=True)
 
+    # Load drill book context for this agent's corps + role
+    drill_context_str = ""
+    if corps_id:
+        try:
+            from backend.services.drill_book_service import list_books, get_resumption_context
+            from backend.services.vector_store import search_drill_context
+            from backend.models.drill_book import BookStatus
+
+            active_books = list_books(db, corps_id=corps_id, role=definition.role)
+            active_books = [b for b in active_books if b.status not in (
+                BookStatus.COMPLETED, BookStatus.VERIFIED,
+                BookStatus.FAILED, BookStatus.ABANDONED,
+            )]
+
+            if active_books:
+                parts = ["## Active Drill Books"]
+                for book in active_books[:3]:  # Cap at 3 to avoid prompt bloat
+                    ctx = get_resumption_context(db, book.id)
+                    status_label = ctx['status']
+                    if status_label == "blocked":
+                        status_label = "BLOCKED — investigate why and escalate if needed"
+                    parts.append(
+                        f"### {ctx['title']} (status: {status_label})\n"
+                        f"{ctx['description']}\n"
+                        f"Progress: {ctx['progress']['completed']}/{ctx['progress']['total']} steps done\n"
+                        f"Next steps: {', '.join(ctx['next_step_ids'][:3]) or 'none'}"
+                    )
+                    if ctx.get("context_summary"):
+                        parts.append(f"Context: {ctx['context_summary'][:300]}")
+                    # Deserialize context_snapshot for cold-resume data
+                    if ctx.get("context_snapshot"):
+                        snap_data = ctx["context_snapshot"]
+                        if isinstance(snap_data, dict):
+                            snap_keys = [k for k in snap_data.keys() if k not in ("phase_state", "failure_fingerprints")]
+                            if snap_keys:
+                                snap_summary = ", ".join(f"{k}: {str(snap_data[k])[:80]}" for k in snap_keys[:5])
+                                parts.append(f"Snapshot: {snap_summary}")
+                drill_context_str = "\n".join(parts)
+
+            # Search vector store for relevant prior drill outcomes
+            similar = search_drill_context(
+                task_description[:200], top_k=3, corps_id=corps_id, role=definition.role
+            )
+            if similar:
+                prior_parts = ["## Prior Drill Outcomes"]
+                for hit in similar:
+                    prior_parts.append(f"- {hit['document'][:200]}")
+                drill_context_str += "\n" + "\n".join(prior_parts) if drill_context_str else "\n".join(prior_parts)
+        except Exception:
+            logger.debug("Failed to load drill book context", exc_info=True)
+
+    # Merge drill context into manifest_context
+    if drill_context_str:
+        manifest_context = f"{manifest_context}\n\n{drill_context_str}" if manifest_context else drill_context_str
+
     from backend.models.work_log import WorkLogEventType
 
     _emit({
@@ -263,10 +357,34 @@ def run_agent(
         phase_guidance=phase_controller.get_guidance(),
         manifest_context=manifest_context,
         corps_context=corps_context_str,
+        db=db,
     )
     tool_schemas = tool_executor.registry.get_schemas_for_session(db, session_id)
 
-    result = RunResult(session_id=session_id)
+    # --- Model spec selection ---
+    task_category = infer_task_category(task_description, definition.role)
+    model_override: Optional[str] = None
+    selected_spec_id: Optional[str] = None
+
+    try:
+        from backend.services.model_spec_selector import select_model_spec
+        spec = select_model_spec(db, corps_id or None, task_category, definition)
+        if spec is not None:
+            model_override = spec.model_id
+            selected_spec_id = spec.id
+            logger.debug(
+                "Selected model spec %s (%s) for task category %s",
+                spec.name, spec.model_id, task_category,
+            )
+    except Exception:
+        logger.debug("Model spec selection failed, using default tier", exc_info=True)
+
+    result = RunResult(
+        session_id=session_id,
+        model_spec_id=selected_spec_id,
+        task_category=task_category,
+    )
+    guard.__enter__()
 
     try:
         for i in range(max_iterations):
@@ -278,11 +396,15 @@ def run_agent(
                 "message_count": len(messages),
             }, corps_id, phase_controller.current_phase.value)
 
+            chat_kwargs: dict = {"session_id": session_id}
+            if model_override:
+                chat_kwargs["model_override"] = model_override
+
             response = llm_client.chat(
                 messages=messages,
                 model_tier=definition.model_tier,
                 tools=tool_schemas if tool_schemas else None,
-                session_id=session_id,
+                **chat_kwargs,
             )
 
             _write_work_log(db, {
@@ -439,6 +561,8 @@ def run_agent(
         else:
             complete_session(db, session_id, context_snapshot=snapshot)
 
+        guard.mark_completed()
+
         # Clean up CLI session so it doesn't pollute the user's resume list
         llm_client.cleanup_session(session_id)
 
@@ -481,6 +605,39 @@ def run_agent(
                 )
         except Exception:
             logger.debug("Memory bank storage failed", exc_info=True)
+
+        # Index completed drill book outcomes in vector store
+        if corps_id and result.status == RunStatus.COMPLETED:
+            try:
+                from backend.services.drill_book_service import list_books as _list_books
+                from backend.services.vector_store import store_drill_context
+                from backend.models.drill_book import BookStatus as _BookStatus
+
+                completed_books = _list_books(db, corps_id=corps_id, role=definition.role, status=_BookStatus.COMPLETED)
+                for book in completed_books[:5]:
+                    store_drill_context(
+                        book_id=book.id,
+                        summary=f"{book.title}: {book.description[:300]}",
+                        outcome=book.context_summary or result.final_response[:300],
+                        corps_id=corps_id,
+                        role=definition.role or "",
+                    )
+            except Exception:
+                logger.debug("Drill book vector store indexing failed", exc_info=True)
+
+        # Record model spec outcome for the feedback loop
+        if selected_spec_id and task_category:
+            try:
+                from backend.services.model_spec_service import record_model_spec_outcome
+                success = result.status == RunStatus.COMPLETED
+                # Simple score: completed=80 base + iteration bonus, failed=20
+                score = 80.0 + max(0, 10 - result.iterations) if success else 20.0
+                record_model_spec_outcome(
+                    db, selected_spec_id, task_category, score, success,
+                    corps_id=corps_id or None,
+                )
+            except Exception:
+                logger.debug("Model spec outcome recording failed", exc_info=True)
 
     except Exception as e:
         result.status = "failed"
@@ -534,8 +691,15 @@ def run_agent(
             except Exception:
                 pass  # Session may already be in terminal state
 
+        guard.mark_failed()
+
         # Clean up CLI session on failure too
         llm_client.cleanup_session(session_id)
+
+    finally:
+        # Safety net: if guard wasn't marked, __exit__ will fail the session
+        # and cascade-kill children. No-op if already marked.
+        guard.__exit__(*sys.exc_info())
 
     return result
 

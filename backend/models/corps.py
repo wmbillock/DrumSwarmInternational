@@ -71,6 +71,8 @@ class Corps(Base):
     corps_type: Mapped[Optional[str]] = mapped_column(String(20), default="competing")
     caption_affinity: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     founding_definition: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    color_scheme: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    logo_path: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

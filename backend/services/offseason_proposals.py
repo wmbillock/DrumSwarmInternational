@@ -8,6 +8,8 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 
 from backend.services.yaml_util import safe_dump_yaml
+from sqlalchemy.orm import Session
+
 from backend.services.corps_persistence import (
     VALID_TRANSITIONS,
     load_corps,
@@ -22,9 +24,15 @@ from backend.services.lifecycle_transitions import (
 )
 
 
+_STRATEGY_FIELDS = frozenset({
+    "model_policy", "preferred_provider", "risk_tolerance",
+    "exploration_rate", "adaptation_style", "section_overrides",
+})
+
+
 @dataclass
 class Proposal:
-    proposal_type: str   # "state_change", "roster_change", "retirement"
+    proposal_type: str   # "state_change", "roster_change", "retirement", "strategy_change"
     corps_id: str
     description: str
     changes: dict        # type-specific payload
@@ -99,12 +107,15 @@ def apply_proposals(
     corps_base_dir: Path,
     pool_dir: Path,
     apply: bool = False,
+    db: "Session | None" = None,
 ) -> list[dict]:
     """Validate and apply proposals. REQUIRES apply=True.
 
     Raises ValueError if apply is False.
     Each proposal validated independently; failures don't block others.
     Returns list of {proposal_index, corps_id, result, error?} for audit.
+
+    ``db`` is required for strategy_change proposals (updates CorpsStrategy rows).
     """
     if not apply:
         raise ValueError("apply_proposals requires apply=True to execute changes")
@@ -119,6 +130,12 @@ def apply_proposals(
         corps_dir = corps_base_dir / p.corps_id
 
         try:
+            if p.proposal_type == "strategy_change":
+                _apply_strategy_change(db, p)
+                entry["result"] = "applied"
+                audit.append(entry)
+                continue
+
             if not corps_dir.exists():
                 raise ValueError(f"Corps '{p.corps_id}' not found")
 
@@ -154,3 +171,33 @@ def apply_proposals(
         audit.append(entry)
 
     return audit
+
+
+def _apply_strategy_change(db: "Session | None", proposal: Proposal) -> None:
+    """Apply a strategy_change proposal to the CorpsStrategy row."""
+    if db is None:
+        raise ValueError("strategy_change proposals require a db session")
+
+    from backend.models.corps_strategy import CorpsStrategy
+
+    strategy = (
+        db.query(CorpsStrategy)
+        .filter(CorpsStrategy.corps_id == proposal.corps_id)
+        .first()
+    )
+    if strategy is None:
+        raise ValueError(
+            f"No CorpsStrategy found for corps '{proposal.corps_id}'"
+        )
+
+    applied = []
+    for field, value in proposal.changes.items():
+        if field not in _STRATEGY_FIELDS:
+            continue
+        setattr(strategy, field, value)
+        applied.append(field)
+
+    if not applied:
+        raise ValueError("No valid strategy fields in changes dict")
+
+    db.flush()

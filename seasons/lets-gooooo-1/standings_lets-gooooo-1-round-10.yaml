@@ -1,0 +1,16 @@
+season_id: lets-gooooo-1
+competition_id: lets-gooooo-1-round-10
+show_slug: corps-auto-staffing-with-visible-hiring
+generated_at: '2026-02-14T11:07:15.343034+00:00'
+results:
+- corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+  rank: 1
+  final_score: 62.1
+  raw_score: 62.1
+  caption_scores:
+    visual: 70.0
+    brass: 40.0
+    guard: 40.0
+    ensemble_technique: 41.5
+    percussion: 81.5
+    general_effect: 91.0

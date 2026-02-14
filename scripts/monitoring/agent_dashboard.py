@@ -29,7 +29,7 @@ STATUS_ICON = {
     "in_progress": f"{CYAN}◑{RESET}",
 }
 
-API_BASE = os.environ.get("DCI_API_URL", "http://localhost:8000")
+API_BASE = os.environ.get("DCI_API_URL", "http://localhost:4224")
 
 
 def fetch(path):

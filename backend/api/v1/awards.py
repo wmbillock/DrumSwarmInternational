@@ -54,6 +54,75 @@ def list_awards(
         db.close()
 
 
+@router.get("/awards/summary")
+def awards_summary(corps_id: Optional[str] = None):
+    """Aggregated awards summary: by category, by tier, recent unlocks, top recipients."""
+    from backend.models.caption_award import CaptionAward, AwardCategory, AwardTier
+    from sqlalchemy import func as sa_func
+
+    TIER_ORDER = {t.value: i for i, t in enumerate(AwardTier)}
+
+    db = _get_db_session()
+    try:
+        q = db.query(CaptionAward)
+        if corps_id:
+            q = q.filter(CaptionAward.corps_id == corps_id)
+        awards = q.all()
+
+        total_awards = len(awards)
+
+        # by_category
+        by_category: dict = {}
+        for cat in AwardCategory:
+            cat_awards = [a for a in awards if a.category == cat]
+            tiers: dict = {}
+            for a in cat_awards:
+                tiers[a.tier.value] = tiers.get(a.tier.value, 0) + 1
+            highest_tier = None
+            if tiers:
+                highest_tier = max(tiers.keys(), key=lambda t: TIER_ORDER.get(t, 0))
+            by_category[cat.value] = {
+                "total": len(cat_awards),
+                "tiers": tiers,
+                "highest_tier": highest_tier,
+            }
+
+        # by_tier
+        by_tier: dict = {}
+        for a in awards:
+            by_tier[a.tier.value] = by_tier.get(a.tier.value, 0) + 1
+
+        # recent_unlocks (last 20)
+        sorted_awards = sorted(awards, key=lambda a: a.awarded_at or "", reverse=True)
+        recent_unlocks = [{
+            "name": a.name,
+            "category": a.category.value,
+            "tier": a.tier.value,
+            "recipient_name": a.recipient_name,
+            "awarded_at": a.awarded_at.isoformat() if a.awarded_at else None,
+        } for a in sorted_awards[:20]]
+
+        # top_recipients
+        recipient_counts: dict = {}
+        for a in awards:
+            recipient_counts[a.recipient_name] = recipient_counts.get(a.recipient_name, 0) + 1
+        top_recipients = sorted(
+            [{"name": name, "count": count} for name, count in recipient_counts.items()],
+            key=lambda x: x["count"],
+            reverse=True,
+        )[:10]
+
+        return {
+            "total_awards": total_awards,
+            "by_category": by_category,
+            "by_tier": by_tier,
+            "recent_unlocks": recent_unlocks,
+            "top_recipients": top_recipients,
+        }
+    finally:
+        db.close()
+
+
 @router.post("/awards/check/{corps_id}")
 def check_awards(corps_id: str):
     """Manually trigger achievement check for all performers in a corps."""

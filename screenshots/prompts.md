@@ -187,3 +187,39 @@ Status: Reviewed and moved to SEEN AND FIXED
 ## s9.png
 File: `s9.png`
 Status: Reviewed and moved to SEEN AND FIXED
+
+## DCI_Swarm_Dashboard_2026-02-14T00_22_29_407602.svg
+File: `DCI_Swarm_Dashboard_2026-02-14T00_22_29_407602.svg`
+Bug: Agents tab shows "No active corps. Create and activate a show." when 12 seeded corps exist.
+Fix: AgentsPanel now shows corps list with lifecycle phases when no active agent sessions. dashboard_data.py always refreshes corps list.
+Status: Reviewed and moved to SEEN AND FIXED
+
+## DCI_Swarm_Dashboard_2026-02-14T00_22_32_954059.svg
+File: `DCI_Swarm_Dashboard_2026-02-14T00_22_32_954059.svg`
+Bug: Logs tab shows "No log file found." because backend.log doesn't exist (uvicorn logs to stdout).
+Fix: LogsPanel now shows helpful message explaining logs go to stdout with command reference.
+Status: Reviewed and moved to SEEN AND FIXED
+
+## DCI_Swarm_Dashboard_2026-02-14T00_22_39_131534.svg
+File: `DCI_Swarm_Dashboard_2026-02-14T00_22_39_131534.svg`
+Bug: Changes tab missing "RECENT COMMITS" section on initial load (data only refreshed when changes tab active).
+Fix: _refresh_cycle() now always refreshes git status + recent commits regardless of active tab.
+Status: Reviewed and moved to SEEN AND FIXED
+
+## DCI_Swarm_Dashboard_2026-02-14T00_22_42_673952.svg
+File: `DCI_Swarm_Dashboard_2026-02-14T00_22_42_673952.svg`
+Bug: Memory tab shows "No active corps." when 12 seeded corps exist but have no active shows.
+Fix: MemoryPanel now shows corps count with guidance to activate a show for memory data.
+Status: Reviewed and moved to SEEN AND FIXED
+
+## DCI_Swarm_Dashboard_2026-02-14T00_22_46_028541.svg
+File: `DCI_Swarm_Dashboard_2026-02-14T00_22_46_028541.svg`
+Bug: Lifecycle tab completely blank on first render (empty string before background refresh completes).
+Fix: LifecyclePanel compose() now shows "Loading..." as initial content instead of empty string.
+Status: Reviewed and moved to SEEN AND FIXED
+
+## DCI_Swarm_Dashboard_2026-02-14T00_23_24_161229.svg
+File: `DCI_Swarm_Dashboard_2026-02-14T00_23_24_161229.svg`
+Bug: Lifecycle tab shows "No active corps." after refresh — same root cause as agents/memory.
+Fix: LifecyclePanel now shows corps list with lifecycle phases and mascots when no active show data.
+Status: Reviewed and moved to SEEN AND FIXED

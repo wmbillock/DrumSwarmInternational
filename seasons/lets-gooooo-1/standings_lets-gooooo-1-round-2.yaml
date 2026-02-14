@@ -1,0 +1,60 @@
+season_id: lets-gooooo-1
+competition_id: lets-gooooo-1-round-2
+show_slug: corps-auto-staffing-with-visible-hiring
+generated_at: '2026-02-14T09:28:44.175890+00:00'
+results:
+- corps_id: pit-happens
+  rank: 1
+  final_score: 50.965
+  raw_score: 50.965
+  caption_scores:
+    percussion: 41.5
+    brass: 70.0
+    ensemble_technique: 40.0
+    guard: 70.0
+    general_effect: 41.5
+    visual: 41.5
+- corps_id: 914f78aa-0d75-400d-bc9c-2c5a658149e3
+  rank: 2
+  final_score: 45.835
+  raw_score: 45.835
+  caption_scores:
+    brass: 40.0
+    guard: 40.0
+    general_effect: 41.5
+    ensemble_technique: 41.5
+    visual: 41.5
+    percussion: 70.0
+- corps_id: 4bfd7b68-2260-4b69-b389-9a8eda907da1
+  rank: 3
+  final_score: 39.3
+  raw_score: 39.3
+  caption_scores:
+    percussion: 41.5
+    visual: 41.5
+    guard: 41.5
+    ensemble_technique: 41.5
+    general_effect: 31.5
+    brass: 41.5
+- corps_id: ec4c11f9-faaa-4113-86b3-902d19200bcb
+  rank: 4
+  final_score: 37.980000000000004
+  raw_score: 37.980000000000004
+  caption_scores:
+    guard: 38.5
+    brass: 41.5
+    percussion: 41.5
+    visual: 38.5
+    ensemble_technique: 38.5
+    general_effect: 31.5
+- corps_id: 9f5170f4-0f5b-45c3-bb54-b5fd7a4dc5d8
+  rank: 5
+  final_score: 34.865
+  raw_score: 34.865
+  caption_scores:
+    brass: 41.5
+    guard: 40.0
+    ensemble_technique: 41.5
+    general_effect: 12.5
+    visual: 41.5
+    percussion: 41.5

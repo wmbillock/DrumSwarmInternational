@@ -11,12 +11,15 @@ import json
 import logging
 import os
 import signal
+import sys
 import threading
 import time
 import uuid
 from pathlib import Path
 from typing import Optional
 import subprocess
+
+IS_WINDOWS = sys.platform == "win32"
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +53,7 @@ class ProcessRegistry:
                 cls._instance._records: dict[int, ProcessRecord] = {}
                 cls._instance._pid_lock = threading.Lock()
                 cls._instance._instance_id = cls._resolve_instance_id()
+                cls._instance._orphans_reaped = 0
         return cls._instance
 
     @property
@@ -81,7 +85,11 @@ class ProcessRegistry:
         return instance_id
 
     def _pid_file(self) -> Path:
-        return Path("/tmp") / f"{PID_FILE_PREFIX}-{self._instance_id}.json"
+        if IS_WINDOWS:
+            tmp = Path(os.environ.get("TEMP", os.environ.get("TMP", ".")))
+        else:
+            tmp = Path("/tmp")
+        return tmp / f"{PID_FILE_PREFIX}-{self._instance_id}.json"
 
     def register(self, pid: int, cmd: Optional[list[str]] = None, cwd: Optional[str] = None, pgid: Optional[int] = None) -> None:
         with self._pid_lock:
@@ -133,7 +141,7 @@ class ProcessRegistry:
         return None
 
     def kill_all(self) -> int:
-        """SIGTERM all registered PIDs, then SIGKILL stragglers. Returns kill count."""
+        """Kill all registered processes and their children. Returns kill count."""
         with self._pid_lock:
             records = list(self._records.values())
         if not records:
@@ -141,29 +149,8 @@ class ProcessRegistry:
 
         killed = 0
         for record in records:
-            try:
-                os.killpg(record.pgid, signal.SIGTERM)
+            if _kill_tree(record.pid):
                 killed += 1
-            except OSError:
-                try:
-                    os.kill(record.pid, signal.SIGTERM)
-                    killed += 1
-                except OSError:
-                    pass
-
-        # Give processes 2s to exit, then force-kill
-        time.sleep(2)
-
-        for record in records:
-            try:
-                os.kill(record.pid, 0)  # still alive?
-                try:
-                    os.killpg(record.pgid, signal.SIGKILL)
-                except OSError:
-                    os.kill(record.pid, signal.SIGKILL)
-                logger.warning("Force-killed PID %d", record.pid)
-            except OSError:
-                pass
 
         with self._pid_lock:
             self._records.clear()
@@ -185,6 +172,7 @@ class ProcessRegistry:
             "active_processes": self.count,
             "warn_threshold": WARN_THRESHOLD,
             "over_threshold": self.count >= WARN_THRESHOLD,
+            "orphans_reaped": self._orphans_reaped,
             "instance_id": self._instance_id,
             "pid_file": str(self._pid_file()),
         }
@@ -221,6 +209,7 @@ class ProcessRegistry:
         except OSError:
             pass
         if killed:
+            self._orphans_reaped += killed
             logger.info("Startup: reaped %d orphaned subprocess(es)", killed)
         return killed
 
@@ -237,21 +226,31 @@ def start_tracked_process(
     stdout=subprocess.PIPE,
     stderr=subprocess.PIPE,
 ) -> subprocess.Popen:
-    """Start a subprocess in its own process group and register it."""
-    proc = subprocess.Popen(
-        cmd,
-        stdout=stdout,
-        stderr=stderr,
-        text=text,
-        cwd=cwd,
-        env=env,
-        start_new_session=True,
-    )
+    """Start a subprocess and register it for tracking.
+
+    On Windows, uses CREATE_NEW_PROCESS_GROUP for reliable tree-kill.
+    On Unix, uses start_new_session=True for process group kill.
+    """
+    kwargs: dict = {
+        "stdout": stdout,
+        "stderr": stderr,
+        "text": text,
+        "cwd": cwd,
+        "env": env,
+    }
+    if IS_WINDOWS:
+        kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+    else:
+        kwargs["start_new_session"] = True
+
+    proc = subprocess.Popen(cmd, **kwargs)
     registry = get_process_registry()
-    try:
-        pgid = os.getpgid(proc.pid)
-    except OSError:
-        pgid = proc.pid
+    pgid = proc.pid
+    if not IS_WINDOWS:
+        try:
+            pgid = os.getpgid(proc.pid)
+        except OSError:
+            pass
     registry.register(proc.pid, cmd=cmd, cwd=cwd, pgid=pgid)
     return proc
 
@@ -297,55 +296,90 @@ def _is_process_alive(pid: int) -> bool:
         return False
 
 
+def _kill_tree(pid: int) -> bool:
+    """Kill a process and all its children. Cross-platform."""
+    if IS_WINDOWS:
+        try:
+            subprocess.run(
+                ["taskkill", "/F", "/T", "/PID", str(pid)],
+                capture_output=True, timeout=10,
+            )
+            return True
+        except Exception:
+            return False
+    else:
+        # Unix: kill process group
+        try:
+            pgid = os.getpgid(pid)
+            os.killpg(pgid, signal.SIGTERM)
+        except OSError:
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except OSError:
+                return False
+        time.sleep(1)
+        if _is_process_alive(pid):
+            try:
+                pgid = os.getpgid(pid)
+                os.killpg(pgid, signal.SIGKILL)
+            except OSError:
+                try:
+                    os.kill(pid, signal.SIGKILL)
+                except OSError:
+                    return False
+        return True
+
+
 def _get_cmdline(pid: int) -> str:
-    try:
-        result = subprocess.run(
-            ["ps", "-p", str(pid), "-o", "command="],
-            capture_output=True,
-            text=True,
-            timeout=2,
-        )
-        if result.returncode == 0:
-            return result.stdout.strip()
-    except Exception:
-        pass
-    return ""
+    if IS_WINDOWS:
+        try:
+            result = subprocess.run(
+                ["wmic", "process", "where", f"ProcessId={pid}", "get", "CommandLine", "/value"],
+                capture_output=True, text=True, timeout=3,
+            )
+            if result.returncode == 0:
+                for line in result.stdout.splitlines():
+                    if line.startswith("CommandLine="):
+                        return line[len("CommandLine="):]
+        except Exception:
+            pass
+        return ""
+    else:
+        try:
+            result = subprocess.run(
+                ["ps", "-p", str(pid), "-o", "command="],
+                capture_output=True, text=True, timeout=2,
+            )
+            if result.returncode == 0:
+                return result.stdout.strip()
+        except Exception:
+            pass
+        return ""
 
 
 def _matches_record(record: ProcessRecord) -> bool:
-    try:
-        if os.getpgid(record.pid) != record.pgid:
+    if IS_WINDOWS:
+        # On Windows, just check if process is alive — pgid checks don't work
+        if not _is_process_alive(record.pid):
             return False
-    except OSError:
-        return False
+    else:
+        try:
+            if os.getpgid(record.pid) != record.pgid:
+                return False
+        except OSError:
+            return False
 
     if not record.cmd:
         return False
     cmdline = _get_cmdline(record.pid)
     if not cmdline:
-        return False
+        return IS_WINDOWS and _is_process_alive(record.pid)
     needle = record.cmd[0]
     return needle in cmdline
 
 
 def _kill_record(record: ProcessRecord) -> bool:
-    try:
-        os.killpg(record.pgid, signal.SIGTERM)
-    except OSError:
-        try:
-            os.kill(record.pid, signal.SIGTERM)
-        except OSError:
-            return False
-    time.sleep(2)
-    if _is_process_alive(record.pid):
-        try:
-            os.killpg(record.pgid, signal.SIGKILL)
-        except OSError:
-            try:
-                os.kill(record.pid, signal.SIGKILL)
-            except OSError:
-                return False
-    return True
+    return _kill_tree(record.pid)
 
 
 # Auto-cleanup on interpreter exit

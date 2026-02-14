@@ -1,0 +1,12 @@
+{
+  "description": "Stylized iconography, emblems, crests, and badges",
+  "category": "stylized_icon",
+  "prompt_template": "stylized emblem design, heraldic icon, {description}, ornate details, symmetrical composition, rich colors, badge or crest style, professional iconography",
+  "negative_prompt": "blurry, photorealistic, text, watermark, low quality, noisy, asymmetric, messy",
+  "width": 768,
+  "height": 768,
+  "steps": 25,
+  "cfg_scale": 8.0,
+  "recommended_models": ["sd_xl_base_1.0.safetensors"],
+  "upgrade_models": ["logo-design-xl LoRA"]
+}

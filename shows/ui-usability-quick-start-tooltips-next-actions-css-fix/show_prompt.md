@@ -1,46 +1,20 @@
-# Show Prompt: UI Usability Quick Start Tooltips Next-Action Badges CSS Fix
+## Objective
 
-## Show Concept
-Implement 5 integrated UI usability improvements for the DCI Swarm frontend: react-tooltip infrastructure, Command Center Quick Start guide, Show Library next-action badges, contextual tooltips across vitals/SideNav/Design Room, and MessageArchive.css completion. All adhering to Field Commander Brutalism aesthetic.
-
-## Musical Design
-Phased execution with clear dependencies:
-- Phase 1: Install react-tooltip, add TooltipProvider in AppLayout.tsx. Black bg, white text, JetBrains Mono, no border-radius, 1px solid white border.
-- Phase 2 (parallel): Quick Start guide in CommandCenter.tsx (7 steps, collapsible, localStorage dci-quickstart-dismissed) AND MessageArchive.css completion.
-- Phase 3 (parallel): Show Library status badges in ShowLibrary.tsx AND tooltip rollout on vitals, SideNav, Design Room buttons.
-
-## Visual Design
-- Tooltips: black background, white text, JetBrains Mono font, no border-radius, 1px solid white border
-- Quick Start: monospace step numbers, bordered cards, no rounded corners, collapsible header
-- Badges: uppercase monospace text, 1px solid border, no border-radius. Colors by status: draft=yellow/black, needs_review=orange/black, approved=green/black, published=white/black
-- MessageArchive: thread list, message cards, search input, bulk actions bar, empty states all styled to Brutalism patterns
-
-## Guard Design
-- Zero TypeScript errors (npx tsc --noEmit)
-- Zero console errors in browser
-- localStorage persistence for Quick Start dismissal
-- Tooltips render on hover without layout shift
-- MessageArchive.css produces no unstyled elements
-- All badges display correct text and color per status
-
-## General Effect
-- New users see Quick Start guide on first visit to Command Center, can dismiss permanently
-- Show Library communicates next action at a glance via status badges
-- Tooltips provide contextual help without cluttering the UI
-- MessageArchive looks complete and consistent with the rest of the app
-
-## Constraints
-- No breaking changes to existing components
-- React 18+ compatible
-- All new components must be accessible (aria labels, keyboard navigation)
-- Field Commander Brutalism: JetBrains Mono for code/labels, IBM Plex Sans for body, stage colors only
-- No border-radius anywhere
+Deliver production-ready tooltip infrastructure, Quick Start onboarding, status badges, and MessageArchive CSS across Command Center, Show Library, Design Room, and MessageArchive—zero breaking changes, Field Commander Brutalism aesthetic, accessibility ≥95/100, all constraints honored.
 
 ## Deliverables
-- frontend/src/layouts/AppLayout.tsx - add react-tooltip TooltipProvider
-- frontend/src/pages/CommandCenter.tsx - add Quick Start guide component
-- frontend/src/pages/ShowLibrary.tsx - add next-action status badges
-- frontend/src/pages/DesignRoom.tsx - add tooltips to action buttons
-- frontend/src/components/SideNav.tsx - add tooltips to nav items
-- frontend/src/styles/MessageArchive.css - complete all missing styles
-- frontend/package.json - add react-tooltip dependency
+
+- **React-Tooltip Provider Component** — Install react-tooltip@5.x; create `TooltipProvider` wrapper in `AppLayout.tsx`; export `useTooltip` custom hook with 100ms delay, dark theme (#1a1a1a), monospace styling, max-width 200px, responsive positioning; zero console errors
+- **Command Center Quick Start Panel** — 7-step collapsible guide (left sidebar above SideNav); icon + title + description (max 140 chars) + "Learn More" links; localStorage persistence key `cc_quick_start_dismissed` (boolean); dismiss button (X icon) with tooltip; graceful migration of old state
+- **Show Library Status Badge Component** — Enum-driven badge system (DRAFT/RECORDING/EDITING/PUBLISHED/ARCHIVED); deployed to Show Library grid, Show Detail header, Design Room status bar; color-coded (gray/yellow/blue/green/red); optional next-action hints; WCAG AA contrast verified (≥4.5:1)
+- **Tooltip Deployment Layer** — Tooltips on vitals cards (Command Center), SideNav items, Design Room buttons (with keyboard shortcuts), MessageArchive filter controls; 100ms delay; semantic HTML triggers; keyboard-accessible (Enter/Space to show, Escape to close); mobile long-press fallback
+- **MessageArchive CSS Grid** — 12-column layout (16px gap); dark message cards (#0a0a0a) with monospace headers, 4px border-radius; hover shadow lift (0 4px 16px rgba(255, 255, 255, 0.1)); responsive 1–3 column breakpoints (mobile <768px / tablet 768–1023px / desktop ≥1024px); pagination controls; archive header; no layout shift on load
+- **Design Room Button Suite** — Consistent button family (primary red #e74c3c, secondary border #f5f5f5, icon-only gray #7f8c8d); save/export/preview/undo/redo buttons; hover/active states with subtle opacity shift (+10%); focus visible on keyboard; tooltips with keyboard shortcut hints
+- **Accessibility & QA Verification** — Zero console errors; TypeScript strict mode pass (`tsc --noEmit` no `@ts-ignore`); Lighthouse audit ≥95/100; cross-browser smoke test (Chrome, Firefox, Safari, Edge); mobile/tablet/desktop responsive rendering verified; all new strings marked for i18n
+
+## Constraints
+
+- **Phase 1 (React-Tooltip Infrastructure) is a critical blocker** — no other phases may begin until Phase 1 passes QA and zero console errors confirmed
+- **Parallel execution authorized** — Phases 2 & 3 run in parallel after Phase 1 live; Phase 4 starts after Phase 1 QA; Phase 5 runs independent; Phase 6 starts after Phase 4 QA
+- **No breaking changes** — all phases maintain backwards compatibility with existing API contracts, routing, and component props
+- **No new npm dependencies** beyond react-tooltip@5.x; no new fonts, colors, or border-radius values outside the spec'd palette (4px/8px/16px grid, JetBrains

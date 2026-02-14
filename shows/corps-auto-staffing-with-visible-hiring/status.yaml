@@ -1,5 +1,8 @@
-status: completed
-completed_at: "2026-02-03"
-implementation_notes: |
-  - Corps creation now auto-initializes staffing and exposes staffing-status.
+status: published
+completed_at: '2026-02-03'
+implementation_notes: '- Corps creation now auto-initializes staffing and exposes
+  staffing-status.
+
   - Corps list shows staff count and modal displays hiring progress.
+
+  '

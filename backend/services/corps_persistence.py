@@ -66,13 +66,13 @@ def create_corps(corps_dir: Path, data: dict) -> None:
 def load_corps(corps_dir: Path) -> dict:
     """Read and return the corps dict from corps.yaml."""
     corps_dir = Path(corps_dir)
-    return safe_load_yaml_dict((corps_dir / "corps.yaml").read_text())
+    return safe_load_yaml_dict((corps_dir / "corps.yaml").read_text(encoding="utf-8"))
 
 
 def load_roster(corps_dir: Path) -> dict:
     """Read and return the roster dict from roster.yaml."""
     corps_dir = Path(corps_dir)
-    return safe_load_yaml_dict((corps_dir / "roster.yaml").read_text())
+    return safe_load_yaml_dict((corps_dir / "roster.yaml").read_text(encoding="utf-8"))
 
 
 def update_corps_state(corps_dir: Path, new_state: str) -> None:

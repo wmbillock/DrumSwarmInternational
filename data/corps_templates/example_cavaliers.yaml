@@ -1,0 +1,48 @@
+# Corps Template: Cavaliers
+# Use this as a reference when defining a new corps.
+# Copy this file, change the fields, and place in data/founding_corps/ to auto-seed.
+
+name: "The Cavaliers"
+division: world_class
+category: precision
+caption_affinity: brass
+
+identity:
+  motto: "Seven in a row"
+  philosophy: >
+    The Cavaliers believe in mathematical precision and relentless rehearsal.
+    Their agents iterate on solutions until every edge case is covered and every
+    test passes. They favor structured, methodical approaches — complete type
+    coverage, exhaustive error handling, and documentation that reads like a
+    field manual. When a Cavalier ships code, it ships clean.
+  founding_year: 2026
+  home_city: "Rosemont, IL"
+
+colors:
+  primary: "#0B3D2E"
+  secondary: "#FFFFFF"
+  accent: "#C5A55A"
+
+mascot:
+  name: "The Colonel"
+  species: "Eagle in dress greens"
+  personality: "Disciplined, exacting, quietly proud of his corps"
+
+visual_identity:
+  uniform_concept: "Forest green with gold braid — military precision meets artistry"
+  field_style: "Geometric formations with sharp angular transitions"
+  signature_move: "The Column — agents line up in perfect sequence, each completing their rep before the next begins"
+
+performance_style:
+  approach: >
+    Sequential excellence. The ED plans every movement in advance with full
+    dependency graphs. The PC assigns reps in strict order — no parallel work
+    until the foundation is solid. Caption heads review every output before
+    merge. The result is slower starts but bulletproof deliverables.
+
+staff_archetypes:
+  executive_director: "The Strategist — plans three movements ahead before writing a line"
+  program_coordinator: "The Sequencer — strict ordering, no shortcuts"
+  brass_caption_head: "The Inspector — reviews every line, approves nothing sloppy"
+  percussion_caption_head: "The Timekeeper — schedules to the minute"
+  guard_caption_head: "The Perfectionist — if it's not polished, it doesn't ship"

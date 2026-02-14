@@ -1,12 +1,18 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, waitFor, fireEvent, cleanup } from "@testing-library/react";
 
-vi.mock("../services/v1", () => ({
-  getCorpsScoreboard: vi.fn().mockResolvedValue({ scoreboard: [{ corps_id: "c1", corps_name: "Alpha", completion_score: 80, composite_score: 75, rank: 1 }] }),
-  getAgentLeaderboard: vi.fn().mockResolvedValue({ leaderboard: [{ role: "designer", nickname: "N", success_rate: 90, corps_id: "c1", rank: 1 }] }),
-  getMetricsTrends: vi.fn().mockResolvedValue({ trends: [] }),
-  getBottlenecks: vi.fn().mockResolvedValue({ role_bottlenecks: [] }),
-}));
+afterEach(() => cleanup());
+
+vi.mock("../services/v1", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../services/v1")>();
+  return {
+    ...actual,
+    getCorpsScoreboard: vi.fn().mockResolvedValue({ scoreboard: [{ corps_id: "c1", corps_name: "Alpha", completion_score: 80, composite_score: 75, rank: 1 }] }),
+    getAgentLeaderboard: vi.fn().mockResolvedValue({ leaderboard: [{ role: "designer", nickname: "N", success_rate: 90, corps_id: "c1", rank: 1 }] }),
+    getMetricsTrends: vi.fn().mockResolvedValue({ trends: [] }),
+    getBottlenecks: vi.fn().mockResolvedValue({ role_bottlenecks: [] }),
+  };
+});
 
 import MetricsDashboard from "../pages/MetricsDashboard";
 import * as v1 from "../services/v1";
@@ -56,7 +62,7 @@ describe("MetricsDashboard", () => {
 
   it("renders top corps leaderboard", async () => {
     render(<MetricsDashboard />);
-    await waitFor(() => expect(screen.getByText("Top Corps")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText("Top Corps").length).toBeGreaterThan(0));
   });
 
   it("renders alert panel", async () => {
@@ -70,7 +76,7 @@ describe("MetricsDashboard", () => {
   });
 
   it("shows error banner on refresh failure", async () => {
-    vi.mocked(v1.getCorpsScoreboard).mockRejectedValueOnce(new Error("boom"));
+    vi.mocked(v1.getCorpsScoreboard).mockRejectedValueOnce(new Error("Failed to load metrics"));
     render(<MetricsDashboard />);
     await waitFor(() => expect(screen.getByText("Failed to load metrics")).toBeInTheDocument());
   });

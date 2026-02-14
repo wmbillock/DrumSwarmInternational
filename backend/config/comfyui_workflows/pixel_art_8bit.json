@@ -1,0 +1,12 @@
+{
+  "description": "8-bit pixel art for retro game graphics",
+  "category": "pixel_art_8bit",
+  "prompt_template": "8-bit pixel art, retro video game sprite, NES-era graphics, limited color palette, {description}, crisp pixels, no anti-aliasing, game asset, clean pixel grid",
+  "negative_prompt": "blurry, smooth gradients, photorealistic, 3d render, high resolution details, anti-aliased, watermark",
+  "width": 512,
+  "height": 512,
+  "steps": 30,
+  "cfg_scale": 9.0,
+  "recommended_models": ["sd_xl_base_1.0.safetensors"],
+  "upgrade_models": ["pixel-art-xl LoRA from CivitAI"]
+}

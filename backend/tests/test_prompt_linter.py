@@ -3,7 +3,10 @@
 from backend.services.prompt_linter import lint_prompt
 
 
-MINIMAL_VALID = """## Show Concept
+MINIMAL_VALID = """## Objective
+Create an ocean-themed show with waves crashing on shore imagery.
+
+## Show Concept
 A show about the ocean and waves crashing on shore.
 
 ## Musical Design
@@ -38,10 +41,9 @@ TODO fill this in
 TBD
 """
     report = lint_prompt(content)
-    # Missing sections
+    # Missing required sections (Objective and Deliverables)
     missing = [f.section for f in report.required_fix if "Missing" in f.message]
-    assert "Visual Design" in missing
-    assert "Guard Design" in missing
+    assert "Objective" in missing
     assert "Deliverables" in missing
     # Placeholders
     placeholder = [f.section for f in report.required_fix if "placeholder" in f.message.lower() or "Unfilled" in f.message]
@@ -102,4 +104,4 @@ def test_missing_deliverables_bullets():
         "No bullets here just text.",
     )
     report = lint_prompt(content)
-    assert any(f.section == "Deliverables" and "no bullet" in f.message.lower() for f in report.required_fix)
+    assert any(f.section == "Deliverables" and "no list" in f.message.lower() for f in report.required_fix)
