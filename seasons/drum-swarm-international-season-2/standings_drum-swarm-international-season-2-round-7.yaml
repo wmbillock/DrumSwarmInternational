@@ -1,0 +1,38 @@
+season_id: drum-swarm-international-season-2
+competition_id: drum-swarm-international-season-2-round-7
+show_slug: be-able-to-click-into-a-corps-detail-page-from-an-entry-on-the-performance-stats-scoreboards-page
+generated_at: '2026-02-11T08:19:16.170275+00:00'
+results:
+- corps_id: e181f559-c533-417c-86b1-0accc832c7fe
+  rank: 1
+  final_score: 51.265
+  raw_score: 51.265
+  caption_scores:
+    guard: 40.0
+    general_effect: 83.5
+    ensemble_technique: 0.0
+    brass: 83.5
+    percussion: 40.0
+    visual: 42.5
+- corps_id: 9f5170f4-0f5b-45c3-bb54-b5fd7a4dc5d8
+  rank: 2
+  final_score: 39.335
+  raw_score: 39.335
+  caption_scores:
+    guard: 0.0
+    brass: 70.0
+    visual: 41.5
+    ensemble_technique: 0.0
+    general_effect: 70.0
+    percussion: 41.5
+- corps_id: fc11e2a2-72fb-42d7-8b18-7731203b631f
+  rank: 3
+  final_score: 35.345
+  raw_score: 35.345
+  caption_scores:
+    brass: 73.5
+    guard: 41.5
+    ensemble_technique: 0.0
+    general_effect: 12.5
+    visual: 40.0
+    percussion: 48.5

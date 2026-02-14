@@ -3,20 +3,24 @@ import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/re
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 // Mock v1 API
-vi.mock("../services/v1", () => ({
-  listThreads: vi.fn(),
-  createThread: vi.fn(),
-  getMessages: vi.fn(),
-  postMessage: vi.fn(),
-  getBrief: vi.fn(),
-  updateBrief: vi.fn(),
-  getPrompt: vi.fn(),
-  updatePrompt: vi.fn(),
-  lintPrompt: vi.fn(),
-  publishThread: vi.fn(),
-  listVersions: vi.fn(),
-  approveThread: vi.fn(),
-}));
+vi.mock("../services/v1", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../services/v1")>();
+  return {
+    ...actual,
+    listThreads: vi.fn(),
+    createThread: vi.fn(),
+    getMessages: vi.fn(),
+    postMessage: vi.fn(),
+    getBrief: vi.fn(),
+    updateBrief: vi.fn(),
+    getPrompt: vi.fn(),
+    updatePrompt: vi.fn(),
+    lintPrompt: vi.fn(),
+    publishThread: vi.fn(),
+    listVersions: vi.fn(),
+    approveThread: vi.fn(),
+  };
+});
 
 import * as v1 from "../services/v1";
 import { DesignRoom } from "../pages/DesignRoom";
@@ -115,7 +119,7 @@ describe("Thread Detail view", () => {
     renderAtRoute("/design/test-show");
     await waitFor(() => expect(mockV1.getMessages).toHaveBeenCalled());
 
-    const inputs = screen.getAllByPlaceholderText("Describe your show idea...");
+    const inputs = screen.getAllByPlaceholderText("Share your vision with the design team...");
     fireEvent.change(inputs[0], { target: { value: "Add brass" } });
     fireEvent.click(screen.getByText("Send"));
 

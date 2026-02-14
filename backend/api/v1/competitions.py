@@ -128,6 +128,68 @@ def v1_list_competitions():
     return results
 
 
+@router.get("/competitions/recent-activity")
+def v1_recent_activity():
+    """Return the most recent completed competition rounds across all seasons."""
+    root = _get_root()
+    seasons_dir = root / "seasons"
+    if not seasons_dir.exists():
+        return []
+
+    completed_rounds: list[dict] = []
+    for season_dir in seasons_dir.iterdir():
+        if not season_dir.is_dir():
+            continue
+        season_yaml = season_dir / "season.yaml"
+        if not season_yaml.is_file():
+            continue
+        data = safe_load_yaml_dict(season_yaml.read_text(encoding="utf-8"))
+        season_id = data.get("season_id", season_dir.name)
+        for entry in (data.get("schedule") or []):
+            if entry.get("status") != "completed":
+                continue
+            standings = entry.get("standings") or []
+            top3 = standings[:3] if isinstance(standings, list) else []
+            completed_rounds.append({
+                "round": entry.get("round"),
+                "competition_id": entry.get("competition_id", ""),
+                "season_id": season_id,
+                "show_slug": entry.get("show_slug", ""),
+                "completed_at": entry.get("completed_at", ""),
+                "top_standings": top3,
+            })
+
+    completed_rounds.sort(key=lambda r: r.get("completed_at") or "", reverse=True)
+    result = completed_rounds[:10]
+
+    # Enrich standings with corps names from DB
+    all_corps_ids = set()
+    for rnd in result:
+        for s in rnd.get("top_standings", []):
+            cid = s.get("corps_id")
+            if cid:
+                all_corps_ids.add(cid)
+    if all_corps_ids:
+        try:
+            from backend.api.v1.helpers import _get_db_session
+            from backend.models.corps import Corps
+            db = _get_db_session()
+            try:
+                corps_rows = db.query(Corps.id, Corps.name).filter(Corps.id.in_(all_corps_ids)).all()
+                name_map = {c.id: c.name for c in corps_rows}
+            finally:
+                db.close()
+            for rnd in result:
+                for s in rnd.get("top_standings", []):
+                    cid = s.get("corps_id")
+                    if cid and cid in name_map:
+                        s["corps_name"] = name_map[cid]
+        except Exception:
+            pass  # Graceful degradation — UUIDs still shown
+
+    return result
+
+
 @router.post("/competitions")
 def v1_create_competition(req: CreateCompetitionRequest):
     """Create a competition — validates and registers corps in season."""
@@ -410,13 +472,41 @@ def v1_get_competition_scores(competition_id: str):
     """Retrieve scores/standings for a completed competition."""
     root = _get_root()
     season_id, _show_slug = _parse_competition_id(competition_id, root)
+    season_dir = root / "seasons" / season_id
 
-    standings_path = root / "seasons" / season_id / "standings.yaml"
-    if not standings_path.exists():
+    standings = None
+
+    # 1. Try per-round standings file (written by tour_coordinator)
+    per_round_path = season_dir / f"standings_{competition_id}.yaml"
+    if per_round_path.is_file():
+        standings = safe_load_yaml_dict(per_round_path.read_text(encoding="utf-8"))
+
+    # 2. Try schedule entry embedded standings (tour_coordinator saves here)
+    if not standings or not standings.get("results"):
+        season_yaml = season_dir / "season.yaml"
+        if season_yaml.is_file():
+            season_data = safe_load_yaml_dict(season_yaml.read_text(encoding="utf-8"))
+            for entry in (season_data.get("schedule") or []):
+                if entry.get("competition_id") == competition_id and entry.get("standings"):
+                    standings = {
+                        "season_id": season_id,
+                        "show_slug": entry.get("show_slug", _show_slug),
+                        "generated_at": entry.get("completed_at", ""),
+                        "results": entry["standings"],
+                    }
+                    break
+
+    # 3. Fall back to global standings.yaml (legacy / non-round competitions)
+    if not standings or not standings.get("results"):
+        standings_path = season_dir / "standings.yaml"
+        if standings_path.is_file():
+            standings = safe_load_yaml_dict(standings_path.read_text(encoding="utf-8"))
+
+    if not standings or not standings.get("results"):
         raise HTTPException(404, "Standings not found — competition may not have run yet")
-    standings = safe_load_yaml_dict(standings_path.read_text(encoding="utf-8"))
+
     standings["competition_id"] = competition_id
-    standings["show_slug"] = _show_slug
+    standings["show_slug"] = standings.get("show_slug", _show_slug)
 
     # Resolve corps_id → display_name for each result
     if "results" in standings:

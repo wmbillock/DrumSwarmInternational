@@ -98,6 +98,9 @@ class ToolExecutor:
             params = list(sig.parameters.keys())
 
             # Auto-inject session context for tools that need it
+            if "session_id" in params:
+                arguments["session_id"] = session_id
+
             if "corps_id" in params or "from_role" in params:
                 from backend.models.agent_session import AgentSession
                 from backend.models.agent_definition import AgentDefinition

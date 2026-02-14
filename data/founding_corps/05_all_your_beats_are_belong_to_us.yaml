@@ -47,3 +47,10 @@ staff_archetypes:
   brass_caption_head: "The Opportunist — picks up stray work from other sections"
   percussion_caption_head: "The Hoarder — collects reps like they're going out of style"
   guard_caption_head: "The Defender — protects claimed territory from reassignment"
+
+strategy:
+  model_policy: best_of_breed
+  preferred_provider: null
+  risk_tolerance: 0.7
+  exploration_rate: 0.5
+  adaptation_style: full

@@ -159,6 +159,7 @@ def _score_round(season_dir: Path, round_entry: dict) -> dict:
     llm_client = tm.llm_client if tm else None
 
     composites = {}
+    scoring_errors: list[str] = []
     db = _get_db_session()
     try:
         for cid in corps_ids:
@@ -183,6 +184,7 @@ def _score_round(season_dir: Path, round_entry: dict) -> dict:
                     )
             except Exception:
                 logger.warning("Scoring failed for corps %s in %s, skipping", cid, show_slug, exc_info=True)
+                scoring_errors.append(cid)
     finally:
         db.close()
 
@@ -204,7 +206,12 @@ def _score_round(season_dir: Path, round_entry: dict) -> dict:
             for r in standings.results
         ],
     }
+    if scoring_errors:
+        standings_data["scoring_errors"] = scoring_errors
     atomic_write(season_dir / "standings.yaml", safe_dump_yaml(standings_data))
+    # Also write per-round standings so each competition has its own file
+    if competition_id:
+        atomic_write(season_dir / f"standings_{competition_id}.yaml", safe_dump_yaml(standings_data))
     return standings_data
 
 

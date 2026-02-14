@@ -37,10 +37,12 @@ export function TourDashboard() {
   const navigate = useNavigate();
   const [competitions, setCompetitions] = useState<v1.V1Competition[]>([]);
   const [tourSeasons, setTourSeasons] = useState<TouringSeason[]>([]);
+  const [corpsNames, setCorpsNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
   const [advancing, setAdvancing] = useState<string | null>(null);
+  const [advanceResult, setAdvanceResult] = useState<{ seasonId: string; data: any } | null>(null);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -49,12 +51,18 @@ export function TourDashboard() {
     const loadData = async () => {
       try {
         // Load competitions and seasons in parallel
-        const [comps, seasons] = await Promise.all([
+        const [comps, seasons, allCorps] = await Promise.all([
           v1.listCompetitions(ac.signal).catch(() => []),
           v1.listSeasons(ac.signal),
+          v1.listCorps(ac.signal, true).catch(() => []),
         ]);
 
         setCompetitions(comps);
+        const nameMap: Record<string, string> = {};
+        for (const c of allCorps) {
+          nameMap[c.corps_id] = c.display_name || c.corps_id;
+        }
+        setCorpsNames(nameMap);
 
         // Find touring seasons and load their tour status
         const touring = seasons.filter(
@@ -90,13 +98,24 @@ export function TourDashboard() {
     };
 
     loadData();
-    return () => ac.abort();
+
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(() => {
+      loadData();
+    }, 30000);
+
+    return () => {
+      ac.abort();
+      clearInterval(interval);
+    };
   }, [refreshToken]);
 
   const handleAdvance = useCallback(async (seasonId: string) => {
     setAdvancing(seasonId);
+    setAdvanceResult(null);
     try {
-      await v1.advanceSeasonTour(seasonId);
+      const result = await v1.advanceSeasonTour(seasonId);
+      setAdvanceResult({ seasonId, data: result });
       setRefreshToken((t) => t + 1);
     } catch (e: any) {
       setError(e.message || "Failed to advance round");
@@ -162,6 +181,18 @@ export function TourDashboard() {
         </div>
       </div>
 
+      {advanceResult && (
+        <div className="success-banner" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span>
+            Round {advanceResult.data.round} ({advanceResult.data.status})
+            {advanceResult.data.standings?.length > 0 && ` — ${advanceResult.data.standings.length} corps scored`}
+            {advanceResult.data.dispatch?.dispatched?.length > 0 && `, ${advanceResult.data.dispatch.dispatched.length} agents dispatched`}
+            {advanceResult.data.dispatch?.skipped?.length > 0 && `, ${advanceResult.data.dispatch.skipped.length} skipped`}
+          </span>
+          <button onClick={() => setAdvanceResult(null)} style={{ background: "none", border: "none", cursor: "pointer", opacity: 0.7, color: "inherit" }}>x</button>
+        </div>
+      )}
+
       {/* Touring Seasons */}
       {tourSeasons.length > 0 && (
         <div className="dash-section">
@@ -175,6 +206,7 @@ export function TourDashboard() {
               onAutoAdvance={(enabled) => handleAutoAdvance(season.season_id, enabled)}
               onCorpsClick={(corpsId) => navigate(`/corps/${corpsId}`)}
               onSeasonClick={() => navigate(`/seasons/${season.season_id}`)}
+              corpsNames={corpsNames}
             />
           ))}
         </div>
@@ -211,26 +243,72 @@ export function TourDashboard() {
       )}
 
       {completed.length > 0 && (
-        <div className="dash-section">
-          <h2>Completed</h2>
+        <CompletedSection competitions={completed} navigate={navigate} />
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Completed competitions — grouped by season, collapsible             */
+/* ------------------------------------------------------------------ */
+
+function CompletedSection({
+  competitions,
+  navigate,
+}: {
+  competitions: Array<{ competition_id: string; show_slug: string; status: string; season_id: string }>;
+  navigate: (path: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  // Group by season
+  const bySeason = new Map<string, typeof competitions>();
+  for (const c of competitions) {
+    const key = c.season_id || "unknown";
+    if (!bySeason.has(key)) bySeason.set(key, []);
+    bySeason.get(key)!.push(c);
+  }
+  const seasonEntries = [...bySeason.entries()].sort((a, b) => b[1].length - a[1].length);
+  const PREVIEW_SEASONS = 2;
+  const visible = expanded ? seasonEntries : seasonEntries.slice(0, PREVIEW_SEASONS);
+  const hiddenCount = seasonEntries.length - PREVIEW_SEASONS;
+
+  return (
+    <div className="dash-section">
+      <h2>Completed ({competitions.length})</h2>
+      {visible.map(([seasonId, comps]) => (
+        <div key={seasonId} style={{ marginBottom: 12 }}>
+          <h3 style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 6 }}>
+            {slugToTitle(seasonId)} ({comps.length} rounds)
+          </h3>
           <div className="competition-grid">
-            {completed.map((c) => (
+            {comps.slice(0, expanded ? comps.length : 5).map((c) => (
               <div
                 key={c.competition_id}
                 className="competition-card"
                 onClick={() => navigate(`/tour/${c.competition_id}`)}
               >
                 <h3 title={c.show_slug}>{slugToTitle(c.show_slug)}</h3>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <Badge variant="info">{formatStatus(c.status)}</Badge>
-                  <span className="text-muted" title={c.season_id}>
-                    {slugToTitle(c.season_id)}
-                  </span>
-                </div>
+                <Badge variant="info">{formatStatus(c.status)}</Badge>
               </div>
             ))}
+            {!expanded && comps.length > 5 && (
+              <div className="competition-card text-muted" onClick={() => setExpanded(true)} style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                +{comps.length - 5} more
+              </div>
+            )}
           </div>
         </div>
+      ))}
+      {!expanded && hiddenCount > 0 && (
+        <button className="small" onClick={() => setExpanded(true)}>
+          Show all ({hiddenCount} more seasons)
+        </button>
+      )}
+      {expanded && seasonEntries.length > PREVIEW_SEASONS && (
+        <button className="small" onClick={() => setExpanded(false)}>
+          Collapse
+        </button>
       )}
     </div>
   );
@@ -247,6 +325,7 @@ function TourSeasonCard({
   onAutoAdvance,
   onCorpsClick,
   onSeasonClick,
+  corpsNames = {},
 }: {
   season: TouringSeason;
   advancing: boolean;
@@ -254,6 +333,7 @@ function TourSeasonCard({
   onAutoAdvance: (enabled: boolean) => void;
   onCorpsClick: (corpsId: string) => void;
   onSeasonClick: () => void;
+  corpsNames?: Record<string, string>;
 }) {
   const ts = season.tourStatus;
   if (!ts) {
@@ -309,7 +389,7 @@ function TourSeasonCard({
           }}
           title={r.corps_id}
         >
-          {r.corps_id?.slice(0, 8)}...
+          {corpsNames[r.corps_id] || r.corps_id?.slice(0, 8)}
         </span>
       ),
     },

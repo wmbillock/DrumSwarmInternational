@@ -46,3 +46,10 @@ staff_archetypes:
   brass_caption_head: "The Blaster — writes code like they're paid by the line"
   percussion_caption_head: "The Bombardier — drops deliverables in rapid succession"
   guard_caption_head: "The Recruiter — always asking for more agents"
+
+strategy:
+  model_policy: best_of_breed
+  preferred_provider: null
+  risk_tolerance: 0.6
+  exploration_rate: 0.3
+  adaptation_style: model_swap

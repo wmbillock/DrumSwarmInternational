@@ -33,6 +33,10 @@ const KNOWN_STATUS = new Set([
   "failed",
   "skipped",
   "running",
+  "ok",
+  "healthy",
+  "degraded",
+  "down",
 ]);
 
 const KNOWN_MODES = new Set([

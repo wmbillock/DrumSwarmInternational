@@ -36,6 +36,9 @@ from backend.models.drill_book import (
 )
 from backend.models.corps_config import CorpsConfig
 from backend.models.experiment_result import ExperimentResult
+from backend.models.model_spec import ModelSpec, ModelSpecCapability
+from backend.models.corps_strategy import CorpsStrategy, ModelPolicy, AdaptationStyle
+from backend.models.model_spec_performance import ModelSpecPerformance
 
 __all__ = [
     "Segment", "SegmentType", "SegmentStatus",
@@ -60,4 +63,7 @@ __all__ = [
     "DrillBook", "DrillStep", "DrillEvidence",
     "BookStatus", "StepStatus", "BookType", "EvidenceType",
     "CorpsConfig", "ExperimentResult",
+    "ModelSpec", "ModelSpecCapability",
+    "CorpsStrategy", "ModelPolicy", "AdaptationStyle",
+    "ModelSpecPerformance",
 ]

@@ -1,9 +1,12 @@
 {
-  "description": "Show poster workflow — generates a banner image for a DCI show",
-  "prompt_template": "A dramatic poster for a drum corps international show titled '{title}'. {style_notes}. Professional quality, dramatic lighting, dynamic composition.",
-  "negative_prompt": "text, watermark, low quality, blurry, deformed",
+  "description": "Show posters, banners, and flyer artwork",
+  "category": "show_poster",
+  "prompt_template": "dramatic show poster, event banner, {description}, professional quality, dramatic lighting, dynamic composition, bold design, eye-catching",
+  "negative_prompt": "text, watermark, low quality, blurry, deformed, simple, boring",
   "width": 1024,
   "height": 768,
   "steps": 25,
-  "cfg_scale": 7.5
+  "cfg_scale": 7.0,
+  "recommended_models": ["sd_xl_base_1.0.safetensors"],
+  "upgrade_models": ["poster-art-xl LoRA"]
 }

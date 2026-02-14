@@ -7,6 +7,7 @@ import { AwardsPanel } from "../components/AwardsPanel";
 import { badgeForRunStatus, badgeForShowStatus, formatMode, formatStatus, formatTimestamp, slugToTitle } from "../utils/formatters";
 import * as v1 from "../services/v1";
 import { useWebSocket } from "../hooks/useWebSocket";
+import { StrategyPanel } from "../components/StrategyPanel";
 
 const TAB_ITEMS = [
   { key: "overview", label: "Overview" },
@@ -14,6 +15,7 @@ const TAB_ITEMS = [
   { key: "runs", label: "Runs" },
   { key: "shows", label: "Shows" },
   { key: "history", label: "History" },
+  { key: "strategy", label: "Strategy" },
 ];
 
 export function CorpsDetailV2() {
@@ -124,6 +126,9 @@ export function CorpsDetailV2() {
         {activeTab === "history" && (
           <HistoryTab corps={corps} history={history} corpsId={corpsId!} />
         )}
+        {activeTab === "strategy" && (
+          <StrategyPanel corpsId={corpsId!} />
+        )}
       </div>
     </div>
   );
@@ -231,14 +236,26 @@ function OverviewTab({ corps, onStateChange }: { corps: v1.V1CorpsDetail; onStat
 
       <Panel title="Lifecycle Status" className="mt-16">
         <div className="lifecycle-bar">
-          {lifecycle.map((state) => (
-            <div
-              key={state}
-              className={`lifecycle-step ${corps.state === state ? "active" : ""}`}
-            >
-              {formatStatus(state)}
-            </div>
-          ))}
+          {(() => {
+            // Map non-lifecycle states to the nearest lifecycle step
+            const stateMap: Record<string, string> = {
+              active: "on_tour",
+              commissioned: "initializing",
+              contending: "on_tour",
+              touring: "on_tour",
+              disbanded: "completed",
+            };
+            const mapped = stateMap[corps.state] || corps.state;
+            const currentIdx = lifecycle.indexOf(mapped);
+            return lifecycle.map((state, idx) => (
+              <div
+                key={state}
+                className={`lifecycle-step${mapped === state ? " active" : idx < currentIdx ? " done" : ""}`}
+              >
+                {formatStatus(state)}
+              </div>
+            ));
+          })()}
         </div>
       </Panel>
 

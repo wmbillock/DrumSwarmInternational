@@ -16,10 +16,10 @@ interface LibraryShow {
 }
 
 const STATUS_ORDER: Record<string, number> = {
-  published: 0, approved: 1, needs_review: 2, draft: 3, on_tour: 4, completed: 5, archived: 6,
+  active: 0, published: 1, approved: 2, needs_review: 3, draft: 4, on_tour: 5, completed: 6, archived: 7,
 };
 
-const ACTIVE_STATUSES = new Set(["draft", "needs_review", "approved", "published", "on_tour"]);
+const ACTIVE_STATUSES = new Set(["active", "draft", "needs_review", "approved", "published", "on_tour"]);
 
 const STATUS_COLORS: Record<string, string> = {
   published: "#DC143C",

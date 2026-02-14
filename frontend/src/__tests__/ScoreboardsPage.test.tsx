@@ -1,21 +1,29 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { render, screen, waitFor, fireEvent, cleanup } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
-vi.mock("../services/v1", () => ({
-  getCorpsScoreboard: vi.fn().mockResolvedValue({
-    scoreboard: [
-      { corps_id: "c1", corps_name: "Alpha", corps_status: "on_tour", completion_score: 80, efficiency_score: 70, completed_sessions: 5, total_sessions: 6, completed_reps: 2, total_reps: 3, composite_score: 88, rank: 1 },
-      { corps_id: "c2", corps_name: "Bravo", corps_status: "winter_camps", completion_score: 60, efficiency_score: 55, completed_sessions: 3, total_sessions: 5, completed_reps: 1, total_reps: 2, composite_score: 70, rank: 2 },
-    ],
-  }),
-  getAgentLeaderboard: vi.fn().mockResolvedValue({
-    leaderboard: [
-      { role: "designer", nickname: "Nova", corps_id: "c1", total_sessions: 3, completed_sessions: 3, failed_sessions: 0, success_rate: 100, rank: 1 },
-      { role: "tech", nickname: "Bolt", corps_id: "c2", total_sessions: 2, completed_sessions: 1, failed_sessions: 1, success_rate: 50, rank: 2 },
-    ],
-  }),
-}));
+afterEach(() => cleanup());
+
+vi.mock("../services/v1", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../services/v1")>();
+  return {
+    ...actual,
+    getCorpsScoreboard: vi.fn().mockResolvedValue({
+      scoreboard: [
+        { corps_id: "c1", corps_name: "Alpha", corps_status: "on_tour", completion_score: 80, efficiency_score: 70, completed_sessions: 5, total_sessions: 6, completed_reps: 2, total_reps: 3, composite_score: 88, rank: 1 },
+        { corps_id: "c2", corps_name: "Bravo", corps_status: "winter_camps", completion_score: 60, efficiency_score: 55, completed_sessions: 3, total_sessions: 5, completed_reps: 1, total_reps: 2, composite_score: 70, rank: 2 },
+      ],
+    }),
+    getAgentLeaderboard: vi.fn().mockResolvedValue({
+      leaderboard: [
+        { role: "designer", nickname: "Nova", corps_id: "c1", total_sessions: 3, completed_sessions: 3, failed_sessions: 0, success_rate: 100, rank: 1 },
+        { role: "tech", nickname: "Bolt", corps_id: "c2", total_sessions: 2, completed_sessions: 1, failed_sessions: 1, success_rate: 50, rank: 2 },
+      ],
+    }),
+    listModelSpecs: vi.fn().mockResolvedValue([]),
+    getLeaderboard: vi.fn().mockResolvedValue({ entries: [] }),
+  };
+});
 
 import * as v1 from "../services/v1";
 import { ScoreboardsPage } from "../pages/ScoreboardsPage";
@@ -82,7 +90,7 @@ describe("ScoreboardsPage", () => {
   });
 
   it("shows error banner on load failure", async () => {
-    vi.mocked(v1.getCorpsScoreboard).mockRejectedValueOnce(new Error("fail"));
+    vi.mocked(v1.getCorpsScoreboard).mockRejectedValueOnce(new Error("Failed to fetch scoreboards"));
     render(
       <MemoryRouter>
         <ScoreboardsPage />

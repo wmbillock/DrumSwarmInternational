@@ -29,31 +29,27 @@ const { mockStandings } = vi.hoisted(() => {
   return { mockStandings };
 });
 
-vi.mock("../services/v1", () => ({
-  ApiError: class extends Error {
-    status: number;
-    constructor(status: number, msg: string) {
-      super(msg);
-      this.status = status;
-      this.name = "ApiError";
-    }
-  },
-  getScores: vi.fn().mockResolvedValue(mockStandings),
-  runCompetition: vi.fn().mockResolvedValue({ standings: mockStandings.results }),
-  getCorpsBreakdown: vi.fn().mockResolvedValue({
-    corps_id: "alpha",
-    caption_scores: {
-      brass: { score: 88, weight: 0.2, weighted: 17.6 },
-      percussion: { score: 82, weight: 0.2, weighted: 16.4 },
-      guard: { score: 85, weight: 0.2, weighted: 17.0 },
-      visual: { score: 80, weight: 0.15, weighted: 12.0 },
-      general_effect: { score: 90, weight: 0.25, weighted: 22.5 },
-    },
-    penalties_total: 0,
-    final_score: 85.5,
-    commentary: { brass: "Excellent brass performance" },
-  }),
-}));
+vi.mock("../services/v1", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../services/v1")>();
+  return {
+    ...actual,
+    getScores: vi.fn().mockResolvedValue(mockStandings),
+    runCompetition: vi.fn().mockResolvedValue({ standings: mockStandings.results }),
+    getCorpsBreakdown: vi.fn().mockResolvedValue({
+      corps_id: "alpha",
+      caption_scores: {
+        brass: { score: 88, weight: 0.2, weighted: 17.6 },
+        percussion: { score: 82, weight: 0.2, weighted: 16.4 },
+        guard: { score: 85, weight: 0.2, weighted: 17.0 },
+        visual: { score: 80, weight: 0.15, weighted: 12.0 },
+        general_effect: { score: 90, weight: 0.25, weighted: 22.5 },
+      },
+      penalties_total: 0,
+      final_score: 85.5,
+      commentary: { brass: "Excellent brass performance" },
+    }),
+  };
+});
 
 function renderDetail() {
   return render(
@@ -69,8 +65,9 @@ describe("CompetitionDetail", () => {
   it("renders standings table with scores", async () => {
     renderDetail();
     await waitFor(() => {
-      expect(screen.getByText("alpha")).toBeInTheDocument();
-      expect(screen.getByText("bravo")).toBeInTheDocument();
+      // Corps without display_name renders as "Corps • <id prefix>"
+      expect(screen.getByText(/Corps.*alpha/)).toBeInTheDocument();
+      expect(screen.getByText(/Corps.*bravo/)).toBeInTheDocument();
       expect(screen.getByText("85.50")).toBeInTheDocument();
     });
   });
@@ -80,7 +77,7 @@ describe("CompetitionDetail", () => {
     await waitFor(() => expect(screen.getAllByText("Caption Breakdown").length).toBeGreaterThan(0));
     fireEvent.click(screen.getAllByText("Caption Breakdown")[0]);
     await waitFor(() => {
-      expect(screen.getByText("brass")).toBeInTheDocument();
+      expect(screen.getByText("Brass")).toBeInTheDocument();
     });
   });
 

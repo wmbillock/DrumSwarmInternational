@@ -1,4 +1,4 @@
-status: approved
+status: published
 completed_at: '2026-02-03'
 implementation_notes: '- Scoreboards corps rows now navigate to /corps/{corps_id}/overview.
 

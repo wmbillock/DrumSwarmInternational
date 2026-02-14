@@ -1,0 +1,60 @@
+season_id: one-season-to-rule-them-all
+competition_id: one-season-to-rule-them-all-round-6
+show_slug: be-able-to-click-into-a-corps-detail-page-from-an-entry-on-the-performance-stats-scoreboards-page
+generated_at: '2026-02-14T05:04:43.600262+00:00'
+results:
+- corps_id: 9f5170f4-0f5b-45c3-bb54-b5fd7a4dc5d8
+  rank: 1
+  final_score: 56.245000000000005
+  raw_score: 56.245000000000005
+  caption_scores:
+    guard: 41.5
+    visual: 70.0
+    general_effect: 86.5
+    ensemble_technique: 0.0
+    brass: 86.5
+    percussion: 41.5
+- corps_id: 66b819e1-3c06-4182-814e-0fc8d55d3ea0
+  rank: 2
+  final_score: 52.685
+  raw_score: 52.685
+  caption_scores:
+    guard: 20.0
+    percussion: 31.5
+    general_effect: 41.5
+    ensemble_technique: 75.0
+    visual: 90.0
+    brass: 75.0
+- corps_id: 914f78aa-0d75-400d-bc9c-2c5a658149e3
+  rank: 3
+  final_score: 43.620000000000005
+  raw_score: 43.620000000000005
+  caption_scores:
+    guard: 20.0
+    brass: 41.5
+    ensemble_technique: 0.0
+    visual: 93.5
+    general_effect: 70.0
+    percussion: 38.5
+- corps_id: ead51175-ac76-4b90-883d-b32e19561e34
+  rank: 4
+  final_score: 42.615
+  raw_score: 42.615
+  caption_scores:
+    guard: 21.5
+    percussion: 41.5
+    general_effect: 47.5
+    ensemble_technique: 40.0
+    visual: 70.0
+    brass: 41.5
+- corps_id: fc11e2a2-72fb-42d7-8b18-7731203b631f
+  rank: 5
+  final_score: 40.83
+  raw_score: 40.83
+  caption_scores:
+    brass: 41.5
+    general_effect: 41.5
+    guard: 23.5
+    ensemble_technique: 0.0
+    percussion: 65.0
+    visual: 80.0

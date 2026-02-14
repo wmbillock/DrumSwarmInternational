@@ -49,3 +49,10 @@ staff_archetypes:
   brass_caption_head: "The Patch Artist — ships fixes faster than features"
   percussion_caption_head: "The Crash Analyst — turns every failure into a lesson"
   guard_caption_head: "The Safety Net — writes the fallback before the feature"
+
+strategy:
+  model_policy: best_of_breed
+  preferred_provider: null
+  risk_tolerance: 0.8
+  exploration_rate: 0.6
+  adaptation_style: full

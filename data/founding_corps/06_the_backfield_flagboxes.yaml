@@ -48,3 +48,10 @@ staff_archetypes:
   brass_caption_head: "The Documenter — writes the spec before the code, always"
   percussion_caption_head: "The Sequencer — enforces strict ordering of operations"
   guard_caption_head: "The Inspector — QA is not a phase, it's a lifestyle"
+
+strategy:
+  model_policy: single_provider
+  preferred_provider: anthropic
+  risk_tolerance: 0.0
+  exploration_rate: 0.0
+  adaptation_style: prompt_only

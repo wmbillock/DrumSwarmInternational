@@ -1,7 +1,5 @@
 """Tests for shared YAML utilities."""
 
-import sys
-
 import pytest
 import yaml
 
@@ -33,32 +31,17 @@ class TestSafeDumpYamlFormat:
 
 
 class TestAtomicWriteNoPartialOnError:
-    @pytest.mark.skipif(
-        sys.platform == "win32",
-        reason="Windows does not enforce directory chmod for write protection",
-    )
     def test_failed_write_preserves_existing(self, tmp_path):
-        path = tmp_path / "existing.yaml"
-        path.write_text("original: true\n")
+        """If os.replace fails mid-write, the original file is untouched."""
+        from unittest.mock import patch
 
-        # Simulate failure by writing to a read-only directory
-        # Instead, verify that if atomic_write raises, the original is intact
-        import os
-        import stat
-
-        readonly_dir = tmp_path / "readonly"
-        readonly_dir.mkdir()
-        target = readonly_dir / "file.yaml"
+        target = tmp_path / "file.yaml"
         target.write_text("original: true\n")
 
-        # Make the directory read-only so mkstemp fails
-        readonly_dir.chmod(stat.S_IRUSR | stat.S_IXUSR)
-        try:
-            try:
+        # Patch os.replace to simulate a failure after the temp file is written
+        with patch("backend.services.yaml_util.os.replace", side_effect=OSError("simulated")):
+            with pytest.raises(OSError, match="simulated"):
                 atomic_write(target, "corrupted: true\n")
-            except OSError:
-                pass
-            # Original file should be intact
-            assert target.read_text() == "original: true\n"
-        finally:
-            readonly_dir.chmod(stat.S_IRWXU)
+
+        # Original file should be intact
+        assert target.read_text() == "original: true\n"

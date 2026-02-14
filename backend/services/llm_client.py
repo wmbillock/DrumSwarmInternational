@@ -86,7 +86,13 @@ class LLMClient(ABC):
         tools: Optional[list[dict]] = None,
         **kwargs,
     ) -> LLMResponse:
-        """Send messages to the LLM and get a response."""
+        """Send messages to the LLM and get a response.
+
+        Kwargs:
+            model_override: Optional model ID string. When provided, use this
+                specific model instead of the tier-based mapping. Allows
+                ModelSpec-driven selection to bypass the coarse tier system.
+        """
         ...
 
     @property
@@ -157,6 +163,7 @@ class AnthropicLLMClient(LLMClient):
         tools: Optional[list[dict]] = None,
         **kwargs,
     ) -> LLMResponse:
+        model_override = kwargs.pop("model_override", None)
         batchable = bool(kwargs.pop("batchable", False))
         allow_deferred = bool(kwargs.pop("allow_deferred", False))
         workload = str(kwargs.pop("workload", "default"))
@@ -172,7 +179,7 @@ class AnthropicLLMClient(LLMClient):
                 submit_batch=submit_batch,
             )
 
-        return self._chat_sync(messages, model_tier, tools)
+        return self._chat_sync(messages, model_tier, tools, model_override=model_override)
 
     def submit_batch(self) -> Optional[str]:
         return self._submit_batch(force=True)
@@ -194,8 +201,9 @@ class AnthropicLLMClient(LLMClient):
         messages: list[LLMMessage],
         model_tier: ModelTier,
         tools: Optional[list[dict]] = None,
+        model_override: Optional[str] = None,
     ) -> LLMResponse:
-        model_id = MODEL_TIER_MAP[model_tier]
+        model_id = model_override or MODEL_TIER_MAP[model_tier]
         api_kwargs = self._build_api_kwargs(messages, model_id, tools)
         response = self._client.messages.create(**api_kwargs)
         return self._parse_response(response)
@@ -498,7 +506,8 @@ Available tools:
             elif msg.role == "user":
                 user_content = msg.content  # take last user message
 
-        model_alias = self.MODEL_ALIAS.get(model_tier, "sonnet")
+        model_override = kwargs.pop("model_override", None)
+        model_alias = model_override or self.MODEL_ALIAS.get(model_tier, "sonnet")
 
         cmd = [
             "claude",
@@ -709,7 +718,8 @@ class OpenAIClient(LLMClient):
         tools: Optional[list[dict]] = None,
         **kwargs,
     ) -> LLMResponse:
-        model_id = self.OPENAI_MODEL_MAP.get(model_tier, "gpt-4o-mini")
+        model_override = kwargs.pop("model_override", None)
+        model_id = model_override or self.OPENAI_MODEL_MAP.get(model_tier, "gpt-4o-mini")
 
         # Convert messages
         oai_messages = []
@@ -866,7 +876,8 @@ class OllamaClient(LLMClient):
         import urllib.request
         import urllib.error
 
-        model = self._get_best_model(model_tier)
+        model_override = kwargs.pop("model_override", None)
+        model = model_override or self._get_best_model(model_tier)
 
         # Convert messages to Ollama format
         ollama_messages = []
@@ -1009,10 +1020,12 @@ class MockLLMClient(LLMClient):
         tools: Optional[list[dict]] = None,
         **kwargs,
     ) -> LLMResponse:
+        model_override = kwargs.pop("model_override", None)
         self.calls.append({
             "messages": messages,
             "model_tier": model_tier,
-            "model_id": MODEL_TIER_MAP[model_tier],
+            "model_id": model_override or MODEL_TIER_MAP[model_tier],
+            "model_override": model_override,
             "tools": tools,
         })
         if self._responses:

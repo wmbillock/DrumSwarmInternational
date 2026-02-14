@@ -356,6 +356,28 @@ export const createCompetition = (data: CreateCompReq) =>
 export const runCompetition = (id: string) =>
   request<V1CompResult>(`/api/v1/competitions/${id}/run`, { method: "POST" });
 
+export const dispatchAgents = (competitionId: string) =>
+  request<{
+    competition_id: string;
+    show_slug: string;
+    dispatched: { corps_id: string; session_id: string }[];
+    skipped: { corps_id: string; reason: string }[];
+    total_dispatched: number;
+    total_skipped: number;
+  }>(`/api/v1/competitions/${competitionId}/dispatch`, { method: "POST" });
+
+export interface V1RecentActivity {
+  round: number;
+  competition_id: string;
+  season_id: string;
+  show_slug: string;
+  completed_at: string;
+  top_standings: { corps_id: string; rank: number; final_score: number }[];
+}
+
+export const getRecentActivity = (signal?: AbortSignal) =>
+  request<V1RecentActivity[]>("/api/v1/competitions/recent-activity", { signal });
+
 export const getScores = (id: string, signal?: AbortSignal) =>
   request<V1Standings>(`/api/v1/competitions/${id}/scores`, { signal });
 
@@ -528,6 +550,18 @@ export const declareSeasonWinner = (seasonId: string, corpsId: string, division?
     method: "POST",
     body: JSON.stringify({ corps_id: corpsId, division }),
   });
+
+export interface V1DeployResult {
+  season_id: string;
+  winner_corps_id: string;
+  show_slug: string;
+  dispatched: { corps_id: string; session_id: string }[];
+  skipped: { corps_id: string; reason: string }[];
+  status: string;
+}
+
+export const deploySeasonWinner = (seasonId: string) =>
+  request<V1DeployResult>(`/api/v1/seasons/${seasonId}/deploy-winner`, { method: "POST" });
 
 // --- Messaging ---
 
@@ -1221,3 +1255,119 @@ export const startEDChat = (corpsId: string) =>
   request<V1CritiqueSession>(`/api/v1/corps/${corpsId}/ed-chat`, {
     method: "POST",
   });
+
+// --- Model Specs & Strategy ---
+
+export interface V1ModelSpecPerf {
+  avg_score: number;
+  total_attempts: number;
+  successful_attempts: number;
+}
+
+export interface V1ModelSpec {
+  id: string;
+  name: string;
+  provider: string;
+  model_id: string;
+  task_categories: string[];
+  is_active: boolean;
+  performance: Record<string, V1ModelSpecPerf>;
+}
+
+export interface V1SpecPerformanceDetail {
+  spec_id: string;
+  name: string;
+  provider: string;
+  model_id: string;
+  global: Array<{
+    task_category: string;
+    avg_score: number;
+    total_attempts: number;
+    successful_attempts: number;
+    success_rate: number;
+    last_used_at: string | null;
+  }>;
+  by_corps: Array<{
+    corps_id: string;
+    task_category: string;
+    avg_score: number;
+    total_attempts: number;
+    successful_attempts: number;
+    success_rate: number;
+    last_used_at: string | null;
+  }>;
+}
+
+export interface V1CorpsStrategy {
+  corps_id: string;
+  corps_name: string;
+  color_scheme: { primary?: string; secondary?: string; accent?: string };
+  strategy: {
+    id: string;
+    model_policy: string;
+    preferred_provider: string | null;
+    risk_tolerance: number;
+    exploration_rate: number;
+    adaptation_style: string;
+    section_overrides: Record<string, string>;
+    created_at: string | null;
+    updated_at: string | null;
+  };
+  performance: Record<string, {
+    model_spec_id: string;
+    avg_score: number;
+    total_attempts: number;
+    successful_attempts: number;
+  }>;
+}
+
+export interface V1StrategyHistoryEntry {
+  season_id: string;
+  description: string;
+  changes: Record<string, unknown>;
+}
+
+export interface V1LeaderboardEntry {
+  model_spec_id: string;
+  name: string;
+  provider: string;
+  avg_score: number;
+  total_attempts: number;
+  successful_attempts: number;
+  success_rate: number;
+}
+
+export const listModelSpecs = (signal?: AbortSignal) =>
+  request<V1ModelSpec[]>("/api/v1/model-specs", { signal });
+
+export const getSpecPerformance = (specId: string, signal?: AbortSignal) =>
+  request<V1SpecPerformanceDetail>(`/api/v1/model-specs/${specId}/performance`, { signal });
+
+export const getCorpsStrategy = (corpsId: string, signal?: AbortSignal) =>
+  request<V1CorpsStrategy>(`/api/v1/corps/${corpsId}/strategy`, { signal });
+
+export const getCorpsStrategyHistory = (corpsId: string, signal?: AbortSignal) =>
+  request<{ corps_id: string; history: V1StrategyHistoryEntry[] }>(`/api/v1/corps/${corpsId}/strategy/history`, { signal });
+
+export const updateCorpsStrategy = (corpsId: string, data: {
+  model_policy?: string;
+  preferred_provider?: string;
+  risk_tolerance?: number;
+  exploration_rate?: number;
+  adaptation_style?: string;
+  section_overrides?: Record<string, string>;
+}) =>
+  request<{
+    corps_id: string;
+    updated_fields: string[];
+    strategy: V1CorpsStrategy["strategy"];
+  }>(`/api/v1/corps/${corpsId}/strategy`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+
+export const getLeaderboard = (taskCategory: string, limit = 10, signal?: AbortSignal) =>
+  request<{ task_category: string; entries: V1LeaderboardEntry[] }>(
+    `/api/v1/leaderboard/${encodeURIComponent(taskCategory)}?limit=${limit}`,
+    { signal },
+  );

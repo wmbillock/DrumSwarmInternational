@@ -75,7 +75,12 @@ export function CommandCenter() {
     }
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+    // Auto-refresh every 30 seconds for live updates
+    const interval = setInterval(refresh, 30000);
+    return () => clearInterval(interval);
+  }, [refresh]);
   useEffect(() => {
     const iv = setInterval(refresh, 15000);
     return () => clearInterval(iv);
@@ -215,7 +220,6 @@ export function CommandCenter() {
       {/* Active Shows */}
       <section className="cc-section">
         <h2>Active Shows ({activeShows.length})</h2>
-        {activeShows.length === 0 && <p className="empty">No active shows. Create and activate a show to begin.</p>}
         <DataTable<Show & Record<string, unknown>>
           columns={[
             { key: "title", label: "Show", render: (v) => String(v || "—") },

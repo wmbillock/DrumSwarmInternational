@@ -124,6 +124,50 @@ def create_tool_registry() -> ToolRegistry:
         },
     })
 
+    # Art director tool (auto-classifies style + generates)
+    def _generate_art(db, **kwargs):
+        from backend.services.art_director import generate
+        return generate(
+            description=kwargs.get("description", ""),
+            category=kwargs.get("category"),
+            seed=kwargs.get("seed"),
+        )
+
+    registry.register("generate_art", _generate_art, {
+        "name": "generate_art",
+        "description": (
+            "Generate placeholder art. Describe what you need and optionally "
+            "pick a style category. Categories: web_icons, pixel_art_8bit, "
+            "pixel_art_16bit, game_art_2d, photo_realistic, stylized_icon, "
+            "corporate_logo, cartoon_animation, show_poster, character_portrait. "
+            "If no category given, one is auto-detected from your description."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "description": {"type": "string", "description": "What the image should depict"},
+                "category": {"type": "string", "description": "Style category (optional, auto-detected if omitted)"},
+                "seed": {"type": "integer", "description": "Random seed for reproducibility"},
+            },
+            "required": ["description"],
+        },
+    })
+
+    # Memory tools (recall + learn from institutional knowledge)
+    from backend.tools.memory_tool import recall_memory, learn_memory, RECALL_SCHEMA, LEARN_SCHEMA
+
+    registry.register("recall_memory", recall_memory, {
+        "name": "recall_memory",
+        "description": RECALL_SCHEMA["description"],
+        "input_schema": RECALL_SCHEMA["parameters"],
+    })
+
+    registry.register("learn_memory", learn_memory, {
+        "name": "learn_memory",
+        "description": LEARN_SCHEMA["description"],
+        "input_schema": LEARN_SCHEMA["parameters"],
+    })
+
     # Service-layer tools (create_segment, create_rep, handoff, etc.)
     register_service_tools(registry)
 

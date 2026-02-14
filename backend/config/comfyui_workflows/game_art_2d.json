@@ -1,0 +1,12 @@
+{
+  "description": "2D game sprites, characters, and scene art",
+  "category": "game_art_2d",
+  "prompt_template": "2D game art, digital illustration, game asset, {description}, vibrant colors, clean lines, professional game artwork, high quality sprite",
+  "negative_prompt": "blurry, low quality, watermark, 3d render, photorealistic, noisy, deformed",
+  "width": 1024,
+  "height": 1024,
+  "steps": 25,
+  "cfg_scale": 7.5,
+  "recommended_models": ["sd_xl_base_1.0.safetensors"],
+  "upgrade_models": ["game-art-xl LoRA"]
+}

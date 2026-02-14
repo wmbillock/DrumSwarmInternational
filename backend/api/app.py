@@ -95,8 +95,10 @@ async def lifespan(app: FastAPI):
     if not test_mode:
         # Seed founding corps on first startup
         from backend.services.corps_seeder import seed_founding_corps
+        from backend.services.model_spec_seeder import seed_default_specs
         seed_db = SessionFactory()
         try:
+            seed_default_specs(seed_db)
             seed_founding_corps(seed_db)
         finally:
             seed_db.close()
@@ -204,6 +206,7 @@ from backend.api.v1.scoreboards import router as v1_scoreboards_router
 from backend.api.v1.drill_books import router as v1_drill_books_router
 from backend.api.v1.experiments import router as v1_experiments_router
 from backend.api.v1.images import router as v1_images_router
+from backend.api.v1.model_strategy import router as v1_model_strategy_router
 
 for _r in [
     v1_corps_router, v1_design_router, v1_competitions_router, v1_messaging_router,
@@ -216,6 +219,7 @@ for _r in [
     v1_drill_books_router,
     v1_experiments_router,
     v1_images_router,
+    v1_model_strategy_router,
 ]:
     app.include_router(_r)
 

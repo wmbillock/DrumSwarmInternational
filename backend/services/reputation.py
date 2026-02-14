@@ -163,11 +163,17 @@ def record_corps_placement(
     if "history" not in corps:
         corps["history"] = []
 
-    corps["history"].append({
+    entry = {
         "season_id": season_id,
         "placement": placement,
         "final_score": final_score,
         "notes": notes,
-    })
+    }
+    # Prevent duplicate entries for the same season+notes combination
+    if not any(
+        h.get("season_id") == season_id and h.get("notes") == notes
+        for h in corps["history"]
+    ):
+        corps["history"].append(entry)
 
     atomic_write(corps_path, safe_dump_yaml(corps))

@@ -48,3 +48,10 @@ staff_archetypes:
   brass_caption_head: "The Purist — writes only business logic, nothing else, ever"
   percussion_caption_head: "The Timekeeper — infrastructure and tooling, that's it"
   guard_caption_head: "The Stylist — UI and presentation layer, exclusively"
+
+strategy:
+  model_policy: section_specialized
+  preferred_provider: null
+  risk_tolerance: 0.2
+  exploration_rate: 0.1
+  adaptation_style: model_swap

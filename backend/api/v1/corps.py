@@ -1115,7 +1115,7 @@ def v1_get_scoresheet(corps_id: str):
 def v1_corps_roster(corps_id: str):
     """Get agent roster for a corps with performer data."""
     _validate_id(corps_id, "corps_id")
-    from backend.models.agent_session import AgentSession
+    from backend.models.agent_session import AgentSession, SessionStatus
     from backend.models.agent_definition import AgentDefinition, ROLE_CLASSIFICATIONS, AgentClassification
     from backend.models.performer import Performer
     from datetime import datetime, timezone
@@ -1124,9 +1124,30 @@ def v1_corps_roster(corps_id: str):
     try:
         sessions = (
             db.query(AgentSession)
-            .filter(AgentSession.corps_id == corps_id)
+            .filter(
+                AgentSession.corps_id == corps_id,
+                AgentSession.status == SessionStatus.ACTIVE,
+            )
             .all()
         )
+        # If no active sessions, show most recent session per role as historical roster
+        if not sessions:
+            from sqlalchemy import func
+            subq = (
+                db.query(
+                    AgentSession.definition_id,
+                    func.max(AgentSession.started_at).label("latest"),
+                )
+                .filter(AgentSession.corps_id == corps_id)
+                .group_by(AgentSession.definition_id)
+                .subquery()
+            )
+            sessions = (
+                db.query(AgentSession)
+                .join(subq, (AgentSession.definition_id == subq.c.definition_id) & (AgentSession.started_at == subq.c.latest))
+                .filter(AgentSession.corps_id == corps_id)
+                .all()
+            )
         results = []
         for s in sessions:
             defn = db.get(AgentDefinition, s.definition_id) if s.definition_id else None

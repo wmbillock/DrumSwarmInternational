@@ -103,10 +103,32 @@ def v1_list_seasons():
         data = safe_load_yaml_dict(season_yaml.read_text(encoding="utf-8"))
         season_id = data.get("season_id", season_dir.name)
         meta = data.get("metadata", {})
+        # Derive status from metadata or schedule progress
+        status = meta.get("status", "")
+        if not status:
+            schedule = data.get("schedule") or []
+            completed = sum(1 for e in schedule if e.get("status") == "completed")
+            total = len(schedule)
+            if total > 0 and completed == total:
+                status = "completed"
+            elif completed > 0:
+                status = "touring"
+            elif data.get("shows"):
+                status = "active"
+            else:
+                status = "planning"
+        corps_ids = set()
+        for div_corps in (data.get("divisions") or {}).values():
+            if isinstance(div_corps, list):
+                corps_ids.update(div_corps)
+        registered = data.get("registered_corps") or []
+        corps_count = len(corps_ids) or len(registered)
         results.append({
             "season_id": season_id,
             "name": meta.get("name", season_id),
             "dir_name": season_dir.name,
+            "status": status,
+            "registered_corps_count": corps_count,
             "metadata": meta,
         })
     return results
@@ -380,6 +402,76 @@ def v1_declare_winner(season_id: str, req: FinalsDeclareWinnerRequest):
     from backend.services.yaml_util import atomic_write, safe_dump_yaml
     atomic_write(season_dir / "finals.yaml", safe_dump_yaml(finals))
     return finals
+
+
+@router.post("/seasons/{season_id}/deploy-winner")
+def v1_deploy_winner(season_id: str):
+    """Dispatch the winning corps' ED with the season's show prompt."""
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    if not (season_dir / "season.yaml").is_file():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+
+    finals_path = season_dir / "finals.yaml"
+    if not finals_path.is_file():
+        raise HTTPException(400, "Finals not declared yet")
+
+    finals = safe_load_yaml_dict(finals_path.read_text(encoding="utf-8"))
+    winner = finals.get("winner")
+    if not winner or not isinstance(winner, dict) or not winner.get("corps_id"):
+        raise HTTPException(400, "No winner declared — declare a winner first")
+
+    winner_corps_id = winner["corps_id"]
+
+    # Find show_prompt from the season's show slugs
+    from backend.services.season_persistence import load_season
+    data = load_season(season_dir)
+    show_slugs = data.get("shows") or []
+    show_prompt = ""
+    show_slug = ""
+    for slug in show_slugs:
+        prompt_path = root / "shows" / slug / "show_prompt.md"
+        if prompt_path.exists() and prompt_path.stat().st_size > 0:
+            show_prompt = prompt_path.read_text(encoding="utf-8")
+            show_slug = slug
+            break
+
+    if not show_prompt:
+        raise HTTPException(400, "No show_prompt.md found for any show in this season")
+
+    from backend.api.app import get_task_manager
+    tm = get_task_manager()
+    if not tm:
+        raise HTTPException(503, "Task manager not initialized")
+
+    dispatched = []
+    skipped = []
+    db = _get_db_session()
+    try:
+        ed_session = tm.get_session_for_role(db, winner_corps_id, "executive_director")
+        if not ed_session:
+            skipped.append({"corps_id": winner_corps_id, "reason": "no ED session found"})
+        elif tm.is_active(ed_session):
+            skipped.append({"corps_id": winner_corps_id, "reason": "ED already active"})
+        else:
+            task_desc = (
+                f"WINNER DEPLOYMENT — Your corps won season {season_id}!\n\n"
+                f"Execute the winning show prompt:\n\n---\n\n{show_prompt}"
+            )
+            tm.start_agent(session_id=ed_session, task_description=task_desc, corps_id=winner_corps_id)
+            dispatched.append({"corps_id": winner_corps_id, "session_id": ed_session})
+    finally:
+        db.close()
+
+    return {
+        "season_id": season_id,
+        "winner_corps_id": winner_corps_id,
+        "show_slug": show_slug,
+        "dispatched": dispatched,
+        "skipped": skipped,
+        "status": "deployed" if dispatched else "skipped",
+    }
 
 
 @router.post("/seasons/{season_id}/advance")

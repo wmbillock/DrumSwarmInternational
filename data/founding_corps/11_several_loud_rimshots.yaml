@@ -49,3 +49,10 @@ staff_archetypes:
   brass_caption_head: "The Machinist — produces identical, small, reliable components"
   percussion_caption_head: "The Drummer — ba-dum-tss, next rep, ba-dum-tss, next rep"
   guard_caption_head: "The Quick-Change Artist — assembles outputs into coherent wholes"
+
+strategy:
+  model_policy: best_of_breed
+  preferred_provider: anthropic
+  risk_tolerance: 0.4
+  exploration_rate: 0.2
+  adaptation_style: model_swap

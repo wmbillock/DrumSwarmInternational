@@ -3,20 +3,30 @@ import { cleanup } from "@testing-library/react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
-vi.mock("../services/v1", () => ({
-  getCorps: vi.fn().mockResolvedValue({
-    corps_id: "cavaliers",
-    display_name: "The Cavaliers",
-    philosophy: "Regal brass excellence",
-    state: "on_tour",
-    roster_size: 12,
-    history_count: 3,
-    history: [],
-  }),
-  listRuns: vi.fn().mockResolvedValue([]),
-  getCorpsHistory: vi.fn().mockResolvedValue({ corps_id: "cavaliers", generated_at: "", entries: [] }),
-  ApiError: class extends Error { status: number; constructor(s: number, m: string) { super(m); this.status = s; } },
-}));
+vi.mock("../services/v1", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../services/v1")>();
+  return {
+    ...actual,
+    getCorps: vi.fn().mockResolvedValue({
+      corps_id: "cavaliers",
+      display_name: "The Cavaliers",
+      philosophy: "Regal brass excellence",
+      state: "on_tour",
+      roster_size: 12,
+      history_count: 3,
+      history: [],
+    }),
+    listRuns: vi.fn().mockResolvedValue([]),
+    getCorpsHistory: vi.fn().mockResolvedValue({ corps_id: "cavaliers", generated_at: "", entries: [] }),
+    listAwards: vi.fn().mockResolvedValue([]),
+    getStaffingStatus: vi.fn().mockResolvedValue({ corps_id: "cavaliers", roles: [] }),
+    executeCorpsCommand: vi.fn().mockResolvedValue({ result: "ok" }),
+    generateCorpsLogo: vi.fn().mockResolvedValue({ url: "" }),
+    sendCorpsFeedback: vi.fn().mockResolvedValue({}),
+    startEDChat: vi.fn().mockResolvedValue({ session_id: "s1" }),
+    fetchV1: vi.fn().mockResolvedValue([]),
+  };
+});
 
 import { CorpsDetailV2 } from "../pages/CorpsDetailV2";
 
@@ -38,7 +48,7 @@ describe("CorpsDetailV2", () => {
   it("renders corps name and state", async () => {
     renderCorpsDetail();
     expect(await screen.findByRole("heading", { name: "The Cavaliers" })).toBeInTheDocument();
-    expect(screen.getAllByText("on_tour").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("On Tour").length).toBeGreaterThan(0);
   });
 
   it("renders Overview tab by default", async () => {

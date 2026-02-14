@@ -110,9 +110,15 @@ function OverviewTab({
       {health.corps_summaries.length > 0 && (
         <Panel title="Corps Leaderboard">
           <div className="leaderboard-list">
-            {corpsScoreboard.slice(0, 5).map((c) => (
+            {[...corpsScoreboard].sort((a, b) => {
+              // Prioritize corps with actual activity over idle ones
+              const aActive = (a as any).total_sessions > 0 ? 1 : 0;
+              const bActive = (b as any).total_sessions > 0 ? 1 : 0;
+              if (aActive !== bActive) return bActive - aActive;
+              return b.composite_score - a.composite_score;
+            }).slice(0, 5).map((c, i) => (
               <div key={c.corps_id} className="leaderboard-row">
-                <span className="leaderboard-rank">#{c.rank}</span>
+                <span className="leaderboard-rank">#{i + 1}</span>
                 <span className="leaderboard-label">{c.corps_name}</span>
                 <span className="leaderboard-value">{c.composite_score.toFixed(1)}</span>
                 <Badge variant={c.corps_status === "on_tour" ? "success" : "default"}>
@@ -211,7 +217,7 @@ function ProvidersTab({
         </Panel>
       )}
 
-      {batchStatus && (
+      {batchStatus && Object.keys(batchStatus).length > 0 && (
         <Panel title="Batch Status">
           <pre style={{ fontSize: 11, overflow: "auto" }}>{JSON.stringify(batchStatus, null, 2)}</pre>
         </Panel>
@@ -389,7 +395,7 @@ function ResourcesTab({
               <div key={k} style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid var(--border)", padding: "4px 0" }}>
                 <span style={{ color: "var(--text-secondary)" }}>{k.replace(/_/g, " ")}</span>
                 <span style={{ fontFamily: "JetBrains Mono, monospace" }}>
-                  {typeof v === "number" ? v.toLocaleString() : String(v)}
+                  {typeof v === "number" ? v.toLocaleString() : typeof v === "object" && v !== null ? JSON.stringify(v) : String(v)}
                 </span>
               </div>
             ))}

@@ -122,6 +122,28 @@ def _generate_color_scheme(seed: str) -> dict:
     return {"primary": primary, "secondary": secondary, "accent": accent}
 
 
+def _resolve_corps(db, corps_id: str):
+    """Resolve a corps by UUID primary key, falling back to name match.
+
+    Returns the Corps ORM object or raises 404.
+    """
+    from backend.models.corps import Corps
+
+    corps = db.get(Corps, corps_id)
+    if corps is not None:
+        return corps
+    # Fallback: match by name (case-insensitive)
+    from sqlalchemy import func
+    corps = (
+        db.query(Corps)
+        .filter(func.lower(Corps.name) == corps_id.lower())
+        .first()
+    )
+    if corps is not None:
+        return corps
+    raise HTTPException(404, f"Corps '{corps_id}' not found")
+
+
 def _parse_competition_id(competition_id: str, root: Path) -> tuple[str, str]:
     """Parse competition_id into (season_id, show_slug)."""
     from backend.services.yaml_util import safe_load_yaml_dict

@@ -16,6 +16,9 @@ export function CompetitionLive() {
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "standings");
   const [error, setError] = useState("");
   const [refreshToken, setRefreshToken] = useState(0);
+  const [actionBanner, setActionBanner] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [dispatching, setDispatching] = useState(false);
+  const [runningHeat, setRunningHeat] = useState(false);
 
   useEffect(() => {
     if (!competitionId) return;
@@ -29,12 +32,58 @@ export function CompetitionLive() {
     return () => ac.abort();
   }, [competitionId, refreshToken]);
 
+  // Auto-refresh standings every 15 seconds for live updates
+  useEffect(() => {
+    if (!competitionId) return;
+    const interval = setInterval(() => {
+      v1.getScores(competitionId)
+        .then(setStandings)
+        .catch(() => {});
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [competitionId]);
+
   useEffect(() => {
     const tab = searchParams.get("tab");
     if (tab && tab !== activeTab) {
       setActiveTab(tab);
     }
   }, [searchParams, activeTab]);
+
+  const handleDispatch = async () => {
+    if (!competitionId) return;
+    setDispatching(true);
+    setActionBanner(null);
+    try {
+      const result = await v1.dispatchAgents(competitionId);
+      setActionBanner({
+        type: "success",
+        message: `Dispatched ${result.total_dispatched} agent(s), skipped ${result.total_skipped}.`,
+      });
+    } catch (e: any) {
+      setActionBanner({ type: "error", message: e.message || "Dispatch failed" });
+    } finally {
+      setDispatching(false);
+    }
+  };
+
+  const handleRunHeat = async () => {
+    if (!competitionId) return;
+    setRunningHeat(true);
+    setActionBanner(null);
+    try {
+      const result = await v1.runCompetition(competitionId);
+      setActionBanner({
+        type: "success",
+        message: `Heat completed. ${result.standings?.length || 0} corps scored.`,
+      });
+      setRefreshToken((t) => t + 1);
+    } catch (e: any) {
+      setActionBanner({ type: "error", message: e.message || "Run heat failed" });
+    } finally {
+      setRunningHeat(false);
+    }
+  };
 
   const tabs: TabItem[] = [
     { key: "standings", label: "Standings" },
@@ -64,7 +113,25 @@ export function CompetitionLive() {
         {standings && (
           <Badge variant="info" title={standings.season_id}>{slugToTitle(standings.season_id)}</Badge>
         )}
+        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+          <button className="secondary" onClick={() => setRefreshToken((t) => t + 1)} style={{ fontSize: 12 }}>
+            Refresh
+          </button>
+          <button className="secondary" onClick={handleDispatch} disabled={dispatching} style={{ fontSize: 12 }}>
+            {dispatching ? "Dispatching..." : "Dispatch Agents"}
+          </button>
+          <button className="primary" onClick={handleRunHeat} disabled={runningHeat} style={{ fontSize: 12 }}>
+            {runningHeat ? "Running..." : "Run Heat"}
+          </button>
+        </div>
       </div>
+
+      {actionBanner && (
+        <div className={actionBanner.type === "success" ? "success-banner" : "error-banner"}>
+          {actionBanner.message}
+          <button onClick={() => setActionBanner(null)} style={{ marginLeft: 12, background: "none", border: "none", cursor: "pointer", opacity: 0.7, color: "inherit" }}>x</button>
+        </div>
+      )}
 
       <Tabs
         items={tabs}

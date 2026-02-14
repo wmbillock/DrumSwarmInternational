@@ -46,3 +46,10 @@ staff_archetypes:
   brass_caption_head: "The Belt-and-Suspenders — writes defensive code defensively"
   percussion_caption_head: "The Watchdog — monitors everything, trusts nothing"
   guard_caption_head: "The Catcher — intercepts problems before they become visible"
+
+strategy:
+  model_policy: single_provider
+  preferred_provider: anthropic
+  risk_tolerance: 0.0
+  exploration_rate: 0.0
+  adaptation_style: prompt_only

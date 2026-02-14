@@ -17,6 +17,8 @@ export function Finals() {
   const [entering, setEntering] = useState(false);
   const [declaring, setDeclaring] = useState(false);
   const [selectedWinner, setSelectedWinner] = useState<string>("");
+  const [deploying, setDeploying] = useState(false);
+  const [deployResult, setDeployResult] = useState<v1.V1DeployResult | null>(null);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -90,6 +92,20 @@ export function Finals() {
     }
   };
 
+  const handleDeploy = async () => {
+    if (!seasonId) return;
+    setDeploying(true);
+    setDeployResult(null);
+    try {
+      const result = await v1.deploySeasonWinner(seasonId);
+      setDeployResult(result);
+    } catch (e: any) {
+      setError(e.message || "Failed to deploy winner");
+    } finally {
+      setDeploying(false);
+    }
+  };
+
   if (loading) return <div className="page-loading">Loading finals...</div>;
   if (error) {
     return (
@@ -102,7 +118,7 @@ export function Finals() {
 
   if (!seasonId) {
     const completedSeasons = seasons.filter(s => {
-      const status = (s.metadata as Record<string, unknown>)?.status as string;
+      const status = (s as any).status || (s.metadata as Record<string, unknown>)?.status as string;
       return status === "completed" || status === "touring" || status === "review" || status === "finals";
     });
     const allSeasons = seasons;
@@ -130,11 +146,11 @@ export function Finals() {
 
         <div className="competition-grid">
           {allSeasons.map(s => {
-            const status = (s.metadata as Record<string, unknown>)?.status as string || "planning";
+            const status = (s as any).status || (s.metadata as Record<string, unknown>)?.status as string || "planning";
             return (
               <div
                 key={s.season_id}
-                className="competition-card"
+                className="competition-card clickable"
                 onClick={() => navigate(`/finals/${s.season_id}`)}
               >
                 <h3 title={s.season_id}>{slugToTitle(s.season_id)}</h3>
@@ -201,11 +217,25 @@ export function Finals() {
             {declaring ? "Declaring..." : "Declare Winner"}
           </button>
           {winner && (
-            <Badge variant="success">
-              Winner: {corpsById[winner]?.display_name || `Corps • ${winner.slice(0, 8)}`}
-            </Badge>
+            <>
+              <Badge variant="success">
+                Winner: {corpsById[winner]?.display_name || `Corps • ${winner.slice(0, 8)}`}
+              </Badge>
+              <button className="primary" onClick={handleDeploy} disabled={deploying} style={{ fontSize: 12 }}>
+                {deploying ? "Deploying..." : "Deploy Winner"}
+              </button>
+            </>
           )}
         </div>
+        {deployResult && (
+          <div className="success-banner" style={{ marginTop: 8, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span>
+              Deployed! {deployResult.dispatched.length} agent(s) dispatched
+              {deployResult.skipped.length > 0 && `, ${deployResult.skipped.length} skipped`}
+            </span>
+            <button onClick={() => setDeployResult(null)} style={{ background: "none", border: "none", cursor: "pointer", opacity: 0.7, color: "inherit" }}>x</button>
+          </div>
+        )}
       </Panel>
 
       <Panel title="Overall Rankings" style={{ marginTop: 16 }}>

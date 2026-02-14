@@ -1,29 +1,392 @@
 season_id: drum-swarm-international-season-2
 metadata:
   name: Drum Swarm International Season 2
+  status: touring
 shows:
 - be-able-to-click-into-a-corps-detail-page-from-an-entry-on-the-performance-stats-scoreboards-page
 - divisions-and-competition-classes
 - corps-auto-staffing-with-visible-hiring
+- implement-caption-awards-an-achievement-system-which-awards-humorous-achievements-at-significant-activity-milestones-corps-can-earn-caption-awards-as-can-individual-performers-and-staff-members
+- ui-usability-quick-start-tooltips-next-actions-css-fix
+- corps-lifecycle-redesign
 divisions:
   be-able-to-click-into-a-corps-detail-page-from-an-entry-on-the-performance-stats-scoreboards-page:
   - 0857c9cd-ab79-414c-810f-698392bab1e6
+  - 3eb60a4b-8ceb-4f95-bf30-ed15184a445d
+  - 4bfd7b68-2260-4b69-b389-9a8eda907da1
   - 5adef4c9-0202-40a4-a0c3-9575829cc2cf
+  - 66b819e1-3c06-4182-814e-0fc8d55d3ea0
   - 914f78aa-0d75-400d-bc9c-2c5a658149e3
+  divisions-and-competition-classes:
+  - 8f886480-cab4-4450-bb13-b10bb1272a10
   - 9f5170f4-0f5b-45c3-bb54-b5fd7a4dc5d8
   - e181f559-c533-417c-86b1-0accc832c7fe
+  - ead51175-ac76-4b90-883d-b32e19561e34
   - f36c6c19-04a6-48ea-996d-6cec06b73a42
-  divisions-and-competition-classes: []
-  corps-auto-staffing-with-visible-hiring: []
+  - fc11e2a2-72fb-42d7-8b18-7731203b631f
+  corps-auto-staffing-with-visible-hiring:
+  - 0857c9cd-ab79-414c-810f-698392bab1e6
+  - 3eb60a4b-8ceb-4f95-bf30-ed15184a445d
+  - 4bfd7b68-2260-4b69-b389-9a8eda907da1
+  - 5adef4c9-0202-40a4-a0c3-9575829cc2cf
+  - 66b819e1-3c06-4182-814e-0fc8d55d3ea0
+  - 914f78aa-0d75-400d-bc9c-2c5a658149e3
+  ? implement-caption-awards-an-achievement-system-which-awards-humorous-achievements-at-significant-activity-milestones-corps-can-earn-caption-awards-as-can-individual-performers-and-staff-members
+  : - 8f886480-cab4-4450-bb13-b10bb1272a10
+    - 9f5170f4-0f5b-45c3-bb54-b5fd7a4dc5d8
+    - e181f559-c533-417c-86b1-0accc832c7fe
+    - ead51175-ac76-4b90-883d-b32e19561e34
+    - f36c6c19-04a6-48ea-996d-6cec06b73a42
+    - fc11e2a2-72fb-42d7-8b18-7731203b631f
+  ui-usability-quick-start-tooltips-next-actions-css-fix:
+  - 0857c9cd-ab79-414c-810f-698392bab1e6
+  - 3eb60a4b-8ceb-4f95-bf30-ed15184a445d
+  - 4bfd7b68-2260-4b69-b389-9a8eda907da1
+  - 66b819e1-3c06-4182-814e-0fc8d55d3ea0
+  - 914f78aa-0d75-400d-bc9c-2c5a658149e3
+  - e181f559-c533-417c-86b1-0accc832c7fe
+  corps-lifecycle-redesign:
+  - 5adef4c9-0202-40a4-a0c3-9575829cc2cf
+  - 8f886480-cab4-4450-bb13-b10bb1272a10
+  - 9f5170f4-0f5b-45c3-bb54-b5fd7a4dc5d8
+  - ead51175-ac76-4b90-883d-b32e19561e34
+  - f36c6c19-04a6-48ea-996d-6cec06b73a42
+  - fc11e2a2-72fb-42d7-8b18-7731203b631f
 config:
-  corps_per_contest: 12
-  required_scores: 1
-schedule: []
-locked: false
+  corps_per_contest: 3
+  required_scores: 3
+  auto_advance: true
+schedule:
+- round: 1
+  competition_id: drum-swarm-international-season-2-round-1
+  show_slug: be-able-to-click-into-a-corps-detail-page-from-an-entry-on-the-performance-stats-scoreboards-page
+  corps_ids:
+  - 66b819e1-3c06-4182-814e-0fc8d55d3ea0
+  - 8f886480-cab4-4450-bb13-b10bb1272a10
+  - 3eb60a4b-8ceb-4f95-bf30-ed15184a445d
+  status: completed
+  completed_at: '2026-02-11T07:36:03.945841+00:00'
+  standings:
+  - corps_id: 3eb60a4b-8ceb-4f95-bf30-ed15184a445d
+    rank: 1
+    final_score: 54.005
+    raw_score: 54.005
+    caption_scores:
+      brass: 70.0
+      visual: 70.0
+      guard: 40.0
+      percussion: 41.5
+      general_effect: 42.5
+      ensemble_technique: 70.0
+  - corps_id: 66b819e1-3c06-4182-814e-0fc8d55d3ea0
+    rank: 2
+    final_score: 45.575
+    raw_score: 45.575
+    caption_scores:
+      visual: 40.0
+      brass: 40.0
+      percussion: 40.0
+      guard: 40.0
+      general_effect: 42.5
+      ensemble_technique: 73.5
+  - corps_id: 8f886480-cab4-4450-bb13-b10bb1272a10
+    rank: 3
+    final_score: 40.985
+    raw_score: 40.985
+    caption_scores:
+      brass: 40.0
+      visual: 41.5
+      guard: 40.0
+      general_effect: 42.5
+      percussion: 41.5
+      ensemble_technique: 40.0
+- round: 2
+  competition_id: drum-swarm-international-season-2-round-2
+  show_slug: divisions-and-competition-classes
+  corps_ids:
+  - 3eb60a4b-8ceb-4f95-bf30-ed15184a445d
+  - fc11e2a2-72fb-42d7-8b18-7731203b631f
+  - ead51175-ac76-4b90-883d-b32e19561e34
+  status: completed
+  completed_at: '2026-02-11T07:36:06.320576+00:00'
+  standings: []
+- round: 3
+  competition_id: drum-swarm-international-season-2-round-3
+  show_slug: corps-auto-staffing-with-visible-hiring
+  corps_ids:
+  - 4bfd7b68-2260-4b69-b389-9a8eda907da1
+  - 66b819e1-3c06-4182-814e-0fc8d55d3ea0
+  - 3eb60a4b-8ceb-4f95-bf30-ed15184a445d
+  status: completed
+  completed_at: '2026-02-11T07:37:53.324030+00:00'
+  standings:
+  - corps_id: 66b819e1-3c06-4182-814e-0fc8d55d3ea0
+    rank: 1
+    final_score: 58.885000000000005
+    raw_score: 58.885000000000005
+    caption_scores:
+      percussion: 41.5
+      brass: 70.0
+      visual: 70.0
+      guard: 70.0
+      general_effect: 41.5
+      ensemble_technique: 70.0
+  - corps_id: 3eb60a4b-8ceb-4f95-bf30-ed15184a445d
+    rank: 2
+    final_score: 53.86
+    raw_score: 53.86
+    caption_scores:
+      visual: 41.5
+      brass: 41.5
+      guard: 70.0
+      percussion: 70.0
+      general_effect: 40.0
+      ensemble_technique: 61.5
+  - corps_id: 4bfd7b68-2260-4b69-b389-9a8eda907da1
+    rank: 3
+    final_score: 49.78
+    raw_score: 49.78
+    caption_scores:
+      visual: 41.5
+      brass: 40.0
+      percussion: 41.5
+      guard: 68.5
+      general_effect: 40.0
+      ensemble_technique: 70.0
+- round: 4
+  competition_id: drum-swarm-international-season-2-round-4
+  show_slug: implement-caption-awards-an-achievement-system-which-awards-humorous-achievements-at-significant-activity-milestones-corps-can-earn-caption-awards-as-can-individual-performers-and-staff-members
+  corps_ids:
+  - 8f886480-cab4-4450-bb13-b10bb1272a10
+  - 4bfd7b68-2260-4b69-b389-9a8eda907da1
+  - 914f78aa-0d75-400d-bc9c-2c5a658149e3
+  status: completed
+  completed_at: '2026-02-11T07:38:57.072929+00:00'
+  standings: []
+- round: 5
+  competition_id: drum-swarm-international-season-2-round-5
+  show_slug: ui-usability-quick-start-tooltips-next-actions-css-fix
+  corps_ids:
+  - 5adef4c9-0202-40a4-a0c3-9575829cc2cf
+  - 4bfd7b68-2260-4b69-b389-9a8eda907da1
+  - ead51175-ac76-4b90-883d-b32e19561e34
+  status: completed
+  completed_at: '2026-02-11T07:41:08.341674+00:00'
+  standings:
+  - corps_id: 5adef4c9-0202-40a4-a0c3-9575829cc2cf
+    rank: 1
+    final_score: 45.595
+    raw_score: 45.595
+    caption_scores:
+      visual: 40.0
+      guard: 41.5
+      brass: 41.5
+      percussion: 41.5
+      general_effect: 41.5
+      ensemble_technique: 70.0
+  - corps_id: ead51175-ac76-4b90-883d-b32e19561e34
+    rank: 2
+    final_score: 45.325
+    raw_score: 45.325
+    caption_scores:
+      guard: 41.5
+      brass: 38.5
+      visual: 40.0
+      percussion: 70.0
+      general_effect: 40.0
+      ensemble_technique: 41.5
+  - corps_id: 4bfd7b68-2260-4b69-b389-9a8eda907da1
+    rank: 3
+    final_score: 44.755
+    raw_score: 44.755
+    caption_scores:
+      brass: 40.0
+      visual: 40.0
+      percussion: 41.5
+      guard: 40.0
+      general_effect: 40.0
+      ensemble_technique: 70.0
+- round: 6
+  competition_id: drum-swarm-international-season-2-round-6
+  show_slug: corps-lifecycle-redesign
+  corps_ids:
+  - 66b819e1-3c06-4182-814e-0fc8d55d3ea0
+  - fc11e2a2-72fb-42d7-8b18-7731203b631f
+  - f36c6c19-04a6-48ea-996d-6cec06b73a42
+  status: completed
+  completed_at: '2026-02-11T07:42:10.339271+00:00'
+  standings: []
+- round: 7
+  competition_id: drum-swarm-international-season-2-round-7
+  show_slug: be-able-to-click-into-a-corps-detail-page-from-an-entry-on-the-performance-stats-scoreboards-page
+  corps_ids:
+  - e181f559-c533-417c-86b1-0accc832c7fe
+  - fc11e2a2-72fb-42d7-8b18-7731203b631f
+  - 9f5170f4-0f5b-45c3-bb54-b5fd7a4dc5d8
+  status: completed
+  scoring_errors: []
+  completed_at: '2026-02-11T08:19:16.177961+00:00'
+  standings:
+  - corps_id: e181f559-c533-417c-86b1-0accc832c7fe
+    rank: 1
+    final_score: 51.265
+    raw_score: 51.265
+    caption_scores:
+      guard: 40.0
+      general_effect: 83.5
+      ensemble_technique: 0.0
+      brass: 83.5
+      percussion: 40.0
+      visual: 42.5
+  - corps_id: 9f5170f4-0f5b-45c3-bb54-b5fd7a4dc5d8
+    rank: 2
+    final_score: 39.335
+    raw_score: 39.335
+    caption_scores:
+      guard: 0.0
+      brass: 70.0
+      visual: 41.5
+      ensemble_technique: 0.0
+      general_effect: 70.0
+      percussion: 41.5
+  - corps_id: fc11e2a2-72fb-42d7-8b18-7731203b631f
+    rank: 3
+    final_score: 35.345
+    raw_score: 35.345
+    caption_scores:
+      brass: 73.5
+      guard: 41.5
+      ensemble_technique: 0.0
+      general_effect: 12.5
+      visual: 40.0
+      percussion: 48.5
+- round: 8
+  competition_id: drum-swarm-international-season-2-round-8
+  show_slug: divisions-and-competition-classes
+  corps_ids:
+  - 8f886480-cab4-4450-bb13-b10bb1272a10
+  - 5adef4c9-0202-40a4-a0c3-9575829cc2cf
+  - 9f5170f4-0f5b-45c3-bb54-b5fd7a4dc5d8
+  status: completed
+  completed_at: '2026-02-11T08:19:45.764866+00:00'
+  standings: []
+- round: 9
+  competition_id: drum-swarm-international-season-2-round-9
+  show_slug: corps-auto-staffing-with-visible-hiring
+  corps_ids:
+  - 5adef4c9-0202-40a4-a0c3-9575829cc2cf
+  - 0857c9cd-ab79-414c-810f-698392bab1e6
+  - ead51175-ac76-4b90-883d-b32e19561e34
+  status: completed
+  completed_at: '2026-02-11T08:21:54.076721+00:00'
+  standings:
+  - corps_id: ead51175-ac76-4b90-883d-b32e19561e34
+    rank: 1
+    final_score: 60.31
+    raw_score: 60.31
+    caption_scores:
+      visual: 41.5
+      brass: 70.0
+      percussion: 70.0
+      guard: 70.0
+      general_effect: 41.5
+      ensemble_technique: 70.0
+  - corps_id: 5adef4c9-0202-40a4-a0c3-9575829cc2cf
+    rank: 2
+    final_score: 53.455000000000005
+    raw_score: 53.455000000000005
+    caption_scores:
+      brass: 41.5
+      percussion: 70.0
+      visual: 70.0
+      guard: 40.0
+      general_effect: 40.0
+      ensemble_technique: 70.0
+  - corps_id: 0857c9cd-ab79-414c-810f-698392bab1e6
+    rank: 3
+    final_score: 50.605000000000004
+    raw_score: 50.605000000000004
+    caption_scores:
+      brass: 38.5
+      visual: 41.5
+      percussion: 71.5
+      guard: 70.0
+      general_effect: 40.0
+      ensemble_technique: 41.5
+- round: 10
+  competition_id: drum-swarm-international-season-2-round-10
+  show_slug: implement-caption-awards-an-achievement-system-which-awards-humorous-achievements-at-significant-activity-milestones-corps-can-earn-caption-awards-as-can-individual-performers-and-staff-members
+  corps_ids:
+  - 9f5170f4-0f5b-45c3-bb54-b5fd7a4dc5d8
+  - 0857c9cd-ab79-414c-810f-698392bab1e6
+  - 914f78aa-0d75-400d-bc9c-2c5a658149e3
+  status: completed
+  completed_at: '2026-02-11T08:22:29.337101+00:00'
+  standings: []
+- round: 11
+  competition_id: drum-swarm-international-season-2-round-11
+  show_slug: ui-usability-quick-start-tooltips-next-actions-css-fix
+  corps_ids:
+  - 914f78aa-0d75-400d-bc9c-2c5a658149e3
+  - e181f559-c533-417c-86b1-0accc832c7fe
+  - f36c6c19-04a6-48ea-996d-6cec06b73a42
+  status: completed
+  completed_at: '2026-02-11T08:24:46.231643+00:00'
+  standings:
+  - corps_id: e181f559-c533-417c-86b1-0accc832c7fe
+    rank: 1
+    final_score: 50.11
+    raw_score: 50.11
+    caption_scores:
+      visual: 41.5
+      guard: 41.5
+      brass: 38.5
+      percussion: 70.0
+      general_effect: 41.5
+      ensemble_technique: 70.0
+  - corps_id: f36c6c19-04a6-48ea-996d-6cec06b73a42
+    rank: 2
+    final_score: 44.68
+    raw_score: 44.68
+    caption_scores:
+      brass: 41.5
+      visual: 40.0
+      guard: 40.0
+      percussion: 41.5
+      general_effect: 38.5
+      ensemble_technique: 70.0
+  - corps_id: 914f78aa-0d75-400d-bc9c-2c5a658149e3
+    rank: 3
+    final_score: 38.885000000000005
+    raw_score: 38.885000000000005
+    caption_scores:
+      visual: 40.0
+      brass: 40.0
+      percussion: 40.0
+      guard: 31.5
+      ensemble_technique: 40.0
+      general_effect: 41.5
+- round: 12
+  competition_id: drum-swarm-international-season-2-round-12
+  show_slug: corps-lifecycle-redesign
+  corps_ids:
+  - f36c6c19-04a6-48ea-996d-6cec06b73a42
+  - e181f559-c533-417c-86b1-0accc832c7fe
+  - 0857c9cd-ab79-414c-810f-698392bab1e6
+  status: completed
+  completed_at: '2026-02-11T08:25:10.551921+00:00'
+  standings: []
+locked: true
 registered_corps:
 - 0857c9cd-ab79-414c-810f-698392bab1e6
+- 3eb60a4b-8ceb-4f95-bf30-ed15184a445d
+- 4bfd7b68-2260-4b69-b389-9a8eda907da1
 - 5adef4c9-0202-40a4-a0c3-9575829cc2cf
+- 66b819e1-3c06-4182-814e-0fc8d55d3ea0
+- 8f886480-cab4-4450-bb13-b10bb1272a10
 - 914f78aa-0d75-400d-bc9c-2c5a658149e3
 - 9f5170f4-0f5b-45c3-bb54-b5fd7a4dc5d8
 - e181f559-c533-417c-86b1-0accc832c7fe
+- ead51175-ac76-4b90-883d-b32e19561e34
 - f36c6c19-04a6-48ea-996d-6cec06b73a42
+- fc11e2a2-72fb-42d7-8b18-7731203b631f

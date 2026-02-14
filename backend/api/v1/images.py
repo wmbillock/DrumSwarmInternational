@@ -26,6 +26,13 @@ class WorkflowRequest(BaseModel):
     output_filename: Optional[str] = None
 
 
+class ArtRequest(BaseModel):
+    description: str
+    category: Optional[str] = None
+    seed: Optional[int] = None
+    output_filename: Optional[str] = None
+
+
 @router.get("/status")
 def image_status():
     """Check if image generation is available."""
@@ -38,6 +45,13 @@ def list_workflows():
     """List available workflow templates."""
     from backend.services.image_service import list_workflows
     return list_workflows()
+
+
+@router.get("/categories")
+def list_categories():
+    """List available art categories for the art director."""
+    from backend.services.art_director import list_categories
+    return list_categories()
 
 
 @router.post("/generate")
@@ -71,4 +85,23 @@ def generate_from_workflow(req: WorkflowRequest):
     )
     if not result["success"]:
         raise HTTPException(503, result["error"])
+    return result
+
+
+@router.post("/generate/art")
+def generate_art(req: ArtRequest):
+    """Generate art using the art director.
+
+    Automatically picks the right style workflow based on the description,
+    or uses the explicitly provided category.
+    """
+    from backend.services.art_director import generate
+    result = generate(
+        description=req.description,
+        category=req.category,
+        seed=req.seed,
+        output_filename=req.output_filename,
+    )
+    if not result["success"]:
+        raise HTTPException(503, result.get("error", "Generation failed"))
     return result
