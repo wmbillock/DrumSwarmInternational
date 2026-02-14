@@ -18,6 +18,8 @@ vi.mock("../services/v1", async (importOriginal) => {
     }),
     listRuns: vi.fn().mockResolvedValue([]),
     getCorpsHistory: vi.fn().mockResolvedValue({ corps_id: "cavaliers", generated_at: "", entries: [] }),
+    getCorpsCompetitionHistory: vi.fn().mockResolvedValue([]),
+    getCorpsPostMortems: vi.fn().mockResolvedValue([]),
     listAwards: vi.fn().mockResolvedValue([]),
     getStaffingStatus: vi.fn().mockResolvedValue({ corps_id: "cavaliers", roles: [] }),
     executeCorpsCommand: vi.fn().mockResolvedValue({ result: "ok" }),
@@ -60,6 +62,6 @@ describe("CorpsDetailV2", () => {
     renderCorpsDetail();
     await screen.findByRole("heading", { name: "The Cavaliers" });
     fireEvent.click(screen.getByText("Runs"));
-    expect(await screen.findByText("Run History")).toBeInTheDocument();
+    expect(await screen.findByText("Competition History")).toBeInTheDocument();
   });
 });

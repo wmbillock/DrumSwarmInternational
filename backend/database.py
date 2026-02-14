@@ -1,6 +1,6 @@
 import logging
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 logger = logging.getLogger(__name__)
@@ -10,8 +10,19 @@ class Base(DeclarativeBase):
     pass
 
 
+def _set_sqlite_pragma(dbapi_connection, connection_record):
+    """Enable WAL mode and set a busy timeout for SQLite connections."""
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA busy_timeout=5000")
+    cursor.close()
+
+
 def create_db_engine(db_url: str = "sqlite:///dci_swarm.db"):
-    return create_engine(db_url, echo=False)
+    eng = create_engine(db_url, echo=False)
+    if db_url.startswith("sqlite"):
+        event.listen(eng, "connect", _set_sqlite_pragma)
+    return eng
 
 
 def create_session_factory(engine) -> sessionmaker[Session]:

@@ -27,6 +27,38 @@ class ComfyUIConnector:
         self.server_url = server_url.rstrip("/")
         self.timeout = timeout
         self._available: Optional[bool] = None
+        self._model_name: Optional[str] = None
+
+    def _get_model_name(self) -> str:
+        """Auto-detect available checkpoint model from ComfyUI."""
+        if self._model_name:
+            return self._model_name
+        try:
+            import urllib.request
+            req = urllib.request.Request(
+                f"{self.server_url}/object_info/CheckpointLoaderSimple",
+                method="GET",
+            )
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read())
+            models = data.get("CheckpointLoaderSimple", {}).get("input", {}).get("required", {}).get("ckpt_name", [[]])[0]
+            # Prefer SDXL > SD 1.5 > first available
+            for preferred in ["sd_xl_base_1.0.safetensors", "sdxl"]:
+                for m in models:
+                    if preferred in m.lower():
+                        self._model_name = m
+                        return m
+            for m in models:
+                if "v1-5" in m or "sd_v1" in m.lower() or "pruned" in m:
+                    self._model_name = m
+                    return m
+            if models:
+                self._model_name = models[0]
+                return models[0]
+        except Exception:
+            pass
+        self._model_name = "sd_xl_base_1.0.safetensors"
+        return self._model_name
 
     def is_available(self) -> bool:
         """Check if ComfyUI server is reachable."""
@@ -187,7 +219,7 @@ class ComfyUIConnector:
             "4": {
                 "class_type": "CheckpointLoaderSimple",
                 "inputs": {
-                    "ckpt_name": "sd_xl_base_1.0.safetensors",
+                    "ckpt_name": self._get_model_name(),
                 },
             },
             "5": {

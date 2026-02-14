@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Badge } from "../ui";
 import * as v1 from "../services/v1";
 import { slugToTitle } from "../utils/formatters";
@@ -11,6 +12,7 @@ interface HealthData {
 }
 
 export function TelemetryPanel() {
+  const navigate = useNavigate();
   const [health, setHealth] = useState<HealthData | null>(null);
   const [recentActivity, setRecentActivity] = useState<v1.V1RecentActivity[]>([]);
   const [corpsCount, setCorpsCount] = useState(0);
@@ -41,9 +43,17 @@ export function TelemetryPanel() {
   return (
     <aside className="telemetry-panel">
       <div className="telemetry-section">
-        <h4 className="telemetry-heading">System Health</h4>
+        <h4
+          className="telemetry-heading telemetry-clickable"
+          onClick={() => navigate("/swarm-health")}
+        >
+          System Health
+        </h4>
         {health ? (
-          <div className="telemetry-health">
+          <div
+            className="telemetry-health telemetry-clickable"
+            onClick={() => navigate("/swarm-health")}
+          >
             <Badge variant={health.status === "ok" ? "success" : "warning"}>
               {health.status || "unknown"}
             </Badge>
@@ -57,18 +67,37 @@ export function TelemetryPanel() {
       </div>
 
       <div className="telemetry-section">
-        <h4 className="telemetry-heading">Corps</h4>
-        <span className="telemetry-stat">{health?.active_corps ?? 0} active / {corpsCount} total</span>
+        <h4
+          className="telemetry-heading telemetry-clickable"
+          onClick={() => navigate("/corps")}
+        >
+          Corps
+        </h4>
+        <span
+          className="telemetry-stat telemetry-clickable"
+          onClick={() => navigate("/corps")}
+        >
+          {health?.active_corps ?? 0} active / {corpsCount} total
+        </span>
       </div>
 
       <div className="telemetry-section">
-        <h4 className="telemetry-heading">Recent Rounds</h4>
+        <h4
+          className="telemetry-heading telemetry-clickable"
+          onClick={() => navigate("/tour")}
+        >
+          Recent Rounds
+        </h4>
         {recentActivity.length === 0 ? (
           <span className="text-muted">No rounds completed</span>
         ) : (
           <ul className="telemetry-run-list">
             {recentActivity.map((r) => (
-              <li key={r.competition_id} className="telemetry-run-item">
+              <li
+                key={r.competition_id}
+                className="telemetry-run-item telemetry-clickable"
+                onClick={() => navigate(`/competitions/${r.competition_id}`)}
+              >
                 <span className="mono" title={r.competition_id}>
                   R{r.round} {slugToTitle(r.show_slug)}
                 </span>
@@ -80,14 +109,23 @@ export function TelemetryPanel() {
       </div>
 
       <div className="telemetry-section">
-        <h4 className="telemetry-heading">Latest Scores</h4>
+        <h4
+          className="telemetry-heading telemetry-clickable"
+          onClick={() => navigate("/competitions")}
+        >
+          Latest Scores
+        </h4>
         {latestScores.length === 0 ? (
           <span className="text-muted">No scores</span>
         ) : (
           <ul className="telemetry-run-list">
             {latestScores.map((s) => (
-              <li key={s.corps_id} className="telemetry-run-item">
-                <span className="mono">#{s.rank} {s.corps_name || s.corps_id.slice(0, 8)}</span>
+              <li
+                key={s.corps_id}
+                className="telemetry-run-item telemetry-clickable"
+                onClick={() => navigate(`/corps/${s.corps_id}`)}
+              >
+                <span className="mono">#{s.rank} {(s as any).corps_name || s.corps_id.slice(0, 8)}</span>
                 <span className="show-score">{Number(s.final_score).toFixed(2)}</span>
               </li>
             ))}

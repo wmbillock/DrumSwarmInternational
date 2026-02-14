@@ -196,10 +196,13 @@ def build_schedule(season_dir: Path) -> list[dict]:
     return schedule
 
 
-def start_tour(season_dir: Path) -> dict:
+def start_tour(season_dir: Path, *, auto_advance: bool = True) -> dict:
     data = load_season(season_dir)
     data.setdefault("metadata", {})
     data["metadata"]["status"] = "touring"
+    # Enable auto-advance by default so metronome picks up the season
+    data.setdefault("config", {})
+    data["config"]["auto_advance"] = auto_advance
     if not data.get("schedule"):
         from backend.services.tour_coordinator import generate_schedule
         data["schedule"] = generate_schedule(season_dir)

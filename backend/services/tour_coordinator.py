@@ -123,6 +123,7 @@ def get_tour_status(season_dir: Path) -> dict:
     return {
         "season_id": data.get("season_id", season_dir.name),
         "status": data.get("metadata", {}).get("status", "planning"),
+        "auto_advance": bool((data.get("config") or {}).get("auto_advance", False)),
         "current_round": current,
         "history": history,
         "upcoming": upcoming,
@@ -143,12 +144,10 @@ def _pick_show_slug(season_data: dict, corps_ids: list[str], round_num: int = 1)
 
 
 def _score_round(season_dir: Path, round_entry: dict) -> dict:
+    """Score a round using the unified competition executor (full pipeline)."""
     from backend.api.app import get_task_manager
-    from backend.services.judge_service import judge_corps_performance
-    from backend.services.scoring_engine import compute_standings
-    from backend.services.scoring_service import CompositeScore, DEFAULT_WEIGHTS, record_score
-    from backend.services.yaml_util import safe_dump_yaml
     from backend.api.v1.helpers import _get_db_session
+    from backend.services.competition_executor import execute_competition
 
     season_id = season_dir.name
     show_slug = round_entry.get("show_slug") or "tour"
@@ -158,61 +157,20 @@ def _score_round(season_dir: Path, round_entry: dict) -> dict:
     tm = get_task_manager()
     llm_client = tm.llm_client if tm else None
 
-    composites = {}
-    scoring_errors: list[str] = []
     db = _get_db_session()
     try:
-        for cid in corps_ids:
-            try:
-                judge_results = judge_corps_performance(db, cid, show_slug, llm_client)
-                caption_scores = {jt: jr.total_score for jt, jr in judge_results.items()}
-                raw_total = sum(caption_scores[jt] * DEFAULT_WEIGHTS.get(jt, 0) for jt in caption_scores)
-                composites[cid] = CompositeScore(
-                    caption_scores=caption_scores,
-                    raw_total=raw_total,
-                    penalties_total=0.0,
-                    final_score=raw_total,
-                    needs_rework=False,
-                    needs_escalation=False,
-                )
-                for jt, jr in judge_results.items():
-                    record_score(
-                        db, corps_id=cid, judge_type=jt,
-                        value=jr.total_score, box=max(1, min(5, int(jr.total_score / 20))),
-                        feedback=jr.feedback,
-                        rep_score=jr.rep_score, perf_score=jr.perf_score,
-                    )
-            except Exception:
-                logger.warning("Scoring failed for corps %s in %s, skipping", cid, show_slug, exc_info=True)
-                scoring_errors.append(cid)
+        result = execute_competition(
+            db=db,
+            competition_id=competition_id,
+            season_id=season_id,
+            show_slug=show_slug,
+            corps_ids=corps_ids,
+            season_dir=season_dir,
+            llm_client=llm_client,
+        )
+        return result["standings_data"]
     finally:
         db.close()
-
-    standings = compute_standings(season_id, DEFAULT_WEIGHTS, composites)
-
-    standings_data = {
-        "season_id": season_id,
-        "competition_id": competition_id,
-        "show_slug": show_slug,
-        "generated_at": standings.generated_at,
-        "results": [
-            {
-                "corps_id": r.corps_id,
-                "rank": r.rank,
-                "final_score": r.final_score,
-                "raw_score": r.raw_score,
-                "caption_scores": {jt.value: v for jt, v in r.caption_scores.items()},
-            }
-            for r in standings.results
-        ],
-    }
-    if scoring_errors:
-        standings_data["scoring_errors"] = scoring_errors
-    atomic_write(season_dir / "standings.yaml", safe_dump_yaml(standings_data))
-    # Also write per-round standings so each competition has its own file
-    if competition_id:
-        atomic_write(season_dir / f"standings_{competition_id}.yaml", safe_dump_yaml(standings_data))
-    return standings_data
 
 
 def set_auto_advance(season_dir: Path, enabled: bool) -> dict:

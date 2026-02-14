@@ -243,7 +243,7 @@ def v1_create_competition(req: CreateCompetitionRequest):
 
 @router.post("/competitions/{competition_id}/run")
 def v1_run_competition(competition_id: str):
-    """Run a competition heat — deterministic stub scoring + standings."""
+    """Run a competition heat — full scoring pipeline with tapes + critique."""
     root = _get_root()
     season_id, show_slug = _parse_competition_id(competition_id, root)
 
@@ -254,6 +254,11 @@ def v1_run_competition(competition_id: str):
     show_dir = root / "shows" / show_slug
     if not (show_dir / "status.yaml").exists():
         raise HTTPException(404, f"Show '{show_slug}' not found")
+
+    # Validate show_prompt.md exists
+    prompt_path = show_dir / "show_prompt.md"
+    if not prompt_path.exists() or prompt_path.stat().st_size == 0:
+        logger.warning("No show_prompt.md for %s — scoring will use stubs", show_slug)
 
     from backend.services.season_persistence import list_registered_corps
     corps_ids = list_registered_corps(season_dir)
@@ -275,125 +280,35 @@ def v1_run_competition(competition_id: str):
                 finally:
                     db.close()
             except Exception:
-                pass  # Skip corps that can't be found
+                pass
     corps_ids = valid_corps_ids
     if not corps_ids:
         raise HTTPException(400, "No valid corps remaining for this competition")
 
-    from backend.models.score import JudgeType
-    from backend.services.scoring_service import CompositeScore, DEFAULT_WEIGHTS
-    from backend.services.scoring_engine import compute_standings
-    from backend.services.yaml_util import atomic_write, safe_dump_yaml
-
-    from backend.services.judge_service import judge_corps_performance
-
-    # Get LLM client for real judging
     from backend.api.app import get_task_manager
     tm = get_task_manager()
     llm_client = tm.llm_client if tm else None
 
-    composites = {}
-    judge_results_all = {}
-    db = None
+    from backend.services.competition_executor import execute_competition
+    db = _get_db_session()
     try:
-        db = _get_db_session()
-        for cid in corps_ids:
-            judge_results = judge_corps_performance(db, cid, show_slug, llm_client)
-            judge_results_all[cid] = judge_results
-            caption_scores = {jt: jr.total_score for jt, jr in judge_results.items()}
-            raw_total = sum(caption_scores[jt] * DEFAULT_WEIGHTS.get(jt, 0) for jt in caption_scores)
-            composites[cid] = CompositeScore(
-                caption_scores=caption_scores,
-                raw_total=raw_total,
-                penalties_total=0.0,
-                final_score=raw_total,
-                needs_rework=False,
-                needs_escalation=False,
-            )
-
-            # Store scores in DB with rep/perf split
-            from backend.services.scoring_service import record_score
-            for jt, jr in judge_results.items():
-                record_score(
-                    db, corps_id=cid, judge_type=jt,
-                    value=jr.total_score, box=max(1, min(5, int(jr.total_score / 20))),
-                    feedback=jr.feedback,
-                    rep_score=jr.rep_score, perf_score=jr.perf_score,
-                )
+        result = execute_competition(
+            db=db,
+            competition_id=competition_id,
+            season_id=season_id,
+            show_slug=show_slug,
+            corps_ids=corps_ids,
+            season_dir=season_dir,
+            llm_client=llm_client,
+        )
     finally:
-        if db:
-            db.close()
-
-    standings = compute_standings(season_id, DEFAULT_WEIGHTS, composites)
-
-    standings_data = {
-        "season_id": standings.season_id,
-        "generated_at": standings.generated_at,
-        "results": [
-            {
-                "corps_id": r.corps_id,
-                "rank": r.rank,
-                "final_score": r.final_score,
-                "raw_score": r.raw_score,
-                "caption_scores": {jt.value: v for jt, v in r.caption_scores.items()},
-            }
-            for r in standings.results
-        ],
-    }
-    atomic_write(season_dir / "standings.yaml", safe_dump_yaml(standings_data))
-
-    for cid in corps_ids:
-        composite = composites[cid]
-        scores_data = {
-            "corps_id": cid,
-            "show_slug": show_slug,
-            "caption_scores": {jt.value: v for jt, v in composite.caption_scores.items()},
-            "raw_total": composite.raw_total,
-            "final_score": composite.final_score,
-        }
-        perf_dir = season_dir / "performances" / cid
-        atomic_write(perf_dir / "scores.yaml", safe_dump_yaml(scores_data))
-
-    from backend.services.reputation import record_corps_placement
-    for r in standings.results:
-        corps_dir = root / "corps" / r.corps_id
-        if corps_dir.exists():
-            record_corps_placement(corps_dir, season_id, r.rank, r.final_score,
-                                   notes=f"show:{show_slug}")
-
-    # Persist critique markdown per corps
-    from backend.services.judge_service import generate_judges_tape, export_tape_markdown
-    critique_db = _get_db_session()
-    try:
-        for cid in corps_ids:
-            perf_dir = season_dir / "performances" / cid
-            perf_dir.mkdir(parents=True, exist_ok=True)
-            round_num = _next_critique_round(perf_dir)
-            tape = generate_judges_tape(critique_db, competition_id, cid, llm_client)
-            critique_md = export_tape_markdown(tape)
-            atomic_write(perf_dir / f"critique_round_{round_num}.md", critique_md)
-    finally:
-        critique_db.close()
-
-    # Auto-critique bottom 75% corps
-    auto_critique_summary = {}
-    try:
-        from backend.services.auto_critique import run_auto_critique
-        critique_db = _get_db_session()
-        try:
-            auto_critique_summary = run_auto_critique(
-                critique_db, competition_id, standings_data["results"], llm_client
-            )
-        finally:
-            critique_db.close()
-    except Exception as e:
-        logger.warning("Auto-critique failed: %s", e)
+        db.close()
 
     return {
         "competition_id": competition_id,
         "status": "completed",
-        "standings": standings_data["results"],
-        "auto_critique_summary": auto_critique_summary,
+        "standings": result["standings_data"]["results"],
+        "auto_critique_summary": result.get("auto_critique_summary", {}),
     }
 
 

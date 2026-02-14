@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Tabs, Panel, DataTable, Badge } from "../ui";
+import { API_BASE } from "../config";
 import { ShowDetail } from "../components/ShowDetail";
 import { HiringProgress } from "../components/HiringProgress";
 import { AwardsPanel } from "../components/AwardsPanel";
@@ -16,6 +17,7 @@ const TAB_ITEMS = [
   { key: "shows", label: "Shows" },
   { key: "history", label: "History" },
   { key: "strategy", label: "Strategy" },
+  { key: "seance", label: "Seance" },
 ];
 
 export function CorpsDetailV2() {
@@ -98,7 +100,7 @@ export function CorpsDetailV2() {
         <button className="back-btn" onClick={() => navigate("/corps")}>Back</button>
         {(corps as any).logo_path && (
           <img
-            src={`/generated_images/${(corps as any).logo_path.split("/").pop()}`}
+            src={`${API_BASE}/generated_images/${(corps as any).logo_path.split("/").pop()}`}
             alt={`${corps.display_name} logo`}
             style={{ width: 40, height: 40, borderRadius: 6, objectFit: "cover" }}
             onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
@@ -118,7 +120,7 @@ export function CorpsDetailV2() {
           <RosterTab corpsId={corpsId!} />
         )}
         {activeTab === "runs" && (
-          <RunsTab runs={runs} navigate={navigate} />
+          <RunsTab corpsId={corpsId!} runs={runs} navigate={navigate} />
         )}
         {activeTab === "shows" && (
           <ShowsTab history={history} />
@@ -129,41 +131,26 @@ export function CorpsDetailV2() {
         {activeTab === "strategy" && (
           <StrategyPanel corpsId={corpsId!} />
         )}
+        {activeTab === "seance" && (
+          <SeanceTab corpsId={corpsId!} />
+        )}
       </div>
     </div>
   );
 }
 
 function OverviewTab({ corps, onStateChange }: { corps: v1.V1CorpsDetail; onStateChange?: () => void }) {
-  const [cmdLoading, setCmdLoading] = useState("");
-  const [cmdResult, setCmdResult] = useState("");
   const [logoGenerating, setLogoGenerating] = useState(false);
   const [staffing, setStaffing] = useState<v1.StaffingStatus | null>(null);
   const [awards, setAwards] = useState<v1.V1Award[]>([]);
 
-  const exec = async (command: string) => {
-    setCmdLoading(command);
-    setCmdResult("");
-    try {
-      const res = await v1.executeCorpsCommand(corps.corps_id, command);
-      setCmdResult(res.detail || "OK");
-      onStateChange?.();
-    } catch (e: unknown) {
-      setCmdResult(e instanceof Error ? e.message : "Command failed");
-    } finally {
-      setCmdLoading("");
-    }
-  };
-
-  const isWinterCamps = corps.state === "winter_camps";
   const lifecycle = ["initializing", "winter_camps", "on_tour", "ready_for_contest", "completed"];
 
   useEffect(() => {
-    if (!isWinterCamps) return;
     v1.getStaffingStatus(corps.corps_id)
       .then(setStaffing)
       .catch(() => {});
-  }, [corps.corps_id, isWinterCamps]);
+  }, [corps.corps_id]);
 
   useEffect(() => {
     v1.listAwards({ corps_id: corps.corps_id, recipient_type: "corps" })
@@ -189,7 +176,7 @@ function OverviewTab({ corps, onStateChange }: { corps: v1.V1CorpsDetail; onStat
             {(corps as any).logo_path && (
               <tr><td className="cell-primary">Logo</td><td>
                 <img
-                  src={`/generated_images/${(corps as any).logo_path.split("/").pop()}`}
+                  src={`${API_BASE}/generated_images/${(corps as any).logo_path.split("/").pop()}`}
                   alt="Logo"
                   style={{ width: 64, height: 64, borderRadius: 8, objectFit: "cover" }}
                   onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
@@ -198,22 +185,24 @@ function OverviewTab({ corps, onStateChange }: { corps: v1.V1CorpsDetail; onStat
             )}
           </tbody>
         </table>
-        {!(corps as any).logo_path && (
-          <button
-            style={{ marginTop: 8, fontSize: 12 }}
-            disabled={logoGenerating}
-            onClick={async () => {
-              setLogoGenerating(true);
-              try {
-                await v1.generateCorpsLogo(corps.corps_id);
-                onStateChange?.();
-              } catch { /* ignore */ }
-              setLogoGenerating(false);
-            }}
-          >
-            {logoGenerating ? "Generating..." : "Generate Logo"}
-          </button>
-        )}
+        <button
+          style={{ marginTop: 8, fontSize: 12 }}
+          disabled={logoGenerating}
+          onClick={async () => {
+            setLogoGenerating(true);
+            try {
+              await v1.generateCorpsLogo(corps.corps_id);
+              onStateChange?.();
+            } catch { /* ignore */ }
+            setLogoGenerating(false);
+          }}
+        >
+          {logoGenerating
+            ? "Generating..."
+            : (corps as any).logo_path
+              ? "Regenerate Logo (SDXL)"
+              : "Generate Logo"}
+        </button>
       </Panel>
 
       {corps.current_show && (
@@ -259,42 +248,53 @@ function OverviewTab({ corps, onStateChange }: { corps: v1.V1CorpsDetail; onStat
         </div>
       </Panel>
 
-      {isWinterCamps && (
-        <Panel title="Prep Status" className="mt-16">
-          <div style={{ display: "grid", gap: 12 }}>
-            <HiringProgress corpsId={corps.corps_id} />
-            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-              {staffing && staffing.hired >= staffing.total_roles
-                ? "Staffing complete. Review readiness checks before touring."
-                : "Staffing in progress. Corps will be ready when all roles are filled."}
-            </div>
-          </div>
-        </Panel>
-      )}
+      <CorpsStatusPanel corps={corps} staffing={staffing} />
 
-      <Panel title="Operational Commands" className="mt-16">
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-          <button onClick={() => exec("resume_hut")} disabled={!!cmdLoading}>
-            {cmdLoading === "resume_hut" ? "Waking..." : "Resume, Hut!"}
-          </button>
-          <button onClick={() => exec("attention")} disabled={!!cmdLoading}>
-            {cmdLoading === "attention" ? "Requesting..." : "Attention!"}
-          </button>
-          <button onClick={() => exec("metronome_tick")} disabled={!!cmdLoading}>
-            Metronome Tick
-          </button>
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Rehearsal:</span>
-          {["basics", "sectionals", "full_ensemble", "run_through"].map((mode) => (
-            <button key={mode} className="small" onClick={() => exec(mode)} disabled={!!cmdLoading}>
-              {mode.replace("_", " ")}
-            </button>
-          ))}
-        </div>
-        {cmdResult && (
-          <div style={{ marginTop: 8, fontSize: 13, color: "var(--text-secondary)" }}>{cmdResult}</div>
-        )}
+      <Panel title="Rehearsal Progression" className="mt-16">
+        {(() => {
+          const stages = [
+            { key: "basics", label: "Basics", desc: "Fundamentals and warm-ups" },
+            { key: "sectionals", label: "Sectionals", desc: "Section-specific practice" },
+            { key: "full_ensemble", label: "Full Ensemble", desc: "Full corps integration" },
+            { key: "run_through", label: "Run Through", desc: "Complete performance runs" },
+          ];
+          const currentIdx = stages.findIndex((s) => s.key === corps.rehearsal_mode);
+          return (
+            <div>
+              <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
+                {stages.map((s, i) => (
+                  <div
+                    key={s.key}
+                    style={{
+                      flex: 1,
+                      padding: "8px 10px",
+                      borderRadius: 6,
+                      background: i === currentIdx
+                        ? "var(--accent-bg, rgba(100,180,255,0.15))"
+                        : i < currentIdx
+                          ? "rgba(100,200,100,0.1)"
+                          : "var(--bg-elevated, rgba(255,255,255,0.03))",
+                      border: i === currentIdx
+                        ? "1px solid var(--accent)"
+                        : "1px solid var(--border)",
+                      textAlign: "center",
+                    }}
+                  >
+                    <div style={{ fontSize: 12, fontWeight: i === currentIdx ? 700 : 400 }}>
+                      {i < currentIdx ? "\u2713 " : ""}{s.label}
+                    </div>
+                    <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>{s.desc}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                {currentIdx >= 0
+                  ? `Currently in ${stages[currentIdx].label} phase. Progression happens automatically during competition.`
+                  : "No active rehearsal phase. Rehearsal begins when the corps starts preparing for a show."}
+              </div>
+            </div>
+          );
+        })()}
       </Panel>
 
       <AwardsPanel title="Corps Achievements" awards={awards} emptyText="No corps achievements yet." />
@@ -364,32 +364,231 @@ function FeedbackPanel({ corpsId }: { corpsId: string }) {
   );
 }
 
-function RunsTab({ runs, navigate }: { runs: v1.V1Run[]; navigate: ReturnType<typeof useNavigate> }) {
+function CorpsStatusPanel({ corps, staffing }: { corps: v1.V1CorpsDetail; staffing: v1.StaffingStatus | null }) {
+  const [workStats, setWorkStats] = useState<{ total_logs: number; recent_logs: number; active_agents: number } | null>(null);
+
+  useEffect(() => {
+    // Fetch work log stats for this corps
+    v1.fetchV1<{ total_logs: number; recent_logs: number; active_agents: number }>(`/corps/${corps.corps_id}/work-stats`)
+      .then(setWorkStats)
+      .catch(() => {});
+  }, [corps.corps_id]);
+
+  const isWinterCamps = corps.state === "winter_camps";
+  const staffComplete = staffing ? staffing.hired >= staffing.total_roles : false;
+
   return (
-    <Panel title="Run History">
-      <DataTable<v1.V1Run & Record<string, unknown>>
-        columns={[
-          { key: "run_id", label: "Run", render: (v) => <span className="mono" title={String(v)}>{String(v).slice(0, 8)}</span> },
-          { key: "show_slug", label: "Show", render: (v) => slugToTitle(String(v || "")) },
-          {
-            key: "status",
-            label: "Status",
-            render: (v) => (
-              <Badge variant={badgeForRunStatus(String(v))}>
-                {formatStatus(String(v))}
-              </Badge>
-            ),
-          },
-          { key: "started_at", label: "Started", render: (v) => {
-            const ts = formatTimestamp(String(v || ""));
-            return <span title={ts.title}>{ts.label}</span>;
-          } },
-        ]}
-        data={runs as (v1.V1Run & Record<string, unknown>)[]}
-        onRowClick={(row) => navigate(`/runs/${row.run_id}`)}
-        emptyMessage="No runs found for this corps"
-      />
+    <Panel title="Corps Status" className="mt-16">
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, fontSize: 13 }}>
+        {/* Lifecycle */}
+        <div>
+          <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 2 }}>Lifecycle</div>
+          <Badge variant={corps.state === "on_tour" ? "success" : "default"}>
+            {formatStatus(corps.state)}
+          </Badge>
+        </div>
+
+        {/* Mode */}
+        <div>
+          <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 2 }}>Mode</div>
+          <span>{corps.mode ? formatMode(corps.mode) : "Idle"}</span>
+        </div>
+
+        {/* Rehearsal Phase */}
+        {corps.rehearsal_mode && (
+          <div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 2 }}>Rehearsal</div>
+            <span>{formatMode(corps.rehearsal_mode)}</span>
+          </div>
+        )}
+
+        {/* Current Show */}
+        {corps.current_show && (
+          <div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 2 }}>Current Show</div>
+            <span>{corps.current_show.title}</span>
+            <Badge variant={badgeForShowStatus(corps.current_show.status)} style={{ marginLeft: 6 }}>
+              {corps.current_show.status}
+            </Badge>
+          </div>
+        )}
+
+        {/* Staffing */}
+        {staffing && (
+          <div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 2 }}>Staffing</div>
+            <span>
+              {staffing.hired}/{staffing.total_roles} roles filled
+              {staffComplete && <Badge variant="success" style={{ marginLeft: 6 }}>Complete</Badge>}
+            </span>
+          </div>
+        )}
+
+        {/* Work Activity */}
+        {workStats && (
+          <div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 2 }}>Activity</div>
+            <span>
+              {workStats.active_agents} active agents, {workStats.recent_logs} recent actions
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Staffing progress bar during winter camps */}
+      {isWinterCamps && (
+        <div style={{ marginTop: 12 }}>
+          <HiringProgress corpsId={corps.corps_id} />
+        </div>
+      )}
     </Panel>
+  );
+}
+
+function RunsTab({ corpsId, runs, navigate }: { corpsId: string; runs: v1.V1Run[]; navigate: ReturnType<typeof useNavigate> }) {
+  const [compHistory, setCompHistory] = useState<v1.V1CompetitionHistoryEntry[]>([]);
+  const [postMortems, setPostMortems] = useState<v1.V1PostMortemSummary[]>([]);
+  const [selectedPM, setSelectedPM] = useState<v1.V1PostMortemDetail | null>(null);
+  const [pmLoading, setPmLoading] = useState(false);
+
+  useEffect(() => {
+    v1.getCorpsCompetitionHistory(corpsId)
+      .then(setCompHistory)
+      .catch(() => {});
+    v1.getCorpsPostMortems(corpsId)
+      .then(setPostMortems)
+      .catch(() => {});
+  }, [corpsId]);
+
+  // Compute summary stats
+  const completedComps = compHistory.filter((c) => c.status === "completed" && c.placement != null);
+  const wins = completedComps.filter((c) => c.placement === 1).length;
+  const totalCompleted = completedComps.length;
+  const avgScore = totalCompleted > 0
+    ? completedComps.reduce((sum, c) => sum + (c.final_score || 0), 0) / totalCompleted
+    : 0;
+  const bestPlacement = totalCompleted > 0
+    ? Math.min(...completedComps.map((c) => c.placement!))
+    : null;
+
+  return (
+    <div>
+      {/* Summary stats */}
+      {totalCompleted > 0 && (
+        <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
+          <div className="stat-card">
+            <div className="stat-value">{totalCompleted}</div>
+            <div className="stat-label">Competitions</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value">{wins}</div>
+            <div className="stat-label">Wins</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value">{avgScore.toFixed(1)}</div>
+            <div className="stat-label">Avg Score</div>
+          </div>
+          {bestPlacement != null && (
+            <div className="stat-card">
+              <div className="stat-value">#{bestPlacement}</div>
+              <div className="stat-label">Best Place</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Competition History Table */}
+      <Panel title="Competition History">
+        <DataTable<v1.V1CompetitionHistoryEntry & Record<string, unknown>>
+          columns={[
+            { key: "round", label: "Round", render: (v) => `R${v}` },
+            { key: "show_slug", label: "Show", render: (v) => slugToTitle(String(v || "")) },
+            { key: "season_id", label: "Season", render: (v) => slugToTitle(String(v || "")) },
+            { key: "placement", label: "Place", render: (v) => v != null ? <strong>#{String(v)}</strong> : "-" },
+            { key: "final_score", label: "Score", render: (v) => v != null ? Number(v).toFixed(2) : "-" },
+            {
+              key: "status",
+              label: "Status",
+              render: (v) => (
+                <Badge variant={v === "completed" ? "success" : "default"}>
+                  {formatStatus(String(v))}
+                </Badge>
+              ),
+            },
+          ]}
+          data={compHistory as (v1.V1CompetitionHistoryEntry & Record<string, unknown>)[]}
+          onRowClick={(row) => {
+            const comp = row as unknown as v1.V1CompetitionHistoryEntry;
+            navigate(`/tour/${comp.competition_id}`);
+          }}
+          emptyMessage="No competitions found"
+        />
+      </Panel>
+
+      {/* Post-Mortems */}
+      {postMortems.length > 0 && (
+        <Panel title="Season Post-Mortems" className="mt-16">
+          {!selectedPM ? (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {postMortems.map((pm) => (
+                <button
+                  key={pm.season_id}
+                  className="btn btn-secondary"
+                  disabled={pmLoading}
+                  onClick={() => {
+                    setPmLoading(true);
+                    v1.getPostMortem(pm.season_id, corpsId)
+                      .then(setSelectedPM)
+                      .catch(() => {})
+                      .finally(() => setPmLoading(false));
+                  }}
+                >
+                  {slugToTitle(pm.season_id)}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <strong>{slugToTitle(selectedPM.season_id)}</strong>
+                <button className="btn btn-ghost" onClick={() => setSelectedPM(null)}>Back</button>
+              </div>
+              <div className="post-mortem-content" style={{ whiteSpace: "pre-wrap", fontFamily: "var(--font-mono)", fontSize: "0.85rem", lineHeight: 1.6, padding: 16, background: "var(--bg-secondary)", borderRadius: 8, maxHeight: 600, overflow: "auto" }}>
+                {selectedPM.content}
+              </div>
+            </div>
+          )}
+        </Panel>
+      )}
+
+      {/* Legacy Runs */}
+      {runs.length > 0 && (
+        <Panel title="Agent Runs" className="mt-16">
+          <DataTable<v1.V1Run & Record<string, unknown>>
+            columns={[
+              { key: "run_id", label: "Run", render: (v) => <span className="mono" title={String(v)}>{String(v).slice(0, 8)}</span> },
+              { key: "show_slug", label: "Show", render: (v) => slugToTitle(String(v || "")) },
+              {
+                key: "status",
+                label: "Status",
+                render: (v) => (
+                  <Badge variant={badgeForRunStatus(String(v))}>
+                    {formatStatus(String(v))}
+                  </Badge>
+                ),
+              },
+              { key: "started_at", label: "Started", render: (v) => {
+                const ts = formatTimestamp(String(v || ""));
+                return <span title={ts.title}>{ts.label}</span>;
+              } },
+            ]}
+            data={runs as (v1.V1Run & Record<string, unknown>)[]}
+            onRowClick={(row) => navigate(`/runs/${row.run_id}`)}
+            emptyMessage="No runs"
+          />
+        </Panel>
+      )}
+    </div>
   );
 }
 
@@ -489,10 +688,48 @@ interface RosterMember {
   performer_successful_sessions: number | null;
 }
 
+interface AgentDetail {
+  session_id: string;
+  role: string;
+  nickname: string | null;
+  model_tier: string;
+  status: string;
+  group: string;
+  tenure_days: number | null;
+  started_at: string | null;
+  ended_at: string | null;
+  error: string | null;
+  performer_name: string | null;
+  performer_trust_score: number | null;
+  performer_status: string | null;
+  performer_total_sessions: number | null;
+  performer_successful_sessions: number | null;
+  message_count: number;
+  rep_count: number;
+  score_contributions: number;
+  recent_logs: {
+    id: string;
+    event_type: string;
+    phase: string | null;
+    details: string | null;
+    timestamp: string | null;
+  }[];
+  memories: {
+    id: string;
+    key: string;
+    content: string;
+    created_at: string | null;
+  }[];
+}
+
 function RosterTab({ corpsId }: { corpsId: string }) {
   const [roster, setRoster] = useState<RosterMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionMsg, setActionMsg] = useState("");
+  const [selectedAgent, setSelectedAgent] = useState<AgentDetail | null>(null);
+  const [agentLoading, setAgentLoading] = useState(false);
+  const [agentError, setAgentError] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
 
   const loadRoster = useCallback(() => {
     v1.fetchV1<RosterMember[]>(`/corps/${corpsId}/roster`)
@@ -518,6 +755,27 @@ function RosterTab({ corpsId }: { corpsId: string }) {
     }
   };
 
+  const handleRowClick = async (member: RosterMember) => {
+    setModalOpen(true);
+    setAgentLoading(true);
+    setAgentError("");
+    setSelectedAgent(null);
+    try {
+      const detail = await v1.fetchV1<AgentDetail>(`/corps/${corpsId}/agents/${member.session_id}`);
+      setSelectedAgent(detail);
+    } catch (e: unknown) {
+      setAgentError(e instanceof Error ? e.message : "Failed to load agent details");
+    } finally {
+      setAgentLoading(false);
+    }
+  };
+
+  const closeModal = () => {
+    setModalOpen(false);
+    setSelectedAgent(null);
+    setAgentError("");
+  };
+
   if (loading) return <p>Loading roster...</p>;
 
   const groups = ["Administrative Staff", "Instructional Staff", "Performing Members", "Other"];
@@ -534,16 +792,23 @@ function RosterTab({ corpsId }: { corpsId: string }) {
               columns={[
                 { key: "role", label: "Role", render: (v) => String(v).replace(/_/g, " ") },
                 { key: "nickname", label: "Nickname" },
-                { key: "performer_name", label: "Performer" },
+                { key: "model_tier", label: "Tier", render: (v) => <Badge variant="default">{String(v).toUpperCase()}</Badge> },
+                { key: "performer_name", label: "Agent Identity" },
                 { key: "performer_trust_score", label: "Trust", render: (v) => v != null ? Number(v).toFixed(1) : "-" },
                 { key: "status", label: "Status", render: (v) => <Badge variant={v === "active" ? "success" : "default"}>{String(v)}</Badge> },
                 { key: "tenure_days", label: "Tenure", render: (v) => v != null ? `${v}d` : "-" },
-                { key: "session_id", label: "Actions", render: (_v, row) => (
+                { key: "session_id", label: "", render: (_v, row) => (
                   <span style={{ display: "flex", gap: 4 }}>
+                    <button
+                      className="btn-sm"
+                      onClick={(e) => { e.stopPropagation(); handleRowClick(row as RosterMember); }}
+                    >
+                      Details
+                    </button>
                     {(row as RosterMember).performer_id && (
                       <>
-                        <button className="btn-sm" onClick={() => handleAction("dismiss", (row as RosterMember).session_id)}>Dismiss</button>
-                        <button className="btn-sm btn-danger" onClick={() => handleAction("fire", (row as RosterMember).session_id)}>Fire</button>
+                        <button className="btn-sm" onClick={(e) => { e.stopPropagation(); handleAction("dismiss", (row as RosterMember).session_id); }}>Dismiss</button>
+                        <button className="btn-sm btn-danger" onClick={(e) => { e.stopPropagation(); handleAction("fire", (row as RosterMember).session_id); }}>Fire</button>
                       </>
                     )}
                   </span>
@@ -556,6 +821,261 @@ function RosterTab({ corpsId }: { corpsId: string }) {
         );
       })}
       {roster.length === 0 && <p className="empty">No roster data available</p>}
+
+      {/* Agent Detail Modal */}
+      {modalOpen && (
+        <div
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)",
+            display: "flex", justifyContent: "center", alignItems: "flex-start",
+            paddingTop: 60, zIndex: 1000,
+          }}
+          onClick={closeModal}
+        >
+          <div
+            style={{
+              background: "var(--surface, #1a1a2e)", border: "1px solid var(--border)",
+              borderRadius: 8, width: "90%", maxWidth: 700, maxHeight: "80vh",
+              overflow: "auto", padding: 24,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {agentLoading ? (
+              <p>Loading agent details...</p>
+            ) : agentError ? (
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                  <h2 style={{ margin: 0 }}>Error</h2>
+                  <button className="secondary" onClick={closeModal} style={{ fontSize: 12 }}>Close</button>
+                </div>
+                <p className="text-muted">{agentError}</p>
+              </div>
+            ) : selectedAgent ? (
+              <AgentDetailPanel agent={selectedAgent} onClose={closeModal} />
+            ) : null}
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function AgentDetailPanel({ agent, onClose }: { agent: AgentDetail; onClose: () => void }) {
+  const [activeSection, setActiveSection] = useState<"activity" | "memories">("activity");
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+        <h2 style={{ margin: 0 }}>
+          {agent.nickname || agent.role.replace(/_/g, " ")}
+        </h2>
+        <button className="secondary" onClick={onClose} style={{ fontSize: 12 }}>Close</button>
+      </div>
+
+      {/* Identity */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
+        <div>
+          <div style={{ fontSize: 11, color: "var(--text-secondary)", textTransform: "uppercase" }}>Role</div>
+          <div>{agent.role.replace(/_/g, " ")}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: "var(--text-secondary)", textTransform: "uppercase" }}>Model Tier</div>
+          <Badge variant="default">{agent.model_tier.toUpperCase()}</Badge>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: "var(--text-secondary)", textTransform: "uppercase" }}>Status</div>
+          <Badge variant={agent.status === "active" ? "success" : "default"}>{agent.status}</Badge>
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: "var(--text-secondary)", textTransform: "uppercase" }}>Tenure</div>
+          <div>{agent.tenure_days != null ? `${agent.tenure_days} days` : "-"}</div>
+        </div>
+        {agent.performer_name && (
+          <>
+            <div>
+              <div style={{ fontSize: 11, color: "var(--text-secondary)", textTransform: "uppercase" }}>Agent Identity</div>
+              <div>{agent.performer_name}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: "var(--text-secondary)", textTransform: "uppercase" }}>Trust Score</div>
+              <div>{agent.performer_trust_score?.toFixed(1) ?? "-"}</div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Stats */}
+      <div style={{ display: "flex", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
+        <div style={{ textAlign: "center", padding: "8px 16px", border: "1px solid var(--border)", borderRadius: 6 }}>
+          <div style={{ fontSize: 20, fontWeight: 700 }}>{agent.message_count}</div>
+          <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Messages</div>
+        </div>
+        <div style={{ textAlign: "center", padding: "8px 16px", border: "1px solid var(--border)", borderRadius: 6 }}>
+          <div style={{ fontSize: 20, fontWeight: 700 }}>{agent.rep_count}</div>
+          <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Reps</div>
+        </div>
+        <div style={{ textAlign: "center", padding: "8px 16px", border: "1px solid var(--border)", borderRadius: 6 }}>
+          <div style={{ fontSize: 20, fontWeight: 700 }}>{agent.score_contributions}</div>
+          <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Scores</div>
+        </div>
+        {agent.performer_total_sessions != null && (
+          <div style={{ textAlign: "center", padding: "8px 16px", border: "1px solid var(--border)", borderRadius: 6 }}>
+            <div style={{ fontSize: 20, fontWeight: 700 }}>
+              {agent.performer_successful_sessions}/{agent.performer_total_sessions}
+            </div>
+            <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Sessions Won</div>
+          </div>
+        )}
+      </div>
+
+      {agent.error && (
+        <div className="error-banner" style={{ marginBottom: 16, fontSize: 12 }}>
+          Last Error: {agent.error}
+        </div>
+      )}
+
+      {/* Section tabs */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        <button
+          className={activeSection === "activity" ? "primary" : "secondary"}
+          onClick={() => setActiveSection("activity")}
+          style={{ fontSize: 12 }}
+        >
+          Activity ({agent.recent_logs.length})
+        </button>
+        <button
+          className={activeSection === "memories" ? "primary" : "secondary"}
+          onClick={() => setActiveSection("memories")}
+          style={{ fontSize: 12 }}
+        >
+          Memories ({agent.memories.length})
+        </button>
+      </div>
+
+      {/* Activity timeline */}
+      {activeSection === "activity" && (
+        <div style={{ maxHeight: 300, overflow: "auto" }}>
+          {agent.recent_logs.length === 0 ? (
+            <p className="text-muted">No activity recorded.</p>
+          ) : (
+            agent.recent_logs.map((log) => (
+              <div key={log.id} style={{ padding: "6px 0", borderBottom: "1px solid var(--border)", fontSize: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <Badge variant="default">{log.event_type}</Badge>
+                  <span className="text-muted">
+                    {log.timestamp ? new Date(log.timestamp).toLocaleString() : ""}
+                  </span>
+                </div>
+                {log.details && (
+                  <div style={{ marginTop: 4, color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>
+                    {log.details.length > 200 ? log.details.slice(0, 200) + "..." : log.details}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Memories */}
+      {activeSection === "memories" && (
+        <div style={{ maxHeight: 300, overflow: "auto" }}>
+          {agent.memories.length === 0 ? (
+            <p className="text-muted">No memories stored.</p>
+          ) : (
+            agent.memories.map((mem) => (
+              <div key={mem.id} style={{ padding: "8px 0", borderBottom: "1px solid var(--border)", fontSize: 12 }}>
+                <div style={{ fontWeight: 600, marginBottom: 2 }}>{mem.key}</div>
+                <div style={{ color: "var(--text-secondary)", whiteSpace: "pre-wrap" }}>
+                  {mem.content.length > 300 ? mem.content.slice(0, 300) + "..." : mem.content}
+                </div>
+                <div className="text-muted" style={{ fontSize: 10, marginTop: 2 }}>
+                  {mem.created_at ? new Date(mem.created_at).toLocaleString() : ""}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SeanceTab({ corpsId }: { corpsId: string }) {
+  const [query, setQuery] = useState("");
+  const [messages, setMessages] = useState<{ role: string; text: string }[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const handleQuery = async () => {
+    if (!query.trim() || loading) return;
+    const q = query.trim();
+    setMessages((prev) => [...prev, { role: "user", text: q }]);
+    setQuery("");
+    setLoading(true);
+    try {
+      const res = await v1.seanceQuery(corpsId, q);
+      setMessages((prev) => [...prev, { role: "ed", text: res.message || res.error || "No response" }]);
+    } catch (e: unknown) {
+      setMessages((prev) => [...prev, { role: "error", text: e instanceof Error ? e.message : "Request failed" }]);
+    }
+    setLoading(false);
+  };
+
+  return (
+    <Panel title="Ask the Executive Director">
+      <p className="text-muted" style={{ marginBottom: 12, fontSize: 12 }}>
+        Ask questions about this corps' history, state, and strategy. The ED responds in character using real corps data.
+      </p>
+
+      <div style={{ maxHeight: 400, overflow: "auto", marginBottom: 12 }}>
+        {messages.length === 0 && !loading && (
+          <p className="text-muted" style={{ textAlign: "center", padding: 20 }}>
+            No messages yet. Ask a question to start.
+          </p>
+        )}
+        {messages.map((msg, i) => (
+          <div
+            key={i}
+            style={{
+              padding: "8px 12px",
+              margin: "4px 0",
+              borderRadius: 6,
+              background: msg.role === "user"
+                ? "var(--bg-hover, rgba(255,255,255,0.05))"
+                : msg.role === "error"
+                  ? "rgba(255,80,80,0.1)"
+                  : "var(--bg-elevated, rgba(255,255,255,0.03))",
+              borderLeft: msg.role === "user" ? "3px solid var(--accent)" : msg.role === "error" ? "3px solid var(--danger, #f44)" : "3px solid var(--success, #4a4)",
+            }}
+          >
+            <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 4 }}>
+              {msg.role === "user" ? "You" : msg.role === "error" ? "Error" : "Executive Director"}
+            </div>
+            <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.6, fontSize: 13 }}>
+              {msg.text}
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div style={{ padding: "8px 12px", color: "var(--text-muted)", fontStyle: "italic" }}>
+            ED is thinking...
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: "flex", gap: 8 }}>
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleQuery()}
+          placeholder="How is our brass section performing?"
+          style={{ flex: 1 }}
+          disabled={loading}
+        />
+        <button className="primary" onClick={handleQuery} disabled={loading || !query.trim()}>
+          {loading ? "..." : "Ask"}
+        </button>
+      </div>
+    </Panel>
   );
 }

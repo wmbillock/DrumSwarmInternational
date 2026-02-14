@@ -3,7 +3,9 @@
  * Coexists with the existing api.ts — use this for all /api/v1/ endpoints.
  */
 
-const BASE = import.meta.env.VITE_API_URL || "http://localhost:4224";
+import { API_BASE } from "../config";
+
+const BASE = API_BASE;
 
 export class ApiError extends Error {
   status: number;
@@ -75,6 +77,30 @@ export interface V1Placement {
   placement: number;
   final_score: number;
   notes: string;
+}
+
+export interface V1CompetitionHistoryEntry {
+  competition_id: string;
+  season_id: string;
+  round: number;
+  show_slug: string;
+  status: string;
+  completed_at: string | null;
+  placement: number | null;
+  final_score: number | null;
+  caption_scores: Record<string, number>;
+}
+
+export interface V1PostMortemSummary {
+  corps_id: string;
+  season_id: string;
+  generated_at: string;
+}
+
+export interface V1PostMortemDetail {
+  corps_id: string;
+  season_id: string;
+  content: string;
 }
 
 export interface V1HistoryIndex {
@@ -260,6 +286,21 @@ export const getCorps = (id: string, signal?: AbortSignal) =>
 
 export const getCorpsHistory = (id: string, signal?: AbortSignal) =>
   request<V1HistoryIndex>(`/api/v1/corps/${id}/history`, { signal });
+
+export const getCorpsCompetitionHistory = (id: string, signal?: AbortSignal) =>
+  request<V1CompetitionHistoryEntry[]>(`/api/v1/corps/${id}/competition-history`, { signal });
+
+export const getCorpsPostMortems = (corpsId: string, signal?: AbortSignal) =>
+  request<V1PostMortemSummary[]>(`/api/v1/corps/${corpsId}/post-mortems`, { signal });
+
+export const getPostMortem = (seasonId: string, corpsId: string, signal?: AbortSignal) =>
+  request<V1PostMortemDetail>(`/api/v1/seasons/${seasonId}/post-mortems/${corpsId}`, { signal });
+
+export const generateSeasonPostMortems = (seasonId: string) =>
+  request<{ season_id: string; generated: number; corps_ids: string[] }>(
+    `/api/v1/seasons/${seasonId}/post-mortems/generate`,
+    { method: "POST" }
+  );
 
 export const clarifyCorpsCritique = (corpsId: string, round: number, question: string) =>
   request<{ answer: string; critique_path: string }>(`/api/v1/corps/${corpsId}/critique/${round}/clarify`, {
@@ -1116,11 +1157,36 @@ export const adminListCorps = (signal?: AbortSignal) =>
 
 // --- Shows: Additional ---
 
+export interface V1ShowDetail {
+  slug: string;
+  title: string;
+  status: string;
+  summary: string;
+  has_spec: boolean;
+  has_prompt: boolean;
+  versions: string[];
+  spec_content: string;
+  design_notes: string;
+  show_prompt_content: string;
+}
+
+export interface V1ShowCompetition {
+  competition_id: string;
+  season_id: string;
+  round: number | null;
+  status: string;
+  completed_at: string | null;
+  standings: { corps_id: string; rank: number; final_score: number }[];
+}
+
 export const getShowsOverview = (signal?: AbortSignal) =>
   request<any>(`/api/v1/shows-overview`, { signal });
 
 export const getShow = (slug: string, signal?: AbortSignal) =>
-  request<any>(`/api/v1/shows/${slug}/detail`, { signal });
+  request<V1ShowDetail>(`/api/v1/shows/${slug}/detail`, { signal });
+
+export const getShowCompetitions = (slug: string, signal?: AbortSignal) =>
+  request<V1ShowCompetition[]>(`/api/v1/shows/${slug}/competitions`, { signal });
 
 export const toggleTour = (slug: string, enable: boolean) =>
   request<any>(`/api/v1/shows/${slug}/tour`, { method: "POST", body: JSON.stringify({ enable }) });
@@ -1369,5 +1435,33 @@ export const updateCorpsStrategy = (corpsId: string, data: {
 export const getLeaderboard = (taskCategory: string, limit = 10, signal?: AbortSignal) =>
   request<{ task_category: string; entries: V1LeaderboardEntry[] }>(
     `/api/v1/leaderboard/${encodeURIComponent(taskCategory)}?limit=${limit}`,
+    { signal },
+  );
+
+// --- Operations tracking ---
+
+export interface V1Operation {
+  id: string;
+  operation_type: string;
+  status: "pending" | "running" | "completed" | "failed";
+  target_type: string | null;
+  target_id: string | null;
+  label: string | null;
+  result: string | null;
+  error: string | null;
+  created_at: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export const getActiveOperations = (signal?: AbortSignal) =>
+  request<V1Operation[]>("/api/v1/operations/active", { signal });
+
+export const getOperation = (operationId: string, signal?: AbortSignal) =>
+  request<V1Operation>(`/api/v1/operations/${operationId}`, { signal });
+
+export const listOperations = (status?: string, limit = 20, signal?: AbortSignal) =>
+  request<V1Operation[]>(
+    `/api/v1/operations?limit=${limit}${status ? `&status=${status}` : ""}`,
     { signal },
   );

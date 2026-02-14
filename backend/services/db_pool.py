@@ -12,7 +12,7 @@ import threading
 from contextlib import contextmanager
 from typing import Optional
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 
 logger = logging.getLogger(__name__)
@@ -37,6 +37,9 @@ class DBPool:
             if cls._instance is None:
                 cls._instance = super().__new__(cls)
                 cls._instance._engine = create_engine(db_url, echo=False)
+                if db_url.startswith("sqlite"):
+                    from backend.database import _set_sqlite_pragma
+                    event.listen(cls._instance._engine, "connect", _set_sqlite_pragma)
                 cls._instance._session_factory = sessionmaker(bind=cls._instance._engine)
                 cls._instance._db_url = db_url
                 cls._instance._checkout_count = 0

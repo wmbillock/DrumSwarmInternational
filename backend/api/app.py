@@ -14,13 +14,14 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from backend.database import Base, create_db_engine, create_session_factory
+from backend.services.db_pool import get_db_pool
 
 logger = logging.getLogger(__name__)
 
-# --- Database setup ---
-
-engine = create_db_engine()
-SessionFactory = create_session_factory(engine)
+# --- Database setup --- use the singleton DBPool engine so all code shares one connection
+_db_pool = get_db_pool()
+engine = _db_pool.engine
+SessionFactory = _db_pool.session_factory
 
 
 # --- WebSocket Connection Manager ---

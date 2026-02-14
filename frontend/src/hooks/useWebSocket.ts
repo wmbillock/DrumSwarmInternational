@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import type { WebSocketEvent } from "../types";
 
-const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:4224";
+import { WS_BASE } from "../config";
+
+const WS_URL = WS_BASE;
 const RECONNECT_DELAYS = [1000, 2000, 4000, 8000, 16000];
 const HEARTBEAT_INTERVAL = 25000;
 const MAX_RECONNECT_ATTEMPTS = 20;

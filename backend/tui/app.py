@@ -42,6 +42,7 @@ from scripts.monitoring.dashboard_data import (
     get_agent_memory_stats,
     get_agent_roster,
     get_completed_reps,
+    get_corps_list,
     get_git_status,
     get_lifecycle_data,
     get_recent_commits,
@@ -157,7 +158,16 @@ class AgentsPanel(VerticalScroll):
     def refresh_data(self) -> None:
         rosters = get_agent_roster()
         if not rosters:
-            self._set("agents-content", "[dim]No active corps. Create and activate a show.[/]")
+            corps = get_corps_list()
+            if corps:
+                lines = [f"[dim]{len(corps)} corps registered. No active agent sessions.[/]", ""]
+                for c in corps[:12]:
+                    name = c.get("name", "?")
+                    phase = c.get("lifecycle_phase", "INITIALIZING")
+                    lines.append(f"  [bold]{name}[/]  [dim]{phase}[/]")
+                self._set("agents-content", "\n".join(lines))
+            else:
+                self._set("agents-content", "[dim]No corps registered. Create one at /corps.[/]")
             return
 
         lines: list[str] = []
@@ -195,7 +205,12 @@ class LogsPanel(VerticalScroll):
     def refresh_data(self) -> None:
         logs = get_recent_logs(50)
         if not logs:
-            self._set("logs-content", "[dim]No log file found.[/]")
+            self._set(
+                "logs-content",
+                "[dim]No log file at backend.log[/]\n\n"
+                "  Backend logs go to stdout.\n"
+                "  View them in the terminal running [green]./dci forward-march[/]",
+            )
             return
 
         lines: list[str] = []
@@ -297,7 +312,15 @@ class MemoryPanel(VerticalScroll):
     def refresh_data(self) -> None:
         data = get_agent_memory_stats()
         if not data:
-            self._set("memory-content", "[dim]No active corps.[/]")
+            corps = get_corps_list()
+            if corps:
+                self._set(
+                    "memory-content",
+                    f"[dim]{len(corps)} corps registered. No agent memory data yet.[/]\n\n"
+                    "  Activate a show to start agent sessions and build memory.",
+                )
+            else:
+                self._set("memory-content", "[dim]No corps registered.[/]")
             return
 
         lines: list[str] = []
@@ -328,12 +351,22 @@ class LifecyclePanel(VerticalScroll):
 
     def compose(self) -> ComposeResult:
         yield Label("[bold magenta]LIFECYCLE[/]", classes="panel-title")
-        yield Static("", id="lifecycle-content")
+        yield Static("[dim]Loading...[/]", id="lifecycle-content")
 
     def refresh_data(self) -> None:
         data = get_lifecycle_data()
         if not data:
-            self._set("lifecycle-content", "[dim]No active corps.[/]")
+            corps = get_corps_list()
+            if corps:
+                lines = [f"[dim]{len(corps)} corps registered:[/]", ""]
+                for c in corps[:12]:
+                    name = c.get("name", "?")
+                    phase = c.get("lifecycle_phase", "INITIALIZING")
+                    mascot = c.get("mascot", "—")
+                    lines.append(f"  [bold]{name}[/]  [dim]{phase}  ({mascot})[/]")
+                self._set("lifecycle-content", "\n".join(lines))
+            else:
+                self._set("lifecycle-content", "[dim]No corps registered.[/]")
             return
 
         lines: list[str] = []

@@ -16,9 +16,9 @@ logger = logging.getLogger(__name__)
 # Default model specs to seed.  Each entry: (name, provider, model_id, categories)
 DEFAULT_SPECS: list[tuple[str, str, str, str]] = [
     (
-        "claude-opus-4-5",
+        "claude-opus-4-6",
         "anthropic",
-        "claude-opus-4-5-20250929",
+        "claude-opus-4-6",
         "architecture,documentation,complex_reasoning",
     ),
     (

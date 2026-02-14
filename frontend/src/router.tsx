@@ -10,7 +10,7 @@ import { RunDetail } from "./pages/RunDetail";
 import { AdminChat } from "./pages/AdminChat";
 import { Templates } from "./pages/Templates";
 import { Performers } from "./pages/Performers";
-import { Seance } from "./pages/Seance";
+// Seance is now embedded in CorpsDetailV2 (seance tab)
 import { DesignRoom } from "./pages/DesignRoom";
 import { JudgingCritique } from "./pages/JudgingCritique";
 import { EvolutionTalentPool } from "./pages/EvolutionTalentPool";
@@ -28,6 +28,7 @@ import { StaffMarketplace } from "./pages/StaffMarketplace";
 import { ScoreboardsPage } from "./pages/ScoreboardsPage";
 import PerformanceExplorer from "./pages/PerformanceExplorer";
 import MetricsDashboard from "./pages/MetricsDashboard";
+import { ShowDetail } from "./pages/ShowDetail";
 import { TourDashboard } from "./pages/TourDashboard";
 import { CompetitionLive } from "./pages/CompetitionLive";
 import { Finals } from "./pages/Finals";
@@ -42,6 +43,7 @@ export const router = createBrowserRouter([
       { path: "/design", element: <DesignRoom /> },
       { path: "/design/:showSlug", element: <DesignRoom /> },
       { path: "/shows", element: <ShowLibrary /> },
+      { path: "/shows/:slug", element: <ShowDetail /> },
       { path: "/seasons", element: <SeasonWorkshop /> },
       { path: "/seasons/:seasonId", element: <SeasonWorkshop /> },
       { path: "/tour", element: <TourDashboard /> },
@@ -75,7 +77,7 @@ export const router = createBrowserRouter([
       { path: "/admin", element: <AdminChat /> },
       { path: "/templates", element: <Templates /> },
       { path: "/performers", element: <Performers /> },
-      { path: "/seance", element: <Seance /> },
+      { path: "/seance", element: <Navigate to="/corps" replace /> },
       { path: "/judging", element: <JudgingCritique /> },
       { path: "/judging/:corpsId", element: <JudgingCritique /> },
       { path: "/critique/:competitionId/:corpsId", element: <CritiquePage /> },

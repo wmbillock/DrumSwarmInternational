@@ -1183,6 +1183,15 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 /* Margin utility */
 .mt-16 { margin-top: 16px; }
 
+/* ==================== STAT CARDS ==================== */
+.stat-card {
+  background: var(--bg-elevated, rgba(255,255,255,0.03));
+  border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px 16px; text-align: center; min-width: 80px;
+}
+.stat-value { font-size: 22px; font-weight: 700; color: var(--accent); }
+.stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
 /* ==================== TELEMETRY PANEL ==================== */
 .telemetry-panel {
   width: 280px; min-width: 280px; background: var(--bg-secondary);
@@ -1200,6 +1209,11 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .telemetry-run-item {
   display: flex; justify-content: space-between; align-items: center;
   padding: 3px 0; border-bottom: 1px solid var(--border);
+}
+.telemetry-clickable { cursor: pointer; }
+.telemetry-clickable:hover { color: var(--accent); }
+.telemetry-run-item.telemetry-clickable:hover {
+  background: var(--bg-hover, rgba(255,255,255,0.05)); border-radius: 4px;
 }
 
 /* 3-col responsive */
@@ -1298,6 +1312,10 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Header section */
@@ -1819,6 +1837,55 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .show-library-card:hover .show-library-next-action {
   background: var(--bg-hover);
+}
+
+/* ==================== SHOW DETAIL ==================== */
+.show-detail-page {
+  max-width: 960px;
+}
+
+.show-detail-header {
+  margin-bottom: 20px;
+}
+
+.show-detail-body {
+  margin-top: 16px;
+}
+
+.show-detail-meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  min-width: 80px;
+  text-align: center;
+}
+
+.show-detail-content-block h3 {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 8px;
+  color: var(--text-secondary);
+}
+
+.show-detail-pre {
+  background: var(--bg-elevated, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+  max-height: 600px;
+  overflow-y: auto;
+  color: var(--text-primary);
 }
 
 /* ==================== AWARDS ==================== */

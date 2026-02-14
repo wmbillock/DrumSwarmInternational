@@ -198,10 +198,21 @@ def v1_list_corps(include_system: bool = False):
                         cs = json.loads(c.color_scheme) if c.color_scheme else _generate_color_scheme(c.name)
                     except (json.JSONDecodeError, TypeError):
                         cs = _generate_color_scheme(c.name)
+                    # Extract philosophy from founding_definition
+                    philosophy = ""
+                    if c.founding_definition:
+                        try:
+                            fd = json.loads(c.founding_definition)
+                            philosophy = (
+                                fd.get("identity", {}).get("philosophy", "")
+                                or fd.get("philosophy", "")
+                            )
+                        except (json.JSONDecodeError, TypeError):
+                            pass
                     result.append({
                         "corps_id": c.id,
                         "display_name": c.name,
-                        "philosophy": "",
+                        "philosophy": philosophy,
                         "state": c.status.value if c.status else "unknown",
                         "corps_type": c.corps_type or "competing",
                         "theme_id": c.theme_id,
@@ -304,6 +315,16 @@ def v1_generate_corps_logo(corps_id: str):
         if result.get("success") and result.get("output_path"):
             corps.logo_path = result["output_path"]
             db.commit()
+            try:
+                from backend.services.artifact_tracker import record_artifact
+                from backend.models.artifact import ArtifactType
+                record_artifact(
+                    db, result["output_path"], ArtifactType.LOGO,
+                    label=f"Logo for {corps.name}",
+                    corps_id=corps_id,
+                )
+            except Exception:
+                pass
             return {
                 "corps_id": corps_id,
                 "logo_path": result["output_path"],
@@ -316,6 +337,16 @@ def v1_generate_corps_logo(corps_id: str):
             normalized = str(svg_path).replace("\\", "/")
             corps.logo_path = normalized
             db.commit()
+            try:
+                from backend.services.artifact_tracker import record_artifact
+                from backend.models.artifact import ArtifactType
+                record_artifact(
+                    db, normalized, ArtifactType.LOGO,
+                    label=f"Logo for {corps.name} (SVG)",
+                    corps_id=corps_id,
+                )
+            except Exception:
+                pass
             return {
                 "corps_id": corps_id,
                 "logo_path": normalized,
@@ -467,6 +498,15 @@ def v1_create_corps(req: CreateCorpsRequest):
         if req.uniform_concept:
             theme_data["uniform_concept"] = req.uniform_concept
 
+        # Build founding_definition to store identity data (philosophy, etc.)
+        founding_def = {
+            "name": req.name,
+            "mascot": {"name": req.mascot} if req.mascot else None,
+            "identity": {"philosophy": req.philosophy or ""},
+            "visual_identity": theme_data or {},
+            "caption_affinity": req.caption_affinity,
+        }
+
         corps = Corps(
             id=corps_id,
             name=req.name,
@@ -475,9 +515,28 @@ def v1_create_corps(req: CreateCorpsRequest):
             mascot=req.mascot,
             uniform_concept=_json.dumps(theme_data) if theme_data else None,
             color_scheme=color_scheme_json,
+            caption_affinity=req.caption_affinity,
+            corps_type="competing",
+            founding_definition=_json.dumps(founding_def, default=str),
         )
         db.add(corps)
         db.commit()
+
+        # Create a default CorpsStrategy for the new corps
+        try:
+            from backend.models.corps_strategy import CorpsStrategy
+            strategy = CorpsStrategy(
+                corps_id=corps_id,
+                model_policy="single_provider",
+                risk_tolerance=0.5,
+                exploration_rate=0.1,
+                adaptation_style="prompt_only",
+            )
+            db.add(strategy)
+            db.commit()
+        except Exception:
+            pass  # Strategy creation is best-effort
+
         initialize_corps(db, corps_id)
 
         # Fire-and-forget logo generation (best-effort, non-blocking)
@@ -531,6 +590,124 @@ def v1_get_corps_staffing_status(corps_id: str):
     db = _get_db_session()
     try:
         return get_staffing_status(db, corps_id)
+    finally:
+        db.close()
+
+
+@router.post("/corps/{corps_id}/staff/backfill")
+def v1_backfill_corps_staff(corps_id: str):
+    """Backfill staff for a corps that was seeded without hiring.
+
+    Checks which roles already have definitions and only creates missing ones.
+    Returns the number of roles hired before and after.
+    """
+    _validate_id(corps_id, "corps_id")
+    from backend.models.corps import Corps
+    from backend.services.corps_service import get_staffing_status
+
+    db = _get_db_session()
+    try:
+        corps = db.get(Corps, corps_id)
+        if not corps:
+            raise HTTPException(404, f"Corps '{corps_id}' not found")
+
+        before = get_staffing_status(db, corps_id)
+        before_hired = before.get("hired", 0)
+
+        if before_hired >= before.get("total", 16):
+            return {
+                "corps_id": corps_id,
+                "corps_name": corps.name,
+                "hired_before": before_hired,
+                "hired_after": before_hired,
+                "total_roles": before.get("total", 16),
+                "message": "Already fully staffed",
+            }
+
+        # Only initialize if corps has no staff at all (avoid ValueError from duplicates)
+        from backend.models.agent_definition import AgentDefinition
+        existing_roles = {
+            d.role for d in
+            db.query(AgentDefinition).filter(AgentDefinition.corps_id == corps_id).all()
+        }
+
+        if not existing_roles:
+            from backend.services.corps_service import initialize_corps
+            initialize_corps(db, corps_id, use_auditions=True)
+        else:
+            # Partial staff — hire missing roles individually
+            from backend.services.corps_service import (
+                CORPS_HIERARCHY, ROLE_PROMPTS, ROLE_TOOLS, ROLE_CLASSIFICATIONS,
+                assemble_prompt,
+            )
+            from backend.services.agent_lifecycle import create_definition, spawn_session
+            from backend.services.nickname_generator import generate_nickname
+
+            used_nicknames: set[str] = set()
+            sessions: dict[str, str] = {}  # role -> session_id
+
+            # First pass: collect existing sessions for parent lookups
+            from backend.models.agent_session import AgentSession
+            for role_name in existing_roles:
+                sess = (
+                    db.query(AgentSession)
+                    .join(AgentDefinition)
+                    .filter(
+                        AgentDefinition.role == role_name,
+                        AgentSession.corps_id == corps_id,
+                    )
+                    .first()
+                )
+                if sess:
+                    sessions[role_name] = sess.id
+
+            for role, tier, parent_role in CORPS_HIERARCHY:
+                if role in existing_roles:
+                    continue
+                prompt = assemble_prompt(role) or ROLE_PROMPTS.get(role, f"You are the {role} for this corps.")
+                tools = ROLE_TOOLS.get(role, [])
+                nickname = generate_nickname(role, used_nicknames)
+                used_nicknames.add(nickname)
+                classification = ROLE_CLASSIFICATIONS.get(role)
+                try:
+                    defn = create_definition(
+                        db, role=role, system_prompt=prompt, model_tier=tier,
+                        tools_allowed=tools, corps_id=corps_id, nickname=nickname,
+                    )
+                    if classification:
+                        defn.classification = classification
+                        db.commit()
+                    parent_session_id = sessions.get(parent_role) if parent_role else None
+                    session = spawn_session(
+                        db, definition_id=defn.id, corps_id=corps_id,
+                        parent_session_id=parent_session_id,
+                    )
+                    sessions[role] = session.id
+                    # Audition a performer
+                    try:
+                        from backend.services.performer_service import audition_for_role
+                        performer = audition_for_role(db, role)
+                        if performer:
+                            session.performer_id = performer.id
+                            db.commit()
+                    except Exception:
+                        pass
+                except Exception as e:
+                    logger.warning("Backfill: skipping role %s: %s", role, e)
+
+        after = get_staffing_status(db, corps_id)
+        return {
+            "corps_id": corps_id,
+            "corps_name": corps.name,
+            "hired_before": before_hired,
+            "hired_after": after.get("hired", 0),
+            "total_roles": after.get("total", 16),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Backfill failed: {e}")
     finally:
         db.close()
 
@@ -601,10 +778,23 @@ def v1_get_corps(corps_id: str):
                         "description": show.description,
                     }
 
+            # Extract identity data from founding_definition
+            philosophy = ""
+            founding_data = {}
+            if corps.founding_definition:
+                try:
+                    founding_data = json.loads(corps.founding_definition)
+                    philosophy = (
+                        founding_data.get("identity", {}).get("philosophy", "")
+                        or founding_data.get("philosophy", "")
+                    )
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
             return {
                 "corps_id": corps.id,
                 "display_name": corps.name,
-                "philosophy": "",
+                "philosophy": philosophy,
                 "state": corps.status.value if corps.status else "unknown",
                 "roster_size": roster_size,
                 "history_count": 0,
@@ -615,6 +805,8 @@ def v1_get_corps(corps_id: str):
                 "rehearsal_mode": corps.rehearsal_mode.value if corps.rehearsal_mode else None,
                 "current_show": show_info,
                 "logo_path": corps.logo_path,
+                "caption_affinity": corps.caption_affinity,
+                "corps_type": corps.corps_type,
             }
         finally:
             db.close()
@@ -1299,6 +1491,317 @@ def v1_corps_fire(corps_id: str, data: dict):
 
 
 # =========================================================================
+# COMPETITION HISTORY
+# =========================================================================
+
+
+@router.get("/corps/{corps_id}/competition-history")
+def v1_corps_competition_history(corps_id: str):
+    """Aggregate competition results for a corps from season standings files."""
+    _validate_id(corps_id, "corps_id")
+    root = _get_root()
+    seasons_dir = root / "seasons"
+
+    results = []
+    if not seasons_dir.exists():
+        return results
+
+    import yaml
+
+    for season_dir in sorted(seasons_dir.iterdir()):
+        if not season_dir.is_dir():
+            continue
+        season_yaml = season_dir / "season.yaml"
+        if not season_yaml.exists():
+            continue
+
+        try:
+            with open(season_yaml) as f:
+                season_data = yaml.safe_load(f) or {}
+        except Exception:
+            continue
+
+        season_id = season_data.get("season_id", season_dir.name)
+
+        # Check registered_corps
+        registered = season_data.get("registered_corps", [])
+        if corps_id not in registered:
+            # Also check schedule entries for this corps
+            schedule = season_data.get("schedule", [])
+            found_in_schedule = any(
+                corps_id in (entry.get("corps_ids", []))
+                for entry in schedule
+            )
+            if not found_in_schedule:
+                continue
+
+        # Scan schedule entries for this corps
+        schedule = season_data.get("schedule", [])
+        for entry in schedule:
+            corps_ids = entry.get("corps_ids", [])
+            if corps_id not in corps_ids:
+                continue
+
+            comp_result = {
+                "competition_id": entry.get("competition_id", ""),
+                "season_id": season_id,
+                "round": entry.get("round", 0),
+                "show_slug": entry.get("show_slug", ""),
+                "status": entry.get("status", "pending"),
+                "completed_at": entry.get("completed_at"),
+                "placement": None,
+                "final_score": None,
+                "caption_scores": {},
+            }
+
+            # Find this corps in standings
+            standings = entry.get("standings", [])
+            for s in standings:
+                if s.get("corps_id") == corps_id:
+                    comp_result["placement"] = s.get("rank")
+                    comp_result["final_score"] = s.get("final_score")
+                    comp_result["caption_scores"] = s.get("caption_scores", {})
+                    break
+
+            results.append(comp_result)
+
+    # Sort by completed_at descending (most recent first)
+    results.sort(
+        key=lambda r: r.get("completed_at") or "",
+        reverse=True,
+    )
+    return results
+
+
+# =========================================================================
+# WORK STATS
+# =========================================================================
+
+
+@router.get("/corps/{corps_id}/work-stats")
+def v1_corps_work_stats(corps_id: str):
+    """Quick activity stats for a corps."""
+    _validate_id(corps_id, "corps_id")
+
+    from backend.models.work_log import WorkLog
+    from backend.models.agent_session import AgentSession, SessionStatus
+    from datetime import datetime, timezone, timedelta
+
+    db = _get_db_session()
+    try:
+        total_logs = db.query(WorkLog).filter(WorkLog.corps_id == corps_id).count()
+
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+        recent_logs = (
+            db.query(WorkLog)
+            .filter(WorkLog.corps_id == corps_id, WorkLog.timestamp >= cutoff)
+            .count()
+        )
+
+        active_agents = (
+            db.query(AgentSession)
+            .filter(AgentSession.corps_id == corps_id, AgentSession.status == SessionStatus.ACTIVE)
+            .count()
+        )
+
+        return {
+            "total_logs": total_logs,
+            "recent_logs": recent_logs,
+            "active_agents": active_agents,
+        }
+    finally:
+        db.close()
+
+
+# =========================================================================
+# POST-MORTEMS
+# =========================================================================
+
+
+@router.get("/corps/{corps_id}/post-mortems")
+def v1_corps_post_mortems(corps_id: str):
+    """List all post-mortem documents for a corps across all seasons."""
+    _validate_id(corps_id, "corps_id")
+    root = _get_root()
+    from backend.services.post_mortem import list_corps_post_mortems
+    return list_corps_post_mortems(root, corps_id)
+
+
+# =========================================================================
+# ARTIFACTS & PERFORMANCE ARCHIVE
+# =========================================================================
+
+
+@router.get("/corps/{corps_id}/artifacts")
+def v1_corps_artifacts(corps_id: str):
+    """List all tracked artifacts for a corps."""
+    _validate_id(corps_id, "corps_id")
+    db = _get_db_session()
+    try:
+        from backend.services.artifact_tracker import get_corps_artifacts
+        return get_corps_artifacts(db, corps_id)
+    finally:
+        db.close()
+
+
+@router.get("/corps/{corps_id}/performance-history")
+def v1_corps_performance_history(corps_id: str):
+    """Get durable performance records for a corps (survives cleanup)."""
+    _validate_id(corps_id, "corps_id")
+    db = _get_db_session()
+    try:
+        from backend.services.artifact_tracker import get_corps_performance_history
+        return get_corps_performance_history(db, corps_id)
+    finally:
+        db.close()
+
+
+# =========================================================================
+# AGENT DETAIL
+# =========================================================================
+
+
+@router.get("/corps/{corps_id}/agents/{session_id}")
+def v1_agent_detail(corps_id: str, session_id: str):
+    """Get detailed information about a specific agent session."""
+    _validate_id(corps_id, "corps_id")
+
+    from backend.models.agent_session import AgentSession
+    from backend.models.agent_definition import AgentDefinition, ROLE_CLASSIFICATIONS, AgentClassification
+    from backend.models.performer import Performer
+    from backend.models.work_log import WorkLog
+    from backend.models.message import Message
+    from backend.models.rep import Rep
+    from backend.models.score import Score
+    from datetime import datetime, timezone
+
+    db = _get_db_session()
+    try:
+        session = db.get(AgentSession, session_id)
+        if not session or session.corps_id != corps_id:
+            raise HTTPException(404, "Session not found in this corps")
+
+        defn = db.get(AgentDefinition, session.definition_id) if session.definition_id else None
+        performer = db.get(Performer, session.performer_id) if session.performer_id else None
+        role = defn.role if defn else "unknown"
+
+        # Classification
+        classification = ROLE_CLASSIFICATIONS.get(role)
+        if classification == AgentClassification.ADMINISTRATIVE_STAFF:
+            group = "Administrative Staff"
+        elif classification == AgentClassification.INSTRUCTIONAL_STAFF:
+            group = "Instructional Staff"
+        elif classification == AgentClassification.PERFORMING_MEMBER:
+            group = "Performing Members"
+        else:
+            group = "Other"
+
+        # Tenure
+        tenure_days = None
+        if session.started_at:
+            started = session.started_at
+            if started.tzinfo is None:
+                started = started.replace(tzinfo=timezone.utc)
+            tenure_days = (datetime.now(timezone.utc) - started).days
+
+        # Recent work logs
+        logs = (
+            db.query(WorkLog)
+            .filter(WorkLog.session_id == session_id)
+            .order_by(WorkLog.timestamp.desc())
+            .limit(20)
+            .all()
+        )
+
+        # Message count
+        message_count = (
+            db.query(Message)
+            .filter(Message.corps_id == corps_id)
+            .filter(Message.from_role == role)
+            .count()
+        )
+
+        # Rep count (via segments related to this role)
+        rep_count = (
+            db.query(Rep)
+            .filter(Rep.assigned_to == session_id)
+            .count()
+        )
+
+        # Score contributions
+        score_count = (
+            db.query(Score)
+            .filter(Score.corps_id == corps_id)
+            .count()
+        )
+
+        # Agent memories
+        memories = []
+        try:
+            from backend.models.memory import Memory
+            mems = (
+                db.query(Memory)
+                .filter(Memory.corps_id == corps_id)
+                .filter(Memory.role == role)
+                .order_by(Memory.created_at.desc())
+                .limit(20)
+                .all()
+            )
+            memories = [
+                {
+                    "id": m.id,
+                    "key": m.key,
+                    "content": m.content,
+                    "created_at": m.created_at.isoformat() if m.created_at else None,
+                }
+                for m in mems
+            ]
+        except Exception:
+            pass  # Memory model may not exist in all setups
+
+        return {
+            "session_id": session.id,
+            "definition_id": session.definition_id,
+            "corps_id": corps_id,
+            "role": role,
+            "nickname": defn.nickname if defn else None,
+            "model_tier": defn.model_tier.value if defn else "unknown",
+            "status": session.status.value,
+            "group": group,
+            "started_at": session.started_at.isoformat() if session.started_at else None,
+            "ended_at": session.ended_at.isoformat() if session.ended_at else None,
+            "tenure_days": tenure_days,
+            "error": session.error,
+            # Performer info
+            "performer_id": session.performer_id,
+            "performer_name": performer.name if performer else None,
+            "performer_trust_score": performer.trust_score if performer else None,
+            "performer_status": performer.status.value if performer else None,
+            "performer_total_sessions": performer.total_sessions if performer else None,
+            "performer_successful_sessions": performer.successful_sessions if performer else None,
+            # Stats
+            "message_count": message_count,
+            "rep_count": rep_count,
+            "score_contributions": score_count,
+            # Activity
+            "recent_logs": [
+                {
+                    "id": log.id,
+                    "event_type": log.event_type,
+                    "phase": log.phase,
+                    "details": log.details,
+                    "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+                }
+                for log in logs
+            ],
+            # Memories
+            "memories": memories,
+        }
+    finally:
+        db.close()
+
+
+# =========================================================================
 # MODE SWITCHING
 # =========================================================================
 
@@ -1540,8 +2043,14 @@ def v1_metronome_tick(corps_id: str):
 
 
 @router.get("/corps/{corps_id}/work-log")
-def v1_corps_work_log(corps_id: str, limit: int = 100, event_type: Optional[str] = None):
-    """Get structured work log for a corps."""
+def v1_corps_work_log(
+    corps_id: str,
+    limit: int = 100,
+    event_type: Optional[str] = None,
+    role: Optional[str] = None,
+    session_id: Optional[str] = None,
+):
+    """Get structured work log for a corps, optionally filtered by role or session."""
     _validate_id(corps_id, "corps_id")
     from backend.models.work_log import WorkLog
     from backend.models.agent_session import AgentSession
@@ -1552,6 +2061,10 @@ def v1_corps_work_log(corps_id: str, limit: int = 100, event_type: Optional[str]
         query = db.query(WorkLog).filter(WorkLog.corps_id == corps_id)
         if event_type:
             query = query.filter(WorkLog.event_type == event_type)
+        if role:
+            query = query.filter(WorkLog.role == role)
+        if session_id:
+            query = query.filter(WorkLog.session_id == session_id)
         logs = query.order_by(WorkLog.timestamp.desc()).limit(limit).all()
 
         session_ids = {log.session_id for log in logs if log.session_id}

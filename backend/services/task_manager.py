@@ -118,30 +118,38 @@ class TaskManager:
     def _reap_orphaned_sessions(self) -> None:
         """On startup, find sessions marked ACTIVE in DB with no matching asyncio task.
 
-        These are orphans from a previous crash — transition them to FAILED.
+        These are orphans from a previous crash — bulk-transition them to FAILED.
+        Uses a single UPDATE statement instead of per-session fail_session() calls
+        to avoid expensive achievement checks blocking startup.
         """
+        from datetime import datetime, timezone
+        from sqlalchemy import update
         from backend.models.agent_session import AgentSession, SessionStatus
-        from backend.services.agent_lifecycle import fail_session, InvalidSessionTransition
 
         db = self._session_factory()
         try:
-            orphans = (
+            # Count orphans for logging
+            orphan_count = (
                 db.query(AgentSession)
                 .filter(AgentSession.status == SessionStatus.ACTIVE)
-                .all()
+                .count()
             )
-            reaped = 0
-            for session in orphans:
-                if session.id not in self.active_tasks:
-                    try:
-                        fail_session(db, session.id, error="orphaned: no matching task on startup")
-                        reaped += 1
-                    except InvalidSessionTransition:
-                        pass
-                    except Exception:
-                        logger.debug("Failed to reap orphan session %s", session.id, exc_info=True)
-            if reaped:
-                logger.info("Reaped %d orphaned session(s) on startup", reaped)
+            if orphan_count == 0:
+                return
+
+            # Bulk-update all ACTIVE sessions to FAILED
+            now = datetime.now(timezone.utc)
+            db.execute(
+                update(AgentSession)
+                .where(AgentSession.status == SessionStatus.ACTIVE)
+                .values(
+                    status=SessionStatus.FAILED,
+                    ended_at=now,
+                    error="orphaned: no matching task on startup",
+                )
+            )
+            db.commit()
+            logger.info("Reaped %d orphaned session(s) on startup", orphan_count)
         except Exception:
             logger.debug("Orphan reaping failed", exc_info=True)
         finally:
@@ -376,17 +384,6 @@ class TaskManager:
                 self._active_count(), MAX_CONCURRENT_AGENTS, session_id,
             )
             return
-
-        # Budget gate check
-        try:
-            from backend.services.budget_manager import get_budget_manager
-            bm = get_budget_manager()
-            allowed, reason = bm.can_start_session(session_id, corps_id)
-            if not allowed:
-                logger.warning("Budget gate denied session %s: %s", session_id, reason)
-                return
-        except Exception:
-            pass  # budget check is best-effort
 
         # Singleton guard: check if this role already has a running task in this corps
         role, nickname = self._get_agent_identity(session_id)

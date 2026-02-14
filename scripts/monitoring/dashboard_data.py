@@ -406,6 +406,16 @@ def _refresh_lifecycle(backend_up: bool) -> None:
     _put("lifecycle", results)
 
 
+def _refresh_corps_list(backend_up: bool) -> None:
+    """Always-on refresh: cache the full corps list from the API."""
+    if not backend_up:
+        if _get("corps_list") is None:
+            _put("corps_list", [])
+        return
+    corps = _http_get("/api/v1/corps") or []
+    _put("corps_list", corps)
+
+
 # ── Defaults ──────────────────────────────────────────────────────────
 
 def _empty_shows() -> dict:
@@ -418,7 +428,7 @@ _TAB_REFRESHERS: dict[str, Any] = {
     "metrics": lambda up: _refresh_shows_summary(up),
     "agents": lambda up: _refresh_agent_roster(up),
     "logs": lambda _: _refresh_recent_logs(),
-    "changes": lambda up: (_refresh_git_status(), _refresh_recent_commits(), _refresh_completed_reps(up)),
+    "changes": lambda up: _refresh_completed_reps(up),
     "memory": lambda up: _refresh_agent_memory(up),
     "lifecycle": lambda up: _refresh_lifecycle(up),
 }
@@ -427,6 +437,11 @@ _TAB_REFRESHERS: dict[str, Any] = {
 def _refresh_cycle() -> None:
     status = _refresh_service_status()
     backend_up = status["backend"]
+    # Always refresh baseline data regardless of active tab
+    _refresh_corps_list(backend_up)
+    _refresh_git_status()
+    _refresh_recent_commits()
+    # Then refresh the active tab's specific data
     tab = _active_tab
     refresher = _TAB_REFRESHERS.get(tab)
     if refresher:
@@ -534,6 +549,10 @@ def get_agent_memory_stats() -> list[dict]:
 
 def get_lifecycle_data() -> list[dict]:
     return _get("lifecycle", [])
+
+
+def get_corps_list() -> list[dict]:
+    return _get("corps_list", [])
 
 
 # ── Legacy shim: backend_up / frontend_up (used by old callers) ───────

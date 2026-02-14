@@ -1,0 +1,27 @@
+season_id: lets-gooooo-1
+competition_id: lets-gooooo-1-round-9
+show_slug: be-able-to-click-into-a-corps-detail-page-from-an-entry-on-the-performance-stats-scoreboards-page
+generated_at: '2026-02-14T10:59:03.094188+00:00'
+results:
+- corps_id: f36c6c19-04a6-48ea-996d-6cec06b73a42
+  rank: 1
+  final_score: 62.0
+  raw_score: 62.0
+  caption_scores:
+    visual: 70.0
+    brass: 70.0
+    guard: 40.0
+    ensemble_technique: 70.0
+    general_effect: 80.0
+    percussion: 40.0
+- corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+  rank: 2
+  final_score: 57.83
+  raw_score: 57.83
+  caption_scores:
+    guard: 31.5
+    brass: 70.0
+    ensemble_technique: 41.5
+    general_effect: 83.5
+    visual: 76.5
+    percussion: 40.0

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Panel, Tabs, DataTable } from "../ui";
 import * as v1 from "../services/v1";
+import { API_BASE } from "../config";
 import { formatCaption, slugToTitle } from "../utils/formatters";
 
 const CAPTION_ORDER = ["brass", "percussion", "guard", "visual", "general_effect", "ensemble_technique"];
@@ -300,7 +301,7 @@ function RecapTab({ competitionId }: { competitionId: string }) {
 
   const handleCSV = () => {
     window.open(
-      `${(import.meta as any).env?.VITE_API_URL || "http://localhost:4224"}/api/v1/competitions/${competitionId}/recap?format=csv`,
+      `${API_BASE}/api/v1/competitions/${competitionId}/recap?format=csv`,
       "_blank"
     );
   };

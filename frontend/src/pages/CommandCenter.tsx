@@ -162,7 +162,7 @@ export function CommandCenter() {
           <span className="vital-label">Stale Reps</span>
         </div>
         <div className="vital-card" data-tooltip-id="main" data-tooltip-content={VITALS_TOOLTIPS["Failure Rate"]}>
-          <span className="vital-value">{((health?.failure_rate ?? 0) * 100).toFixed(1)}%</span>
+          <span className="vital-value">{(health?.failure_rate ?? 0).toFixed(1)}%</span>
           <span className="vital-label">Failure Rate</span>
         </div>
       </div>

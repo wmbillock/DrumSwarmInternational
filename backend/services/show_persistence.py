@@ -346,7 +346,7 @@ def list_shows() -> list[dict]:
 
 
 def get_show(slug: str) -> dict | None:
-    """Get a single show's details by slug."""
+    """Get a single show's details by slug, including full content."""
     show_dir = _shows_base_dir() / slug
     status_file = show_dir / "status.yaml"
     if not show_dir.exists() or not status_file.exists():
@@ -358,13 +358,29 @@ def get_show(slug: str) -> dict | None:
         heading = re.match(r"^#\s+(.+)$", spec_text, re.MULTILINE)
         if heading:
             title = heading.group(1).strip()
+
+    # Read content files
+    design_notes_path = show_dir / "design_notes.md"
+    design_notes = ""
+    if design_notes_path.exists():
+        design_notes = design_notes_path.read_text(encoding="utf-8")
+
+    prompt_path = show_dir / "show_prompt.md"
+    show_prompt_content = ""
+    if prompt_path.exists():
+        show_prompt_content = prompt_path.read_text(encoding="utf-8")
+
     return {
         "slug": slug,
         "title": title,
         "status": data.get("status", "draft"),
+        "summary": data.get("summary", ""),
         "has_spec": bool(spec_text.strip()),
-        "has_prompt": (show_dir / "show_prompt.md").exists() and (show_dir / "show_prompt.md").stat().st_size > 0,
+        "has_prompt": prompt_path.exists() and prompt_path.stat().st_size > 0,
         "versions": list_spec_versions(show_dir),
+        "spec_content": spec_text or "",
+        "design_notes": design_notes,
+        "show_prompt_content": show_prompt_content,
     }
 
 

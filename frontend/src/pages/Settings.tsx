@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Panel } from "../ui";
 import * as v1 from "../services/v1";
+import { API_BASE } from "../config";
 
 interface SystemConfig {
   [key: string]: unknown;
@@ -47,7 +48,7 @@ export function Settings() {
           <tbody>
             <tr>
               <td className="cell-primary">API URL</td>
-              <td className="mono">{import.meta.env.VITE_API_URL || "http://localhost:4224"}</td>
+              <td className="mono">{API_BASE}</td>
             </tr>
             <tr>
               <td className="cell-primary">Frontend Mode</td>

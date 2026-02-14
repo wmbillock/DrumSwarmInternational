@@ -1,0 +1,60 @@
+season_id: lets-gooooo-1
+competition_id: lets-gooooo-1-round-7
+show_slug: ui-usability-quick-start-tooltips-next-actions-css-fix
+generated_at: '2026-02-14T10:17:01.580902+00:00'
+results:
+- corps_id: fc11e2a2-72fb-42d7-8b18-7731203b631f
+  rank: 1
+  final_score: 58.28
+  raw_score: 58.28
+  caption_scores:
+    guard: 70.0
+    visual: 70.0
+    brass: 41.5
+    ensemble_technique: 31.5
+    general_effect: 65.0
+    percussion: 70.0
+- corps_id: f36c6c19-04a6-48ea-996d-6cec06b73a42
+  rank: 2
+  final_score: 48.81
+  raw_score: 48.81
+  caption_scores:
+    brass: 40.0
+    guard: 41.5
+    ensemble_technique: 41.5
+    visual: 70.0
+    general_effect: 61.5
+    percussion: 40.0
+- corps_id: quiet-trumpets
+  rank: 3
+  final_score: 45.190000000000005
+  raw_score: 45.190000000000005
+  caption_scores:
+    guard: 41.5
+    percussion: 41.5
+    ensemble_technique: 41.5
+    brass: 41.5
+    general_effect: 40.0
+    visual: 75.0
+- corps_id: 5adef4c9-0202-40a4-a0c3-9575829cc2cf
+  rank: 4
+  final_score: 45.035000000000004
+  raw_score: 45.035000000000004
+  caption_scores:
+    guard: 41.5
+    brass: 41.5
+    general_effect: 20.0
+    ensemble_technique: 41.5
+    visual: 70.0
+    percussion: 70.0
+- corps_id: ec4c11f9-faaa-4113-86b3-902d19200bcb
+  rank: 5
+  final_score: 42.04
+  raw_score: 42.04
+  caption_scores:
+    brass: 40.0
+    visual: 41.5
+    percussion: 41.5
+    guard: 40.0
+    ensemble_technique: 48.5
+    general_effect: 41.5

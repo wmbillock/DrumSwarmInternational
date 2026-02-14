@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 # Model tier -> actual model ID mapping (Anthropic)
 MODEL_TIER_MAP = {
-    ModelTier.OPUS: "claude-opus-4-5-20251101",
+    ModelTier.OPUS: "claude-opus-4-6",
     ModelTier.SONNET: "claude-sonnet-4-5-20250929",
     ModelTier.HAIKU: "claude-haiku-4-5-20251001",
 }
@@ -432,13 +432,8 @@ Available tools:
 """
 
     def __init__(self, max_budget_usd: Optional[float] = None):
-        # Auto-inject from budget config if not explicitly set
-        if max_budget_usd is None:
-            try:
-                from backend.services.budget_manager import get_budget_manager
-                max_budget_usd = get_budget_manager().config.max_session_spend_usd
-            except Exception:
-                pass
+        # Budget caps disabled — API providers handle their own rate limits.
+        # The budget manager still tracks spend for observability but doesn't gate sessions.
         self.max_budget_usd = max_budget_usd
         self._project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         self._active_sessions: set[str] = set()  # session IDs that have been initialized
@@ -823,8 +818,8 @@ class OllamaClient(LLMClient):
     """
 
     OLLAMA_MODEL_MAP = {
-        ModelTier.OPUS: "deepseek-coder:33b",  # Best quality coding model
-        ModelTier.SONNET: "deepseek-coder:6.7b",  # Good balance for coding
+        ModelTier.OPUS: "qwen3-coder:30b",  # Best quality coding model
+        ModelTier.SONNET: "qwen3-coder:30b",  # Good balance for coding
         ModelTier.HAIKU: "deepseek-coder:6.7b",  # Fast coding model
     }
 
@@ -1351,12 +1346,27 @@ def build_llm_client(force_mock: bool = False) -> LLMClient:
 
     providers: list[tuple[str, LLMClient]] = []
 
-    # 1. Claude CLI (highest priority for simple text)
+    # 1. Anthropic API (highest priority — direct, reliable, no context injection)
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        providers.append(("anthropic-api", AnthropicLLMClient()))
+        logger.info("LLM provider available: Anthropic API")
+
+    # 2. OpenAI API
+    if os.environ.get("OPENAI_API_KEY"):
+        providers.append(("openai-api", OpenAIClient()))
+        logger.info("LLM provider available: OpenAI API")
+
+    # 3. Ollama (local — free, no API limits)
+    if OllamaClient.is_available():
+        providers.append(("ollama", OllamaClient()))
+        logger.info("LLM provider available: Ollama (local)")
+
+    # 4. Claude CLI (deprioritized — injects CLAUDE.md and full agent context)
     if shutil.which("claude"):
         providers.append(("claude-cli", ClaudeCLIClient()))
-        logger.info("LLM provider available: Claude CLI")
+        logger.info("LLM provider available: Claude CLI (deprioritized)")
 
-    # 2. GitHub Copilot CLI
+    # 5. GitHub Copilot CLI
     if shutil.which("gh"):
         import subprocess as _sp
         try:
@@ -1366,29 +1376,14 @@ def build_llm_client(force_mock: bool = False) -> LLMClient:
         except Exception:
             pass
 
-    # 3. Anthropic API (highest priority for complex requests)
-    if os.environ.get("ANTHROPIC_API_KEY"):
-        providers.append(("anthropic-api", AnthropicLLMClient()))
-        logger.info("LLM provider available: Anthropic API")
-
-    # 3. Codex CLI (OpenAI's agent CLI)
+    # 6. Codex CLI (OpenAI's agent CLI)
     if shutil.which("codex"):
         providers.append(("codex-cli", ChatGPTCLIClient(command="codex")))
         logger.info("LLM provider available: Codex CLI")
-    # 3b. ChatGPT CLI (fallback if codex not found)
+    # 6b. ChatGPT CLI (fallback if codex not found)
     elif shutil.which("chatgpt"):
         providers.append(("chatgpt-cli", ChatGPTCLIClient()))
         logger.info("LLM provider available: ChatGPT CLI")
-
-    # 4. OpenAI API
-    if os.environ.get("OPENAI_API_KEY"):
-        providers.append(("openai-api", OpenAIClient()))
-        logger.info("LLM provider available: OpenAI API")
-
-    # 5. Ollama (local fallback)
-    if OllamaClient.is_available():
-        providers.append(("ollama", OllamaClient()))
-        logger.info("LLM provider available: Ollama (local)")
 
     if not providers:
         logger.warning("No LLM providers available — using MockLLMClient")

@@ -54,7 +54,7 @@ class TestSeedDefaultSpecs:
 
         opus = (
             db.query(ModelSpec)
-            .filter(ModelSpec.provider == "anthropic", ModelSpec.name == "claude-opus-4-5")
+            .filter(ModelSpec.provider == "anthropic", ModelSpec.name == "claude-opus-4-6")
             .first()
         )
         assert opus is not None

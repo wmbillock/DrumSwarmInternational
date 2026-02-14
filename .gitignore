@@ -60,5 +60,20 @@ generated_images/
 # Screenshots (reviewed separately)
 screenshots/
 
+# Verification screenshots (one-off UI checks)
+corps-detail-logo.png
+logo-comfyui-verification.png
+logo-verification.png
+responsive-*.png
+theme-*.png
+tui_test.svg
+
+# Lasercut generator (standalone tool, not part of DCI Swarm)
+lasercut_gen.py
+lasercut_output/
+
+# One-off evaluation files
+DCI_JUDGE_EVALUATION.json
+
 # Temp files
 nul

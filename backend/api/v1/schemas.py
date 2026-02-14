@@ -17,6 +17,7 @@ class CreateCorpsRequest(BaseModel):
     color_scheme: Optional[dict] = None
     uniform_concept: Optional[str] = None
     philosophy: Optional[str] = ""
+    caption_affinity: Optional[str] = None
 
 
 class CorpsFeedbackRequest(BaseModel):

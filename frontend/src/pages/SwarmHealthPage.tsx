@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { API_BASE } from "../config";
 import type {
   SystemHealth as SystemHealthData,
   WorkLogEntry,
@@ -542,8 +543,7 @@ export function SwarmHealthPage() {
   useEffect(() => {
     let ws: WebSocket | null = null;
     try {
-      const base = import.meta.env.VITE_API_URL || "http://localhost:4224";
-      const wsUrl = base.replace(/^http/, "ws") + "/ws/metrics";
+      const wsUrl = API_BASE.replace(/^http/, "ws") + "/ws/metrics";
       ws = new WebSocket(wsUrl);
       ws.onmessage = () => refresh();
       ws.onerror = () => {};

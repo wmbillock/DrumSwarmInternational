@@ -214,12 +214,12 @@ export function ShowLibrary() {
             <div
               key={show.slug}
               className="show-library-card"
-              onClick={() => navigate(`/design/${show.slug}`)}
+              onClick={() => navigate(`/shows/${show.slug}`)}
               role="button"
               tabIndex={0}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
-                  navigate(`/design/${show.slug}`);
+                  navigate(`/shows/${show.slug}`);
                 }
               }}
             >

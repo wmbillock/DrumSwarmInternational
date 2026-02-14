@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import * as v1 from "../services/v1";
 import { Badge, Panel, DataTable } from "../ui";
 import { formatStatus, slugToTitle } from "../utils/formatters";
+import { useOperations } from "../hooks/useOperations";
 
 interface TourRound {
   round: number;
@@ -36,13 +37,49 @@ interface TouringSeason {
 export function TourDashboard() {
   const navigate = useNavigate();
   const [competitions, setCompetitions] = useState<v1.V1Competition[]>([]);
-  const [tourSeasons, setTourSeasons] = useState<TouringSeason[]>([]);
+  const [allSeasons, setAllSeasons] = useState<TouringSeason[]>([]);
   const [corpsNames, setCorpsNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState(0);
   const [advancing, setAdvancing] = useState<string | null>(null);
   const [advanceResult, setAdvanceResult] = useState<{ seasonId: string; data: any } | null>(null);
+  const [executionPhase, setExecutionPhase] = useState<Record<string, string>>({});
+  const [hideCompleted, setHideCompleted] = useState(true);
+  const ops = useOperations();
+
+  // On mount, check if any season has an active "advance_round" operation
+  // and restore the advancing state
+  useEffect(() => {
+    for (const op of ops.operations) {
+      if (
+        op.operation_type === "advance_round" &&
+        op.target_type === "season" &&
+        (op.status === "pending" || op.status === "running")
+      ) {
+        setAdvancing(op.target_id);
+        setExecutionPhase((prev) => ({
+          ...prev,
+          [op.target_id!]: op.status === "pending" ? "Dispatching agents..." : "Judging & scoring...",
+        }));
+      } else if (
+        op.operation_type === "advance_round" &&
+        op.target_type === "season" &&
+        op.status === "completed" &&
+        op.result
+      ) {
+        // Restore completed result if it was recent (within 30s)
+        const completedAt = op.completed_at ? new Date(op.completed_at).getTime() : 0;
+        if (Date.now() - completedAt < 30000) {
+          try {
+            const data = JSON.parse(op.result);
+            setAdvanceResult({ seasonId: op.target_id!, data });
+            setExecutionPhase((prev) => ({ ...prev, [op.target_id!]: "Complete!" }));
+          } catch { /* ignore parse errors */ }
+        }
+      }
+    }
+  }, [ops.operations]);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -50,7 +87,6 @@ export function TourDashboard() {
 
     const loadData = async () => {
       try {
-        // Load competitions and seasons in parallel
         const [comps, seasons, allCorps] = await Promise.all([
           v1.listCompetitions(ac.signal).catch(() => []),
           v1.listSeasons(ac.signal),
@@ -64,13 +100,8 @@ export function TourDashboard() {
         }
         setCorpsNames(nameMap);
 
-        // Find touring seasons and load their tour status
-        const touring = seasons.filter(
-          (s: any) => s.metadata?.status === "touring" || s.metadata?.status === "finals"
-        );
-
         const enriched = await Promise.all(
-          touring.map(async (s: any) => {
+          seasons.map(async (s: any) => {
             try {
               const [tourStatus, standings] = await Promise.all([
                 v1.getSeasonTourStatus(s.season_id, ac.signal).catch(() => null),
@@ -89,7 +120,7 @@ export function TourDashboard() {
           })
         );
 
-        setTourSeasons(enriched);
+        setAllSeasons(enriched);
       } catch (e: any) {
         if (e.name !== "AbortError") setError(e.message || "Failed to load tour data");
       } finally {
@@ -99,7 +130,6 @@ export function TourDashboard() {
 
     loadData();
 
-    // Auto-refresh every 30 seconds
     const interval = setInterval(() => {
       loadData();
     }, 30000);
@@ -111,18 +141,60 @@ export function TourDashboard() {
   }, [refreshToken]);
 
   const handleAdvance = useCallback(async (seasonId: string) => {
+    // Check if there's already an active operation for this season
+    if (ops.isActive("season", seasonId)) {
+      setError("An operation is already in progress for this season.");
+      return;
+    }
+
     setAdvancing(seasonId);
     setAdvanceResult(null);
+    setExecutionPhase((prev) => ({ ...prev, [seasonId]: "Dispatching agents..." }));
     try {
+      // Update phase after a delay to show scoring phase
+      const phaseTimer = setTimeout(() => {
+        setExecutionPhase((prev) => ({ ...prev, [seasonId]: "Judging & scoring..." }));
+      }, 3000);
+
       const result = await v1.advanceSeasonTour(seasonId);
+      clearTimeout(phaseTimer);
+
+      // Track the operation if one was returned
+      if (result.operation_id) {
+        ops.track(result.operation_id);
+      }
+
+      setExecutionPhase((prev) => ({ ...prev, [seasonId]: "Complete!" }));
       setAdvanceResult({ seasonId, data: result });
       setRefreshToken((t) => t + 1);
+
+      // Clear phase after 3s
+      setTimeout(() => {
+        setExecutionPhase((prev) => {
+          const next = { ...prev };
+          delete next[seasonId];
+          return next;
+        });
+      }, 3000);
     } catch (e: any) {
-      setError(e.message || "Failed to advance round");
+      setExecutionPhase((prev) => {
+        const next = { ...prev };
+        delete next[seasonId];
+        return next;
+      });
+      if (e.message?.includes("timeout") || e.message?.includes("504")) {
+        setAdvanceResult({
+          seasonId,
+          data: { status: "running", round: "?", message: "Round is being scored in the background. Refresh to check." },
+        });
+        setTimeout(() => setRefreshToken((t) => t + 1), 10000);
+      } else {
+        setError(e.message || "Failed to advance round");
+      }
     } finally {
       setAdvancing(null);
     }
-  }, []);
+  }, [ops]);
 
   const handleAutoAdvance = useCallback(async (seasonId: string, enabled: boolean) => {
     try {
@@ -136,6 +208,19 @@ export function TourDashboard() {
   const active = competitions.filter((c) => c.status === "active" || c.status === "pending");
   const completed = competitions.filter((c) => c.status === "completed" || c.status === "scored");
 
+  const touringSeasons = allSeasons.filter((s) => {
+    const status = (s.metadata?.status as string) || s.tourStatus?.status || "";
+    return status === "touring" || status === "finals";
+  });
+  const completedSeasons = allSeasons.filter((s) => {
+    const status = (s.metadata?.status as string) || s.tourStatus?.status || "";
+    return status === "completed" || status === "disbanded";
+  });
+  const otherSeasons = allSeasons.filter((s) => {
+    const status = (s.metadata?.status as string) || s.tourStatus?.status || "";
+    return status !== "touring" && status !== "finals" && status !== "completed" && status !== "disbanded";
+  });
+
   if (loading) return <div className="page-loading">Loading tour dashboard...</div>;
   if (error) {
     return (
@@ -148,11 +233,11 @@ export function TourDashboard() {
     );
   }
 
-  const totalRounds = tourSeasons.reduce(
+  const totalRounds = allSeasons.reduce(
     (sum, s) => sum + (s.tourStatus?.schedule?.length || 0),
     0
   );
-  const completedRounds = tourSeasons.reduce(
+  const completedRounds = allSeasons.reduce(
     (sum, s) => sum + (s.tourStatus?.history?.length || 0),
     0
   );
@@ -160,7 +245,7 @@ export function TourDashboard() {
   return (
     <div className="page-content tour-dashboard">
       <div className="page-header">
-        <h1 className="page-title">On Tour</h1>
+        <h1 className="page-title">Tour & Competitions</h1>
         <button className="secondary" onClick={() => setRefreshToken((t) => t + 1)}>
           Refresh
         </button>
@@ -168,7 +253,11 @@ export function TourDashboard() {
 
       <div className="summary-bar">
         <div className="summary-stat">
-          <span className="summary-value">{tourSeasons.length}</span>
+          <span className="summary-value">{allSeasons.length}</span>
+          <span className="summary-label">Seasons</span>
+        </div>
+        <div className="summary-stat">
+          <span className="summary-value">{touringSeasons.length}</span>
           <span className="summary-label">Active Tours</span>
         </div>
         <div className="summary-stat">
@@ -181,38 +270,86 @@ export function TourDashboard() {
         </div>
       </div>
 
-      {advanceResult && (
-        <div className="success-banner" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span>
-            Round {advanceResult.data.round} ({advanceResult.data.status})
-            {advanceResult.data.standings?.length > 0 && ` — ${advanceResult.data.standings.length} corps scored`}
-            {advanceResult.data.dispatch?.dispatched?.length > 0 && `, ${advanceResult.data.dispatch.dispatched.length} agents dispatched`}
-            {advanceResult.data.dispatch?.skipped?.length > 0 && `, ${advanceResult.data.dispatch.skipped.length} skipped`}
-          </span>
-          <button onClick={() => setAdvanceResult(null)} style={{ background: "none", border: "none", cursor: "pointer", opacity: 0.7, color: "inherit" }}>x</button>
-        </div>
-      )}
-
-      {/* Touring Seasons */}
-      {tourSeasons.length > 0 && (
+      {/* Active Touring Seasons */}
+      {touringSeasons.length > 0 && (
         <div className="dash-section">
           <h2>Tours in Progress</h2>
-          {tourSeasons.map((season) => (
+          {touringSeasons.map((season) => (
             <TourSeasonCard
               key={season.season_id}
               season={season}
               advancing={advancing === season.season_id}
+              executionPhase={executionPhase[season.season_id]}
+              advanceResult={advanceResult?.seasonId === season.season_id ? advanceResult.data : null}
+              onDismissResult={() => setAdvanceResult(null)}
               onAdvance={() => handleAdvance(season.season_id)}
               onAutoAdvance={(enabled) => handleAutoAdvance(season.season_id, enabled)}
               onCorpsClick={(corpsId) => navigate(`/corps/${corpsId}`)}
               onSeasonClick={() => navigate(`/seasons/${season.season_id}`)}
+              onCompetitionClick={(compId) => navigate(`/tour/${compId}`)}
+              onShowClick={(showSlug) => navigate(`/shows/${showSlug}`)}
               corpsNames={corpsNames}
+              defaultCollapsed={false}
             />
           ))}
         </div>
       )}
 
-      {tourSeasons.length === 0 && active.length === 0 && completed.length === 0 && (
+      {/* Other Seasons (planning, etc.) */}
+      {otherSeasons.length > 0 && (
+        <div className="dash-section">
+          <h2>Other Seasons</h2>
+          {otherSeasons.map((season) => (
+            <TourSeasonCard
+              key={season.season_id}
+              season={season}
+              advancing={advancing === season.season_id}
+              executionPhase={executionPhase[season.season_id]}
+              advanceResult={null}
+              onDismissResult={() => {}}
+              onAdvance={() => handleAdvance(season.season_id)}
+              onAutoAdvance={(enabled) => handleAutoAdvance(season.season_id, enabled)}
+              onCorpsClick={(corpsId) => navigate(`/corps/${corpsId}`)}
+              onSeasonClick={() => navigate(`/seasons/${season.season_id}`)}
+              onCompetitionClick={(compId) => navigate(`/tour/${compId}`)}
+              onShowClick={(showSlug) => navigate(`/shows/${showSlug}`)}
+              corpsNames={corpsNames}
+              defaultCollapsed={true}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Completed / archived seasons — collapsible */}
+      {completedSeasons.length > 0 && (
+        <div className="dash-section">
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <h2 style={{ margin: 0 }}>Completed Seasons ({completedSeasons.length})</h2>
+            <button className="small" onClick={() => setHideCompleted(!hideCompleted)}>
+              {hideCompleted ? "Show" : "Hide"}
+            </button>
+          </div>
+          {!hideCompleted && completedSeasons.map((season) => (
+            <TourSeasonCard
+              key={season.season_id}
+              season={season}
+              advancing={false}
+              advanceResult={null}
+              onDismissResult={() => {}}
+              onAdvance={() => {}}
+              onAutoAdvance={() => {}}
+              onCorpsClick={(corpsId) => navigate(`/corps/${corpsId}`)}
+              onSeasonClick={() => navigate(`/seasons/${season.season_id}`)}
+              onCompetitionClick={(compId) => navigate(`/tour/${compId}`)}
+              onShowClick={(showSlug) => navigate(`/shows/${showSlug}`)}
+              corpsNames={corpsNames}
+              defaultCollapsed={true}
+            />
+          ))}
+        </div>
+      )}
+
+      {allSeasons.length === 0 && active.length === 0 && completed.length === 0 && (
         <p className="empty">No tours or competitions yet. Start a tour from the Season Workshop.</p>
       )}
 
@@ -261,7 +398,6 @@ function CompletedSection({
   navigate: (path: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  // Group by season
   const bySeason = new Map<string, typeof competitions>();
   for (const c of competitions) {
     const key = c.season_id || "unknown";
@@ -315,31 +451,73 @@ function CompletedSection({
 }
 
 /* ------------------------------------------------------------------ */
-/* Tour Season Card — shows schedule progress, standings, controls     */
+/* Tour Season Card — collapsible, show links, execution phase display */
 /* ------------------------------------------------------------------ */
 
 function TourSeasonCard({
   season,
   advancing,
+  executionPhase,
+  advanceResult,
+  onDismissResult,
   onAdvance,
   onAutoAdvance,
   onCorpsClick,
   onSeasonClick,
+  onCompetitionClick,
+  onShowClick,
   corpsNames = {},
+  defaultCollapsed = false,
 }: {
   season: TouringSeason;
   advancing: boolean;
+  executionPhase?: string;
+  advanceResult?: any;
+  onDismissResult: () => void;
   onAdvance: () => void;
   onAutoAdvance: (enabled: boolean) => void;
   onCorpsClick: (corpsId: string) => void;
   onSeasonClick: () => void;
+  onCompetitionClick: (competitionId: string) => void;
+  onShowClick: (showSlug: string) => void;
   corpsNames?: Record<string, string>;
+  defaultCollapsed?: boolean;
 }) {
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const ts = season.tourStatus;
+  const seasonStatus = (season.metadata?.status as string) || ts?.status || "unknown";
+
   if (!ts) {
     return (
-      <Panel title={season.name} actions={<Badge variant="warning">No data</Badge>}>
-        <p className="text-muted">Tour status unavailable</p>
+      <Panel
+        title={
+          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span
+              style={{ cursor: "pointer", userSelect: "none", fontSize: 12, opacity: 0.6 }}
+              onClick={(e) => { e.stopPropagation(); setCollapsed(!collapsed); }}
+            >
+              {collapsed ? "\u25B6" : "\u25BC"}
+            </span>
+            <span style={{ cursor: "pointer" }} onClick={onSeasonClick}>
+              {season.name}
+            </span>
+          </span>
+        }
+        actions={
+          <Badge variant={seasonStatus === "completed" ? "info" : "warning"}>
+            {formatStatus(seasonStatus)}
+          </Badge>
+        }
+      >
+        {!collapsed && (
+          <p className="text-muted">
+            {seasonStatus === "planning"
+              ? "Season is being planned. Start a tour from the Season Workshop."
+              : seasonStatus === "completed"
+              ? "Season completed."
+              : "Tour status unavailable."}
+          </p>
+        )}
       </Panel>
     );
   }
@@ -348,17 +526,31 @@ function TourSeasonCard({
   const completedCount = ts.history.length;
   const progress = totalRounds > 0 ? Math.round((completedCount / totalRounds) * 100) : 0;
   const hasPending = ts.upcoming.length > 0 || ts.current_round !== null;
+  const isTouringOrFinals = seasonStatus === "touring" || seasonStatus === "finals";
 
-  // Build standings from completed rounds
   const standingsData = (season.standings as any)?.results || [];
 
   const roundColumns = [
-    { key: "round", label: "Round", render: (_v: unknown, r: TourRound) => `#${r.round ?? "?"}` },
-    { key: "show_slug", label: "Show", render: (_v: unknown, r: TourRound) => slugToTitle(r.show_slug) },
+    { key: "round", label: "#", render: (_v: unknown, r: TourRound) => `${r.round ?? "?"}` },
+    {
+      key: "show_slug",
+      label: "Show",
+      render: (_v: unknown, r: TourRound) => (
+        <span
+          style={{ cursor: "pointer", textDecoration: "underline", color: "var(--accent)" }}
+          onClick={(e: React.MouseEvent) => {
+            e.stopPropagation();
+            onShowClick(r.show_slug);
+          }}
+        >
+          {slugToTitle(r.show_slug)}
+        </span>
+      ),
+    },
     {
       key: "corps_ids",
       label: "Corps",
-      render: (_v: unknown, r: TourRound) => `${r.corps_ids?.length ?? 0} corps`,
+      render: (_v: unknown, r: TourRound) => `${r.corps_ids?.length ?? 0}`,
     },
     {
       key: "status",
@@ -372,6 +564,39 @@ function TourSeasonCard({
           {formatStatus(r.status || "pending")}
         </Badge>
       ),
+    },
+    {
+      key: "standings",
+      label: "Winner / Score",
+      render: (_v: unknown, r: TourRound) => {
+        if (r.status !== "completed" || !r.standings?.length) return <span className="text-muted">&mdash;</span>;
+        const winner = r.standings[0];
+        const name = corpsNames[winner.corps_id] || winner.corps_id?.slice(0, 8);
+        return (
+          <span style={{ fontSize: 12 }}>
+            <strong>{name}</strong> {winner.final_score?.toFixed(1)}
+          </span>
+        );
+      },
+    },
+    {
+      key: "competition_id",
+      label: "",
+      render: (_v: unknown, r: TourRound) => {
+        if (!r.competition_id) return null;
+        return (
+          <button
+            className="small"
+            style={{ fontSize: 11, padding: "2px 8px" }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onCompetitionClick(r.competition_id);
+            }}
+          >
+            Details
+          </button>
+        );
+      },
     },
   ];
 
@@ -403,88 +628,171 @@ function TourSeasonCard({
   return (
     <Panel
       title={
-        <span style={{ cursor: "pointer" }} onClick={onSeasonClick}>
-          {season.name}
+        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span
+            style={{ cursor: "pointer", userSelect: "none", fontSize: 12, opacity: 0.6 }}
+            onClick={(e) => { e.stopPropagation(); setCollapsed(!collapsed); }}
+          >
+            {collapsed ? "\u25B6" : "\u25BC"}
+          </span>
+          <span style={{ cursor: "pointer" }} onClick={onSeasonClick}>
+            {season.name}
+          </span>
         </span>
       }
       actions={
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <Badge variant={ts.status === "touring" ? "success" : "info"}>
-            {formatStatus(ts.status)}
+          <Badge variant={isTouringOrFinals ? "success" : seasonStatus === "completed" ? "info" : "default"}>
+            {formatStatus(seasonStatus)}
           </Badge>
-          <span className="text-muted" style={{ fontSize: 12 }}>
-            {completedCount}/{totalRounds} rounds
-          </span>
+          {totalRounds > 0 && (
+            <span className="text-muted" style={{ fontSize: 12 }}>
+              {completedCount}/{totalRounds} rounds
+            </span>
+          )}
         </div>
       }
     >
-      {/* Progress bar */}
-      <div
-        style={{
-          height: 6,
-          borderRadius: 3,
-          background: "var(--border)",
-          marginBottom: 16,
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            height: "100%",
-            width: `${progress}%`,
-            background: "var(--accent)",
-            borderRadius: 3,
-            transition: "width 0.3s ease",
-          }}
-        />
-      </div>
+      {!collapsed && (
+        <>
+          {/* Progress bar */}
+          {totalRounds > 0 && (
+            <div
+              style={{
+                height: 6,
+                borderRadius: 3,
+                background: "var(--border)",
+                marginBottom: 16,
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  width: `${progress}%`,
+                  background: "var(--accent)",
+                  borderRadius: 3,
+                  transition: "width 0.3s ease",
+                }}
+              />
+            </div>
+          )}
 
-      {/* Controls */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 16, alignItems: "center" }}>
-        <button
-          className="primary"
-          disabled={!hasPending || advancing}
-          onClick={onAdvance}
-        >
-          {advancing ? "Advancing..." : "Advance Round"}
-        </button>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
-          <input
-            type="checkbox"
-            checked={season.autoAdvance || false}
-            onChange={(e) => onAutoAdvance(e.target.checked)}
-          />
-          Auto-advance
-        </label>
-        {!hasPending && <Badge variant="info">All rounds complete</Badge>}
-      </div>
+          {/* Inline round result card */}
+          {advanceResult && (
+            <div style={{
+              marginBottom: 16,
+              padding: 12,
+              border: "1px solid var(--success)",
+              borderRadius: 6,
+              background: "rgba(0, 200, 100, 0.05)",
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <strong>Round {advanceResult.round} — {formatStatus(advanceResult.status)}</strong>
+                  {advanceResult.standings?.length > 0 && (
+                    <div style={{ marginTop: 4, fontSize: 13 }}>
+                      Winner: <strong>{corpsNames[advanceResult.standings[0]?.corps_id] || advanceResult.standings[0]?.corps_id?.slice(0, 8)}</strong>
+                      {" "}({advanceResult.standings[0]?.final_score?.toFixed(1)})
+                      {advanceResult.standings.length > 1 && (
+                        <span className="text-muted">
+                          {" "}+{(advanceResult.standings[0]?.final_score - advanceResult.standings[1]?.final_score)?.toFixed(1)} over 2nd
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {advanceResult.competition_id && (
+                    <button
+                      className="small"
+                      onClick={() => onCompetitionClick(advanceResult.competition_id)}
+                    >
+                      View Full Results
+                    </button>
+                  )}
+                  <button
+                    onClick={onDismissResult}
+                    style={{ background: "none", border: "none", cursor: "pointer", opacity: 0.7, color: "inherit" }}
+                  >
+                    x
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
-      {/* Current round */}
-      {ts.current_round && (
-        <div style={{ marginBottom: 16 }}>
-          <h4 style={{ margin: "0 0 8px" }}>
-            Current: Round {ts.current_round.round} — {slugToTitle(ts.current_round.show_slug)}
-          </h4>
-          <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-            Corps: {ts.current_round.corps_ids.map((id) => id.slice(0, 8)).join(", ")}
-          </div>
-        </div>
-      )}
+          {/* Controls — only for touring/finals seasons */}
+          {isTouringOrFinals && (
+            <div style={{ display: "flex", gap: 12, marginBottom: 16, alignItems: "center", flexWrap: "wrap" }}>
+              <button
+                className="primary"
+                disabled={!hasPending || advancing}
+                onClick={onAdvance}
+                style={{ minWidth: 140 }}
+              >
+                {advancing ? (
+                  <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span className="spinner" style={{
+                      display: "inline-block", width: 12, height: 12,
+                      border: "2px solid transparent", borderTopColor: "currentColor",
+                      borderRadius: "50%", animation: "spin 0.8s linear infinite",
+                    }} />
+                    Scoring...
+                  </span>
+                ) : "Run Next Round"}
+              </button>
+              {executionPhase && (
+                <span style={{ fontSize: 12, color: "var(--accent)", fontWeight: 600 }}>
+                  {executionPhase}
+                </span>
+              )}
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={season.autoAdvance || false}
+                  onChange={(e) => onAutoAdvance(e.target.checked)}
+                />
+                Auto-advance
+              </label>
+              {!hasPending && <Badge variant="info">All rounds complete</Badge>}
+            </div>
+          )}
 
-      {/* Schedule table */}
-      {ts.schedule.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <h4 style={{ margin: "0 0 8px" }}>Schedule</h4>
-          <DataTable columns={roundColumns} data={ts.schedule} />
-        </div>
-      )}
+          {/* Current round — show name is clickable */}
+          {ts.current_round && (
+            <div style={{ marginBottom: 16, padding: 12, border: "1px solid var(--border)", borderRadius: 6 }}>
+              <h4 style={{ margin: "0 0 8px" }}>
+                Next Up: Round {ts.current_round.round} &mdash;{" "}
+                <span
+                  style={{ cursor: "pointer", textDecoration: "underline", color: "var(--accent)" }}
+                  onClick={() => onShowClick(ts.current_round!.show_slug)}
+                >
+                  {slugToTitle(ts.current_round.show_slug)}
+                </span>
+              </h4>
+              <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                Corps: {ts.current_round.corps_ids.map((id) => corpsNames[id] || id.slice(0, 8)).join(", ")}
+              </div>
+            </div>
+          )}
 
-      {/* Standings */}
-      {standingsData.length > 0 && (
-        <div>
-          <h4 style={{ margin: "0 0 8px" }}>Standings</h4>
-          <DataTable columns={standingsColumns} data={standingsData} />
-        </div>
+          {/* Schedule table with inline scores */}
+          {ts.schedule.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <h4 style={{ margin: "0 0 8px" }}>Schedule</h4>
+              <DataTable columns={roundColumns} data={ts.schedule} />
+            </div>
+          )}
+
+          {/* Standings */}
+          {standingsData.length > 0 && (
+            <div>
+              <h4 style={{ margin: "0 0 8px" }}>Cumulative Standings</h4>
+              <DataTable columns={standingsColumns} data={standingsData} />
+            </div>
+          )}
+        </>
       )}
     </Panel>
   );

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import * as v1 from "../services/v1";
+import { API_BASE } from "../config";
 import { Tabs, Badge, DataTable } from "../ui";
 import type { TabItem } from "../ui";
 import { formatCaption, slugToTitle } from "../utils/formatters";
@@ -404,7 +405,7 @@ function RecapPanel({ competitionId }: { competitionId: string }) {
 
   const handleCSV = () => {
     window.open(
-      `${(import.meta as any).env?.VITE_API_URL || "http://localhost:4224"}/api/v1/competitions/${competitionId}/recap?format=csv`,
+      `${API_BASE}/api/v1/competitions/${competitionId}/recap?format=csv`,
       "_blank"
     );
   };

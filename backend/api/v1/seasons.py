@@ -1,7 +1,10 @@
 """V1 API — Seasons routes."""
 
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, HTTPException
 
@@ -401,6 +404,19 @@ def v1_declare_winner(season_id: str, req: FinalsDeclareWinnerRequest):
     }
     from backend.services.yaml_util import atomic_write, safe_dump_yaml
     atomic_write(season_dir / "finals.yaml", safe_dump_yaml(finals))
+
+    # Generate post-mortem documents for all participating corps
+    try:
+        from backend.services.post_mortem import generate_season_post_mortems
+        from backend.api.v1.helpers import _get_db_session
+        db = _get_db_session()
+        try:
+            generate_season_post_mortems(root, season_id, db=db)
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning(f"Post-mortem generation failed for season {season_id}: {e}")
+
     return finals
 
 
@@ -481,13 +497,38 @@ def v1_advance_tour(season_id: str):
     season_dir = root / "seasons" / season_id
     if not (season_dir / "season.yaml").is_file():
         raise HTTPException(404, f"Season '{season_id}' not found")
-    from backend.services.tour_coordinator import run_competition_round
+
+    # Track as an operation so frontend can poll status
+    from backend.services.operation_tracker import (
+        create_operation, start_operation, complete_operation, fail_operation,
+    )
+    import json as _json
+    db = _get_db_session()
     try:
-        return run_competition_round(season_dir)
+        op = create_operation(
+            db, "advance_round",
+            target_type="season", target_id=season_id,
+            label=f"Advancing tour round for {season_id}",
+        )
+        operation_id = op.id
+    finally:
+        db.close()
+
+    from backend.services.tour_coordinator import run_competition_round
+    db2 = _get_db_session()
+    try:
+        start_operation(db2, operation_id)
+        result = run_competition_round(season_dir)
+        complete_operation(db2, operation_id, result=_json.dumps(result, default=str))
+        result["operation_id"] = operation_id
+        return result
     except Exception as exc:
         import logging
         logging.getLogger(__name__).exception("Tour advance failed for %s", season_id)
+        fail_operation(db2, operation_id, error=str(exc))
         raise HTTPException(500, f"Tour advance failed: {exc}")
+    finally:
+        db2.close()
 
 
 @router.post("/seasons/{season_id}/auto-advance")
@@ -559,3 +600,64 @@ def v1_apply_show_draft(season_id: str, req: DraftApplyRequest):
         results[show_slug] = corps_ids
 
     return {"status": "applied", "assignments": results}
+
+
+# =========================================================================
+# POST-MORTEMS
+# =========================================================================
+
+@router.get("/seasons/{season_id}/post-mortems")
+def v1_list_season_post_mortems(season_id: str):
+    """List all post-mortem documents for a season."""
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    pm_dir = root / "seasons" / season_id / "post_mortems"
+    if not pm_dir.is_dir():
+        return []
+    results = []
+    for f in sorted(pm_dir.iterdir()):
+        if f.suffix == ".md":
+            corps_id = f.stem
+            results.append({
+                "corps_id": corps_id,
+                "season_id": season_id,
+                "generated_at": datetime.fromtimestamp(
+                    f.stat().st_mtime, tz=timezone.utc
+                ).isoformat(),
+            })
+    return results
+
+
+@router.get("/seasons/{season_id}/post-mortems/{corps_id}")
+def v1_get_post_mortem(season_id: str, corps_id: str):
+    """Get a post-mortem document for a specific corps in a season."""
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    from backend.services.post_mortem import get_corps_post_mortem
+    content = get_corps_post_mortem(root, season_id, corps_id)
+    if content is None:
+        raise HTTPException(404, f"No post-mortem found for {corps_id} in season {season_id}")
+    return {"corps_id": corps_id, "season_id": season_id, "content": content}
+
+
+@router.post("/seasons/{season_id}/post-mortems/generate")
+def v1_generate_post_mortems(season_id: str):
+    """Manually trigger post-mortem generation for a season."""
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    if not (season_dir / "season.yaml").is_file():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+
+    from backend.services.post_mortem import generate_season_post_mortems
+    db = _get_db_session()
+    try:
+        results = generate_season_post_mortems(root, season_id, db=db)
+    finally:
+        db.close()
+
+    return {
+        "season_id": season_id,
+        "generated": len(results),
+        "corps_ids": list(results.keys()),
+    }

@@ -116,6 +116,14 @@ def seed_founding_corps(db: Session, corps_dir: Optional[Path] = None) -> list[C
             db.commit()
             db.refresh(corps)
 
+            # Hire staff for the newly created corps
+            try:
+                from backend.services.corps_service import initialize_corps
+                initialize_corps(db, corps.id, use_auditions=True)
+                logger.info("Hired staff for corps '%s'", name)
+            except Exception as hire_err:
+                logger.error("Failed to hire staff for corps '%s': %s", name, hire_err)
+
             # Seed strategy for newly created corps
             if data.get("strategy"):
                 _seed_corps_strategy(db, corps.id, data["strategy"])

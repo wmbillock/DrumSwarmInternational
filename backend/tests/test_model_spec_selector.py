@@ -280,7 +280,7 @@ class _FakeSpec:
 
 class TestModelSpecToModelTier:
     def test_opus_mapping(self):
-        assert model_spec_to_model_tier(_FakeSpec("claude-opus-4-5-20251101")) == ModelTier.OPUS
+        assert model_spec_to_model_tier(_FakeSpec("claude-opus-4-6")) == ModelTier.OPUS
 
     def test_sonnet_mapping(self):
         assert model_spec_to_model_tier(_FakeSpec("claude-sonnet-4-5-20250929")) == ModelTier.SONNET

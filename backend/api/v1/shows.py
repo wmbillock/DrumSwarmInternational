@@ -1,8 +1,11 @@
 """V1 API — Shows routes."""
 
+from pathlib import Path
+
 from fastapi import APIRouter, HTTPException
 
 from backend.api.v1.helpers import _get_db_session, _shows_dir
+from backend.services.yaml_util import safe_load_yaml_dict
 
 router = APIRouter(prefix="/api/v1")
 
@@ -77,6 +80,50 @@ def v1_get_show(slug: str):
     if not show:
         raise HTTPException(404, "Show not found")
     return show
+
+
+@router.get("/shows/{slug}/competitions")
+def v1_show_competitions(slug: str):
+    """Get competition history for a show — scans season schedule entries."""
+    from backend.services.show_persistence import get_show
+    show = get_show(slug)
+    if not show:
+        raise HTTPException(404, "Show not found")
+
+    results = []
+    seasons_dir = Path(_shows_dir()).parent / "seasons"
+    if not seasons_dir.exists():
+        return results
+
+    for season_path in seasons_dir.iterdir():
+        if not season_path.is_dir():
+            continue
+        season_file = season_path / "season.yaml"
+        if not season_file.exists():
+            continue
+        try:
+            season_data = safe_load_yaml_dict(season_file.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        schedule = season_data.get("schedule", [])
+        if not isinstance(schedule, list):
+            continue
+        for entry in schedule:
+            if not isinstance(entry, dict):
+                continue
+            if entry.get("show_slug") == slug:
+                results.append({
+                    "competition_id": entry.get("competition_id", ""),
+                    "season_id": season_path.name,
+                    "round": entry.get("round"),
+                    "status": entry.get("status", "pending"),
+                    "completed_at": entry.get("completed_at"),
+                    "standings": entry.get("standings", []),
+                })
+
+    # Sort by season + round
+    results.sort(key=lambda r: (r["season_id"], r.get("round") or 0))
+    return results
 
 
 @router.post("/shows/{slug}/tour")
