@@ -9,6 +9,12 @@ from backend.api.v1.helpers import _get_db_session, _get_llm_client
 router = APIRouter(prefix="/api/v1")
 
 
+@router.get("/system/ping")
+def v1_system_ping():
+    """Lightweight liveness probe — no DB queries, instant response."""
+    return {"status": "ok"}
+
+
 @router.get("/system/health")
 def v1_system_health():
     """Get swarm-wide health metrics."""
