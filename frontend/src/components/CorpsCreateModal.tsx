@@ -40,6 +40,7 @@ export function CorpsCreateModal({ onCreated, onClose }: CorpsCreateModalProps) 
   const [editMascot, setEditMascot] = useState("");
   const [editUniform, setEditUniform] = useState("");
   const [editColors, setEditColors] = useState<{ primary: string; secondary: string; accent: string } | null>(null);
+  const [editPhilosophy, setEditPhilosophy] = useState("");
 
   const generate = async () => {
     setLoading(true);
@@ -74,6 +75,7 @@ export function CorpsCreateModal({ onCreated, onClose }: CorpsCreateModalProps) 
         mascot: editMascot || undefined,
         color_scheme: editColors || undefined,
         uniform_concept: editUniform || undefined,
+        philosophy: editPhilosophy.trim() || undefined,
       });
       onCreated(corps);
       setCreatedCorps(corps);
@@ -164,6 +166,19 @@ export function CorpsCreateModal({ onCreated, onClose }: CorpsCreateModalProps) 
                   rows={2}
                   value={editUniform}
                   onChange={(e) => setEditUniform(e.target.value)}
+                />
+              </label>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">
+                Philosophy
+                <textarea
+                  className="form-input"
+                  rows={3}
+                  value={editPhilosophy}
+                  onChange={(e) => setEditPhilosophy(e.target.value)}
+                  placeholder="What drives this corps? Their guiding principles..."
                 />
               </label>
             </div>

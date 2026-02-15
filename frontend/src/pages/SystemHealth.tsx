@@ -58,21 +58,24 @@ export function SystemHealth() {
   const [error, setError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
-  const fetchHealth = useCallback(async () => {
+  const fetchHealth = useCallback(async (signal?: AbortSignal) => {
     try {
-      const health = await v1.getSystemHealth();
+      const health = await v1.getSystemHealth(signal);
+      if (signal?.aborted) return;
       setData(health);
       setError(null);
       setLastRefresh(new Date());
     } catch (e: any) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
       setError(e.message ?? "Failed to fetch system health");
     }
   }, []);
 
   useEffect(() => {
-    fetchHealth();
-    const id = setInterval(fetchHealth, REFRESH_MS);
-    return () => clearInterval(id);
+    const ac = new AbortController();
+    fetchHealth(ac.signal);
+    const id = setInterval(() => fetchHealth(), REFRESH_MS);
+    return () => { ac.abort(); clearInterval(id); };
   }, [fetchHealth]);
 
   if (error && !data) {

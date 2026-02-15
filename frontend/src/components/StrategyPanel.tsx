@@ -95,6 +95,32 @@ export function StrategyPanel({ corpsId }: StrategyPanelProps) {
     return () => ac.abort();
   }, [corpsId]);
 
+  // Build sparkline data from performance stats
+  // NOTE: This useMemo MUST be called before any early returns to maintain hook ordering
+  const sparklineData = useMemo(() => {
+    const performance = data?.performance;
+    if (!performance) return {};
+    const result: Record<string, number[]> = {};
+    for (const [category, stats] of Object.entries(performance)) {
+      if (stats.total_attempts >= 2) {
+        // Create a simple trend: use the score and generate points around it
+        const base = stats.avg_score;
+        const successRate = stats.total_attempts > 0
+          ? stats.successful_attempts / stats.total_attempts
+          : 0.5;
+        const points: number[] = [];
+        const n = Math.min(stats.total_attempts, 8);
+        for (let i = 0; i < n; i++) {
+          // Simulate improvement trend
+          const progress = i / (n - 1);
+          points.push(base * (0.85 + progress * 0.15 * successRate));
+        }
+        result[category] = points;
+      }
+    }
+    return result;
+  }, [data]);
+
   const startEditing = () => {
     if (!data) return;
     setEditPolicy(data.strategy.model_policy);
@@ -122,7 +148,6 @@ export function StrategyPanel({ corpsId }: StrategyPanelProps) {
         exploration_rate: editExploration,
         risk_tolerance: editRisk,
       });
-      // Update local state with new strategy
       if (data) {
         setData({ ...data, strategy: result.strategy });
       }
@@ -150,30 +175,6 @@ export function StrategyPanel({ corpsId }: StrategyPanelProps) {
 
   const { strategy, performance, color_scheme: colors } = data;
   const accent = colors.primary || "var(--accent)";
-
-  // Build sparkline data from performance stats
-  // Generate simulated trend from attempts/score ratio for sparkline visualization
-  const sparklineData = useMemo(() => {
-    const result: Record<string, number[]> = {};
-    for (const [category, stats] of Object.entries(performance)) {
-      if (stats.total_attempts >= 2) {
-        // Create a simple trend: use the score and generate points around it
-        const base = stats.avg_score;
-        const successRate = stats.total_attempts > 0
-          ? stats.successful_attempts / stats.total_attempts
-          : 0.5;
-        const points: number[] = [];
-        const n = Math.min(stats.total_attempts, 8);
-        for (let i = 0; i < n; i++) {
-          // Simulate improvement trend
-          const progress = i / (n - 1);
-          points.push(base * (0.85 + progress * 0.15 * successRate));
-        }
-        result[category] = points;
-      }
-    }
-    return result;
-  }, [performance]);
 
   return (
     <div className="strategy-panel">

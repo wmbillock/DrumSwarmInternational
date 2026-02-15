@@ -155,6 +155,8 @@ export interface V1Thread {
   status: string;
   has_spec: boolean;
   summary?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface V1Messages {
@@ -787,8 +789,10 @@ export interface StaffMember {
   specialties?: string;
 }
 
-export const listMarketplace = (signal?: AbortSignal) =>
-  request<StaffMember[]>("/api/v1/staff/marketplace", { signal });
+export const listMarketplace = async (signal?: AbortSignal): Promise<StaffMember[]> => {
+  const raw = await request<{ performers: StaffMember[] } | StaffMember[]>("/api/v1/staff/marketplace", { signal });
+  return Array.isArray(raw) ? raw : (raw as { performers: StaffMember[] }).performers || [];
+};
 
 export const getStaffProfile = (performerId: string, signal?: AbortSignal) =>
   request<any>(`/api/v1/staff/${performerId}/profile`, { signal });
@@ -1465,3 +1469,241 @@ export const listOperations = (status?: string, limit = 20, signal?: AbortSignal
     `/api/v1/operations?limit=${limit}${status ? `&status=${status}` : ""}`,
     { signal },
   );
+
+// --- Drill Books ---
+
+export interface V1DrillBook {
+  id: string;
+  parent_id: string | null;
+  corps_id: string | null;
+  assigned_performer_id: string | null;
+  assigned_role: string | null;
+  title: string;
+  description: string;
+  book_type: string;
+  status: string;
+  created_at: string | null;
+  updated_at: string | null;
+  completed_at: string | null;
+  context_summary: string | null;
+  step_count: number;
+  child_count: number;
+}
+
+export interface V1DrillStep {
+  id: string;
+  book_id: string;
+  sequence: number;
+  action_type: string;
+  description: string;
+  status: string;
+  depends_on: string[] | null;
+  assigned_session_id: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  result: Record<string, unknown> | null;
+  error: string | null;
+}
+
+export const listDrillBooks = (params?: {
+  corps_id?: string;
+  role?: string;
+  status?: string;
+  parent_id?: string;
+}, signal?: AbortSignal) => {
+  const qs = new URLSearchParams();
+  if (params?.corps_id) qs.set("corps_id", params.corps_id);
+  if (params?.role) qs.set("role", params.role);
+  if (params?.status) qs.set("status", params.status);
+  if (params?.parent_id) qs.set("parent_id", params.parent_id);
+  const q = qs.toString();
+  return request<V1DrillBook[]>(`/api/v1/drill-books${q ? `?${q}` : ""}`, { signal });
+};
+
+export const getDrillBook = (bookId: string, signal?: AbortSignal) =>
+  request<V1DrillBook>(`/api/v1/drill-books/${bookId}`, { signal });
+
+export const createDrillBook = (data: {
+  title: string;
+  description?: string;
+  book_type?: string;
+  parent_id?: string;
+  corps_id?: string;
+  role?: string;
+}) =>
+  request<V1DrillBook>("/api/v1/drill-books", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+export const getDrillBookNextSteps = (bookId: string, signal?: AbortSignal) =>
+  request<V1DrillStep[]>(`/api/v1/drill-books/${bookId}/next-steps`, { signal });
+
+export const getDrillBookContext = (bookId: string, signal?: AbortSignal) =>
+  request<Record<string, unknown>>(`/api/v1/drill-books/${bookId}/context`, { signal });
+
+// --- Experiments ---
+
+export interface V1ExperimentConfig {
+  corps_id: string;
+  llm_provider: string | null;
+  llm_model_override: string | null;
+  methodology: string | null;
+  architecture_style: string | null;
+  coding_style: string | null;
+  extra: Record<string, unknown> | null;
+}
+
+export interface V1ExperimentResult {
+  id: string;
+  corps_id: string;
+  show_id: string | null;
+  competition_id: string | null;
+  season_id: string | null;
+  llm_provider: string | null;
+  llm_model: string | null;
+  methodology: string | null;
+  total_score: number | null;
+  caption_scores: Record<string, number> | null;
+  iterations_used: number | null;
+  tool_calls_count: number | null;
+  sessions_spawned: number | null;
+  failures_count: number | null;
+  wall_time_seconds: number | null;
+  notes: string | null;
+  metrics: Record<string, unknown> | null;
+  created_at: string | null;
+}
+
+export const listExperimentConfigs = (signal?: AbortSignal) =>
+  request<V1ExperimentConfig[]>("/api/v1/experiments/configs", { signal });
+
+export const getExperimentConfig = (corpsId: string, signal?: AbortSignal) =>
+  request<V1ExperimentConfig>(`/api/v1/experiments/configs/${corpsId}`, { signal });
+
+export const updateExperimentConfig = (corpsId: string, data: {
+  llm_provider?: string;
+  llm_model_override?: string;
+  methodology?: string;
+  architecture_style?: string;
+  coding_style?: string;
+  extra?: Record<string, unknown>;
+}) =>
+  request<V1ExperimentConfig>(`/api/v1/experiments/configs/${corpsId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+
+export const listExperimentResults = (params?: {
+  show_id?: string;
+  corps_id?: string;
+  season_id?: string;
+}, signal?: AbortSignal) => {
+  const qs = new URLSearchParams();
+  if (params?.show_id) qs.set("show_id", params.show_id);
+  if (params?.corps_id) qs.set("corps_id", params.corps_id);
+  if (params?.season_id) qs.set("season_id", params.season_id);
+  const q = qs.toString();
+  return request<V1ExperimentResult[]>(`/api/v1/experiments/results${q ? `?${q}` : ""}`, { signal });
+};
+
+export const recordExperiment = (data: {
+  corps_id: string;
+  show_id?: string;
+  competition_id?: string;
+  season_id?: string;
+  total_score?: number;
+  caption_scores?: Record<string, number>;
+  iterations_used?: number;
+  tool_calls_count?: number;
+  sessions_spawned?: number;
+  failures_count?: number;
+  wall_time_seconds?: number;
+  notes?: string;
+  metrics?: Record<string, unknown>;
+}) =>
+  request<V1ExperimentResult>("/api/v1/experiments/results", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+export const compareExperiments = (showId: string, signal?: AbortSignal) =>
+  request<Record<string, unknown>>(`/api/v1/experiments/compare/${showId}`, { signal });
+
+// --- Images ---
+
+export interface V1ImageResult {
+  success: boolean;
+  path?: string;
+  filename?: string;
+  error?: string;
+}
+
+export const getImageStatus = (signal?: AbortSignal) =>
+  request<{ available: boolean; comfyui_url: string | null }>("/api/v1/images/status", { signal });
+
+export const listImageWorkflows = (signal?: AbortSignal) =>
+  request<Record<string, unknown>[]>("/api/v1/images/workflows", { signal });
+
+export const listImageCategories = (signal?: AbortSignal) =>
+  request<Record<string, unknown>[]>("/api/v1/images/categories", { signal });
+
+export const generateImage = (data: {
+  prompt: string;
+  negative_prompt?: string;
+  width?: number;
+  height?: number;
+  steps?: number;
+  cfg_scale?: number;
+  seed?: number;
+  output_filename?: string;
+}) =>
+  request<V1ImageResult>("/api/v1/images/generate", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+export const generateImageFromWorkflow = (data: {
+  workflow_name: string;
+  template_vars?: Record<string, unknown>;
+  seed?: number;
+  output_filename?: string;
+}) =>
+  request<V1ImageResult>("/api/v1/images/generate/workflow", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+export const generateArt = (data: {
+  description: string;
+  category?: string;
+  seed?: number;
+  output_filename?: string;
+}) =>
+  request<V1ImageResult>("/api/v1/images/generate/art", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
+// --- Corps lifecycle (additional) ---
+
+export const backfillCorpsStaff = (corpsId: string) =>
+  request<Record<string, unknown>>(`/api/v1/corps/${corpsId}/staff/backfill`, { method: "POST" });
+
+export const getCorpsPerformanceHistory = (corpsId: string, signal?: AbortSignal) =>
+  request<Record<string, unknown>[]>(`/api/v1/corps/${corpsId}/performance-history`, { signal });
+
+export const getCorpsTheme = (corpsId: string, signal?: AbortSignal) =>
+  request<Record<string, unknown>>(`/api/v1/corps/${corpsId}/theme`, { signal });
+
+export const getCorpsProgression = (corpsId: string, signal?: AbortSignal) =>
+  request<Record<string, unknown>>(`/api/v1/corps/${corpsId}/progression`, { signal });
+
+export const getCorpsMetrics = (corpsId: string, signal?: AbortSignal) =>
+  request<Record<string, unknown>>(`/api/v1/corps/${corpsId}/metrics`, { signal });
+
+export const getCorpsAgeouts = (corpsId: string, signal?: AbortSignal) =>
+  request<Record<string, unknown>[]>(`/api/v1/corps/${corpsId}/ageouts`, { signal });
+
+export const getCorpsWorkLogAnalysis = (corpsId: string, signal?: AbortSignal) =>
+  request<Record<string, unknown>>(`/api/v1/corps/${corpsId}/work-log/analysis`, { signal });

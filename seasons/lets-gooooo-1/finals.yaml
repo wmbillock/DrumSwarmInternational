@@ -1,6 +1,6 @@
 season_id: lets-gooooo-1
 status: completed
-generated_at: '2026-02-14T15:23:20.989665+00:00'
+generated_at: '2026-02-15T03:44:03.425711+00:00'
 required_scores: 3
 qualification:
   0857c9cd-ab79-414c-810f-698392bab1e6: false
@@ -331,6 +331,6 @@ divisions:
     qualified: false
     scores_count: 1
 winner:
-  corps_id: f36c6c19-04a6-48ea-996d-6cec06b73a42
+  corps_id: toss-and-pray
   division: null
-  declared_at: '2026-02-14T15:23:20.989701+00:00'
+  declared_at: '2026-02-15T03:44:03.425745+00:00'

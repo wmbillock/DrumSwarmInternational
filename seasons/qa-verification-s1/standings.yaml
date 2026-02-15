@@ -1,0 +1,38 @@
+season_id: qa-verification-s1
+competition_id: qa-verification-s1-round-1
+show_slug: compile-time
+generated_at: '2026-02-14T20:35:01.817102+00:00'
+results:
+- corps_id: 19836c66-b398-48a4-9958-f669b7e7859d
+  rank: 1
+  final_score: 57.2
+  raw_score: 57.2
+  caption_scores:
+    percussion: 65.0
+    guard: 53.5
+    brass: 41.5
+    visual: 68.5
+    ensemble_technique: 55.0
+    general_effect: 61.5
+- corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+  rank: 2
+  final_score: 55.255
+  raw_score: 55.255
+  caption_scores:
+    guard: 68.5
+    percussion: 70.0
+    visual: 40.0
+    brass: 41.5
+    ensemble_technique: 71.5
+    general_effect: 41.5
+- corps_id: ec4c11f9-faaa-4113-86b3-902d19200bcb
+  rank: 3
+  final_score: 40.54
+  raw_score: 40.54
+  caption_scores:
+    visual: 41.5
+    guard: 38.5
+    percussion: 41.5
+    brass: 41.5
+    ensemble_technique: 38.5
+    general_effect: 41.5

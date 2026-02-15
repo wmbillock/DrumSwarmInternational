@@ -12,6 +12,11 @@ const LIFECYCLE_ITEMS = [
   { to: "/swarm-health", label: "Swarm Health", icon: "SYS", color: "var(--stage-green)", tooltip: "Unified swarm health dashboard" },
 ] as const;
 
+const TALENT_ITEMS = [
+  { to: "/performers", label: "Performers", icon: "PFR", color: "var(--stage-green)", tooltip: "View performers, trust scores, and capabilities" },
+  { to: "/staff", label: "Staff Market", icon: "MKT", color: "var(--stage-design)", tooltip: "Browse available staff and manage corps assignments" },
+] as const;
+
 const QUICK_ACTIONS = [
   { to: "/design", label: "New Show", icon: "NEW", tooltip: "Start a brand new show in the Design Room" },
   { to: "/seasons", label: "New Season", icon: "SZN", tooltip: "Create a season and assign shows" },
@@ -52,6 +57,22 @@ export function SideNav() {
           data-tooltip-place="right"
         >
           <span className="side-nav-stage-num">{i + 1}</span>
+          <span className="side-nav-icon" style={{ color: s.color }}>{s.icon}</span>
+          <span className="side-nav-label">{s.label}</span>
+        </NavLink>
+      ))}
+      <div className="side-nav-divider" />
+      <div className="side-nav-section-label">TALENT</div>
+      {TALENT_ITEMS.map((s) => (
+        <NavLink
+          key={s.to}
+          to={s.to}
+          className={({ isActive }) => `side-nav-item ${isActive ? "active" : ""}`}
+          style={{ "--stage-color": s.color } as React.CSSProperties}
+          data-tooltip-id="main"
+          data-tooltip-content={s.tooltip}
+          data-tooltip-place="right"
+        >
           <span className="side-nav-icon" style={{ color: s.color }}>{s.icon}</span>
           <span className="side-nav-label">{s.label}</span>
         </NavLink>

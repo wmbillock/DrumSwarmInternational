@@ -1,0 +1,35 @@
+checkpoint:
+  date: "2026-02-14"
+  session: "semantic-qa-ui-completion"
+  status: complete
+
+plan_steps:
+  step_1_navigation:
+    status: complete
+    description: "Added Performers + Staff Market to SideNav and NavBar"
+  step_2_verification:
+    status: complete
+    description: "Playwright semantic verification of all 28+ pages"
+    pages_verified: 28
+    bugs_found: 2
+    bugs_fixed: 2
+  step_3_deliverables:
+    status: complete
+    description: "Created semantic-qa-report.md, checkpoint.yaml"
+
+gap_closures:
+  total: 15
+  completed: 15
+  items: [G1, G2, G3, G4, G5, G6, G7, G8, G9, G10, G11, G12, G13, G14, B4]
+
+bugs_fixed:
+  - id: corps-staff-500
+    file: backend/api/v1/corps.py
+    description: "Fixed wrong attribute name and INNER JOIN in staff endpoint"
+  - id: show-timestamps
+    file: backend/api/v1/design.py
+    description: "Added filesystem timestamps to thread listing endpoint"
+
+test_results:
+  backend_tests: "1231+ pass, 0 fail"
+  frontend_tests: "not re-run (no functional changes to components)"

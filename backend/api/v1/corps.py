@@ -2447,7 +2447,7 @@ def v1_hire_staff(corps_id: str, req: HireStaffRequest):
         # Spawn an active AgentSession linked to the performer
         session = AgentSession(
             id=str(uuid.uuid4()),
-            agent_definition_id=agent_def.id,
+            definition_id=agent_def.id,
             performer_id=req.performer_id,
             corps_id=corps_id,
             status=SessionStatus.ACTIVE,
@@ -2530,7 +2530,7 @@ def v1_release_staff(corps_id: str, req: ReleaseStaffRequest):
 
 @router.get("/corps/{corps_id}/staff")
 def v1_list_corps_staff(corps_id: str):
-    """List current active staff for a corps."""
+    """List current active staff for a corps (fixed)."""
     from backend.models.performer import Performer
     from backend.models.agent_session import AgentSession, SessionStatus
     from backend.models.agent_definition import AgentDefinition
@@ -2541,8 +2541,8 @@ def v1_list_corps_staff(corps_id: str):
     try:
         results = (
             db.query(AgentSession, Performer, AgentDefinition)
-            .join(Performer, AgentSession.performer_id == Performer.id)
-            .join(AgentDefinition, AgentSession.agent_definition_id == AgentDefinition.id)
+            .outerjoin(Performer, AgentSession.performer_id == Performer.id)
+            .join(AgentDefinition, AgentSession.definition_id == AgentDefinition.id)
             .filter(
                 AgentSession.corps_id == corps_id,
                 AgentSession.status == SessionStatus.ACTIVE,
@@ -2555,10 +2555,10 @@ def v1_list_corps_staff(corps_id: str):
             "staff": [
                 {
                     "session_id": session.id,
-                    "performer_id": performer.id,
-                    "performer_name": performer.name,
+                    "performer_id": performer.id if performer else None,
+                    "performer_name": performer.name if performer else None,
                     "role": agent_def.role,
-                    "trust_score": performer.trust_score,
+                    "trust_score": performer.trust_score if performer else None,
                     "started_at": session.started_at.isoformat() if session.started_at else None,
                     "status": session.status.value,
                 }
