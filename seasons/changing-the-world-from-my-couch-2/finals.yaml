@@ -1,0 +1,249 @@
+season_id: changing-the-world-from-my-couch-2
+status: completed
+generated_at: '2026-02-15T01:54:06.659551+00:00'
+required_scores: 5
+qualification:
+  31f9c159-b6ec-4ea1-8ed9-803cf2183349: true
+  45b1dc02-2283-47c1-8420-b68c093b0061: true
+  709d9dc4-2a92-487a-92d0-c8b5ead59939: true
+  7a70c3c6-5693-4af8-9c3b-4480988bf8d4: true
+  7e95402f-0e83-4f4a-985a-a1d8b5af17a5: true
+  846e48f0-8398-4b9e-93f6-ad78619d3fb7: true
+  859f0d31-3e15-44d9-a698-158921ef03b9: true
+  9847fbbc-7d97-4e56-b8cf-cf206d28ce64: true
+  aba0e198-0842-4a72-9274-c5ffb5b6072a: true
+  c5f1d328-685a-4c60-9c8c-fd880e516571: true
+  ca6a4d81-a1da-4036-8e9c-8ffc405ef5de: true
+  e503c207-1d63-460d-b080-63a92a17e979: true
+  ec4c11f9-faaa-4113-86b3-902d19200bcb: true
+  ed5cd8c6-c0ee-4442-941e-e2cf9af0118e: true
+score_counts:
+  31f9c159-b6ec-4ea1-8ed9-803cf2183349: 5
+  45b1dc02-2283-47c1-8420-b68c093b0061: 6
+  709d9dc4-2a92-487a-92d0-c8b5ead59939: 5
+  7a70c3c6-5693-4af8-9c3b-4480988bf8d4: 5
+  7e95402f-0e83-4f4a-985a-a1d8b5af17a5: 6
+  846e48f0-8398-4b9e-93f6-ad78619d3fb7: 5
+  859f0d31-3e15-44d9-a698-158921ef03b9: 5
+  9847fbbc-7d97-4e56-b8cf-cf206d28ce64: 6
+  aba0e198-0842-4a72-9274-c5ffb5b6072a: 6
+  c5f1d328-685a-4c60-9c8c-fd880e516571: 6
+  ca6a4d81-a1da-4036-8e9c-8ffc405ef5de: 5
+  e503c207-1d63-460d-b080-63a92a17e979: 5
+  ec4c11f9-faaa-4113-86b3-902d19200bcb: 6
+  ed5cd8c6-c0ee-4442-941e-e2cf9af0118e: 5
+overall:
+- rank: 1
+  corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+  score: 46.910000000000004
+  qualified: true
+  scores_count: 6
+- rank: 2
+  corps_id: 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+  score: 46.055
+  qualified: true
+  scores_count: 6
+- rank: 3
+  corps_id: 859f0d31-3e15-44d9-a698-158921ef03b9
+  score: 44.755
+  qualified: true
+  scores_count: 5
+- rank: 4
+  corps_id: e503c207-1d63-460d-b080-63a92a17e979
+  score: 43.35
+  qualified: true
+  scores_count: 5
+- rank: 5
+  corps_id: ed5cd8c6-c0ee-4442-941e-e2cf9af0118e
+  score: 41.160000000000004
+  qualified: true
+  scores_count: 5
+- rank: 6
+  corps_id: ec4c11f9-faaa-4113-86b3-902d19200bcb
+  score: 40.915
+  qualified: true
+  scores_count: 6
+- rank: 7
+  corps_id: 45b1dc02-2283-47c1-8420-b68c093b0061
+  score: 40.63
+  qualified: true
+  scores_count: 6
+- rank: 8
+  corps_id: aba0e198-0842-4a72-9274-c5ffb5b6072a
+  score: 38.78
+  qualified: true
+  scores_count: 6
+- rank: 9
+  corps_id: 31f9c159-b6ec-4ea1-8ed9-803cf2183349
+  score: 38.535000000000004
+  qualified: true
+  scores_count: 5
+- rank: 10
+  corps_id: 9847fbbc-7d97-4e56-b8cf-cf206d28ce64
+  score: 37.905
+  qualified: true
+  scores_count: 6
+- rank: 11
+  corps_id: ca6a4d81-a1da-4036-8e9c-8ffc405ef5de
+  score: 37.42
+  qualified: true
+  scores_count: 5
+- rank: 12
+  corps_id: 709d9dc4-2a92-487a-92d0-c8b5ead59939
+  score: 36.94
+  qualified: true
+  scores_count: 5
+- rank: 13
+  corps_id: 7a70c3c6-5693-4af8-9c3b-4480988bf8d4
+  score: 36.94
+  qualified: true
+  scores_count: 5
+- rank: 14
+  corps_id: 846e48f0-8398-4b9e-93f6-ad78619d3fb7
+  score: 36.685
+  qualified: true
+  scores_count: 5
+divisions:
+- show_slug: dci-admin-chat-centralizing-swarm-enhancements
+  standings:
+  - rank: 1
+    corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+    score: 46.910000000000004
+    qualified: true
+    scores_count: 6
+  - rank: 2
+    corps_id: 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+    score: 46.055
+    qualified: true
+    scores_count: 6
+  - rank: 3
+    corps_id: 859f0d31-3e15-44d9-a698-158921ef03b9
+    score: 44.755
+    qualified: true
+    scores_count: 5
+  - rank: 4
+    corps_id: e503c207-1d63-460d-b080-63a92a17e979
+    score: 43.35
+    qualified: true
+    scores_count: 5
+  - rank: 5
+    corps_id: ed5cd8c6-c0ee-4442-941e-e2cf9af0118e
+    score: 41.160000000000004
+    qualified: true
+    scores_count: 5
+  - rank: 6
+    corps_id: ec4c11f9-faaa-4113-86b3-902d19200bcb
+    score: 40.915
+    qualified: true
+    scores_count: 6
+  - rank: 7
+    corps_id: 45b1dc02-2283-47c1-8420-b68c093b0061
+    score: 40.63
+    qualified: true
+    scores_count: 6
+  - rank: 8
+    corps_id: 31f9c159-b6ec-4ea1-8ed9-803cf2183349
+    score: 38.535000000000004
+    qualified: true
+    scores_count: 5
+  - rank: 9
+    corps_id: 9847fbbc-7d97-4e56-b8cf-cf206d28ce64
+    score: 37.905
+    qualified: true
+    scores_count: 6
+  - rank: 10
+    corps_id: ca6a4d81-a1da-4036-8e9c-8ffc405ef5de
+    score: 37.42
+    qualified: true
+    scores_count: 5
+  - rank: 11
+    corps_id: 709d9dc4-2a92-487a-92d0-c8b5ead59939
+    score: 36.94
+    qualified: true
+    scores_count: 5
+  - rank: 12
+    corps_id: 7a70c3c6-5693-4af8-9c3b-4480988bf8d4
+    score: 36.94
+    qualified: true
+    scores_count: 5
+  - rank: 13
+    corps_id: 846e48f0-8398-4b9e-93f6-ad78619d3fb7
+    score: 36.685
+    qualified: true
+    scores_count: 5
+- show_slug: improve-the-corps-list-page
+  standings:
+  - rank: 1
+    corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+    score: 46.910000000000004
+    qualified: true
+    scores_count: 6
+  - rank: 2
+    corps_id: 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+    score: 46.055
+    qualified: true
+    scores_count: 6
+  - rank: 3
+    corps_id: 859f0d31-3e15-44d9-a698-158921ef03b9
+    score: 44.755
+    qualified: true
+    scores_count: 5
+  - rank: 4
+    corps_id: e503c207-1d63-460d-b080-63a92a17e979
+    score: 43.35
+    qualified: true
+    scores_count: 5
+  - rank: 5
+    corps_id: ed5cd8c6-c0ee-4442-941e-e2cf9af0118e
+    score: 41.160000000000004
+    qualified: true
+    scores_count: 5
+  - rank: 6
+    corps_id: ec4c11f9-faaa-4113-86b3-902d19200bcb
+    score: 40.915
+    qualified: true
+    scores_count: 6
+  - rank: 7
+    corps_id: 45b1dc02-2283-47c1-8420-b68c093b0061
+    score: 40.63
+    qualified: true
+    scores_count: 6
+  - rank: 8
+    corps_id: aba0e198-0842-4a72-9274-c5ffb5b6072a
+    score: 38.78
+    qualified: true
+    scores_count: 6
+  - rank: 9
+    corps_id: 31f9c159-b6ec-4ea1-8ed9-803cf2183349
+    score: 38.535000000000004
+    qualified: true
+    scores_count: 5
+  - rank: 10
+    corps_id: 9847fbbc-7d97-4e56-b8cf-cf206d28ce64
+    score: 37.905
+    qualified: true
+    scores_count: 6
+  - rank: 11
+    corps_id: ca6a4d81-a1da-4036-8e9c-8ffc405ef5de
+    score: 37.42
+    qualified: true
+    scores_count: 5
+  - rank: 12
+    corps_id: 709d9dc4-2a92-487a-92d0-c8b5ead59939
+    score: 36.94
+    qualified: true
+    scores_count: 5
+  - rank: 13
+    corps_id: 7a70c3c6-5693-4af8-9c3b-4480988bf8d4
+    score: 36.94
+    qualified: true
+    scores_count: 5
+  - rank: 14
+    corps_id: 846e48f0-8398-4b9e-93f6-ad78619d3fb7
+    score: 36.685
+    qualified: true
+    scores_count: 5
+winner:
+  corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+  division: null
+  declared_at: '2026-02-15T01:54:06.659626+00:00'

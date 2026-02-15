@@ -1,0 +1,71 @@
+season_id: changing-the-world-from-my-couch-2
+competition_id: changing-the-world-from-my-couch-2-round-3
+show_slug: dci-admin-chat-centralizing-swarm-enhancements
+generated_at: '2026-02-15T00:13:35.518998+00:00'
+results:
+- corps_id: ed5cd8c6-c0ee-4442-941e-e2cf9af0118e
+  rank: 1
+  final_score: 44.77
+  raw_score: 44.77
+  caption_scores:
+    visual: 40.0
+    brass: 38.5
+    percussion: 60.0
+    guard: 38.5
+    general_effect: 31.5
+    ensemble_technique: 65.0
+- corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+  rank: 2
+  final_score: 44.575
+  raw_score: 44.575
+  caption_scores:
+    visual: 41.5
+    percussion: 41.5
+    brass: 40.0
+    guard: 38.5
+    general_effect: 38.5
+    ensemble_technique: 71.5
+- corps_id: 846e48f0-8398-4b9e-93f6-ad78619d3fb7
+  rank: 3
+  final_score: 38.555
+  raw_score: 38.555
+  caption_scores:
+    visual: 40.0
+    percussion: 40.0
+    guard: 40.0
+    brass: 31.5
+    general_effect: 40.0
+    ensemble_technique: 40.0
+- corps_id: ca6a4d81-a1da-4036-8e9c-8ffc405ef5de
+  rank: 4
+  final_score: 37.345
+  raw_score: 37.345
+  caption_scores:
+    visual: 41.5
+    brass: 31.5
+    guard: 41.5
+    percussion: 40.0
+    general_effect: 31.5
+    ensemble_technique: 41.5
+- corps_id: 709d9dc4-2a92-487a-92d0-c8b5ead59939
+  rank: 5
+  final_score: 36.355000000000004
+  raw_score: 36.355000000000004
+  caption_scores:
+    guard: 40.0
+    visual: 40.0
+    percussion: 40.0
+    brass: 31.5
+    general_effect: 30.0
+    ensemble_technique: 40.0
+- corps_id: 9847fbbc-7d97-4e56-b8cf-cf206d28ce64
+  rank: 6
+  final_score: 36.1
+  raw_score: 36.1
+  caption_scores:
+    visual: 40.0
+    percussion: 38.5
+    guard: 40.0
+    brass: 31.5
+    general_effect: 30.0
+    ensemble_technique: 40.0

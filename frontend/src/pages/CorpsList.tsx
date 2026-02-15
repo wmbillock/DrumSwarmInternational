@@ -42,17 +42,22 @@ export function CorpsList() {
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
 
-  const loadCorps = () => {
+  const loadCorps = (signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
-    v1.listCorps(undefined, true)
+    v1.listCorps(signal, true)
       .then(setCorps)
-      .catch(e => setError(e instanceof Error ? e.message : "Failed to load corps"))
+      .catch(e => {
+        if (e instanceof DOMException && e.name === "AbortError") return;
+        setError(e instanceof Error ? e.message : "Failed to load corps");
+      })
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
-    loadCorps();
+    const ac = new AbortController();
+    loadCorps(ac.signal);
+    return () => ac.abort();
   }, []);
 
   if (loading) return <div className="page-loading">Loading Corps...</div>;

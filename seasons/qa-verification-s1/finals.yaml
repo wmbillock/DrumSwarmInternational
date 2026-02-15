@@ -1,0 +1,50 @@
+season_id: qa-verification-s1
+status: completed
+generated_at: '2026-02-14T20:38:01.639282+00:00'
+required_scores: 1
+qualification:
+  19836c66-b398-48a4-9958-f669b7e7859d: true
+  c5f1d328-685a-4c60-9c8c-fd880e516571: true
+  ec4c11f9-faaa-4113-86b3-902d19200bcb: true
+score_counts:
+  19836c66-b398-48a4-9958-f669b7e7859d: 2
+  c5f1d328-685a-4c60-9c8c-fd880e516571: 2
+  ec4c11f9-faaa-4113-86b3-902d19200bcb: 2
+overall:
+- rank: 1
+  corps_id: 19836c66-b398-48a4-9958-f669b7e7859d
+  score: 57.2
+  qualified: true
+  scores_count: 2
+- rank: 2
+  corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+  score: 55.255
+  qualified: true
+  scores_count: 2
+- rank: 3
+  corps_id: ec4c11f9-faaa-4113-86b3-902d19200bcb
+  score: 40.54
+  qualified: true
+  scores_count: 2
+divisions:
+- show_slug: compile-time
+  standings:
+  - rank: 1
+    corps_id: 19836c66-b398-48a4-9958-f669b7e7859d
+    score: 57.2
+    qualified: true
+    scores_count: 2
+  - rank: 2
+    corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+    score: 55.255
+    qualified: true
+    scores_count: 2
+  - rank: 3
+    corps_id: ec4c11f9-faaa-4113-86b3-902d19200bcb
+    score: 40.54
+    qualified: true
+    scores_count: 2
+winner:
+  corps_id: 19836c66-b398-48a4-9958-f669b7e7859d
+  division: null
+  declared_at: '2026-02-14T20:38:01.639299+00:00'

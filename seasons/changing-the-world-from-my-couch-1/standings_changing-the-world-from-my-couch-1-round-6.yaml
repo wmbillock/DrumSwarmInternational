@@ -1,0 +1,49 @@
+season_id: changing-the-world-from-my-couch-1
+competition_id: changing-the-world-from-my-couch-1-round-6
+show_slug: improve-the-corps-list-page
+generated_at: '2026-02-14T21:31:18.142501+00:00'
+results:
+- corps_id: e503c207-1d63-460d-b080-63a92a17e979
+  rank: 1
+  final_score: 43.400000000000006
+  raw_score: 43.400000000000006
+  caption_scores:
+    guard: 41.5
+    percussion: 58.5
+    visual: 40.0
+    brass: 40.0
+    ensemble_technique: 40.0
+    general_effect: 40.0
+- corps_id: 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+  rank: 2
+  final_score: 41.980000000000004
+  raw_score: 41.980000000000004
+  caption_scores:
+    percussion: 40.0
+    brass: 40.0
+    visual: 40.0
+    guard: 41.5
+    ensemble_technique: 51.5
+    general_effect: 40.0
+- corps_id: 7a70c3c6-5693-4af8-9c3b-4480988bf8d4
+  rank: 3
+  final_score: 40.75
+  raw_score: 40.75
+  caption_scores:
+    visual: 40.0
+    brass: 40.0
+    percussion: 40.0
+    guard: 40.0
+    general_effect: 40.0
+    ensemble_technique: 45.0
+- corps_id: aba0e198-0842-4a72-9274-c5ffb5b6072a
+  rank: 4
+  final_score: 39.85
+  raw_score: 39.85
+  caption_scores:
+    visual: 41.5
+    brass: 40.0
+    percussion: 40.0
+    guard: 40.0
+    general_effect: 38.5
+    ensemble_technique: 40.0

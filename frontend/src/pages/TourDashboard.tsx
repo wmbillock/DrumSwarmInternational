@@ -168,8 +168,9 @@ export function TourDashboard() {
       setAdvanceResult({ seasonId, data: result });
       setRefreshToken((t) => t + 1);
 
-      // Clear phase after 3s
+      // Clear advancing + phase after 3s so the UI shows "Complete!" briefly
       setTimeout(() => {
+        setAdvancing(null);
         setExecutionPhase((prev) => {
           const next = { ...prev };
           delete next[seasonId];
@@ -187,12 +188,15 @@ export function TourDashboard() {
           seasonId,
           data: { status: "running", round: "?", message: "Round is being scored in the background. Refresh to check." },
         });
-        setTimeout(() => setRefreshToken((t) => t + 1), 10000);
+        // Keep advancing state for 10s, then clear and refresh
+        setTimeout(() => {
+          setAdvancing(null);
+          setRefreshToken((t) => t + 1);
+        }, 10000);
       } else {
+        setAdvancing(null);
         setError(e.message || "Failed to advance round");
       }
-    } finally {
-      setAdvancing(null);
     }
   }, [ops]);
 

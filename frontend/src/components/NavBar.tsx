@@ -6,6 +6,7 @@ import * as v1 from "../services/v1";
 
 const NAV_LINKS = [
   { to: "/corps", label: "Corps" },
+  { to: "/performers", label: "Performers" },
   { to: "/shows", label: "Shows" },
   { to: "/design", label: "Design Room" },
   { to: "/seasons", label: "DCI Office" },
@@ -110,6 +111,9 @@ export function NavBar({
             </NavLink>
             <NavLink to="/swarm-health" onClick={closeMobile} className={({ isActive }) => isActive ? "nav-active" : ""}>
               Swarm Health
+            </NavLink>
+            <NavLink to="/staff" onClick={closeMobile} className={({ isActive }) => isActive ? "nav-active" : ""}>
+              Staff Market
             </NavLink>
             <NavLink to="/messages/inbox" onClick={closeMobile} className={({ isActive }) => isActive ? "nav-active" : ""}>
               Messages{unreadCount > 0 && <span className="badge" style={{ marginLeft: 6 }}>{unreadCount}</span>}

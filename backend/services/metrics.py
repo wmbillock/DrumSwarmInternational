@@ -18,10 +18,7 @@ from dataclasses import dataclass, asdict
 from typing import Any, Optional, Dict, List
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
-from backend.database import Base
-from sqlalchemy import String, Text, Float, Integer, DateTime, Enum as SQLEnum, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column
-import uuid
+from backend.models.metrics import MetricsEvent
 import logging
 
 logger = logging.getLogger(__name__)
@@ -72,34 +69,6 @@ class MetricEvent:
     value: Optional[float] = None  # For latency, counts, etc.
     unit: Optional[str] = None  # "ms", "count", "seconds", etc.
     tags: Optional[Dict[str, str]] = None  # Additional context
-
-
-class MetricsEvent(Base):
-    """SQLAlchemy model for metrics event persistence."""
-
-    __tablename__ = "metrics_events"
-
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
-    timestamp: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), index=True
-    )
-    metric_type: Mapped[str] = mapped_column(String(50), index=True)
-    corps_id: Mapped[Optional[str]] = mapped_column(String(36), index=True, nullable=True)
-    agent_role: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    rep_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
-    segment_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
-    session_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
-    value: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    unit: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
-    tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON string
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
-    )
-
-    def __repr__(self) -> str:
-        return f"<MetricsEvent({self.metric_type} at {self.timestamp})>"
 
 
 class MetricsCollector:

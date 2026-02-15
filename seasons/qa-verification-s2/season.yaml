@@ -1,0 +1,65 @@
+season_id: qa-verification-s2
+metadata:
+  name: QA Verification S2
+  status: completed
+  winner: 19836c66-b398-48a4-9958-f669b7e7859d
+shows:
+- stack-overflow
+divisions:
+  stack-overflow:
+  - 19836c66-b398-48a4-9958-f669b7e7859d
+  - c5f1d328-685a-4c60-9c8c-fd880e516571
+  - ec4c11f9-faaa-4113-86b3-902d19200bcb
+config:
+  corps_per_contest: 12
+  required_scores: 1
+  auto_advance: true
+schedule:
+- round: 1
+  competition_id: qa-verification-s2-round-1
+  show_slug: stack-overflow
+  corps_ids:
+  - c5f1d328-685a-4c60-9c8c-fd880e516571
+  - 19836c66-b398-48a4-9958-f669b7e7859d
+  - ec4c11f9-faaa-4113-86b3-902d19200bcb
+  status: completed
+  completed_at: '2026-02-14T20:56:36.461169+00:00'
+  standings:
+  - corps_id: 19836c66-b398-48a4-9958-f669b7e7859d
+    rank: 1
+    final_score: 49.28
+    raw_score: 49.28
+    caption_scores:
+      brass: 40.0
+      percussion: 61.5
+      guard: 40.0
+      visual: 60.0
+      general_effect: 40.0
+      ensemble_technique: 61.5
+  - corps_id: ec4c11f9-faaa-4113-86b3-902d19200bcb
+    rank: 2
+    final_score: 40.660000000000004
+    raw_score: 40.660000000000004
+    caption_scores:
+      percussion: 41.5
+      guard: 40.0
+      brass: 40.0
+      visual: 41.5
+      general_effect: 40.0
+      ensemble_technique: 41.5
+  - corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+    rank: 3
+    final_score: 40.555
+    raw_score: 40.555
+    caption_scores:
+      percussion: 41.5
+      visual: 38.5
+      brass: 41.5
+      guard: 40.0
+      general_effect: 40.0
+      ensemble_technique: 41.5
+locked: true
+registered_corps:
+- 19836c66-b398-48a4-9958-f669b7e7859d
+- c5f1d328-685a-4c60-9c8c-fd880e516571
+- ec4c11f9-faaa-4113-86b3-902d19200bcb
