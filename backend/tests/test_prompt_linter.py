@@ -73,4 +73,4 @@ def test_missing_deliverables_bullets():
         "No bullets here just text.",
     )
     report = lint_prompt(content)
-    assert any(f.section == "Deliverables" and "no bullet" in f.message.lower() for f in report.required_fix)
+    assert any(f.section == "Deliverables" and "no list items" in f.message.lower() for f in report.required_fix)

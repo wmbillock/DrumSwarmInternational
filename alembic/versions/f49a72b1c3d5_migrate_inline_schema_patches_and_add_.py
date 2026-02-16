@@ -172,9 +172,9 @@ def upgrade() -> None:
             sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
         )
 
-    if not _table_exists("corps_config"):
+    if not _table_exists("corps_configs"):
         op.create_table(
-            "corps_config",
+            "corps_configs",
             sa.Column("corps_id", sa.String(36), primary_key=True),
             sa.Column("llm_provider", sa.String(50), nullable=True),
             sa.Column("llm_model_override", sa.String(100), nullable=True),
@@ -229,7 +229,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     # Drop new tables (in reverse order of creation)
     for table in [
-        "operations", "experiment_results", "corps_config",
+        "operations", "experiment_results", "corps_configs",
         "self_improvement_log", "task_memory", "agent_memory",
         "agent_experience", "metrics_trends", "metrics_aggregates",
         "metrics_events",

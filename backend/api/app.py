@@ -191,6 +191,10 @@ from backend.api.v1.ci import router as v1_ci_router
 from backend.api.v1.awards import router as v1_awards_router
 from backend.api.v1.misc import router as v1_misc_router
 from backend.api.v1.scoreboards import router as v1_scoreboards_router
+from backend.api.v1.drill_books import router as v1_drill_books_router
+from backend.api.v1.experiments import router as v1_experiments_router
+from backend.api.v1.images import router as v1_images_router
+from backend.api.v1.model_strategy import router as v1_model_strategy_router
 
 for _r in [
     v1_corps_router, v1_design_router, v1_competitions_router, v1_messaging_router,
@@ -199,7 +203,8 @@ for _r in [
     v1_metrics_router, v1_critique_router, v1_evolution_router, v1_admin_router,
     v1_judging_router, v1_self_improvement_router, v1_agents_router, v1_staff_router,
     v1_templates_router, v1_ci_router, v1_awards_router, v1_misc_router,
-    v1_scoreboards_router,
+    v1_scoreboards_router, v1_drill_books_router, v1_experiments_router,
+    v1_images_router, v1_model_strategy_router,
 ]:
     app.include_router(_r)
 
