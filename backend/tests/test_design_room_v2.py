@@ -29,7 +29,7 @@ def _create_thread(client, title="Test Show"):
 FULL_PROMPT = """# Test Show
 
 ## Objective
-Create a dramatic show exploring light and shadow through brass scoring and visual design.
+Build a dramatic exploration of light and shadow with full brass scoring and guard features.
 
 ## Show Concept
 A dramatic exploration of light and shadow with full brass scoring.
