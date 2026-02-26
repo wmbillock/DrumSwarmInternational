@@ -1,10 +1,79 @@
 season_id: winter-2026
 metadata:
   season_id: winter-2026
-shows: []
-divisions: {}
+  name: Winter 2026
+  description: Winter camps and early-season preparation. All 12 founding corps.
+  start_date: '2026-01-15'
+  end_date: '2026-03-31'
+shows:
+- fix-performers-and-staff-differentiation
+- asynchronous-messaging-system
+- corps-creation-modal
+divisions:
+  world_class:
+  - the-quiet-trumpets
+  - the-arrhythmic-drumline
+  - the-dropless-color-guard
+  - corps-is-stored-in-the-lips
+  - all-your-beats-are-belong-to-us
+  - the-backfield-flagboxes
+  open_class:
+  - we-only-march-baris
+  - pit-happens
+  - sabre-rattling
+  - the-accidental-crescendo
+  - several-loud-rimshots
+  - toss-and-pray
 config:
   corps_per_contest: 12
   required_scores: 1
-schedule: []
+  max_rounds: 3
+schedule:
+- round: 1
+  competition_id: winter-2026-camp-1
+  show_slug: fix-performers-and-staff-differentiation
+  corps_ids:
+  - the-quiet-trumpets
+  - the-arrhythmic-drumline
+  - the-dropless-color-guard
+  - corps-is-stored-in-the-lips
+  - all-your-beats-are-belong-to-us
+  - the-backfield-flagboxes
+  - we-only-march-baris
+  - pit-happens
+  - sabre-rattling
+  - the-accidental-crescendo
+  - several-loud-rimshots
+  - toss-and-pray
+  status: pending
+- round: 2
+  competition_id: winter-2026-camp-2
+  show_slug: asynchronous-messaging-system
+  corps_ids:
+  - the-quiet-trumpets
+  - the-arrhythmic-drumline
+  - the-dropless-color-guard
+  - corps-is-stored-in-the-lips
+  - all-your-beats-are-belong-to-us
+  - the-backfield-flagboxes
+  - we-only-march-baris
+  - pit-happens
+  - sabre-rattling
+  - the-accidental-crescendo
+  - several-loud-rimshots
+  - toss-and-pray
+  status: pending
 locked: false
+registered_corps:
+- the-quiet-trumpets
+- the-arrhythmic-drumline
+- the-dropless-color-guard
+- corps-is-stored-in-the-lips
+- all-your-beats-are-belong-to-us
+- the-backfield-flagboxes
+- we-only-march-baris
+- pit-happens
+- sabre-rattling
+- the-accidental-crescendo
+- several-loud-rimshots
+- toss-and-pray
