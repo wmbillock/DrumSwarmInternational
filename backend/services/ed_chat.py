@@ -111,7 +111,7 @@ def _get_seance_llm_client():
     import os
 
     # Try Anthropic API first
-    if os.environ.get("ANTHROPIC_API_KEY"):
+    if os.environ.get("ANTHROPIC_SDK_API_KEY") or os.environ.get("ANTHROPIC_API_KEY"):
         try:
             from backend.services.llm_client import AnthropicLLMClient
             return AnthropicLLMClient()

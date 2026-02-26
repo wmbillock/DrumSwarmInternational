@@ -190,5 +190,5 @@ def get_batch_queue(api_key: Optional[str] = None) -> BatchQueue:
     global _batch_queue
     if _batch_queue is None:
         import os
-        _batch_queue = BatchQueue(api_key=api_key or os.environ.get("ANTHROPIC_API_KEY"))
+        _batch_queue = BatchQueue(api_key=api_key or os.environ.get("ANTHROPIC_SDK_API_KEY") or os.environ.get("ANTHROPIC_API_KEY"))
     return _batch_queue

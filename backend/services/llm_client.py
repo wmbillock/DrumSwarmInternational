@@ -128,7 +128,7 @@ class AnthropicLLMClient(LLMClient):
 
     def __init__(self, api_key: Optional[str] = None):
         import anthropic
-        self._client = anthropic.Anthropic(api_key=api_key or os.environ.get("ANTHROPIC_API_KEY"))
+        self._client = anthropic.Anthropic(api_key=api_key or os.environ.get("ANTHROPIC_SDK_API_KEY") or os.environ.get("ANTHROPIC_API_KEY"))
         self._batch_queue: list[BatchRequest] = []
         self._batch_results: dict[str, LLMResponse] = {}
         self._batch_jobs: dict[str, dict] = {}
@@ -1347,7 +1347,7 @@ def build_llm_client(force_mock: bool = False) -> LLMClient:
     providers: list[tuple[str, LLMClient]] = []
 
     # 1. Anthropic API (highest priority — direct, reliable, no context injection)
-    if os.environ.get("ANTHROPIC_API_KEY"):
+    if os.environ.get("ANTHROPIC_SDK_API_KEY") or os.environ.get("ANTHROPIC_API_KEY"):
         providers.append(("anthropic-api", AnthropicLLMClient()))
         logger.info("LLM provider available: Anthropic API")
 

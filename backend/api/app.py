@@ -7,6 +7,10 @@ import os
 from contextlib import asynccontextmanager
 from typing import Optional
 
+from dotenv import load_dotenv
+
+load_dotenv()  # Load .env file if present
+
 from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse

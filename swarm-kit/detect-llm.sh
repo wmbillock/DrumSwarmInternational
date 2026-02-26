@@ -137,18 +137,20 @@ else
 fi
 
 # --- Anthropic API Key ---
-if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
-    echo -e "  ${GREEN}[found]${NC}  Anthropic API (ANTHROPIC_API_KEY set)"
+if [ -n "${ANTHROPIC_SDK_API_KEY:-}" ] || [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+    _anthro_var="ANTHROPIC_API_KEY"
+    [ -n "${ANTHROPIC_SDK_API_KEY:-}" ] && _anthro_var="ANTHROPIC_SDK_API_KEY"
+    echo -e "  ${GREEN}[found]${NC}  Anthropic API (${_anthro_var} set)"
     cat >> "$OUTPUT_FILE" <<EOF
   - name: anthropic-api
     type: api
-    env_var: ANTHROPIC_API_KEY
+    env_var: ${_anthro_var}
     priority: 3
     status: available
 EOF
     providers_found=$((providers_found + 1))
 else
-    echo -e "  ${YELLOW}[missing]${NC} Anthropic API — set ANTHROPIC_API_KEY"
+    echo -e "  ${YELLOW}[missing]${NC} Anthropic API — set ANTHROPIC_SDK_API_KEY or ANTHROPIC_API_KEY"
 fi
 
 # --- OpenAI API Key ---

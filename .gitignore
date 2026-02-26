@@ -1,3 +1,6 @@
+# Secrets
+.env
+
 # Swarm-kit generated
 swarm-kit/.llm-providers.yaml
 

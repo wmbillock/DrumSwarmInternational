@@ -23,6 +23,10 @@ from typing import Optional
 # Ensure project root is on path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
+from dotenv import load_dotenv
+
+load_dotenv()  # Load .env file if present
+
 
 EULER_PROBLEMS = {
     1: "Find the sum of all multiples of 3 or 5 below 1000.",
@@ -247,7 +251,7 @@ def build_llm_client():
         # Try to get a real client for planning
         if shutil.which("claude"):
             inner = ClaudeCLIClient()
-        elif os.environ.get("ANTHROPIC_API_KEY"):
+        elif os.environ.get("ANTHROPIC_SDK_API_KEY") or os.environ.get("ANTHROPIC_API_KEY"):
             inner = AnthropicLLMClient()
         log(YELLOW, "drill", "Dry-run: using SimulationLLMClient")
         return SimulationLLMClient(inner)
@@ -256,7 +260,7 @@ def build_llm_client():
 
     if shutil.which("claude"):
         clients.append(("claude_cli", ClaudeCLIClient()))
-    if os.environ.get("ANTHROPIC_API_KEY"):
+    if os.environ.get("ANTHROPIC_SDK_API_KEY") or os.environ.get("ANTHROPIC_API_KEY"):
         clients.append(("anthropic_api", AnthropicLLMClient()))
     if shutil.which("chatgpt"):
         clients.append(("chatgpt_cli", ChatGPTCLIClient()))
