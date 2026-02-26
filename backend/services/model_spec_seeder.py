@@ -34,16 +34,52 @@ DEFAULT_SPECS: list[tuple[str, str, str, str]] = [
         "general,testing,quick_tasks",
     ),
     (
-        "deepseek-coder-v2",
+        "qwen2.5-32b",
+        "ollama",
+        "qwen2.5:32b",
+        "general,backend,frontend,testing,architecture",
+    ),
+    (
+        "deepseek-coder-v2-16b",
         "ollama",
         "deepseek-coder-v2:16b",
         "backend,frontend,testing",
     ),
     (
-        "qwen2.5-coder",
+        "qwen2.5-coder-32b",
         "ollama",
-        "qwen2.5-coder:7b",
-        "frontend,backend",
+        "qwen2.5-coder:32b",
+        "backend,frontend,testing,architecture",
+    ),
+    (
+        "codestral-22b",
+        "ollama",
+        "codestral:22b",
+        "backend,frontend,testing",
+    ),
+    (
+        "phi-4-14b",
+        "ollama",
+        "phi4:14b",
+        "general,testing,quick_tasks",
+    ),
+    (
+        "gemma3-27b",
+        "ollama",
+        "gemma3:27b",
+        "general,backend,frontend,architecture",
+    ),
+    (
+        "qwen2.5-7b",
+        "ollama",
+        "qwen2.5:7b",
+        "general,quick_tasks",
+    ),
+    (
+        "deepseek-coder-6.7b",
+        "ollama",
+        "deepseek-coder:6.7b",
+        "backend,frontend,quick_tasks",
     ),
 ]
 

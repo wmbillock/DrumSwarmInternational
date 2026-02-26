@@ -60,9 +60,17 @@ class TestSeedDefaultSpecs:
         assert opus is not None
         assert "architecture" in opus.categories_list
 
+        qwen = (
+            db.query(ModelSpec)
+            .filter(ModelSpec.provider == "ollama", ModelSpec.name == "qwen2.5-32b")
+            .first()
+        )
+        assert qwen is not None
+        assert qwen.model_id == "qwen2.5:32b"
+
         deepseek = (
             db.query(ModelSpec)
-            .filter(ModelSpec.provider == "ollama", ModelSpec.name == "deepseek-coder-v2")
+            .filter(ModelSpec.provider == "ollama", ModelSpec.name == "deepseek-coder-v2-16b")
             .first()
         )
         assert deepseek is not None

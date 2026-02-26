@@ -832,9 +832,9 @@ class OllamaClient(LLMClient):
     """
 
     OLLAMA_MODEL_MAP = {
-        ModelTier.OPUS: "qwen3-coder:30b",  # Best quality coding model
-        ModelTier.SONNET: "qwen3-coder:30b",  # Good balance for coding
-        ModelTier.HAIKU: "deepseek-coder:6.7b",  # Fast coding model
+        ModelTier.OPUS: "qwen2.5-coder:32b",  # Best quality coding model
+        ModelTier.SONNET: "deepseek-coder-v2:16b",  # Good coding, fits in RAM with headroom
+        ModelTier.HAIKU: "qwen2.5:7b",  # Fast utility model
     }
 
     def __init__(self, base_url: str | None = None):
@@ -1409,13 +1409,19 @@ def build_llm_client(force_mock: bool = False) -> LLMClient:
 
     # 1. Anthropic API (highest priority — direct, reliable, no context injection)
     if os.environ.get("ANTHROPIC_SDK_API_KEY") or os.environ.get("ANTHROPIC_API_KEY"):
-        providers.append(("anthropic-api", AnthropicLLMClient()))
-        logger.info("LLM provider available: Anthropic API")
+        try:
+            providers.append(("anthropic-api", AnthropicLLMClient()))
+            logger.info("LLM provider available: Anthropic API")
+        except ImportError:
+            logger.warning("ANTHROPIC_API_KEY set but 'anthropic' package not installed — skipping")
 
     # 2. OpenAI API
     if os.environ.get("OPENAI_API_KEY"):
-        providers.append(("openai-api", OpenAIClient()))
-        logger.info("LLM provider available: OpenAI API")
+        try:
+            providers.append(("openai-api", OpenAIClient()))
+            logger.info("LLM provider available: OpenAI API")
+        except ImportError:
+            logger.warning("OPENAI_API_KEY set but 'openai' package not installed — skipping")
 
     # 3. Ollama (local — free, no API limits)
     if OllamaClient.is_available():
