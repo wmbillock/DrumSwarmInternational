@@ -1021,9 +1021,17 @@ export const listDBShows = (signal?: AbortSignal) =>
 
 // --- Performers ---
 
-export const listPerformers = (status?: string, signal?: AbortSignal) => {
-  const params = status ? `?status=${encodeURIComponent(status)}` : "";
-  return request<any[]>(`/api/v1/performers${params}`, { signal });
+export const listPerformers = (
+  opts?: { status?: string; category?: string; staff_only?: boolean; performers_only?: boolean },
+  signal?: AbortSignal,
+) => {
+  const params = new URLSearchParams();
+  if (opts?.status) params.set("status", opts.status);
+  if (opts?.category) params.set("category", opts.category);
+  if (opts?.staff_only) params.set("staff_only", "true");
+  if (opts?.performers_only) params.set("performers_only", "true");
+  const qs = params.toString();
+  return request<any[]>(`/api/v1/performers${qs ? `?${qs}` : ""}`, { signal });
 };
 
 export const getPerformer = (id: string, signal?: AbortSignal) =>
@@ -1040,6 +1048,23 @@ export const getPerformerStats = (id: string, signal?: AbortSignal) =>
 
 export const getPerformerGenome = (id: string, signal?: AbortSignal) =>
   request<any>(`/api/v1/performers/${id}/genome`, { signal });
+
+// --- Staff ---
+
+export const listStaffRoster = (signal?: AbortSignal) =>
+  request<{ staff: any[]; count: number }>(`/api/v1/staff/roster`, { signal });
+
+export const hireStaffMember = (performerId: string, role: string) =>
+  request<any>(`/api/v1/staff/hire`, {
+    method: "POST",
+    body: JSON.stringify({ performer_id: performerId, role }),
+  });
+
+export const releaseStaffMember = (performerId: string, trustPenalty = 0) =>
+  request<any>(`/api/v1/staff/release`, {
+    method: "POST",
+    body: JSON.stringify({ performer_id: performerId, trust_penalty: trustPenalty }),
+  });
 
 // --- Segments ---
 

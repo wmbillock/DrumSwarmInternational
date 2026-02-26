@@ -2,15 +2,20 @@
 
 Performers are persistent agent identities that accumulate reputation across
 shows. Trust scores drive audition selection and retirement decisions.
+
+Staff vs. Performers:
+- Staff are verified individuals hired directly (not drafted).
+- Performers are unverified until auditioned; they enter via the draft.
 """
 
 import logging
 import random
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from backend.models.performer import Performer, PerformerStatus
+from backend.models.performer import AgentCategory, Performer, PerformerStatus
 from backend.services.memory_bank import get_memory_bank
 
 logger = logging.getLogger(__name__)
@@ -18,6 +23,7 @@ logger = logging.getLogger(__name__)
 # Trust thresholds
 TRUST_RETIREMENT_THRESHOLD = 20.0
 TRUST_PROBATION_THRESHOLD = 30.0
+TRUST_STAFF_HIRE_THRESHOLD = 60.0
 TRUST_INITIAL = 50.0
 TRUST_MAX = 100.0
 TRUST_MIN = 0.0
@@ -98,11 +104,25 @@ def get_performers_by_role(
 def list_performers(
     db: Session,
     status: Optional[PerformerStatus] = None,
+    category: Optional[str] = None,
+    staff_only: bool = False,
+    performers_only: bool = False,
 ) -> list[Performer]:
-    """List all performers, optionally filtered by status."""
+    """List performers, optionally filtered by status and/or category.
+
+    - staff_only=True: only instructional/admin staff (is_verified=True)
+    - performers_only=True: only unverified performers (category='performer')
+    - category: filter by specific AgentCategory value
+    """
     q = db.query(Performer)
     if status:
         q = q.filter(Performer.status == status)
+    if staff_only:
+        q = q.filter(Performer.agent_category != AgentCategory.PERFORMER.value)
+    elif performers_only:
+        q = q.filter(Performer.agent_category == AgentCategory.PERFORMER.value)
+    elif category:
+        q = q.filter(Performer.agent_category == category)
     return q.order_by(Performer.trust_score.desc()).all()
 
 
@@ -258,3 +278,68 @@ def audition_for_role(
 
     # Pick the highest trust from candidates
     return max(candidates, key=lambda p: p.trust_score)
+
+
+def hire_staff(
+    db: Session,
+    performer_id: str,
+    category: str = AgentCategory.INSTRUCTIONAL_STAFF.value,
+    verified_by: Optional[str] = None,
+) -> Performer:
+    """Promote a performer to verified staff status.
+
+    Requires trust_score >= TRUST_STAFF_HIRE_THRESHOLD (60.0).
+    Staff are not drafted — they are hired directly into corps roles.
+    """
+    performer = db.get(Performer, performer_id)
+    if performer is None:
+        raise ValueError(f"Performer {performer_id} not found")
+    if performer.status == PerformerStatus.RETIRED:
+        raise ValueError(f"Cannot hire retired performer {performer.name}")
+    if performer.trust_score < TRUST_STAFF_HIRE_THRESHOLD:
+        raise ValueError(
+            f"Trust too low ({performer.trust_score:.1f}) — "
+            f"minimum {TRUST_STAFF_HIRE_THRESHOLD} required for staff hire"
+        )
+
+    performer.agent_category = category
+    performer.is_verified = True
+    performer.verified_at = datetime.now(timezone.utc)
+    performer.verified_by = verified_by or "system"
+    db.commit()
+    db.refresh(performer)
+    logger.info(
+        "Hired %s as %s (verified by %s)",
+        performer.name, category, verified_by,
+    )
+    return performer
+
+
+def release_staff(
+    db: Session,
+    performer_id: str,
+    reason: str = "",
+    trust_penalty: float = 0.0,
+) -> Performer:
+    """Demote staff back to performer status, optionally with trust penalty."""
+    performer = db.get(Performer, performer_id)
+    if performer is None:
+        raise ValueError(f"Performer {performer_id} not found")
+
+    old_category = performer.agent_category
+    performer.agent_category = AgentCategory.PERFORMER.value
+    performer.is_verified = False
+    performer.verified_at = None
+    performer.verified_by = None
+    db.commit()
+
+    logger.info(
+        "Released %s from %s back to performer: %s",
+        performer.name, old_category, reason,
+    )
+
+    if trust_penalty > 0:
+        performer = update_trust(db, performer_id, -trust_penalty, reason=f"staff_release: {reason}")
+
+    db.refresh(performer)
+    return performer

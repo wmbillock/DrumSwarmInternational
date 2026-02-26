@@ -35,6 +35,8 @@ def v1_list_staff_marketplace():
                     "successful_sessions": p.successful_sessions,
                     "failed_sessions": p.failed_sessions,
                     "status": p.status.value if p.status else None,
+                    "agent_category": getattr(p, "agent_category", "performer"),
+                    "is_verified": getattr(p, "is_verified", False),
                     "age": p.age,
                     "experience_seasons": p.experience_seasons,
                     "specialties": p.specialties,
@@ -43,6 +45,99 @@ def v1_list_staff_marketplace():
             ],
             "count": len(performers),
         }
+    finally:
+        db.close()
+
+
+@router.get("/staff/roster")
+def v1_list_staff():
+    """List only verified staff members (excludes performers)."""
+    from backend.services.performer_service import list_performers
+
+    db = _get_db_session()
+    try:
+        staff = list_performers(db, staff_only=True)
+        return {
+            "staff": [
+                {
+                    "id": p.id,
+                    "name": p.name,
+                    "role_type": p.role_type,
+                    "agent_category": getattr(p, "agent_category", "performer"),
+                    "is_verified": getattr(p, "is_verified", False),
+                    "verified_at": p.verified_at.isoformat() if getattr(p, "verified_at", None) else None,
+                    "verified_by": getattr(p, "verified_by", None),
+                    "trust_score": p.trust_score,
+                    "total_sessions": p.total_sessions,
+                    "successful_sessions": p.successful_sessions,
+                    "failed_sessions": p.failed_sessions,
+                    "status": p.status.value if p.status else None,
+                    "experience_seasons": p.experience_seasons,
+                    "specialties": p.specialties,
+                }
+                for p in staff
+            ],
+            "count": len(staff),
+        }
+    finally:
+        db.close()
+
+
+@router.post("/staff/hire")
+def v1_hire_staff(body: HireStaffRequest):
+    """Promote a performer to verified staff status.
+
+    Requires trust >= 60.0. Staff are hired directly, not drafted.
+    """
+    from backend.services.performer_service import hire_staff
+
+    _validate_id(body.performer_id, "performer_id")
+
+    db = _get_db_session()
+    try:
+        p = hire_staff(
+            db,
+            performer_id=body.performer_id,
+            category=body.role,
+            verified_by="api",
+        )
+        return {
+            "id": p.id,
+            "name": p.name,
+            "agent_category": p.agent_category,
+            "is_verified": p.is_verified,
+            "trust_score": round(p.trust_score, 1),
+        }
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    finally:
+        db.close()
+
+
+@router.post("/staff/release")
+def v1_release_staff(body: ReleaseStaffRequest):
+    """Release a staff member back to performer status."""
+    from backend.services.performer_service import release_staff
+
+    _validate_id(body.performer_id, "performer_id")
+
+    db = _get_db_session()
+    try:
+        p = release_staff(
+            db,
+            performer_id=body.performer_id,
+            reason="Released via API",
+            trust_penalty=body.trust_penalty,
+        )
+        return {
+            "id": p.id,
+            "name": p.name,
+            "agent_category": p.agent_category,
+            "is_verified": p.is_verified,
+            "trust_score": round(p.trust_score, 1),
+        }
+    except ValueError as e:
+        raise HTTPException(400, str(e))
     finally:
         db.close()
 

@@ -10,9 +10,21 @@ router = APIRouter(prefix="/api/v1")
 
 
 @router.get("/performers")
-def v1_list_performers(status: Optional[str] = None):
-    """List all performers with optional status filter."""
-    from backend.models.performer import Performer, PerformerStatus
+def v1_list_performers(
+    status: Optional[str] = None,
+    category: Optional[str] = None,
+    staff_only: bool = False,
+    performers_only: bool = False,
+):
+    """List performers with optional status/category filters.
+
+    Query params:
+    - status: active, probation, retired
+    - category: performer, instructional_staff, administrative_staff
+    - staff_only: true — only verified staff
+    - performers_only: true — only unverified performers (excludes staff)
+    """
+    from backend.models.performer import PerformerStatus
     from backend.services.performer_service import list_performers
 
     ps = None
@@ -24,7 +36,10 @@ def v1_list_performers(status: Optional[str] = None):
 
     db = _get_db_session()
     try:
-        performers = list_performers(db, status=ps)
+        performers = list_performers(
+            db, status=ps, category=category,
+            staff_only=staff_only, performers_only=performers_only,
+        )
         return [{
             "id": p.id,
             "name": p.name,
@@ -34,6 +49,8 @@ def v1_list_performers(status: Optional[str] = None):
             "successful_sessions": p.successful_sessions,
             "failed_sessions": p.failed_sessions,
             "status": p.status.value,
+            "agent_category": getattr(p, "agent_category", "performer"),
+            "is_verified": getattr(p, "is_verified", False),
             "retirement_reason": p.retirement_reason,
             "created_at": p.created_at.isoformat() if p.created_at else None,
         } for p in performers]
@@ -60,6 +77,10 @@ def v1_get_performer(performer_id: str):
             "successful_sessions": p.successful_sessions,
             "failed_sessions": p.failed_sessions,
             "status": p.status.value,
+            "agent_category": getattr(p, "agent_category", "performer"),
+            "is_verified": getattr(p, "is_verified", False),
+            "verified_at": p.verified_at.isoformat() if getattr(p, "verified_at", None) else None,
+            "verified_by": getattr(p, "verified_by", None),
             "specialties": p.specialties,
             "retirement_reason": p.retirement_reason,
             "created_at": p.created_at.isoformat() if p.created_at else None,

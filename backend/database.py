@@ -65,6 +65,10 @@ def _apply_schema_patches(engine) -> None:
         ("corps", "corps_type", "VARCHAR(20) DEFAULT 'competing'"),
         ("critique_sessions", "is_automated", "BOOLEAN DEFAULT 0"),
         ("corps", "color_scheme", "TEXT"),
+        ("performers", "agent_category", "VARCHAR(30) DEFAULT 'performer'"),
+        ("performers", "is_verified", "BOOLEAN DEFAULT 0"),
+        ("performers", "verified_at", "DATETIME"),
+        ("performers", "verified_by", "VARCHAR(100)"),
     ]
 
     with engine.connect() as conn:

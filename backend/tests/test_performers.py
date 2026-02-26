@@ -192,3 +192,87 @@ class TestPerformerListing:
         create_performer(db, "guard_tech")
         brass = get_performers_by_role(db, "brass_tech")
         assert len(brass) == 2
+
+    def test_list_staff_only(self, db):
+        from backend.services.performer_service import create_performer, hire_staff, list_performers, update_trust
+        p1 = create_performer(db, "brass_tech", name="Staff One")
+        update_trust(db, p1.id, 15.0, "boost")  # push above 60
+        hire_staff(db, p1.id, category="instructional_staff")
+        create_performer(db, "brass_tech", name="Performer One")
+
+        staff = list_performers(db, staff_only=True)
+        assert len(staff) == 1
+        assert staff[0].name == "Staff One"
+
+    def test_list_performers_only(self, db):
+        from backend.services.performer_service import create_performer, hire_staff, list_performers, update_trust
+        p1 = create_performer(db, "brass_tech", name="Staff Two")
+        update_trust(db, p1.id, 15.0, "boost")
+        hire_staff(db, p1.id, category="instructional_staff")
+        create_performer(db, "guard_tech", name="Performer Two")
+
+        perfs = list_performers(db, performers_only=True)
+        assert len(perfs) == 1
+        assert perfs[0].name == "Performer Two"
+
+
+class TestStaffHireRelease:
+    def test_hire_staff_sets_verified(self, db):
+        from backend.services.performer_service import create_performer, hire_staff, update_trust
+        p = create_performer(db, "brass_caption_head", name="Hireable")
+        update_trust(db, p.id, 15.0, "boost")  # trust = 65
+        p = hire_staff(db, p.id, category="instructional_staff", verified_by="test-corps")
+        assert p.agent_category == "instructional_staff"
+        assert p.is_verified is True
+        assert p.verified_by == "test-corps"
+        assert p.verified_at is not None
+
+    def test_hire_staff_requires_trust_threshold(self, db):
+        from backend.services.performer_service import create_performer, hire_staff
+        p = create_performer(db, "brass_tech", name="Low Trust Hire")
+        # trust = 50, threshold = 60
+        with pytest.raises(ValueError, match="Trust too low"):
+            hire_staff(db, p.id)
+
+    def test_hire_staff_rejects_retired(self, db):
+        from backend.services.performer_service import create_performer, retire_performer, hire_staff
+        p = create_performer(db, "brass_tech", name="Retired Hire")
+        retire_performer(db, p.id, "done")
+        with pytest.raises(ValueError, match="retired"):
+            hire_staff(db, p.id)
+
+    def test_release_staff_resets_to_performer(self, db):
+        from backend.services.performer_service import create_performer, hire_staff, release_staff, update_trust
+        p = create_performer(db, "percussion_caption_head", name="Releasable")
+        update_trust(db, p.id, 15.0, "boost")
+        hire_staff(db, p.id, category="instructional_staff")
+        assert p.is_verified is True
+
+        p = release_staff(db, p.id, reason="no longer needed")
+        assert p.agent_category == "performer"
+        assert p.is_verified is False
+        assert p.verified_at is None
+
+    def test_release_staff_with_trust_penalty(self, db):
+        from backend.services.performer_service import create_performer, hire_staff, release_staff, update_trust
+        p = create_performer(db, "guard_caption_head", name="Penalized")
+        update_trust(db, p.id, 15.0, "boost")  # 65
+        hire_staff(db, p.id, category="instructional_staff")
+
+        p = release_staff(db, p.id, reason="underperforming", trust_penalty=10.0)
+        assert p.agent_category == "performer"
+        assert p.trust_score == 55.0  # 65 - 10
+
+    def test_is_staff_property(self, db):
+        from backend.services.performer_service import create_performer, hire_staff, update_trust
+        p = create_performer(db, "brass_tech", name="Prop Test")
+        assert p.is_staff is False
+        update_trust(db, p.id, 15.0, "boost")
+        hire_staff(db, p.id, category="administrative_staff")
+        assert p.is_staff is True
+
+    def test_agent_category_default_is_performer(self, db):
+        from backend.services.performer_service import create_performer
+        p = create_performer(db, "performer", name="Default Cat")
+        assert p.agent_category == "performer"
+        assert p.is_verified is False

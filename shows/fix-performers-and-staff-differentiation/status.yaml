@@ -1,1 +1,15 @@
-status: draft
+status: completed
+completed_at: '2026-02-26'
+implementation_notes: |-
+  - Added agent_category and is_verified columns to Performer model
+  - Staff (is_verified=True) are hired directly with trust >= 60 threshold
+  - Performers (is_verified=False) are drafted from the talent pool
+  - hire_staff() and release_staff() service functions with trust gating
+  - Drafting system now skips staff (only drafts unverified performers)
+  - /api/v1/performers supports staff_only/performers_only query filters
+  - /api/v1/staff/roster, /hire, /release endpoints added
+  - Frontend Performers page split into Performers/Staff/All tabs
+  - Talent pool YAML export includes agent_category and is_verified
+  - Schema patches for existing databases (backward compatible)
+  - 9 new tests (27 total in test_performers.py), all passing
+summary: Fix Performers and Staff Differentiation

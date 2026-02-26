@@ -75,6 +75,7 @@ def draft_roster(
             if a.get("primary_instrument") == req.role
             and a.get("availability") == "active"
             and a["agent_id"] not in drafted_ids
+            and a.get("agent_category", "performer") == "performer"  # Staff are hired, not drafted
         ]
         ranked = rank_candidates(candidates, req.preferred_specialties)
         selected = ranked[: req.count]

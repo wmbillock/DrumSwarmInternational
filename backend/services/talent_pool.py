@@ -22,7 +22,7 @@ def _parse_specialties(raw: str | None) -> list[str]:
 
 def performer_to_dict(performer: Performer) -> dict:
     """Convert a DB Performer to a talent-pool schema dict."""
-    return {
+    d = {
         "agent_id": performer.id,
         "display_name": performer.name,
         "primary_instrument": performer.role_type,
@@ -34,7 +34,10 @@ def performer_to_dict(performer: Performer) -> dict:
         "experience_seasons": performer.experience_seasons,
         "last_active_season": performer.experience_seasons,
         "specialties": _parse_specialties(performer.specialties),
+        "agent_category": getattr(performer, "agent_category", "performer"),
+        "is_verified": getattr(performer, "is_verified", False),
     }
+    return d
 
 
 def validate_agent_dict(data: dict) -> None:
