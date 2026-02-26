@@ -13,11 +13,9 @@ Uses append-only immutable aggregates for consistency.
 import enum
 from datetime import datetime, timezone, timedelta
 from typing import Dict, List, Optional, Any
-from sqlalchemy.orm import Session, Mapped, mapped_column
-from sqlalchemy import select, func, String, Float, DateTime, Integer, text
-from sqlalchemy.types import JSON
-from backend.database import Base
-import uuid
+from sqlalchemy.orm import Session
+from sqlalchemy import select, func, text
+from backend.models.metrics import MetricsAggregate, MetricsTrend
 import json
 import logging
 
@@ -31,98 +29,6 @@ class AggregateWindow(str, enum.Enum):
     FIVE_MINUTE = "5m"  # 5-minute buckets
     HOUR = "1h"      # hourly buckets
     DAY = "1d"       # daily buckets
-
-
-class MetricsAggregate(Base):
-    """SQLAlchemy model for aggregated metrics."""
-
-    __tablename__ = "metrics_aggregates"
-
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
-    # Identification
-    bucket_start: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), index=True
-    )
-    window: Mapped[str] = mapped_column(String(10), index=True)  # "1m", "5m", "1h", "1d"
-    metric_type: Mapped[str] = mapped_column(String(50), index=True)
-
-    # Context filters
-    corps_id: Mapped[Optional[str]] = mapped_column(String(36), index=True, nullable=True)
-    agent_role: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-
-    # Aggregate values
-    count: Mapped[int] = mapped_column(Integer, default=0)
-    sum_value: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    min_value: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    max_value: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    mean_value: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    p50_value: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    p95_value: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    p99_value: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-
-    # Metadata
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
-    )
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert aggregate to dictionary."""
-        return {
-            "id": self.id,
-            "bucket_start": self.bucket_start,
-            "window": self.window,
-            "metric_type": self.metric_type,
-            "corps_id": self.corps_id,
-            "agent_role": self.agent_role,
-            "count": self.count,
-            "sum": self.sum_value,
-            "min": self.min_value,
-            "max": self.max_value,
-            "mean": self.mean_value,
-            "p50": self.p50_value,
-            "p95": self.p95_value,
-            "p99": self.p99_value,
-        }
-
-    def __repr__(self) -> str:
-        return f"<MetricsAggregate({self.metric_type} {self.window} @ {self.bucket_start})>"
-
-
-class MetricsTrend(Base):
-    """SQLAlchemy model for trend analysis."""
-
-    __tablename__ = "metrics_trends"
-
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
-    # Identification
-    period_start: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), index=True
-    )
-    period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    period_days: Mapped[int] = mapped_column(Integer)  # 7, 30, etc.
-    metric_type: Mapped[str] = mapped_column(String(50), index=True)
-
-    # Context
-    corps_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
-    agent_role: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-
-    # Trend metrics
-    avg_value: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    prev_period_avg: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    rate_of_change: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    trend_direction: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)  # "up", "down", "flat"
-
-    # Metadata
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
-    )
-
-    def __repr__(self) -> str:
-        return f"<MetricsTrend({self.metric_type} {self.period_days}d {self.trend_direction})>"
 
 
 class MetricsAggregator:
@@ -155,7 +61,7 @@ class MetricsAggregator:
         Returns:
             Number of aggregates created
         """
-        from backend.services.metrics import MetricsEvent
+        from backend.models.metrics import MetricsEvent
 
         if start_time is None:
             start_time = datetime.now(timezone.utc) - timedelta(hours=24)
@@ -269,7 +175,7 @@ class MetricsAggregator:
         Returns:
             MetricsTrend object or None if no data
         """
-        from backend.services.metrics import MetricsEvent
+        from backend.models.metrics import MetricsEvent
 
         if end_time is None:
             end_time = datetime.now(timezone.utc)
@@ -423,7 +329,7 @@ class MetricsAggregator:
         agent_role: Optional[str]
     ) -> Dict[str, Optional[float]]:
         """Calculate percentiles for a metric in a time window."""
-        from backend.services.metrics import MetricsEvent
+        from backend.models.metrics import MetricsEvent
 
         query = select(MetricsEvent.value).where(
             MetricsEvent.metric_type == metric_type,

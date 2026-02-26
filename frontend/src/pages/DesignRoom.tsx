@@ -16,25 +16,31 @@ function ThreadDetail({ showSlug }: { showSlug: string }) {
   const [showPublishGate, setShowPublishGate] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (signal?: AbortSignal) => {
     try {
       const [brief, threads] = await Promise.all([
-        v1.getBrief(showSlug),
-        v1.listThreads(),
+        v1.getBrief(showSlug, signal),
+        v1.listThreads(signal),
       ]);
+      if (signal?.aborted) return;
       setSpecContent(brief.content);
       const thread = threads.find(t => t.slug === showSlug);
       if (thread) setThreadStatus(thread.status);
       setError(null);
       setRefreshKey(k => k + 1);
     } catch (err: any) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       setError(err.message);
     } finally {
       setLoading(false);
     }
   }, [showSlug]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    const ac = new AbortController();
+    fetchData(ac.signal);
+    return () => ac.abort();
+  }, [fetchData]);
 
   if (loading) return <div className="page-loading">Loading thread...</div>;
   if (error) {

@@ -11,17 +11,22 @@ export function RunsList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadRuns = () => {
+  const loadRuns = (signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
-    v1.listRuns()
+    v1.listRuns(undefined, signal)
       .then(setRuns)
-      .catch(e => setError(e instanceof Error ? e.message : "Failed to load runs"))
+      .catch(e => {
+        if (e instanceof DOMException && e.name === "AbortError") return;
+        setError(e instanceof Error ? e.message : "Failed to load runs");
+      })
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
-    loadRuns();
+    const ac = new AbortController();
+    loadRuns(ac.signal);
+    return () => ac.abort();
   }, []);
 
   if (loading) return <div className="page-loading">Loading Runs & Rehearsals...</div>;

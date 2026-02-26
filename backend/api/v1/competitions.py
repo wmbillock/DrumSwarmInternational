@@ -638,6 +638,32 @@ def v1_get_recap(competition_id: str, format: str = "json"):
             return []
         rows = []
 
+    # Resolve corps_id → display_name for recap rows (standings.yaml lacks display_name)
+    if rows:
+        corps_name_cache: dict[str, str] = {}
+        for row in rows:
+            cid = row.corps_id
+            if cid not in corps_name_cache:
+                corps_yaml = root / "corps" / cid / "corps.yaml"
+                if corps_yaml.is_file():
+                    try:
+                        data = safe_load_yaml_dict(corps_yaml.read_text(encoding="utf-8"))
+                        corps_name_cache[cid] = data.get("display_name", cid[:8])
+                    except Exception:
+                        corps_name_cache[cid] = cid[:8]
+                else:
+                    try:
+                        from backend.models.corps import Corps as CorpsModel
+                        db = _get_db_session()
+                        try:
+                            corps = db.get(CorpsModel, cid)
+                            corps_name_cache[cid] = corps.name if corps else cid[:8]
+                        finally:
+                            db.close()
+                    except Exception:
+                        corps_name_cache[cid] = cid[:8]
+            row.corps_name = corps_name_cache[cid]
+
     if format == "markdown":
         return {"markdown": export_recap_markdown(rows)}
     elif format == "csv":

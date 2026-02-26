@@ -84,7 +84,7 @@ export function CorpsDetailV2() {
       </div>
     );
   }
-  if (!corps) return <div className="page-error">Corps not found</div>;
+  if (!corps) return <div className="page-error">Corps not found. <button className="secondary" onClick={() => setRefreshToken(t => t + 1)}>Retry</button></div>;
 
   return (
     <div className="page-content">
@@ -173,16 +173,18 @@ function OverviewTab({ corps, onStateChange }: { corps: v1.V1CorpsDetail; onStat
             <tr><td className="cell-primary">Roster Size</td><td>{corps.roster_size}</td></tr>
             {corps.mascot && <tr><td className="cell-primary">Mascot</td><td>{corps.mascot}</td></tr>}
             <tr><td className="cell-primary">History Entries</td><td>{corps.history_count}</td></tr>
-            {(corps as any).logo_path && (
-              <tr><td className="cell-primary">Logo</td><td>
+            <tr><td className="cell-primary">Logo</td><td>
+              {(corps as any).logo_path ? (
                 <img
                   src={`${API_BASE}/generated_images/${(corps as any).logo_path.split("/").pop()}`}
                   alt="Logo"
                   style={{ width: 64, height: 64, borderRadius: 8, objectFit: "cover" }}
                   onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                 />
-              </td></tr>
-            )}
+              ) : (
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>No logo generated</span>
+              )}
+            </td></tr>
           </tbody>
         </table>
         <button

@@ -30,7 +30,7 @@ LOG_FILE = os.path.join(PROJECT_ROOT, "backend.log")
 FE_LOG_FILE = os.path.join(PROJECT_ROOT, "frontend.log")
 
 # ── Tuning ────────────────────────────────────────────────────────────
-_FETCH_TIMEOUT = 0.5  # localhost responds instantly or not at all
+_FETCH_TIMEOUT = 5.0  # seconds — must be long enough for health endpoint DB queries
 _SERVICE_COOLDOWN = 15.0  # seconds to skip retrying a down service
 _REFRESH_INTERVAL = 5.0  # seconds between background refresh cycles
 
@@ -106,7 +106,10 @@ def _check_backend() -> bool:
     now = time.monotonic()
     if now < _backend_down_until:
         return False
-    up = _http_get("/api/v1/system/health") is not None
+    # Try lightweight ping first (instant, no DB), fall back to health (slower)
+    up = _http_get("/api/v1/system/ping", timeout=1.0) is not None
+    if not up:
+        up = _http_get("/api/v1/system/health", timeout=_FETCH_TIMEOUT) is not None
     if not up:
         _backend_down_until = now + _SERVICE_COOLDOWN
     else:

@@ -6,7 +6,7 @@ and restarts, it's the same agent with a new session — not a new agent.
 """
 
 from dataclasses import dataclass
-from sqlalchemy import func as sqlfunc
+from sqlalchemy import func as sqlfunc, and_
 from sqlalchemy.orm import Session
 
 from backend.models.corps import Corps, CorpsStatus, CorpsMode
@@ -35,7 +35,7 @@ class SwarmHealth:
 def get_swarm_health(db: Session) -> SwarmHealth:
     """Aggregate health metrics across all active corps.
 
-    Agents are counted by unique AgentDefinition (role), not by session.
+    Uses bulk queries instead of per-agent queries for performance.
     """
     active_corps_list = (
         db.query(Corps)
@@ -46,6 +46,107 @@ def get_swarm_health(db: Session) -> SwarmHealth:
         .all()
     )
 
+    if not active_corps_list:
+        return SwarmHealth(
+            status="ok", active_corps=0, total_agents=0, active_agents=0,
+            failed_agents=0, total_sessions=0, total_reps=0, completed_reps=0,
+            failed_reps=0, stale_reps=0, failure_rate=0.0, corps_summaries=[],
+        )
+
+    corps_ids = [c.id for c in active_corps_list]
+    corps_map = {c.id: c for c in active_corps_list}
+
+    # Bulk: agent definition counts per corps
+    defn_counts = dict(
+        db.query(AgentDefinition.corps_id, sqlfunc.count(AgentDefinition.id))
+        .filter(AgentDefinition.corps_id.in_(corps_ids))
+        .group_by(AgentDefinition.corps_id)
+        .all()
+    )
+
+    # Bulk: session counts per corps
+    session_counts = dict(
+        db.query(AgentSession.corps_id, sqlfunc.count(AgentSession.id))
+        .filter(AgentSession.corps_id.in_(corps_ids))
+        .group_by(AgentSession.corps_id)
+        .all()
+    )
+
+    # Bulk: active session counts per corps (agents currently alive)
+    active_session_corps = dict(
+        db.query(AgentSession.corps_id, sqlfunc.count(sqlfunc.distinct(AgentSession.definition_id)))
+        .filter(
+            AgentSession.corps_id.in_(corps_ids),
+            AgentSession.status == SessionStatus.ACTIVE,
+        )
+        .group_by(AgentSession.corps_id)
+        .all()
+    )
+
+    # Bulk: failed agents — definitions whose LATEST session is FAILED
+    # Use a subquery to find the latest session per definition
+    from sqlalchemy import select
+    latest_session_sq = (
+        select(
+            AgentSession.definition_id,
+            AgentSession.corps_id,
+            sqlfunc.max(AgentSession.started_at).label("max_started"),
+        )
+        .where(AgentSession.corps_id.in_(corps_ids))
+        .group_by(AgentSession.definition_id, AgentSession.corps_id)
+        .subquery()
+    )
+
+    failed_defn_corps = dict(
+        db.query(AgentSession.corps_id, sqlfunc.count(AgentSession.definition_id))
+        .join(
+            latest_session_sq,
+            and_(
+                AgentSession.definition_id == latest_session_sq.c.definition_id,
+                AgentSession.corps_id == latest_session_sq.c.corps_id,
+                AgentSession.started_at == latest_session_sq.c.max_started,
+            ),
+        )
+        .filter(AgentSession.status == SessionStatus.FAILED)
+        .group_by(AgentSession.corps_id)
+        .all()
+    )
+
+    # Rep stats per corps (grouped by status for efficiency)
+    rep_total_map: dict[str, int] = {}
+    rep_completed_map: dict[str, int] = {}
+    rep_failed_map: dict[str, int] = {}
+
+    for corps_id in corps_ids:
+        c_sessions = session_counts.get(corps_id, 0)
+        if c_sessions == 0:
+            continue
+        reps = (
+            db.query(Rep.status, sqlfunc.count(Rep.id))
+            .join(AgentSession, Rep.assigned_to == AgentSession.id, isouter=True)
+            .filter(AgentSession.corps_id == corps_id)
+            .group_by(Rep.status)
+            .all()
+        )
+        for status, count in reps:
+            rep_total_map[corps_id] = rep_total_map.get(corps_id, 0) + count
+            if status == RepStatus.COMPLETED:
+                rep_completed_map[corps_id] = count
+            elif status == RepStatus.FAILED:
+                rep_failed_map[corps_id] = count
+
+    # Bulk: failure counts from work log
+    failure_counts = dict(
+        db.query(WorkLog.corps_id, sqlfunc.count(WorkLog.id))
+        .filter(
+            WorkLog.corps_id.in_(corps_ids),
+            WorkLog.event_type == "failure",
+        )
+        .group_by(WorkLog.corps_id)
+        .all()
+    )
+
+    # Assemble results
     total_agents = 0
     active_agents = 0
     failed_agents = 0
@@ -53,85 +154,41 @@ def get_swarm_health(db: Session) -> SwarmHealth:
     total_reps = 0
     completed_reps = 0
     failed_reps = 0
-    stale_reps = 0
     corps_summaries = []
 
-    for corps in active_corps_list:
-        # Count unique agent definitions (the actual agents)
-        definitions = (
-            db.query(AgentDefinition)
-            .filter(AgentDefinition.corps_id == corps.id)
-            .all()
-        )
-        c_total_agents = len(definitions)
+    for corps_id in corps_ids:
+        corps = corps_map[corps_id]
+        c_total = defn_counts.get(corps_id, 0)
+        c_active = active_session_corps.get(corps_id, 0)
+        c_failed = failed_defn_corps.get(corps_id, 0)
+        c_sessions = session_counts.get(corps_id, 0)
+        c_reps_total = rep_total_map.get(corps_id, 0)
+        c_reps_completed = rep_completed_map.get(corps_id, 0)
+        c_reps_failed = rep_failed_map.get(corps_id, 0)
 
-        # For each definition, check if it has an active session (agent is "alive")
-        c_active = 0
-        c_failed = 0
-        for defn in definitions:
-            latest_session = (
-                db.query(AgentSession)
-                .filter(
-                    AgentSession.definition_id == defn.id,
-                    AgentSession.corps_id == corps.id,
-                )
-                .order_by(AgentSession.started_at.desc())
-                .first()
-            )
-            if latest_session:
-                if latest_session.status == SessionStatus.ACTIVE:
-                    c_active += 1
-                elif latest_session.status == SessionStatus.FAILED:
-                    c_failed += 1
-
-        # Count total sessions for diagnostics
-        c_sessions = (
-            db.query(AgentSession)
-            .filter(AgentSession.corps_id == corps.id)
-            .count()
-        )
-
-        reps = db.query(Rep).join(
-            AgentSession, Rep.assigned_to == AgentSession.id, isouter=True
-        ).filter(AgentSession.corps_id == corps.id).all() if c_sessions > 0 else []
-
-        c_total_reps = len(reps)
-        c_completed = sum(1 for r in reps if r.status == RepStatus.COMPLETED)
-        c_failed_reps = sum(1 for r in reps if r.status == RepStatus.FAILED)
-
-        failure_count = (
-            db.query(WorkLog)
-            .filter(WorkLog.corps_id == corps.id, WorkLog.event_type == "failure")
-            .count()
-        )
-
-        total_agents += c_total_agents
+        total_agents += c_total
         active_agents += c_active
         failed_agents += c_failed
         total_sessions += c_sessions
-        total_reps += c_total_reps
-        completed_reps += c_completed
-        failed_reps += c_failed_reps
+        total_reps += c_reps_total
+        completed_reps += c_reps_completed
+        failed_reps += c_reps_failed
 
         corps_summaries.append({
-            "id": corps.id,
+            "id": corps_id,
             "name": corps.name,
             "status": corps.status.value,
             "mode": corps.mode.value if corps.mode else None,
             "agents_active": c_active,
-            "agents_total": c_total_agents,
+            "agents_total": c_total,
             "sessions_total": c_sessions,
-            "reps_completed": c_completed,
-            "reps_total": c_total_reps,
-            "failures": failure_count,
+            "reps_completed": c_reps_completed,
+            "reps_total": c_reps_total,
+            "failures": failure_counts.get(corps_id, 0),
         })
 
     failure_rate = round(failed_reps / total_reps * 100, 1) if total_reps > 0 else 0.0
 
-    # Calculate overall health status
-    # "error" if majority of agents failed or failure rate > 50%
-    # "warning" if >25% agents failed or failure rate > 10%
-    # "ok" otherwise
     failed_pct = (failed_agents / total_agents * 100) if total_agents > 0 else 0
     if failed_pct > 50 or failure_rate > 50:
         health_status = "error"
@@ -150,7 +207,7 @@ def get_swarm_health(db: Session) -> SwarmHealth:
         total_reps=total_reps,
         completed_reps=completed_reps,
         failed_reps=failed_reps,
-        stale_reps=stale_reps,
+        stale_reps=0,
         failure_rate=failure_rate,
         corps_summaries=corps_summaries,
     )

@@ -60,7 +60,17 @@ ensure_node_modules() {
 
 kill_port() {
     local port=$1
-    lsof -ti:"$port" 2>/dev/null | xargs kill -9 2>/dev/null || true
+    if command -v lsof &>/dev/null; then
+        lsof -ti:"$port" 2>/dev/null | xargs kill -9 2>/dev/null || true
+    else
+        # Windows (Git Bash / MSYS2): use netstat + taskkill
+        local pids
+        pids=$(netstat -ano 2>/dev/null | grep ":${port}.*LISTEN" | awk '{print $5}' | sort -u)
+        for pid in $pids; do
+            [ "$pid" = "0" ] && continue
+            taskkill //F //T //PID "$pid" 2>/dev/null || true
+        done
+    fi
 }
 
 # --- Commands ---
@@ -86,7 +96,7 @@ cmd_ten_hut() {
 
     # Wait for the pit to tune up
     for i in $(seq 1 15); do
-        if curl -s "http://localhost:$BACKEND_PORT/api/shows" >/dev/null 2>&1; then
+        if curl -s --connect-timeout 2 "http://localhost:$BACKEND_PORT/api/v1/system/ping" >/dev/null 2>&1; then
             log_info "Backend is set"
             break
         fi
@@ -245,7 +255,7 @@ cmd_check_step() {
     echo ""
 
     # Backend
-    if curl -s "http://localhost:$BACKEND_PORT/api/shows" >/dev/null 2>&1; then
+    if curl -s --connect-timeout 2 "http://localhost:$BACKEND_PORT/api/v1/system/ping" >/dev/null 2>&1; then
         echo -e "  Backend:    ${GREEN}on the field${NC}  (port $BACKEND_PORT)"
     else
         echo -e "  Backend:    ${RED}at rest${NC}"
@@ -314,7 +324,7 @@ cmd_resume_hut() {
 
     # Wait for backend
     for i in $(seq 1 15); do
-        if curl -s "http://localhost:$BACKEND_PORT/api/shows" >/dev/null 2>&1; then
+        if curl -s --connect-timeout 2 "http://localhost:$BACKEND_PORT/api/v1/system/ping" >/dev/null 2>&1; then
             log_info "Backend is set"
             break
         fi

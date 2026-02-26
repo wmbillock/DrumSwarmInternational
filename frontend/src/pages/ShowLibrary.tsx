@@ -11,6 +11,7 @@ interface LibraryShow {
   priority?: string;
   season_id?: string;
   created_at?: string;
+  updated_at?: string;
   description?: string;
   summary?: string;
 }

@@ -42,6 +42,10 @@ from backend.models.model_spec_performance import ModelSpecPerformance
 from backend.models.operation import Operation, OperationStatus
 from backend.models.artifact import Artifact, ArtifactType
 from backend.models.performance_record import PerformanceRecord
+from backend.models.agent_experience import AgentExperience
+from backend.models.agent_memory import AgentMemory, TaskMemory, MemoryType
+from backend.models.self_improvement_log import SelfImprovementLog, ImprovementStatus
+from backend.models.metrics import MetricsEvent, MetricsAggregate, MetricsTrend
 
 __all__ = [
     "Segment", "SegmentType", "SegmentStatus",
@@ -72,4 +76,8 @@ __all__ = [
     "Operation", "OperationStatus",
     "Artifact", "ArtifactType",
     "PerformanceRecord",
+    "AgentExperience",
+    "AgentMemory", "TaskMemory", "MemoryType",
+    "SelfImprovementLog", "ImprovementStatus",
+    "MetricsEvent", "MetricsAggregate", "MetricsTrend",
 ]

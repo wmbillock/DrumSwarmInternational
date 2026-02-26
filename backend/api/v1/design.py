@@ -209,11 +209,16 @@ def v1_list_threads():
                     if line.startswith("# ") and not line.startswith("---"):
                         summary = line[2:].strip()
                         break
+        # Use filesystem timestamps for created/updated
+        created_at = datetime.fromtimestamp(d.stat().st_ctime, tz=timezone.utc).isoformat()
+        updated_at = datetime.fromtimestamp(status_path.stat().st_mtime, tz=timezone.utc).isoformat()
         threads.append({
             "slug": d.name,
             "status": status.get("status", "unknown"),
             "has_spec": (d / "spec.md").exists(),
             "summary": summary,
+            "created_at": created_at,
+            "updated_at": updated_at,
         })
     return threads
 

@@ -3,7 +3,7 @@
 This module defines the interface and provides implementations for multiple
 LLM providers with automatic failover and exponential retry backoff.
 
-Provider hierarchy:
+Provider hierarchy (default, overridable via DSI_LLM_PRIORITY):
   - Simple text requests → CLI agents (Claude CLI, ChatGPT CLI)
   - Complex requests (images, native tool use) → API clients (Anthropic, OpenAI)
   - Local fallback → Ollama
@@ -11,6 +11,14 @@ Provider hierarchy:
 All providers are treated as interchangeable tools at different quality levels.
 The SmartRouter selects the best available provider per-request, with exponential
 retry backoff (minimum 5 retries) before failing over to the next provider.
+
+Environment variables:
+  DSI_LLM_PRIORITY: Comma-separated provider order (e.g. "ollama,anthropic-api")
+  DSI_OLLAMA_MODEL: Override Ollama model for all tiers
+  DSI_OLLAMA_URL:   Ollama base URL (default: http://localhost:11434)
+  DSI_OLLAMA_NUM_CTX: Ollama context window size (default: 8192)
+  DSI_OLLAMA_TIMEOUT: Ollama request timeout in seconds (default: 300)
+  DSI_NO_CLI_PROVIDERS: Skip CLI providers (Claude CLI, ChatGPT CLI, etc.)
 """
 
 import json as _json
@@ -815,6 +823,12 @@ class OllamaClient(LLMClient):
 
     Talks to Ollama at localhost:11434. Supports any locally-pulled model.
     Falls back gracefully if Ollama is not running.
+
+    Environment variables:
+        DSI_OLLAMA_MODEL: Override model for all tiers (e.g. "qwen3-coder:30b")
+        DSI_OLLAMA_URL: Override Ollama base URL (default: http://localhost:11434)
+        DSI_OLLAMA_NUM_CTX: Context window size (default: 8192)
+        DSI_OLLAMA_TIMEOUT: Request timeout in seconds (default: 300)
     """
 
     OLLAMA_MODEL_MAP = {
@@ -823,15 +837,21 @@ class OllamaClient(LLMClient):
         ModelTier.HAIKU: "deepseek-coder:6.7b",  # Fast coding model
     }
 
-    def __init__(self, base_url: str = "http://localhost:11434"):
-        self._base_url = base_url.rstrip("/")
+    def __init__(self, base_url: str | None = None):
+        self._base_url = (
+            base_url or os.environ.get("DSI_OLLAMA_URL", "http://localhost:11434")
+        ).rstrip("/")
+        self._num_ctx = int(os.environ.get("DSI_OLLAMA_NUM_CTX", "8192"))
+        self._timeout = int(os.environ.get("DSI_OLLAMA_TIMEOUT", "300"))
+        self._model_override_env = os.environ.get("DSI_OLLAMA_MODEL")
 
     @staticmethod
     def is_available(base_url: str = "http://localhost:11434") -> bool:
         """Check if Ollama is running and has at least one model."""
         import urllib.request
+        url = os.environ.get("DSI_OLLAMA_URL", base_url)
         try:
-            req = urllib.request.Request(f"{base_url}/api/tags", method="GET")
+            req = urllib.request.Request(f"{url.rstrip('/')}/api/tags", method="GET")
             with urllib.request.urlopen(req, timeout=3) as resp:
                 data = _json.loads(resp.read())
                 return len(data.get("models", [])) > 0
@@ -841,6 +861,11 @@ class OllamaClient(LLMClient):
     def _get_best_model(self, model_tier: ModelTier) -> str:
         """Pick the best available local model for the requested tier."""
         import urllib.request
+
+        # Environment override takes precedence
+        if self._model_override_env:
+            return self._model_override_env
+
         preferred = self.OLLAMA_MODEL_MAP.get(model_tier, "llama3.1:8b")
         try:
             req = urllib.request.Request(f"{self._base_url}/api/tags", method="GET")
@@ -850,14 +875,18 @@ class OllamaClient(LLMClient):
         except Exception:
             return preferred
 
-        # Try preferred model first, then any available model
-        if preferred in available:
-            return preferred
-        # Try base name without tag
-        base = preferred.split(":")[0]
+        # Case-insensitive match for preferred model
+        preferred_lower = preferred.lower()
         for m in available:
-            if m.startswith(base):
+            if m.lower() == preferred_lower:
                 return m
+
+        # Try base name without tag (case-insensitive)
+        base = preferred.split(":")[0].lower()
+        for m in available:
+            if m.lower().startswith(base):
+                return m
+
         # Fall back to first available
         return available[0] if available else preferred
 
@@ -874,10 +903,12 @@ class OllamaClient(LLMClient):
         model_override = kwargs.pop("model_override", None)
         model = model_override or self._get_best_model(model_tier)
 
-        # Convert messages to Ollama format
+        # Convert messages to Ollama format, filtering to valid roles
         ollama_messages = []
+        valid_roles = {"system", "user", "assistant"}
         for msg in messages:
-            ollama_messages.append({"role": msg.role, "content": msg.content})
+            role = msg.role if msg.role in valid_roles else "user"
+            ollama_messages.append({"role": role, "content": msg.content})
 
         # If tools provided, embed them in system prompt (Ollama doesn't have native tool use)
         if tools:
@@ -896,6 +927,9 @@ class OllamaClient(LLMClient):
             "model": model,
             "messages": ollama_messages,
             "stream": False,
+            "options": {
+                "num_ctx": self._num_ctx,
+            },
         }).encode()
 
         try:
@@ -905,7 +939,7 @@ class OllamaClient(LLMClient):
                 headers={"Content-Type": "application/json"},
                 method="POST",
             )
-            with urllib.request.urlopen(req, timeout=300) as resp:
+            with urllib.request.urlopen(req, timeout=self._timeout) as resp:
                 data = _json.loads(resp.read())
 
             content = data.get("message", {}).get("content", "")
@@ -921,9 +955,17 @@ class OllamaClient(LLMClient):
 
             return LLMResponse(content=content, stop_reason="end_turn")
 
+        except urllib.error.HTTPError as e:
+            logger.warning("Ollama HTTP %d for model %s: %s", e.code, model, e.reason)
+            return LLMResponse(
+                content=f"Error: Ollama HTTP {e.code} ({e.reason}) for model {model}",
+                stop_reason="error",
+            )
         except urllib.error.URLError as e:
+            logger.warning("Ollama connection failed: %s", e)
             return LLMResponse(content=f"Error: Ollama connection failed — {e}", stop_reason="error")
         except Exception as e:
+            logger.warning("Ollama request failed: %s", e)
             return LLMResponse(content=f"Error: Ollama request failed — {e}", stop_reason="error")
 
 
@@ -1161,7 +1203,25 @@ class SmartRouter(LLMClient):
         return False
 
     def _rank_providers(self, needs_api: bool) -> list[tuple[str, LLMClient]]:
-        """Rank providers based on request needs."""
+        """Rank providers based on request needs.
+
+        If DSI_LLM_PRIORITY is set (comma-separated provider names), that order
+        is used instead of the default heuristic. Example:
+            DSI_LLM_PRIORITY=ollama,anthropic-api
+        """
+        priority = os.environ.get("DSI_LLM_PRIORITY")
+        if priority:
+            # User-specified order: match by name, append any unmentioned providers
+            ordered_names = [n.strip() for n in priority.split(",") if n.strip()]
+            by_name = {n: c for n, c in self._providers}
+            result = [(n, by_name[n]) for n in ordered_names if n in by_name]
+            # Append remaining providers not in the priority list
+            mentioned = set(ordered_names)
+            for n, c in self._providers:
+                if n not in mentioned:
+                    result.append((n, c))
+            return result
+
         if needs_api:
             # API clients first, then CLI, then local
             api = [(n, c) for n, c in self._providers if c.supports_native_tools]
@@ -1345,6 +1405,7 @@ def build_llm_client(force_mock: bool = False) -> LLMClient:
     import shutil
 
     providers: list[tuple[str, LLMClient]] = []
+    skip_cli = os.environ.get("DSI_NO_CLI_PROVIDERS")
 
     # 1. Anthropic API (highest priority — direct, reliable, no context injection)
     if os.environ.get("ANTHROPIC_SDK_API_KEY") or os.environ.get("ANTHROPIC_API_KEY"):
@@ -1358,32 +1419,38 @@ def build_llm_client(force_mock: bool = False) -> LLMClient:
 
     # 3. Ollama (local — free, no API limits)
     if OllamaClient.is_available():
-        providers.append(("ollama", OllamaClient()))
-        logger.info("LLM provider available: Ollama (local)")
+        ollama = OllamaClient()
+        providers.append(("ollama", ollama))
+        model_env = os.environ.get("DSI_OLLAMA_MODEL", "auto")
+        logger.info("LLM provider available: Ollama (local, model=%s, num_ctx=%d)",
+                     model_env, ollama._num_ctx)
 
-    # 4. Claude CLI (deprioritized — injects CLAUDE.md and full agent context)
-    if shutil.which("claude"):
-        providers.append(("claude-cli", ClaudeCLIClient()))
-        logger.info("LLM provider available: Claude CLI (deprioritized)")
+    if skip_cli:
+        logger.info("CLI providers skipped (DSI_NO_CLI_PROVIDERS is set)")
+    else:
+        # 4. Claude CLI (deprioritized — injects CLAUDE.md and full agent context)
+        if shutil.which("claude"):
+            providers.append(("claude-cli", ClaudeCLIClient()))
+            logger.info("LLM provider available: Claude CLI (deprioritized)")
 
-    # 5. GitHub Copilot CLI
-    if shutil.which("gh"):
-        import subprocess as _sp
-        try:
-            _sp.run(["gh", "copilot", "--help"], capture_output=True, timeout=5)
-            providers.append(("gh-copilot-cli", GHCopilotCLIClient()))
-            logger.info("LLM provider available: GitHub Copilot CLI")
-        except Exception:
-            pass
+        # 5. GitHub Copilot CLI
+        if shutil.which("gh"):
+            import subprocess as _sp
+            try:
+                _sp.run(["gh", "copilot", "--help"], capture_output=True, timeout=5)
+                providers.append(("gh-copilot-cli", GHCopilotCLIClient()))
+                logger.info("LLM provider available: GitHub Copilot CLI")
+            except Exception:
+                pass
 
-    # 6. Codex CLI (OpenAI's agent CLI)
-    if shutil.which("codex"):
-        providers.append(("codex-cli", ChatGPTCLIClient(command="codex")))
-        logger.info("LLM provider available: Codex CLI")
-    # 6b. ChatGPT CLI (fallback if codex not found)
-    elif shutil.which("chatgpt"):
-        providers.append(("chatgpt-cli", ChatGPTCLIClient()))
-        logger.info("LLM provider available: ChatGPT CLI")
+        # 6. Codex CLI (OpenAI's agent CLI)
+        if shutil.which("codex"):
+            providers.append(("codex-cli", ChatGPTCLIClient(command="codex")))
+            logger.info("LLM provider available: Codex CLI")
+        # 6b. ChatGPT CLI (fallback if codex not found)
+        elif shutil.which("chatgpt"):
+            providers.append(("chatgpt-cli", ChatGPTCLIClient()))
+            logger.info("LLM provider available: ChatGPT CLI")
 
     if not providers:
         logger.warning("No LLM providers available — using MockLLMClient")

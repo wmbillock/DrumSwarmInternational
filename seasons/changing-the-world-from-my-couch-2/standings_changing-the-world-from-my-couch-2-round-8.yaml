@@ -1,0 +1,71 @@
+season_id: changing-the-world-from-my-couch-2
+competition_id: changing-the-world-from-my-couch-2-round-8
+show_slug: improve-the-corps-list-page
+generated_at: '2026-02-15T00:41:27.909913+00:00'
+results:
+- corps_id: 859f0d31-3e15-44d9-a698-158921ef03b9
+  rank: 1
+  final_score: 44.755
+  raw_score: 44.755
+  caption_scores:
+    guard: 41.5
+    brass: 40.0
+    visual: 40.0
+    percussion: 40.0
+    general_effect: 40.0
+    ensemble_technique: 70.0
+- corps_id: 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+  rank: 2
+  final_score: 44.135000000000005
+  raw_score: 44.135000000000005
+  caption_scores:
+    percussion: 60.0
+    visual: 40.0
+    guard: 41.5
+    brass: 41.5
+    ensemble_technique: 41.5
+    general_effect: 40.0
+- corps_id: e503c207-1d63-460d-b080-63a92a17e979
+  rank: 3
+  final_score: 40.255
+  raw_score: 40.255
+  caption_scores:
+    visual: 40.0
+    brass: 40.0
+    guard: 41.5
+    percussion: 40.0
+    ensemble_technique: 40.0
+    general_effect: 40.0
+- corps_id: aba0e198-0842-4a72-9274-c5ffb5b6072a
+  rank: 4
+  final_score: 40.18
+  raw_score: 40.18
+  caption_scores:
+    visual: 41.5
+    percussion: 40.0
+    brass: 40.0
+    guard: 40.0
+    general_effect: 40.0
+    ensemble_technique: 40.0
+- corps_id: 7a70c3c6-5693-4af8-9c3b-4480988bf8d4
+  rank: 5
+  final_score: 39.745000000000005
+  raw_score: 39.745000000000005
+  caption_scores:
+    percussion: 40.0
+    brass: 38.5
+    guard: 40.0
+    visual: 40.0
+    general_effect: 40.0
+    ensemble_technique: 40.0
+- corps_id: 846e48f0-8398-4b9e-93f6-ad78619d3fb7
+  rank: 6
+  final_score: 36.685
+  raw_score: 36.685
+  caption_scores:
+    percussion: 40.0
+    visual: 40.0
+    guard: 40.0
+    brass: 31.5
+    general_effect: 31.5
+    ensemble_technique: 40.0

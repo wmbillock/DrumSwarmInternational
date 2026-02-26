@@ -2,7 +2,7 @@ season_id: lets-gooooo-1
 metadata:
   name: Lets gooooo 1
   status: completed
-  winner: null
+  winner: toss-and-pray
 shows:
 - be-able-to-click-into-a-corps-detail-page-from-an-entry-on-the-performance-stats-scoreboards-page
 - corps-auto-staffing-with-visible-hiring
@@ -380,5 +380,17 @@ schedule:
       general_effect: 91.0
 locked: true
 registered_corps:
+- 0857c9cd-ab79-414c-810f-698392bab1e6
+- 3eb60a4b-8ceb-4f95-bf30-ed15184a445d
+- 4bfd7b68-2260-4b69-b389-9a8eda907da1
+- 5adef4c9-0202-40a4-a0c3-9575829cc2cf
+- 66b819e1-3c06-4182-814e-0fc8d55d3ea0
+- 914f78aa-0d75-400d-bc9c-2c5a658149e3
+- 9f5170f4-0f5b-45c3-bb54-b5fd7a4dc5d8
 - c5f1d328-685a-4c60-9c8c-fd880e516571
 - ec4c11f9-faaa-4113-86b3-902d19200bcb
+- f36c6c19-04a6-48ea-996d-6cec06b73a42
+- fc11e2a2-72fb-42d7-8b18-7731203b631f
+- pit-happens
+- quiet-trumpets
+- toss-and-pray

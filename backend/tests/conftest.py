@@ -2,26 +2,29 @@ import os
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from backend.database import Base
 
 # Import all models so Base.metadata.create_all picks them up
-import backend.models  # noqa: F401
+import backend.models.segment  # noqa: F401
+import backend.models.rep  # noqa: F401
+import backend.models.message  # noqa: F401
+import backend.models.problem  # noqa: F401
+import backend.models.subscription  # noqa: F401
+import backend.models.agent_definition  # noqa: F401
+import backend.models.agent_session  # noqa: F401
+import backend.models.score  # noqa: F401
+import backend.models.penalty  # noqa: F401
+import backend.models.corps  # noqa: F401
+import backend.models.show  # noqa: F401
+import backend.models.work_log  # noqa: F401
+import backend.models.performer  # noqa: F401
+import backend.models.messaging_thread  # noqa: F401
 
 
-@pytest.fixture(scope="session", autouse=True)
-def _set_test_mode():
-    """Set DCI_TEST_MODE for the entire test session.
-
-    This causes the FastAPI lifespan to:
-    - Skip seed_founding_corps()
-    - Force MockLLMClient (skip build_llm_client() provider detection)
-    - Skip start_metronome()
-    - Skip event bus subscriptions that require WebSocket
-    """
-    os.environ["DCI_TEST_MODE"] = "1"
-    yield
-    os.environ.pop("DCI_TEST_MODE", None)
+# Enable test mode globally — skips lifespan heavy init (LLM, metronome, seeder)
+os.environ["DCI_TEST_MODE"] = "1"
 
 
 @pytest.fixture
@@ -38,21 +41,37 @@ def db():
 
 
 @pytest.fixture
-def client():
-    """Create a TestClient with in-memory DB and test-mode lifespan.
+def app_client(tmp_path, monkeypatch):
+    """Shared TestClient fixture with isolated DB and project root.
 
-    Monkeypatches the app-level engine + SessionFactory so the lifespan
-    (and any endpoint that calls get_db()) uses in-memory SQLite.
+    Use this instead of creating TestClient(app) directly in test files.
+    Sets DCI_TEST_MODE=1 so lifespan skips LLM client + metronome.
     """
-    from unittest.mock import patch
     from fastapi.testclient import TestClient
+    from backend.api.app import app, get_db
 
-    test_engine = create_engine("sqlite:///:memory:")
-    Base.metadata.create_all(test_engine)
-    test_session_factory = sessionmaker(bind=test_engine)
+    monkeypatch.setenv("DCI_PROJECT_ROOT", str(tmp_path))
+    (tmp_path / "shows").mkdir()
+    (tmp_path / "corps").mkdir()
+    (tmp_path / "seasons").mkdir()
 
-    with patch("backend.api.app.engine", test_engine), \
-         patch("backend.api.app.SessionFactory", test_session_factory):
-        from backend.api.app import app
-        with TestClient(app) as tc:
-            yield tc
+    engine = create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    TestingSession = sessionmaker(bind=engine)
+
+    def override_get_db():
+        db = TestingSession()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[get_db] = override_get_db
+    monkeypatch.setattr("backend.api.app.SessionFactory", TestingSession)
+    with TestClient(app) as c:
+        yield c
+    app.dependency_overrides.clear()

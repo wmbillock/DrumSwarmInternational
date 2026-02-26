@@ -12,18 +12,21 @@ export function Performers() {
   const [awards, setAwards] = useState<v1.V1Award[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const loadPerformers = () => {
+  const loadPerformers = (signal?: AbortSignal) => {
     setError(null);
-    v1.listPerformers()
+    v1.listPerformers(undefined, signal)
       .then(setPerformers)
       .catch((e) => {
+        if (e instanceof DOMException && e.name === "AbortError") return;
         setPerformers([]);
         setError(e instanceof Error ? e.message : "Failed to load performers");
       });
   };
 
   useEffect(() => {
-    loadPerformers();
+    const ac = new AbortController();
+    loadPerformers(ac.signal);
+    return () => ac.abort();
   }, []);
 
   const handleSelect = async (id: string) => {
@@ -93,19 +96,20 @@ export function Performers() {
           />
           {ledger.length > 0 && (
             <>
-              <h4>Capability Ledger</h4>
+              <h4>Trust Ledger</h4>
               <DataTable<any>
                 columns={[
-                  { key: "capability", label: "Capability", render: (_v, row) => row.capability || row.tool_name || "-" },
-                  { key: "level", label: "Level", render: (_v, row) => String(row.level ?? row.score ?? "-") },
-                  { key: "updated_at", label: "Updated", render: (v) => (
+                  { key: "entry_type", label: "Event", render: (v) => formatRole(String(v || "-")) },
+                  { key: "role_type", label: "Role", render: (v) => formatRole(String(v || "-")) },
+                  { key: "score", label: "Score", render: (v) => v != null ? String(v) : "-" },
+                  { key: "created_at", label: "When", render: (v) => (
                     <span title={v ? formatTimestamp(String(v)).title : ""}>
                       {v ? formatTimestamp(String(v)).label : "-"}
                     </span>
                   ) },
                 ]}
                 data={ledger}
-                emptyMessage="No capability ledger entries."
+                emptyMessage="No ledger entries."
               />
             </>
           )}
