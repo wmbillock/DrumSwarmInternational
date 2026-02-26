@@ -25,6 +25,17 @@ LOG_FILE="$PROJECT_ROOT/backend.log"
 FE_LOG_FILE="$PROJECT_ROOT/frontend.log"
 INSTANCE_ID="${DSI_INSTANCE_ID:-$SESSION_NAME}"
 
+# Detect tmux base-index settings (user may configure these to start at 1)
+_W=$(tmux show-options -gv base-index 2>/dev/null || echo 0)
+_P=$(tmux show-options -gwv pane-base-index 2>/dev/null || echo 0)
+
+# Pane target shortcuts: SESSION:WINDOW.PANE
+WIN="$SESSION_NAME:$_W"
+T0="$SESSION_NAME:$_W.$_P"
+T1="$SESSION_NAME:$_W.$((_P + 1))"
+T2="$SESSION_NAME:$_W.$((_P + 2))"
+T3="$SESSION_NAME:$_W.$((_P + 3))"
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
@@ -70,31 +81,31 @@ create_session() {
 
     # Create session with pane 0 (Claude Code workspace — left, large)
     tmux new-session -d -s "$SESSION_NAME" -c "$PROJECT_ROOT" -x 220 -y 55
-    tmux rename-window -t "$SESSION_NAME:0" "monitor"
+    tmux rename-window -t "$WIN" "monitor"
     tmux set-environment -t "$SESSION_NAME" DSI_INSTANCE_ID "$INSTANCE_ID"
 
     # Split: right column (40%)
-    tmux split-window -h -t "$SESSION_NAME:0.0" -c "$PROJECT_ROOT" -p 40
+    tmux split-window -h -t "$T0" -c "$PROJECT_ROOT" -p 40
 
     # Split right column into 3: dashboard (top 60%), BE log (mid 20%), FE log (bottom 20%)
-    tmux split-window -v -t "$SESSION_NAME:0.1" -c "$PROJECT_ROOT" -p 40
-    tmux split-window -v -t "$SESSION_NAME:0.2" -c "$PROJECT_ROOT" -p 50
+    tmux split-window -v -t "$T1" -c "$PROJECT_ROOT" -p 40
+    tmux split-window -v -t "$T2" -c "$PROJECT_ROOT" -p 50
 
     # --- Pane 0: Claude Code workspace (left, large) ---
-    tmux send-keys -t "$SESSION_NAME:0.0" "cd '$PROJECT_ROOT' && clear" C-m
+    tmux send-keys -t "$T0" "cd '$PROJECT_ROOT' && clear" C-m
     if command -v claude &>/dev/null; then
-        tmux send-keys -t "$SESSION_NAME:0.0" "claude" C-m
+        tmux send-keys -t "$T0" "claude" C-m
     fi
 
     # --- Pane 1: Unified Dashboard (top right) ---
     echo "metrics" > "$VIEW_FILE"
-    tmux send-keys -t "$SESSION_NAME:0.1" "${VP}python3 '$SCRIPT_DIR/unified_dashboard.py' --refresh 3" C-m
+    tmux send-keys -t "$T1" "${VP}python3 '$SCRIPT_DIR/unified_dashboard.py' --refresh 3" C-m
 
     # --- Pane 2: Backend log (mid right) ---
-    tmux send-keys -t "$SESSION_NAME:0.2" "touch '$LOG_FILE' && tail -f '$LOG_FILE'" C-m
+    tmux send-keys -t "$T2" "touch '$LOG_FILE' && tail -f '$LOG_FILE'" C-m
 
     # --- Pane 3: Frontend log (bottom right) ---
-    tmux send-keys -t "$SESSION_NAME:0.3" "touch '$FE_LOG_FILE' && tail -f '$FE_LOG_FILE'" C-m
+    tmux send-keys -t "$T3" "touch '$FE_LOG_FILE' && tail -f '$FE_LOG_FILE'" C-m
 
     # Pane titles
     tmux set-option -t "$SESSION_NAME" pane-border-status top
@@ -102,10 +113,10 @@ create_session() {
     tmux set-option -t "$SESSION_NAME" pane-border-style "fg=colour240"
     tmux set-option -t "$SESSION_NAME" pane-active-border-style "fg=colour75"
 
-    tmux select-pane -t "$SESSION_NAME:0.0" -T "Claude Code"
-    tmux select-pane -t "$SESSION_NAME:0.1" -T "Dashboard [1-6]"
-    tmux select-pane -t "$SESSION_NAME:0.2" -T "Backend Log"
-    tmux select-pane -t "$SESSION_NAME:0.3" -T "Frontend Log"
+    tmux select-pane -t "$T0" -T "Claude Code"
+    tmux select-pane -t "$T1" -T "Dashboard [1-6]"
+    tmux select-pane -t "$T2" -T "Backend Log"
+    tmux select-pane -t "$T3" -T "Frontend Log"
 
     # ─── Dashboard view keybindings (prefix+1..6) ────────────────────
     tmux bind-key -T prefix 1 run-shell "echo metrics > '$VIEW_FILE'"
@@ -116,10 +127,10 @@ create_session() {
     tmux bind-key -T prefix 6 run-shell "echo lifecycle > '$VIEW_FILE'"
 
     # ─── Navigation keybindings ──────────────────────────────────────
-    tmux bind-key -T prefix 0 select-pane -t "$SESSION_NAME:0.0"
-    tmux bind-key -T prefix d select-pane -t "$SESSION_NAME:0.1"
-    tmux bind-key -T prefix l select-pane -t "$SESSION_NAME:0.2"
-    tmux bind-key -T prefix '\;' select-pane -t "$SESSION_NAME:0.3"
+    tmux bind-key -T prefix 0 select-pane -t "$T0"
+    tmux bind-key -T prefix d select-pane -t "$T1"
+    tmux bind-key -T prefix l select-pane -t "$T2"
+    tmux bind-key -T prefix '\;' select-pane -t "$T3"
 
     # ─── Swarm menu (prefix+s) — display-menu popup ─────────────────
     tmux bind-key -T prefix s display-menu -T "#[bold]DCI Swarm" \
@@ -146,7 +157,7 @@ create_session() {
     tmux set-option -t "$SESSION_NAME" status-interval 5
 
     # Focus Claude Code pane
-    tmux select-pane -t "$SESSION_NAME:0.0"
+    tmux select-pane -t "$T0"
 
     log_info "Dashboard is set. Attaching..."
 }

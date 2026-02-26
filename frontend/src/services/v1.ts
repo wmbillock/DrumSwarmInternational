@@ -161,7 +161,7 @@ export interface V1Thread {
 
 export interface V1Messages {
   slug: string;
-  messages: { role: string; content: string; tags: string[] }[];
+  messages: { role: string; display_name?: string; content: string; tags: string[] }[];
 }
 
 export interface V1AgentResp {
@@ -343,6 +343,9 @@ export const postMessage = (slug: string, message: string) =>
 
 export const greetThread = (slug: string, signal?: AbortSignal) =>
   request<{ role: string; display_name: string; response: string }>(`/api/v1/design/threads/${slug}/greet`, { method: "POST", signal });
+
+export const continueDesign = (slug: string) =>
+  request<V1MessageResp>(`/api/v1/design/threads/${slug}/continue`, { method: "POST" });
 
 export const getBrief = (slug: string, signal?: AbortSignal) =>
   request<{ slug: string; content: string }>(`/api/v1/design/threads/${slug}/artifacts/brief`, { signal });

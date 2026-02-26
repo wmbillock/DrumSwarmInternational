@@ -21,11 +21,11 @@ RECOMMENDED_SECTIONS = [
 ]
 
 PLACEHOLDER_PATTERNS = [
-    re.compile(r"\bTODO\b", re.IGNORECASE),
-    re.compile(r"\bTBD\b", re.IGNORECASE),
-    re.compile(r"\[PLACEHOLDER\]", re.IGNORECASE),
-    re.compile(r"___"),
-    re.compile(r"\bXXX\b", re.IGNORECASE),
+    (re.compile(r"\bTODO\b", re.IGNORECASE), "TODO"),
+    (re.compile(r"\bTBD\b", re.IGNORECASE), "TBD"),
+    (re.compile(r"\[PLACEHOLDER\]", re.IGNORECASE), "[PLACEHOLDER]"),
+    (re.compile(r"___"), "___"),
+    (re.compile(r"\bXXX\b", re.IGNORECASE), "XXX"),
 ]
 
 
@@ -93,10 +93,10 @@ def lint_prompt(content: str) -> LintReport:
     # Check each present section
     for name, body in sections.items():
         # Placeholder detection
-        for pat in PLACEHOLDER_PATTERNS:
+        for pat, label in PLACEHOLDER_PATTERNS:
             if pat.search(body):
                 report.required_fix.append(
-                    LintFinding(name, f"Unfilled placeholder found: {pat.pattern}")
+                    LintFinding(name, f"Unfilled placeholder found: {label}")
                 )
                 break
 

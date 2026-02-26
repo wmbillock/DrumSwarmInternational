@@ -1,7 +1,7 @@
 """Brief linter — validates spec.md (the Brief) content.
 
-The Brief is the structured design document with show concept, musical design,
-visual design, guard design, general effect, constraints, and deliverables.
+The Brief is the structured design document with show concept, architecture,
+interface design, quality plan, general effect, constraints, and deliverables.
 """
 
 import re
@@ -10,21 +10,28 @@ from typing import List
 
 REQUIRED_SECTIONS = [
     "Show Concept",
-    "Musical Design",
-    "Visual Design",
-    "Guard Design",
+    "Architecture",
+    "Interface Design",
+    "Quality Plan",
     "General Effect",
     "Constraints",
     "Deliverables",
 ]
 
+# Accept old DCI section names as aliases for backward compatibility
+_SECTION_ALIASES = {
+    "Musical Design": "Architecture",
+    "Visual Design": "Interface Design",
+    "Guard Design": "Quality Plan",
+}
+
 PLACEHOLDER_PATTERNS = [
-    re.compile(r"\bTODO\b", re.IGNORECASE),
-    re.compile(r"\bTBD\b", re.IGNORECASE),
-    re.compile(r"\[PLACEHOLDER\]", re.IGNORECASE),
-    re.compile(r"___"),
-    re.compile(r"\bXXX\b", re.IGNORECASE),
-    re.compile(r"awaiting design input", re.IGNORECASE),
+    (re.compile(r"\bTODO\b", re.IGNORECASE), "TODO"),
+    (re.compile(r"\bTBD\b", re.IGNORECASE), "TBD"),
+    (re.compile(r"\[PLACEHOLDER\]", re.IGNORECASE), "[PLACEHOLDER]"),
+    (re.compile(r"___"), "___"),
+    (re.compile(r"\bXXX\b", re.IGNORECASE), "XXX"),
+    (re.compile(r"awaiting design input", re.IGNORECASE), "awaiting design input"),
 ]
 
 
@@ -79,6 +86,11 @@ def lint_brief(content: str) -> LintReport:
 
     sections = _parse_sections(content)
 
+    # Normalize old DCI section names to new names
+    for old_name, new_name in _SECTION_ALIASES.items():
+        if old_name in sections and new_name not in sections:
+            sections[new_name] = sections.pop(old_name)
+
     # Check required sections
     for name in REQUIRED_SECTIONS:
         if name not in sections:
@@ -86,10 +98,10 @@ def lint_brief(content: str) -> LintReport:
 
     # Check each present section
     for name, body in sections.items():
-        for pat in PLACEHOLDER_PATTERNS:
+        for pat, label in PLACEHOLDER_PATTERNS:
             if pat.search(body):
                 report.required_fix.append(
-                    LintFinding(name, f"Unfilled placeholder: {pat.pattern}")
+                    LintFinding(name, f"Unfilled placeholder: {label}")
                 )
                 break
 

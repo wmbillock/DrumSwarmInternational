@@ -22,47 +22,65 @@ router = APIRouter(prefix="/api/v1")
 
 _DESIGN_ROLE_PROMPTS = {
     "music_writer": (
-        "You are the Music Arranger. You think in keys, tempos, and brass books. "
-        "Pitch specific musical ideas. 30 words max."
+        "You are the Systems Architect. "
+        "Your domain: backend, APIs, data models, service layers, database schemas, data flow. "
+        "You think about how things connect under the hood. "
+        "Always propose concrete: name the models, sketch the endpoints, specify the data types. "
+        "Push back on vague requirements — demand specifics you can build against."
     ),
     "drill_writer": (
-        "You are the Drill Designer. You think in formations and spatial flow. "
-        "Pitch specific visual ideas. 30 words max."
+        "You are the UX Designer. "
+        "Your domain: frontend pages, components, user journeys, interactions, state management. "
+        "You think about what the user sees and does. "
+        "Always propose concrete: name the components, describe the layout, specify the user flow. "
+        "Challenge the team when the UX is unclear or the interaction model is confusing."
     ),
     "choreographer": (
-        "You are the Guard Choreographer. You think in silk, sabre, and movement. "
-        "Pitch specific guard ideas. 30 words max."
+        "You are the QA Specialist. "
+        "Your domain: testing strategy, edge cases, error handling, integration points, failure modes. "
+        "You think about what can go wrong. "
+        "Always raise concrete risks: name the edge case, describe the failure scenario, suggest the test. "
+        "Push the team to define acceptance criteria before building."
     ),
     "program_coordinator": (
-        "You are the Program Coordinator. You track what's decided vs. foggy "
-        "and push for details agents need. 30 words max."
+        "You are the Program Coordinator. You track what's decided vs. still open "
+        "and push for specifics the agent swarm needs to execute. "
+        "Your job is to synthesize and drive — never let the conversation stall."
     ),
 }
 
+# Specialists (excludes PC — used for engagement logic)
+_SPECIALIST_ROLES = {"music_writer", "drill_writer", "choreographer"}
+
 _DESIGN_ROLE_DISPLAY = {
-    "music_writer": "Music Arranger",
-    "drill_writer": "Drill Designer",
-    "choreographer": "Guard Choreographer",
+    "music_writer": "Systems Architect",
+    "drill_writer": "UX Designer",
+    "choreographer": "QA Specialist",
     "program_coordinator": "Program Coordinator",
 }
 
 _DESIGN_SYSTEM_TEMPLATE = """You're on the design staff for show "{slug}".
+A "show" is a software feature or task to be implemented by an agent swarm.
 
 {role_prompt}
 
 Brief so far:
 {spec_content}
 
+{exchange_context}
+
 {role_context}
 
 RULES — follow these exactly:
-- MAX 30 WORDS. No exceptions. One or two short sentences.
-- The Brief and Prompt tabs update automatically — never mention saving or writing files.
-- Pitch a specific idea or ask one pointed question. That's it.
-- Never recap. Never narrate. Let the Brief document tell the story.
+- MAX 60 WORDS. Two or three punchy sentences.
+- Be specific: name components, endpoints, test cases, pages — never speak in generalities.
+- If another specialist proposed something, react to it: agree and extend, or challenge with a concrete alternative.
+- End with a sharp question to keep design moving forward.
+- Never recap what was said. Never narrate. Never mention saving files (the Brief auto-updates).
 """
 
 _PC_MARSHAL_TEMPLATE = """You're the Program Coordinator for "{slug}".
+A "show" in this system is a software feature or task to be implemented by an agent swarm.
 
 Brief so far:
 {spec_content}
@@ -75,14 +93,34 @@ Director just said: "{user_message}"
 {specialist_context}
 
 RULES — follow these exactly:
-- MAX 30 WORDS total. No exceptions.
+- MAX 60 WORDS total.
 - The Brief and Prompt tabs auto-update after each exchange. Never mention saving files.
-- Pick ONE move: confirm a decision, ask one question, or flag what's missing.
-- If specialists contributed input above, weave their key points into your response — don't repeat them separately.
-- Never recap what the director said.
+- Synthesize the specialist proposals. Name specific decisions to lock in.
+- End with a sharp follow-up question directed at a specific specialist by name.
+- Drive forward — the design should feel like it's moving, not stalling.
+- Never recap what the director said. Never be vague. Be concrete.
+"""
+
+_PC_FOLLOWUP_TEMPLATE = """You're the Program Coordinator for "{slug}".
+
+Brief so far:
+{spec_content}
+
+This exchange so far:
+{exchange_context}
+
+{gap_hint}
+
+RULES — follow these exactly:
+- MAX 50 WORDS total.
+- Synthesize the round. Lock in decisions with "Decision:" prefix.
+- Identify the single most important open question and pose it.
+- If the design feels solid for this topic, say "Ready to move on" and suggest the next topic.
+- Never recap. Keep momentum.
 """
 
 _SPEC_UPDATE_TEMPLATE = """Update the show spec (Brief) based on the design conversation.
+A "show" is a software feature or task. The spec describes what to build.
 
 CURRENT SPEC:
 {spec_content}
@@ -91,44 +129,88 @@ RECENT CONVERSATION:
 {notes_content}
 
 MANDATORY SECTIONS (every spec must have these):
-- ## Show Concept
-- ## Musical Design
-- ## Visual Design
-- ## Guard Design
-- ## General Effect
-- ## Constraints
-- ## Deliverables
+- ## Show Concept (what is this feature/task and why)
+- ## Architecture (backend design: models, services, APIs, data flow)
+- ## Interface Design (frontend: pages, components, UX flow)
+- ## Quality Plan (testing strategy, edge cases, integration points)
+- ## General Effect (user-facing impact, how this improves the system)
+- ## Constraints (technical limits, dependencies, compatibility)
+- ## Deliverables (specific files, endpoints, components to create/modify)
 - ## Swarm Prompt
 
-Write the COMPLETE updated spec in markdown.
+Write the COMPLETE updated spec in markdown. Do NOT wrap output in code fences.
 - Keep existing content that's still valid
-- Incorporate all design decisions from the conversation
-- Use professional DCI show design language
-- If a section hasn't been discussed, write "TBD — awaiting design input"
+- Incorporate ALL design decisions from the conversation — be thorough
+- If a section hasn't been discussed yet, write "Awaiting design input" (just those three words)
 - ## Swarm Prompt: synthesize decided sections into an actionable prompt for the agent swarm.
-  The Swarm Prompt is a SEPARATE document from the Brief — it must use action-oriented sections:
-  ## Objective (what are we building), ## Deliverables (bullet list of outputs),
-  ## Constraints (limits and rules), ## Acceptance Criteria (how to verify).
-  Do NOT repeat Brief sections like Show Concept/Musical Design in the Swarm Prompt.
-- Output ONLY the spec markdown, no preamble
+  The Swarm Prompt is action-oriented with these sub-sections (use ### inside ## Swarm Prompt):
+  ### Objective (what are we building), ### Deliverables (bullet list of outputs),
+  ### Constraints (limits and rules), ### Acceptance Criteria (how to verify).
+- Output ONLY the spec markdown — no preamble, no code fences, no commentary
 """
 
 
 _PC_GREETING_TEMPLATE = """You're the Program Coordinator for show "{slug}".
-The director just entered the Design Room. Greet them in MAX 30 WORDS.
-Mention the show name and ask one question to get started. Be direct and collegial."""
+A "show" is a software feature or task to design. The director just entered the Design Room.
+Greet them in MAX 40 WORDS. Mention the show name and ask one question to get the design started.
+The whole design team is here — Systems Architect, UX Designer, QA Specialist — ready to collaborate."""
+
+_PC_CONTINUE_TEMPLATE = """You're the Program Coordinator for "{slug}".
+A "show" is a software feature or task. The director wants us to keep designing.
+
+Brief so far:
+{spec_content}
+
+Recent conversation:
+{notes_content}
+
+Open lint issues:
+{lint_summary}
+
+RULES — follow these exactly:
+- MAX 60 WORDS total.
+- Review the Brief and conversation. Identify the MOST IMPORTANT gap or open question.
+- Frame it as a specific, actionable question directed at one or two specialists by name.
+- If the brief has TBD/awaiting sections, prioritize filling those.
+- If the brief is mostly complete, push toward finalizing details or resolving conflicts.
+- Be concrete. "Systems Architect, what's the data model for X?" not "Let's think about architecture."
+"""
+
+
+def _get_last_judge_message(notes_path) -> str | None:
+    """Extract the last judge message from design_notes.md, or None if none exist."""
+    if not notes_path.exists():
+        return None
+    content = notes_path.read_text(encoding="utf-8", errors="replace")
+    last = None
+    for line in content.splitlines():
+        m = re.match(r"\*\*\[judge\]\*\*\s*(.*)", line.strip())
+        if m:
+            last = m.group(1)
+    return last
+
+
+def _strip_code_fences(text: str) -> str:
+    """Strip markdown code fences that LLMs sometimes wrap output in."""
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        # Remove opening fence (```markdown, ```md, or just ```)
+        first_newline = stripped.index("\n") if "\n" in stripped else len(stripped)
+        stripped = stripped[first_newline + 1:]
+    if stripped.rstrip().endswith("```"):
+        stripped = stripped.rstrip()[:-3].rstrip()
+    return stripped
 
 
 def _get_role_context(notes_path, role: str, limit: int = 10) -> str:
     """Parse design_notes.md for messages relevant to this role.
 
-    Returns the last *limit* messages from: this role, program_coordinator, and user.
-    Excludes other specialists so each role sees only its own thread.
+    Returns the last *limit* messages from all roles so specialists can
+    see what each other said and build on it (cross-pollination).
     """
     if not notes_path.exists():
         return ""
     content = notes_path.read_text(encoding="utf-8", errors="replace")
-    allowed_roles = {role, "program_coordinator", "user"}
     relevant: list[str] = []
     lines = content.split("\n")
     for line in lines:
@@ -137,12 +219,13 @@ def _get_role_context(notes_path, role: str, limit: int = 10) -> str:
         if m:
             msg_role = m.group(1)
             msg_text = m.group(2)
-            if msg_role in allowed_roles:
+            # Skip judge messages — they're lint output, not conversation
+            if msg_role != "judge":
                 relevant.append(f"[{msg_role}] {msg_text}")
     if not relevant:
         return ""
     recent = relevant[-limit:]
-    return "Your recent conversation thread:\n" + "\n".join(recent)
+    return "Recent design room conversation:\n" + "\n".join(recent)
 
 
 def _extract_swarm_prompt(show_dir, spec_text: str):
@@ -246,8 +329,10 @@ def v1_get_thread_messages(slug: str):
                 msg_line = lines[i].strip()
                 m = re.match(r"\*\*\[(\w+)\]\*\*\s*(.*)", msg_line)
                 if m:
+                    role = m.group(1)
                     messages.append({
-                        "role": m.group(1),
+                        "role": role,
+                        "display_name": _DESIGN_ROLE_DISPLAY.get(role, role),
                         "content": m.group(2),
                         "tags": tags,
                     })
@@ -255,31 +340,74 @@ def v1_get_thread_messages(slug: str):
     return {"slug": slug, "messages": messages}
 
 
+def _invoke_specialist(llm_client, slug: str, spec_role: str, notes_path,
+                       spec_content: str, exchange_context: str, prompt_text: str,
+                       tags: list[str]) -> dict | None:
+    """Call a single specialist and persist their response. Returns response dict or None."""
+    role_prompt = _DESIGN_ROLE_PROMPTS[spec_role]
+    role_context = _get_role_context(notes_path, spec_role)
+    system_prompt = _DESIGN_SYSTEM_TEMPLATE.format(
+        role_prompt=role_prompt,
+        slug=slug,
+        spec_content=spec_content[:2000],
+        exchange_context=exchange_context,
+        role_context=role_context,
+    )
+    text = _llm_chat(llm_client, system_prompt, prompt_text)
+    if text:
+        entry = f"\n<!-- tags: {', '.join(tags)} -->\n**[{spec_role}]** {text}\n"
+        with open(notes_path, "a", encoding="utf-8") as f:
+            f.write(entry)
+        return {
+            "role": spec_role,
+            "display_name": _DESIGN_ROLE_DISPLAY.get(spec_role, spec_role),
+            "tags": tags,
+            "response": text,
+        }
+    return None
+
+
+
+def _build_exchange_context(exchange_responses: list[dict]) -> str:
+    """Build a summary of what's been said this exchange for cross-pollination."""
+    if not exchange_responses:
+        return ""
+    lines = []
+    for r in exchange_responses:
+        display = r.get("display_name", r["role"])
+        lines.append(f"{display}: {r['response']}")
+    return "What the team said so far this exchange:\n" + "\n".join(lines)
+
+
+def _identify_gaps(spec_content: str, heard_from: set[str]) -> str:
+    """Return a hint about which specialists haven't been heard from."""
+    all_specs = {"music_writer", "drill_writer", "choreographer"}
+    missing = all_specs - heard_from
+    if not missing:
+        return ""
+    names = [_DESIGN_ROLE_DISPLAY.get(r, r) for r in sorted(missing)]
+    return f"Haven't heard from: {', '.join(names)}."
+
+
 @router.post("/design/threads/{slug}/messages")
 def v1_post_thread_message(slug: str, req: PostMessageRequest):
-    """Post a message to a design thread — PC marshals the conversation, specialists contribute."""
+    """Post a message to a design thread — multi-round collaborative design session.
+
+    Flow:
+    1. Route message by tags → determine initial specialists
+    2. Round 1: Tagged specialists respond, then PC marshals
+    3. Round 2: PC's follow-up pulls in remaining specialists, then PC wraps up
+    This gives a natural 4-6 message collaborative exchange from one user prompt.
+    """
     show_dir = _show_dir(slug)
     from backend.services.note_router import route_note
     from backend.services.show_persistence import read_spec
 
     tags = route_note(req.message)
 
-    TAG_TO_ROLE = {
-        "music": "music_writer", "visual": "drill_writer",
-        "guard": "choreographer", "ge": "program_coordinator",
-        "admin": "program_coordinator", "questions": "program_coordinator",
-    }
-
-    # Determine which specialists to involve based on tags
-    specialist_roles = set()
-    for tag in tags:
-        role = TAG_TO_ROLE.get(tag)
-        if role and role != "program_coordinator":
-            specialist_roles.add(role)
-
-    # If user explicitly requested a role, include it
-    if req.role_hint and req.role_hint in _DESIGN_ROLE_PROMPTS and req.role_hint != "program_coordinator":
-        specialist_roles.add(req.role_hint)
+    # All specialists always engage — the design room is a collaborative meeting.
+    # Tags are still used for context/metadata but don't gate specialist participation.
+    specialist_roles = set(_SPECIALIST_ROLES)
 
     # Persist user message to design notes
     notes_path = show_dir / "design_notes.md"
@@ -290,44 +418,30 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
 
     # Build context
     spec_content = read_spec(show_dir) or "(no spec yet)"
-    notes_content = notes_path.read_text(encoding="utf-8", errors="replace") if notes_path.exists() else "(no notes yet)"
-    if len(notes_content) > 4000:
-        notes_content = "...\n" + notes_content[-4000:]
 
     responses: list[dict] = []
     llm_client = _get_llm_client()
+    heard_from: set[str] = set()  # Track which specialists have contributed
 
     if llm_client:
-        # 1. Specialists contribute first if their domain was tagged
-        specialist_inputs: list[str] = []
+        # ── Round 1: Tagged specialists respond ──
+        exchange_ctx = ""
         for spec_role in sorted(specialist_roles):
-            role_prompt = _DESIGN_ROLE_PROMPTS[spec_role]
-            role_context = _get_role_context(notes_path, spec_role)
-            system_prompt = _DESIGN_SYSTEM_TEMPLATE.format(
-                role_prompt=role_prompt,
-                slug=slug,
-                spec_content=spec_content[:2000],
-                role_context=role_context,
+            resp = _invoke_specialist(
+                llm_client, slug, spec_role, notes_path,
+                spec_content, exchange_ctx, req.message, tags,
             )
-            spec_text = _llm_chat(llm_client, system_prompt, req.message)
-            if spec_text:
-                spec_entry = f"\n<!-- tags: {', '.join(tags)} -->\n**[{spec_role}]** {spec_text}\n"
-                with open(notes_path, "a", encoding="utf-8") as f:
-                    f.write(spec_entry)
-                responses.append({
-                    "role": spec_role,
-                    "display_name": _DESIGN_ROLE_DISPLAY.get(spec_role, spec_role),
-                    "tags": tags,
-                    "response": spec_text,
-                })
-                specialist_inputs.append(f"{_DESIGN_ROLE_DISPLAY.get(spec_role, spec_role)}: {spec_text}")
+            if resp:
+                responses.append(resp)
+                heard_from.add(spec_role)
+                exchange_ctx = _build_exchange_context(responses)
 
-        # 2. PC marshals — sees specialist input and gives one coordinating response
-        specialist_ctx = ""
-        if specialist_inputs:
-            specialist_ctx = "Specialist input:\n" + "\n".join(specialist_inputs)
+        # ── Round 1 PC: Marshal specialist input ──
+        specialist_inputs = [
+            f"{r['display_name']}: {r['response']}" for r in responses
+        ]
+        specialist_ctx = "Specialist input:\n" + "\n".join(specialist_inputs) if specialist_inputs else ""
 
-        # Re-read notes after specialist writes
         notes_content = notes_path.read_text(encoding="utf-8", errors="replace") if notes_path.exists() else "(no notes yet)"
         if len(notes_content) > 4000:
             notes_content = "...\n" + notes_content[-4000:]
@@ -351,6 +465,50 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
                 "response": pc_text,
             })
 
+            # ── Round 2: Follow-up — ALL specialists respond to PC's direction ──
+            # Even if they already spoke in round 1, they get to react to the PC
+            # and to each other. This creates the collaborative back-and-forth.
+            exchange_ctx = _build_exchange_context(responses)
+            round2_had_responses = False
+            for spec_role in sorted(_SPECIALIST_ROLES):
+                followup_prompt = (
+                    f"The Program Coordinator just said: \"{pc_text}\"\n\n"
+                    f"Respond from your specialist perspective. React to what "
+                    f"the team proposed, add your angle, or answer the PC's question."
+                )
+                resp = _invoke_specialist(
+                    llm_client, slug, spec_role, notes_path,
+                    spec_content, exchange_ctx, followup_prompt, tags,
+                )
+                if resp:
+                    responses.append(resp)
+                    heard_from.add(spec_role)
+                    exchange_ctx = _build_exchange_context(responses)
+                    round2_had_responses = True
+
+            # ── Round 2 PC: Wrap up with decisions and next steps ──
+            if round2_had_responses:
+                gap_hint = _identify_gaps(spec_content, heard_from)
+                wrap_exchange = _build_exchange_context(responses)
+
+                pc_followup_prompt = _PC_FOLLOWUP_TEMPLATE.format(
+                    slug=slug,
+                    spec_content=spec_content[:2000],
+                    exchange_context=wrap_exchange,
+                    gap_hint=gap_hint,
+                )
+                pc_wrap = _llm_chat(llm_client, pc_followup_prompt, "Wrap up this round of discussion.")
+                if pc_wrap:
+                    pc_wrap_entry = f"\n<!-- tags: {', '.join(tags)} -->\n**[program_coordinator]** {pc_wrap}\n"
+                    with open(notes_path, "a", encoding="utf-8") as f:
+                        f.write(pc_wrap_entry)
+                    responses.append({
+                        "role": "program_coordinator",
+                        "display_name": _DESIGN_ROLE_DISPLAY["program_coordinator"],
+                        "tags": tags,
+                        "response": pc_wrap,
+                    })
+
     # Fallback if no LLM responses were generated
     if not responses:
         fallback_text = (
@@ -367,62 +525,10 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
             "response": fallback_text,
         })
 
-    # Auto-update the spec based on the conversation so far
+    # Auto-update spec + lint/judge
     if llm_client and responses:
-        try:
-            from backend.services.show_persistence import write_spec
-            notes_for_spec = notes_path.read_text(encoding="utf-8", errors="replace") if notes_path.exists() else ""
-            if len(notes_for_spec) > 5000:
-                notes_for_spec = "...\n" + notes_for_spec[-5000:]
-            spec_prompt = _SPEC_UPDATE_TEMPLATE.format(
-                spec_content=spec_content,
-                notes_content=notes_for_spec,
-            )
-            updated_spec = _llm_chat(llm_client, spec_prompt, "Update the spec now.")
-            if updated_spec and len(updated_spec) > 50:
-                write_spec(show_dir, updated_spec)
-                # Auto-extract ## Swarm Prompt into show_prompt.md
-                _extract_swarm_prompt(show_dir, updated_spec)
-        except Exception:
-            pass  # Spec update is best-effort
-
-    # Auto-lint: run both linters and report issues as a judge message
-    try:
-        from backend.services.brief_linter import lint_brief
-        from backend.services.prompt_linter import lint_prompt
-        from backend.services.show_persistence import read_spec as _read_spec, missing_show_files
-
-        brief_content = _read_spec(show_dir) or ""
-        prompt_path = show_dir / "show_prompt.md"
-        prompt_content = prompt_path.read_text(encoding="utf-8") if prompt_path.exists() else ""
-
-        brief_report = lint_brief(brief_content)
-        prompt_report = lint_prompt(prompt_content)
-        missing_files = missing_show_files(show_dir)
-
-        issues: list[str] = []
-        for f in brief_report.required_fix:
-            issues.append(f"Brief — {f.section}: {f.message}")
-        for f in prompt_report.required_fix:
-            issues.append(f"Prompt — {f.section}: {f.message}")
-        for name in missing_files:
-            issues.append(f"Show Files — Missing required file: {name}")
-
-        if issues:
-            judge_text = "Open issues: " + "; ".join(issues[:5])
-            if len(issues) > 5:
-                judge_text += f" (+{len(issues) - 5} more)"
-            judge_entry = f"\n<!-- tags: admin -->\n**[judge]** {judge_text}\n"
-            with open(notes_path, "a", encoding="utf-8") as f:
-                f.write(judge_entry)
-            responses.append({
-                "role": "judge",
-                "display_name": "Judge",
-                "tags": ["admin"],
-                "response": judge_text,
-            })
-    except Exception:
-        pass  # Lint is best-effort
+        _update_spec_from_conversation(llm_client, show_dir, notes_path, spec_content)
+    _run_lint_and_judge(show_dir, notes_path, responses)
 
     # Return backward-compatible single response + full responses array
     return {
@@ -460,6 +566,200 @@ def v1_greet_thread(slug: str):
         "display_name": "Program Coordinator",
         "response": text,
     }
+
+
+@router.post("/design/threads/{slug}/continue")
+def v1_continue_design(slug: str):
+    """PC-driven autonomous design continuation.
+
+    The PC reviews the current brief and conversation, identifies the most
+    important gap, and drives the team to fill it. One round: PC question →
+    specialists respond → PC wraps up → spec auto-updates.
+    """
+    show_dir = _show_dir(slug)
+    from backend.services.show_persistence import read_spec
+
+    llm_client = _get_llm_client()
+    if not llm_client:
+        return {"responses": [{
+            "role": "program_coordinator",
+            "display_name": "Program Coordinator",
+            "tags": ["admin"],
+            "response": "LLM unavailable — can't continue autonomously.",
+        }]}
+
+    notes_path = show_dir / "design_notes.md"
+    spec_content = read_spec(show_dir) or "(no spec yet)"
+    notes_content = notes_path.read_text(encoding="utf-8", errors="replace") if notes_path.exists() else "(no notes)"
+    if len(notes_content) > 4000:
+        notes_content = "...\n" + notes_content[-4000:]
+
+    # Get current lint status for the PC
+    lint_summary = "None"
+    try:
+        from backend.services.brief_linter import lint_brief
+        report = lint_brief(spec_content)
+        if report.required_fix:
+            lint_summary = "; ".join(f"{f.section}: {f.message}" for f in report.required_fix[:5])
+    except Exception:
+        pass
+
+    # PC identifies what to tackle next
+    pc_prompt = _PC_CONTINUE_TEMPLATE.format(
+        slug=slug,
+        spec_content=spec_content[:2000],
+        notes_content=notes_content,
+        lint_summary=lint_summary,
+    )
+    pc_text = _llm_chat(llm_client, pc_prompt, "What should we work on next?")
+    if not pc_text:
+        return {"responses": [{
+            "role": "program_coordinator",
+            "display_name": "Program Coordinator",
+            "tags": ["admin"],
+            "response": "I'm having trouble formulating the next question. Try sending a message instead.",
+        }]}
+
+    # Persist PC's driving question
+    tags = ["admin"]
+    pc_entry = f"\n<!-- tags: admin -->\n**[program_coordinator]** {pc_text}\n"
+    with open(notes_path, "a", encoding="utf-8") as f:
+        f.write(pc_entry)
+
+    responses: list[dict] = [{
+        "role": "program_coordinator",
+        "display_name": _DESIGN_ROLE_DISPLAY["program_coordinator"],
+        "tags": tags,
+        "response": pc_text,
+    }]
+
+    # Specialists respond to the PC's question
+    exchange_ctx = _build_exchange_context(responses)
+    for spec_role in sorted(_SPECIALIST_ROLES):
+        resp = _invoke_specialist(
+            llm_client, slug, spec_role, notes_path,
+            spec_content, exchange_ctx, pc_text, tags,
+        )
+        if resp:
+            responses.append(resp)
+            exchange_ctx = _build_exchange_context(responses)
+
+    # PC wrap-up
+    if len(responses) > 1:
+        wrap_exchange = _build_exchange_context(responses)
+        pc_followup = _PC_FOLLOWUP_TEMPLATE.format(
+            slug=slug,
+            spec_content=spec_content[:2000],
+            exchange_context=wrap_exchange,
+            gap_hint="",
+        )
+        pc_wrap = _llm_chat(llm_client, pc_followup, "Wrap up this round.")
+        if pc_wrap:
+            pc_wrap_entry = f"\n<!-- tags: admin -->\n**[program_coordinator]** {pc_wrap}\n"
+            with open(notes_path, "a", encoding="utf-8") as f:
+                f.write(pc_wrap_entry)
+            responses.append({
+                "role": "program_coordinator",
+                "display_name": _DESIGN_ROLE_DISPLAY["program_coordinator"],
+                "tags": tags,
+                "response": pc_wrap,
+            })
+
+    # Auto-update spec + lint/judge
+    _update_spec_from_conversation(llm_client, show_dir, notes_path, spec_content)
+    _run_lint_and_judge(show_dir, notes_path, responses)
+
+    return {
+        "role": responses[0]["role"],
+        "tags": tags,
+        "response": responses[0]["response"],
+        "responses": responses,
+    }
+
+
+def _auto_progress_status(show_dir, notes_path, responses: list[dict]):
+    """Auto-transition draft → needs_review when lint is clean."""
+    try:
+        from backend.services.show_persistence import load_status, update_status
+        status = load_status(show_dir)
+        if status.get("status") == "draft":
+            update_status(show_dir, "needs_review")
+            msg = "All sections filled and lint is clean. Status upgraded to needs_review — ready for approval."
+            entry = f"\n<!-- tags: admin -->\n**[judge]** {msg}\n"
+            with open(notes_path, "a", encoding="utf-8") as f:
+                f.write(entry)
+            responses.append({
+                "role": "judge",
+                "display_name": "Judge",
+                "tags": ["admin"],
+                "response": msg,
+            })
+    except Exception:
+        pass
+
+
+def _update_spec_from_conversation(llm_client, show_dir, notes_path, spec_content: str):
+    """Auto-update the spec based on the full conversation. Best-effort."""
+    try:
+        from backend.services.show_persistence import write_spec
+        notes_for_spec = notes_path.read_text(encoding="utf-8", errors="replace") if notes_path.exists() else ""
+        if len(notes_for_spec) > 5000:
+            notes_for_spec = "...\n" + notes_for_spec[-5000:]
+        spec_prompt = _SPEC_UPDATE_TEMPLATE.format(
+            spec_content=spec_content,
+            notes_content=notes_for_spec,
+        )
+        updated_spec = _llm_chat(llm_client, spec_prompt, "Update the spec now.")
+        if updated_spec and len(updated_spec) > 50:
+            updated_spec = _strip_code_fences(updated_spec)
+            write_spec(show_dir, updated_spec)
+            _extract_swarm_prompt(show_dir, updated_spec)
+    except Exception:
+        pass
+
+
+def _run_lint_and_judge(show_dir, notes_path, responses: list[dict]):
+    """Run linters, emit judge message (deduped), auto-progress if clean. Best-effort."""
+    try:
+        from backend.services.brief_linter import lint_brief
+        from backend.services.prompt_linter import lint_prompt
+        from backend.services.show_persistence import read_spec, missing_show_files
+
+        brief_content = read_spec(show_dir) or ""
+        prompt_path = show_dir / "show_prompt.md"
+        prompt_content = prompt_path.read_text(encoding="utf-8") if prompt_path.exists() else ""
+
+        brief_report = lint_brief(brief_content)
+        prompt_report = lint_prompt(prompt_content)
+        missing_files = missing_show_files(show_dir)
+
+        issues: list[str] = []
+        for f in brief_report.required_fix:
+            issues.append(f"Brief — {f.section}: {f.message}")
+        for f in prompt_report.required_fix:
+            issues.append(f"Prompt — {f.section}: {f.message}")
+        for name in missing_files:
+            issues.append(f"Show Files — Missing required file: {name}")
+
+        if issues:
+            judge_text = "Open issues: " + "; ".join(issues[:5])
+            if len(issues) > 5:
+                judge_text += f" (+{len(issues) - 5} more)"
+            last_judge = _get_last_judge_message(notes_path)
+            if judge_text != last_judge:
+                judge_entry = f"\n<!-- tags: admin -->\n**[judge]** {judge_text}\n"
+                with open(notes_path, "a", encoding="utf-8") as f:
+                    f.write(judge_entry)
+                responses.append({
+                    "role": "judge",
+                    "display_name": "Judge",
+                    "tags": ["admin"],
+                    "response": judge_text,
+                })
+        else:
+            _auto_progress_status(show_dir, notes_path, responses)
+    except Exception:
+        pass
 
 
 @router.get("/design/threads/{slug}/artifacts/brief")

@@ -119,7 +119,7 @@ describe("Thread Detail view", () => {
     renderAtRoute("/design/test-show");
     await waitFor(() => expect(mockV1.getMessages).toHaveBeenCalled());
 
-    const inputs = screen.getAllByPlaceholderText("Share your vision with the design team...");
+    const inputs = screen.getAllByPlaceholderText("Direct the design team... (Enter to send, Ctrl+Enter to continue)");
     fireEvent.change(inputs[0], { target: { value: "Add brass" } });
     fireEvent.click(screen.getByText("Send"));
 

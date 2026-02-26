@@ -141,7 +141,7 @@ class TestDesignRoomAPI:
         data = resp.json()
         assert "role" in data
         assert "tags" in data
-        assert "music" in data["tags"]
+        assert "architecture" in data["tags"]
 
     def test_approve_endpoint(self, api_client, tmp_path):
         api_client.post("/api/design/shows", json={"title": "My Show"})
