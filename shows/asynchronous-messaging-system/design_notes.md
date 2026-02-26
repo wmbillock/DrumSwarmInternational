@@ -621,3 +621,25 @@ The `show_prompt.md` file (140 lines) contains the complete implementation guide
 
 <!-- tags: admin -->
 **[judge]** Open issues: Brief — Musical Design: Unfilled placeholder: \bTBD\b; Prompt — Objective: Missing required section: ## Objective; Prompt — Deliverables: Missing required section: ## Deliverables
+<!-- tags: admin -->
+
+**[user]** Show Prompt Lint Edit Required Fixes (2) Objective: Missing required section: ## Objective Deliverables: Missing required section: ## Deliverables Nice to Have (2) Constraints: Consider adding: ## Constraints Acceptance Criteria: Consider adding: ## Acceptance Criteria
+
+<!-- tags: admin -->
+**[program_coordinator]** ## Objective  
+Enable seamless, asynchronous collaboration.
+
+## Deliverables  
+- MessageInbox.tsx
+- MessageArchive.tsx
+- MessageAdmin.tsx
+- TopNav
+
+## Constraints  
+Real-time notifications, role-based permissions.
+
+## Acceptance Criteria  
+Functional threads, searchable archives, notification pulses.
+
+<!-- tags: admin -->
+**[judge]** Open issues: Brief — Musical Design: Unfilled placeholder: \bTBD\b
