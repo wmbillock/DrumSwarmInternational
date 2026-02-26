@@ -314,7 +314,11 @@ export function CorpsThemeProvider({ children }: { children: ReactNode }) {
 
   // User's preferred theme (set via theme picker in DCI overview mode)
   const [userThemeId, setUserThemeId] = useState(() => {
-    return localStorage.getItem("dci-corps-theme") || "default";
+    try {
+      return localStorage.getItem("dci-corps-theme") || "default";
+    } catch {
+      return "default";
+    }
   });
 
   // Currently active theme (may be overridden by context)
@@ -377,7 +381,11 @@ export function CorpsThemeProvider({ children }: { children: ReactNode }) {
 
   // Persist user theme preference
   useEffect(() => {
-    localStorage.setItem("dci-corps-theme", userThemeId);
+    try {
+      localStorage.setItem("dci-corps-theme", userThemeId);
+    } catch {
+      // localStorage unavailable (SSR or restricted environment)
+    }
   }, [userThemeId]);
 
   // Auto-restore default theme when leaving corps context

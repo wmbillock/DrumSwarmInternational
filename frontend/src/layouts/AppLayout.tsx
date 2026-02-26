@@ -8,9 +8,13 @@ import { CorpsThemeProvider } from "../contexts/CorpsThemeContext";
 import { useCorpsContext } from "../hooks/useCorpsContext";
 
 function AppLayoutInner() {
-  const [theme, setTheme] = useState<"dark" | "light">(() =>
-    (localStorage.getItem("dci-theme") as "dark" | "light") || "dark"
-  );
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    try {
+      return (localStorage.getItem("dci-theme") as "dark" | "light") || "dark";
+    } catch {
+      return "dark";
+    }
+  });
 
   const location = useLocation();
 
@@ -19,7 +23,11 @@ function AppLayoutInner() {
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("dci-theme", theme);
+    try {
+      localStorage.setItem("dci-theme", theme);
+    } catch {
+      // localStorage unavailable
+    }
   }, [theme]);
 
   // Set document title based on route
