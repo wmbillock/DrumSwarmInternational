@@ -1,0 +1,10 @@
+season_id: winter-2026
+metadata:
+  season_id: winter-2026
+shows: []
+divisions: {}
+config:
+  corps_per_contest: 12
+  required_scores: 1
+schedule: []
+locked: false
