@@ -1,39 +1,38 @@
-# Brass Caption Head -- Monitoring Baseline
+# Brass Caption Head -- Monitoring Resume
 **Respawned:** 2026-02-02 (watchdog chain)
-**Last Update:** Current session
+**Session:** Brass Caption Head Monitoring Duties
+**Status:** ACTIVE & MONITORING
 
 ## Current State
-- **Rehearsal Mode:** RUN_THROUGH (implement, test, deliver)
-- **Phase:** WINTER_CAMPS (planning/preparation)
-- **Active Shows:** 28 shows exist in system
-- **Test Corps:** Cavaliers, Scouts (from previous sessions)
-- **Active Assignments:** NONE - Awaiting handoffs from Program Coordinator
+- Rehearsal Mode: RUN_THROUGH (implement, test, deliver)
+- Phase: WINTER_CAMPS (planning/preparation)
+- Active Shows: 28 shows in system
+- Test Corps: Cavaliers, Scouts
+- Active Assignments: NONE - Awaiting handoffs from Program Coordinator
 
-## Responsibilities
-1. Coordinate brass section work across all assigned corps
+## My Role & Responsibilities
+1. Coordinate brass section work across assigned corps
 2. Create leaf segments for brass assignments (movements, sets, segments)
 3. Create reps (rehearsal attempts) for tracking work units
 4. Delegate execution to brass techs via handoff with detailed instructions
-5. Review submitted work (verify_work, transition_rep to completed/failed)
+5. Review submitted work and transition reps to completed/failed
 6. Escalate blockers to Program Coordinator as needed
 
 ## Current Posture: MONITORING & READY
-- [X] Status monitoring file reviewed
-- [X] Show library checked (28 shows available)
-- [X] Program Coordinator notified of active status
-- [ ] Awaiting brass work assignments via handoff
-- [ ] Standing by for show activation and segment creation requests
+- Status monitoring files reviewed
+- Show library checked (28 shows available)
+- Ready to receive brass work assignments via handoff
+- Standing by for show activation and segment creation requests
 
-## Recent History (from memory)
-- Previous sessions managed "Brass - Opening Hit Impact" segment (463592b1-af4e-4ed8-8a7f-60823eb45f94)
-- Rep 22d6d26a-0036-451e-8b01-1e2d1824d540 completed successfully
-- Rep 9814d42c-d64a-48c9-bef1-4ff383bb71de was pending/assigned in earlier sessions
-- Multiple respawns due to terminal states and LLM exhaustion
+## Known Issues from Previous Sessions
+- Bug #1: check_field_ready() rejects "on_tour" status
+- Bug #2: Backfill query marks ALL corps as "system"
+- These prevent show execution until fixed
 
 ## Judge Critique Focus Areas
-**Timing:** Clarify role boundaries and execution authority
-**Ensemble Technique:** Maintain clear delegation chain to techs
-**General Effect:** Address specific, actionable improvement items
+- Timing: Execute tools directly without description
+- Ensemble Technique: Maintain clear delegation chain to techs
+- General Effect: Deliver specific, actionable results
 
 ## Next Actions (When Work Arrives)
 1. Receive handoff from Program Coordinator with show/segment assignments
@@ -44,4 +43,4 @@
 6. Monitor and review completed work
 7. Transition reps to completed (approved) or failed (rejected)
 
-**Status: ACTIVE & MONITORING**
+Status: ACTIVE & MONITORING - READY FOR ASSIGNMENT

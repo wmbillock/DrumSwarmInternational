@@ -1,0 +1,40 @@
+season_id: recliner-realizations-1
+status: completed
+generated_at: '2026-02-15T08:22:40.960256+00:00'
+required_scores: 1
+qualification:
+  c5f1d328-685a-4c60-9c8c-fd880e516571: true
+  ec4c11f9-faaa-4113-86b3-902d19200bcb: true
+score_counts:
+  c5f1d328-685a-4c60-9c8c-fd880e516571: 3
+  ec4c11f9-faaa-4113-86b3-902d19200bcb: 3
+overall:
+- rank: 1
+  corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+  score: 56.685
+  qualified: true
+  scores_count: 3
+- rank: 2
+  corps_id: ec4c11f9-faaa-4113-86b3-902d19200bcb
+  score: 43.155
+  qualified: true
+  scores_count: 3
+divisions:
+- show_slug: dci-admin-chat-centralizing-swarm-enhancements
+  standings:
+  - rank: 1
+    corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+    score: 56.685
+    qualified: true
+    scores_count: 3
+  - rank: 2
+    corps_id: ec4c11f9-faaa-4113-86b3-902d19200bcb
+    score: 43.155
+    qualified: true
+    scores_count: 3
+- show_slug: divisions-and-competition-classes
+  standings: []
+winner:
+  corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+  division: null
+  declared_at: '2026-02-15T08:22:40.960273+00:00'
