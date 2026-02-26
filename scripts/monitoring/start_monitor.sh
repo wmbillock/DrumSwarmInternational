@@ -25,16 +25,10 @@ LOG_FILE="$PROJECT_ROOT/backend.log"
 FE_LOG_FILE="$PROJECT_ROOT/frontend.log"
 INSTANCE_ID="${DSI_INSTANCE_ID:-$SESSION_NAME}"
 
-# Detect tmux base-index settings (user may configure these to start at 1)
-_W=$(tmux show-options -gv base-index 2>/dev/null || echo 0)
-_P=$(tmux show-options -gwv pane-base-index 2>/dev/null || echo 0)
-
-# Pane target shortcuts: SESSION:WINDOW.PANE
-WIN="$SESSION_NAME:$_W"
-T0="$SESSION_NAME:$_W.$_P"
-T1="$SESSION_NAME:$_W.$((_P + 1))"
-T2="$SESSION_NAME:$_W.$((_P + 2))"
-T3="$SESSION_NAME:$_W.$((_P + 3))"
+# _W, _P, WIN, T0-T3 are set inside create_session() after the tmux server
+# is guaranteed to be running. Querying base-index before a server exists
+# silently falls back to 0, which breaks when the user's tmux.conf sets
+# base-index to 1.
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -75,12 +69,26 @@ create_session() {
     local VP
     VP="$(venv_prefix)"
 
+    # Create session first so the tmux server is running, THEN detect indices
+    kill_existing_session
+
     local VIEW_FILE="$PROJECT_ROOT/.dci-dashboard-view"
     local ACTIONS="$SCRIPT_DIR/swarm_actions.sh"
     local STATUS_LINE="$SCRIPT_DIR/status_line.sh"
 
-    # Create session with pane 0 (Claude Code workspace — left, large)
+    # Create session first — this guarantees the tmux server is running
     tmux new-session -d -s "$SESSION_NAME" -c "$PROJECT_ROOT" -x 220 -y 55
+
+    # NOW detect base-index settings (server is guaranteed running)
+    local _W _P WIN T0 T1 T2 T3
+    _W=$(tmux show-options -gv base-index 2>/dev/null || echo 0)
+    _P=$(tmux show-option -wgv pane-base-index 2>/dev/null || echo 0)
+    WIN="$SESSION_NAME:$_W"
+    T0="$SESSION_NAME:$_W.$_P"
+    T1="$SESSION_NAME:$_W.$((_P + 1))"
+    T2="$SESSION_NAME:$_W.$((_P + 2))"
+    T3="$SESSION_NAME:$_W.$((_P + 3))"
+
     tmux rename-window -t "$WIN" "monitor"
     tmux set-environment -t "$SESSION_NAME" DSI_INSTANCE_ID "$INSTANCE_ID"
 
@@ -176,7 +184,6 @@ check_dependencies
 
 case "${1:-start}" in
     start)
-        kill_existing_session
         create_session
         attach_session
         ;;
@@ -185,7 +192,6 @@ case "${1:-start}" in
         log_info "Dashboard dismissed."
         ;;
     restart)
-        kill_existing_session
         create_session
         attach_session
         ;;
