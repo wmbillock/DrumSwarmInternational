@@ -1,0 +1,27 @@
+season_id: recliner-realizations-1
+competition_id: recliner-realizations-1-round-1
+show_slug: dci-admin-chat-centralizing-swarm-enhancements
+generated_at: '2026-02-15T06:52:30.094336+00:00'
+results:
+- corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+  rank: 1
+  final_score: 56.685
+  raw_score: 56.685
+  caption_scores:
+    visual: 70.0
+    guard: 70.0
+    brass: 70.0
+    ensemble_technique: 70.0
+    general_effect: 31.5
+    percussion: 41.5
+- corps_id: ec4c11f9-faaa-4113-86b3-902d19200bcb
+  rank: 2
+  final_score: 43.155
+  raw_score: 43.155
+  caption_scores:
+    percussion: 60.0
+    brass: 31.5
+    visual: 40.0
+    general_effect: 30.0
+    ensemble_technique: 40.0
+    guard: 60.0
