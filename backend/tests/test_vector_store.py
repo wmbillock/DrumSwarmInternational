@@ -1,8 +1,16 @@
 """Tests for vector store — ChromaDB wrapper."""
 
+import sys
 import pytest
 
 from backend.services import vector_store
+
+# ChromaDB 1.5.1 uses pydantic v1 internals that break on Python 3.14+
+_chromadb_broken = sys.version_info >= (3, 14)
+pytestmark = pytest.mark.skipif(
+    _chromadb_broken,
+    reason="ChromaDB incompatible with Python 3.14+ (pydantic v1)",
+)
 
 
 @pytest.fixture(autouse=True)
