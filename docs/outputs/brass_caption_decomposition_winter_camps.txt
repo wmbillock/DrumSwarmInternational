@@ -1,0 +1,183 @@
+BRASS CAPTION HEAD - SEGMENT DECOMPOSITION REPORT
+Winter Camps Planning Phase | RUN_THROUGH Mode
+================================================================
+
+TASK: Decompose 4 movement sets into executable brass segment tasks
+STATUS: COMPLETE - All 12 segments created, all 12 reps initialized
+
+================================================================
+MOVEMENT I: OPENING STATEMENT
+================================================================
+
+Parent Segment: e5bc2870-c53a-4bf2-b815-321ae82a42d3
+"Movement I, Set 1: Brass Foundation & Opening Fanfare"
+Description: Establish tonal center with bold brass entrance, opening fanfare voicings, and harmonic foundation for the statement. Focus on intonation, attack clarity, and ensemble blend.
+
+DECOMPOSED SEGMENTS:
+
+1. Trumpet Section: Opening Fanfare Entrance
+   Segment ID: e7e66d34-1467-4130-b301-801cd384f7ed
+   Rep ID: a10feb67-891f-4a3e-8909-13236064e52f
+   Task: Lead opening fanfare with bright, clear attacks. Establish tonal center and ensemble presence.
+   Technical Requirements:
+   - Range: Bb3-Eb5 (bright open voicing)
+   - Articulation: Crisp, rhythmic attacks with sustained tone
+   - Dynamics: mf -> f (building impact)
+   - Ensemble Balance: Lead voice, primary melodic focus
+
+2. Horn Section: Harmonic Foundation & Voicing
+   Segment ID: 17de5a21-569a-467c-9047-59c89d35bcb5
+   Rep ID: 36342ee1-ea12-4b23-b1c6-6939c1bdcf78
+   Task: Provide harmonic foundation and voicing support for fanfare.
+   Technical Requirements:
+   - Range: F2-Bb4 (midrange harmonic anchor)
+   - Articulation: Smooth, connected attacks supporting trumpet line
+   - Dynamics: mp -> mf (supporting role)
+   - Ensemble Balance: Harmonic pillar, intonation critical
+
+3. Trombone Section: Low Foundation & Attack
+   Segment ID: a305d577-2021-4e5b-ae4a-2f6fda428a6b
+   Rep ID: 84dd85a3-1483-4dd0-a0c6-5dd527571e9d
+   Task: Establish low harmonic foundation with synchronized attacks.
+   Technical Requirements:
+   - Range: Bb1-F3 (bass foundation)
+   - Articulation: Precise, unified attacks with weight
+   - Dynamics: mp -> f (foundational support)
+   - Ensemble Balance: Rhythmic anchor, attack precision essential
+
+================================================================
+MOVEMENT II: TRANSFORMATION
+================================================================
+
+Parent Segment: 99e22919-81ab-4485-8860-5c283be0d79c
+"Movement II, Set 1: Lyrical Development & Solo Features"
+Description: Feature solo brass sections exploring identity theme. Develop lyrical voicings, harmonic progressions supporting emotional journey. Balance featured and ensemble sections.
+
+DECOMPOSED SEGMENTS:
+
+4. Trumpet Solo Feature: Identity Expression
+   Segment ID: a3e552c7-bf1a-4d5c-859b-cedcbc63c090
+   Rep ID: 8c92be58-d8f8-4e7f-ab39-243bcf2d09ea
+   Task: Lead lyrical solo passage expressing personal identity and emotional journey.
+   Technical Requirements:
+   - Range: Bb3-G5 (expressive solo range)
+   - Articulation: Lyrical, singing phrasing with subtle articulation variations
+   - Dynamics: p -> mp -> f (emotional arc)
+   - Ensemble Balance: Featured solo, primary emotional voice
+
+5. Horn Section: Harmonic Progression & Ensemble Support
+   Segment ID: ab7392fd-2ed4-42d9-91ee-6edf28361b82
+   Rep ID: f0cb5b9d-2e01-4cae-af81-7a179a0192af
+   Task: Support solo with harmonic progression and emotional development.
+   Technical Requirements:
+   - Range: F2-Eb4 (responsive harmonic voicing)
+   - Articulation: Smooth, legato phrasing matching solo contour
+   - Dynamics: p -> mf (supporting emotional arch)
+   - Ensemble Balance: Harmonic support, blend with trumpet solo
+
+6. Trombone Section: Harmonic Anchoring & Response
+   Segment ID: dd27aca3-46ce-484c-8fd1-190743f5daab
+   Rep ID: 7305988c-74cd-47fb-9156-331fbf8cbca5
+   Task: Provide bass harmonic anchor and responsive countermelody.
+   Technical Requirements:
+   - Range: Bb1-Bb3 (bass foundation with response)
+   - Articulation: Legato anchoring with rhythmic response figures
+   - Dynamics: pp -> p -> mp (building support)
+   - Ensemble Balance: Harmonic foundation, responsive phrasing
+
+================================================================
+MOVEMENT III: CELEBRATION AND DEFIANCE
+================================================================
+
+Parent Segment: 5404ff0a-5212-40ba-b34d-592e3523f0c9
+"Movement III, Set 1: Celebratory Brass Passages"
+Description: High-energy celebratory brass sections with bright voicings, rhythmic drive, and joyful articulations. Pride and resilience expressed through powerful brass statements.
+
+DECOMPOSED SEGMENTS:
+
+7. Trumpet Section: High-Energy Celebratory Fanfare
+   Segment ID: f84753a9-4f38-4b28-ae3c-3a514146b6c6
+   Rep ID: 8126683a-90ff-4a02-a58e-add112f6555d
+   Task: Drive celebratory passage with bright, energetic fanfare statements.
+   Technical Requirements:
+   - Range: B3-G5 (bright upper register)
+   - Articulation: Crisp, rhythmic articulation with jubilant character
+   - Dynamics: f -> ff (high energy, powerful)
+   - Ensemble Balance: Lead voice, rhythmic driver
+
+8. Horn Section: Bright Celebratory Voicing
+   Segment ID: 8d0053de-8777-46ef-8757-46f9f32588b0
+   Rep ID: 90005ed7-8e5d-41e8-b30e-7751c92896a0
+   Task: Provide bright harmonic support with celebratory character.
+   Technical Requirements:
+   - Range: G2-C5 (bright midrange voicing)
+   - Articulation: Articulate, energetic attacks with jubilant tone
+   - Dynamics: mf -> f (matching trumpet energy)
+   - Ensemble Balance: Harmonic color, bright ensemble blend
+
+9. Trombone Section: Rhythmic Drive & Power
+   Segment ID: 0797e8c7-04ca-442a-8eb0-ec313461a93b
+   Rep ID: 309e04ae-19ae-4494-ad42-adccbc079a1c
+   Task: Drive rhythmic energy with powerful, grounded foundation.
+   Technical Requirements:
+   - Range: Bb1-Bb3 (powerful bass register)
+   - Articulation: Strong, rhythmic articulation with locked groove
+   - Dynamics: f -> ff (powerful foundation)
+   - Ensemble Balance: Rhythmic engine, powerful low presence
+
+================================================================
+MOVEMENT IV: TRIUMPHANT FINALE
+================================================================
+
+Parent Segment: 2ae29071-be43-466f-a620-2556ec5d2b3c
+"Movement IV, Set 1: Unified Brass Statement"
+Description: Combine all thematic brass elements into powerful unified statement. Full harmonic richness, balanced ensemble blend, building toward transcendent conclusion.
+
+DECOMPOSED SEGMENTS:
+
+10. Trumpet Section: Unified Thematic Statement
+    Segment ID: 8099e6b8-c23f-49ff-9b9f-66ad5bea8746
+    Rep ID: 77950c34-ef48-4455-8af2-24ed2d98eeb2
+    Task: Deliver unified thematic statement combining all movement threads.
+    Technical Requirements:
+    - Range: Bb3-Bb5 (full expressive range)
+    - Articulation: Powerful, singing phrasing with thematic clarity
+    - Dynamics: mf -> fff (building to climax)
+    - Ensemble Balance: Lead voice, thematic statement
+
+11. Horn Section: Harmonic Richness & Ensemble Balance
+    Segment ID: a4bf940a-4901-49de-92ec-3e9000a0809e
+    Rep ID: c6aba317-d69c-4a37-abb9-e727c9f370f6
+    Task: Provide full harmonic richness and balanced ensemble support.
+    Technical Requirements:
+    - Range: F2-Eb5 (full harmonic spectrum)
+    - Articulation: Blended, singing phrasing supporting thematic climax
+    - Dynamics: p -> fff (full dynamic range)
+    - Ensemble Balance: Harmonic richness, unified ensemble blend
+
+12. Trombone Section: Foundation & Climactic Build
+    Segment ID: 8bf80a42-1b42-42e2-b8f8-6e08bed58d73
+    Rep ID: 3739e41f-408b-4edc-95d2-f54639bb9ae5
+    Task: Provide powerful foundation and build toward transcendent conclusion.
+    Technical Requirements:
+    - Range: Bb1-F3 (full bass range)
+    - Articulation: Powerful, connected phrasing supporting climax
+    - Dynamics: p -> fff (full dramatic arc)
+    - Ensemble Balance: Foundational support, climactic build anchor
+
+================================================================
+SUMMARY
+================================================================
+
+Total Segments Created: 12 (leaf segments across 4 movements)
+Total Reps Created: 12 (all in PENDING status)
+Decomposition Status: COMPLETE
+Next Steps: Assign reps to brass section technicians (trumpet, horn, trombone)
+
+All segments include:
+- Technical range specifications
+- Articulation requirements
+- Dynamic arc guidance
+- Ensemble balance role definition
+
+Handoff message sent to program_coordinator with completion status.
