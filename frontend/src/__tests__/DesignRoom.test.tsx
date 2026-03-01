@@ -11,6 +11,7 @@ vi.mock("../services/v1", async (importOriginal) => {
     createThread: vi.fn(),
     getMessages: vi.fn(),
     postMessage: vi.fn(),
+    postMessageStream: vi.fn(),
     getBrief: vi.fn(),
     updateBrief: vi.fn(),
     getPrompt: vi.fn(),
@@ -111,10 +112,15 @@ describe("Thread Detail view", () => {
 
   it("sends message with optimistic update", async () => {
     setupDetailMocks("test-show");
-    mockV1.postMessage.mockResolvedValue({
-      role: "music_writer",
-      tags: ["music"],
-      response: "Great idea!",
+    // postMessageStream calls onMessage callback for each agent response
+    mockV1.postMessageStream.mockImplementation(async (_slug: string, _msg: string, callbacks: any) => {
+      callbacks.onMessage({
+        role: "music_writer",
+        display_name: "Systems Architect",
+        tags: ["music"],
+        response: "Great idea!",
+      });
+      callbacks.onDone();
     });
     renderAtRoute("/design/test-show");
     await waitFor(() => expect(mockV1.getMessages).toHaveBeenCalled());

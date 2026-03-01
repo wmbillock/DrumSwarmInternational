@@ -100,6 +100,7 @@ def load_season(season_dir: Path) -> dict:
     data.setdefault("config", dict(DEFAULT_CONFIG))
     data.setdefault("schedule", [])
     data.setdefault("locked", False)
+    data.setdefault("corps_show_assignments", {})
     data["registered_corps"] = list_registered_corps(season_dir)
     return data
 

@@ -15,8 +15,60 @@ logger = logging.getLogger(__name__)
 CAPTIONS = ["brass", "percussion", "guard", "visual", "general_effect", "ensemble_technique"]
 
 
+def assign_corps_shows(season_dir: Path) -> dict[str, str]:
+    """Assign each corps ONE show for the entire season.
+
+    Uses division-based assignments if available (corps already assigned to shows
+    via assign_corps in season_persistence). Falls back to round-robin across
+    available shows if no division assignments exist.
+
+    Stores result in season.yaml under corps_show_assignments.
+    Returns the assignment dict {corps_id: show_slug}.
+    """
+    data = load_season(season_dir)
+    corps_ids = list(data.get("registered_corps", []))
+    shows = list(data.get("shows") or [])
+    divisions = data.get("divisions") or {}
+
+    if not corps_ids or not shows:
+        return {}
+
+    assignments: dict[str, str] = {}
+
+    # Check if corps are already assigned to shows via divisions
+    for show_slug in shows:
+        div_corps = divisions.get(show_slug, [])
+        for cid in div_corps:
+            if cid in corps_ids and cid not in assignments:
+                assignments[cid] = show_slug
+
+    # Round-robin remaining unassigned corps across shows
+    unassigned = [cid for cid in corps_ids if cid not in assignments]
+    for i, cid in enumerate(unassigned):
+        assignments[cid] = shows[i % len(shows)]
+
+    # Persist assignments
+    data["corps_show_assignments"] = assignments
+    save_season(season_dir, data)
+
+    logger.info("Assigned %d corps to shows in %s", len(assignments), season_dir.name)
+    return assignments
+
+
+def _get_corps_show_assignments(season_dir: Path, data: dict) -> dict[str, str]:
+    """Get or create per-corps show assignments."""
+    assignments = data.get("corps_show_assignments")
+    if assignments:
+        return dict(assignments)
+    return assign_corps_shows(season_dir)
+
+
 def generate_schedule(season_dir: Path) -> list[dict]:
-    """Create cross-divisional competition slots ensuring required_scores per corps."""
+    """Create competition rounds where each corps performs THEIR assigned show.
+
+    Creates exactly `required_scores` rounds. Every corps appears in every round,
+    performing the same show they were assigned for the season.
+    """
     data = load_season(season_dir)
     season_id = data.get("season_id", season_dir.name)
     corps_ids = list(data.get("registered_corps", []))
@@ -25,31 +77,28 @@ def generate_schedule(season_dir: Path) -> list[dict]:
 
     config = data.get("config") or {}
     required_scores = int(config.get("required_scores", 1))
-    corps_per_contest = int(config.get("corps_per_contest", max(2, len(corps_ids))))
-    corps_per_contest = max(2, min(corps_per_contest, len(corps_ids)))
 
-    counts = {cid: required_scores for cid in corps_ids}
+    # Get per-corps show assignments
+    assignments = _get_corps_show_assignments(season_dir, data)
+
     schedule: list[dict] = []
-    round_num = 1
+    for round_num in range(1, required_scores + 1):
+        # Build per-corps performance list
+        corps_performances = []
+        for cid in sorted(corps_ids):
+            show_slug = assignments.get(cid, "tour")
+            corps_performances.append({
+                "corps_id": cid,
+                "show_slug": show_slug,
+            })
 
-    while any(c > 0 for c in counts.values()):
-        available = [cid for cid, remaining in counts.items() if remaining > 0]
-        random.shuffle(available)
-        slot = available[:corps_per_contest]
-        if not slot:
-            break
-        for cid in slot:
-            counts[cid] -= 1
-
-        show_slug = _pick_show_slug(data, slot, round_num)
         schedule.append({
             "round": round_num,
             "competition_id": f"{season_id}-round-{round_num}",
-            "show_slug": show_slug,
-            "corps_ids": slot,
+            "corps_performances": corps_performances,
+            "corps_ids": sorted(corps_ids),  # Backward compat
             "status": "pending",
         })
-        round_num += 1
 
     return schedule
 
@@ -132,7 +181,11 @@ def get_tour_status(season_dir: Path) -> dict:
 
 
 def _pick_show_slug(season_data: dict, corps_ids: list[str], round_num: int = 1) -> str:
-    """Pick a show slug for a round, distributing evenly via round-robin."""
+    """Legacy fallback — pick a show slug for a round.
+
+    Kept for backward compatibility with old schedule formats.
+    New schedules use per-corps assignments via corps_performances.
+    """
     shows = list(season_data.get("shows") or [])
     if shows:
         return shows[(round_num - 1) % len(shows)]
@@ -144,33 +197,78 @@ def _pick_show_slug(season_data: dict, corps_ids: list[str], round_num: int = 1)
 
 
 def _score_round(season_dir: Path, round_entry: dict) -> dict:
-    """Score a round using the unified competition executor (full pipeline)."""
+    """Score a round — handles both per-corps shows and legacy single-show format."""
     from backend.api.app import get_task_manager
     from backend.api.v1.helpers import _get_db_session
     from backend.services.competition_executor import execute_competition
 
     season_id = season_dir.name
-    show_slug = round_entry.get("show_slug") or "tour"
-    competition_id = round_entry.get("competition_id") or f"{season_id}-{show_slug}"
-    corps_ids = list(round_entry.get("corps_ids") or [])
+    competition_id = round_entry.get("competition_id") or f"{season_id}-round"
 
     tm = get_task_manager()
     llm_client = tm.llm_client if tm else None
 
-    db = _get_db_session()
-    try:
-        result = execute_competition(
-            db=db,
-            competition_id=competition_id,
-            season_id=season_id,
-            show_slug=show_slug,
-            corps_ids=corps_ids,
-            season_dir=season_dir,
-            llm_client=llm_client,
-        )
-        return result["standings_data"]
-    finally:
-        db.close()
+    corps_performances = round_entry.get("corps_performances")
+
+    if corps_performances:
+        # New format: per-corps show assignments
+        # Group corps by show_slug to minimize executor calls
+        show_groups: dict[str, list[str]] = {}
+        for perf in corps_performances:
+            slug = perf.get("show_slug", "tour")
+            show_groups.setdefault(slug, []).append(perf["corps_id"])
+
+        all_results: list[dict] = []
+        all_errors: list[str] = []
+
+        for show_slug, corps_ids in show_groups.items():
+            db = _get_db_session()
+            try:
+                result = execute_competition(
+                    db=db,
+                    competition_id=competition_id,
+                    season_id=season_id,
+                    show_slug=show_slug,
+                    corps_ids=corps_ids,
+                    season_dir=season_dir,
+                    llm_client=llm_client,
+                )
+                standings = result["standings_data"]
+                all_results.extend(standings.get("results", []))
+                all_errors.extend(result.get("scoring_errors", []))
+            finally:
+                db.close()
+
+        # Re-rank all results together by final_score
+        all_results.sort(key=lambda r: r.get("final_score", 0), reverse=True)
+        for rank, r in enumerate(all_results, 1):
+            r["rank"] = rank
+
+        return {
+            "season_id": season_id,
+            "competition_id": competition_id,
+            "results": all_results,
+            "scoring_errors": all_errors,
+        }
+    else:
+        # Legacy format: single show_slug for whole round
+        show_slug = round_entry.get("show_slug") or "tour"
+        corps_ids = list(round_entry.get("corps_ids") or [])
+
+        db = _get_db_session()
+        try:
+            result = execute_competition(
+                db=db,
+                competition_id=competition_id,
+                season_id=season_id,
+                show_slug=show_slug,
+                corps_ids=corps_ids,
+                season_dir=season_dir,
+                llm_client=llm_client,
+            )
+            return result["standings_data"]
+        finally:
+            db.close()
 
 
 def set_auto_advance(season_dir: Path, enabled: bool) -> dict:
@@ -215,7 +313,7 @@ def find_touring_seasons() -> list[Path]:
 
 
 def dispatch_round_agents(round_entry: dict, season_dir: Path) -> dict:
-    """Dispatch executive_directors for each corps in a round."""
+    """Dispatch executive_directors for each corps — using their assigned show."""
     from backend.api.app import get_task_manager
     from backend.api.v1.helpers import _get_root, _get_db_session
 
@@ -224,19 +322,31 @@ def dispatch_round_agents(round_entry: dict, season_dir: Path) -> dict:
     if not tm:
         return {"dispatched": [], "skipped": [], "error": "Task manager not running"}
 
-    show_slug = round_entry.get("show_slug", "")
-    show_dir = root / "shows" / show_slug
-    prompt_path = show_dir / "show_prompt.md"
-
-    if not prompt_path.exists() or prompt_path.stat().st_size == 0:
-        return {"dispatched": [], "skipped": [], "error": f"No show_prompt.md for {show_slug}"}
-
-    show_prompt = prompt_path.read_text(encoding="utf-8")
     competition_id = round_entry.get("competition_id", "")
-    corps_ids = round_entry.get("corps_ids", [])
+    corps_performances = round_entry.get("corps_performances")
+
+    # Build corps_id -> show_slug mapping
+    corps_shows: dict[str, str] = {}
+    if corps_performances:
+        for perf in corps_performances:
+            corps_shows[perf["corps_id"]] = perf.get("show_slug", "tour")
+    else:
+        # Legacy: all corps get the same show
+        show_slug = round_entry.get("show_slug", "tour")
+        for cid in round_entry.get("corps_ids", []):
+            corps_shows[cid] = show_slug
 
     dispatched, skipped = [], []
-    for cid in corps_ids:
+    for cid, show_slug in corps_shows.items():
+        show_dir = root / "shows" / show_slug
+        prompt_path = show_dir / "show_prompt.md"
+
+        if not prompt_path.exists() or prompt_path.stat().st_size == 0:
+            skipped.append({"corps_id": cid, "reason": f"No show_prompt.md for {show_slug}"})
+            continue
+
+        show_prompt = prompt_path.read_text(encoding="utf-8")
+
         db = _get_db_session()
         try:
             session_id = tm.get_session_for_role(db, cid, "executive_director")

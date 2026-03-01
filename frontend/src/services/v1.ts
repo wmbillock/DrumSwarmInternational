@@ -169,6 +169,7 @@ export interface V1AgentResp {
   display_name: string;
   tags: string[];
   response: string;
+  internal?: boolean;
 }
 
 export interface V1MessageResp {
@@ -176,6 +177,18 @@ export interface V1MessageResp {
   tags: string[];
   response: string;
   responses?: V1AgentResp[];
+}
+
+export interface V1SSETypingEvent {
+  role: string;
+  display_name: string;
+}
+
+export interface V1SSECallbacks {
+  onMessage: (msg: V1AgentResp) => void;
+  onTyping: (typing: V1SSETypingEvent) => void;
+  onDone: () => void;
+  onError?: (err: Error) => void;
 }
 
 export interface V1Seance {
@@ -340,6 +353,67 @@ export const getMessages = (slug: string, signal?: AbortSignal) =>
 
 export const postMessage = (slug: string, message: string) =>
   request<V1MessageResp>(`/api/v1/design/threads/${slug}/messages`, { method: "POST", body: JSON.stringify({ message }) });
+
+export async function postMessageStream(
+  slug: string,
+  message: string,
+  callbacks: V1SSECallbacks,
+  signal?: AbortSignal,
+): Promise<void> {
+  const res = await fetch(`${BASE}/api/v1/design/threads/${slug}/messages/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message }),
+    signal,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new ApiError(res.status, body.detail || res.statusText);
+  }
+  const reader = res.body?.getReader();
+  if (!reader) {
+    throw new Error("No response body");
+  }
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+    let eventType = "";
+    let dataStr = "";
+    for (const line of lines) {
+      if (line.startsWith("event: ")) {
+        eventType = line.slice(7).trim();
+      } else if (line.startsWith("data: ")) {
+        dataStr = line.slice(6);
+      } else if (line === "" && eventType && dataStr) {
+        try {
+          const data = JSON.parse(dataStr);
+          if (eventType === "message") {
+            callbacks.onMessage(data as V1AgentResp);
+          } else if (eventType === "typing") {
+            callbacks.onTyping(data as V1SSETypingEvent);
+          } else if (eventType === "done") {
+            callbacks.onDone();
+          }
+        } catch { /* skip malformed events */ }
+        eventType = "";
+        dataStr = "";
+      }
+    }
+  }
+  // Process any remaining buffered event
+  if (eventType && dataStr) {
+    try {
+      const data = JSON.parse(dataStr);
+      if (eventType === "done") callbacks.onDone();
+      else if (eventType === "message") callbacks.onMessage(data as V1AgentResp);
+    } catch { /* skip */ }
+  }
+}
 
 export const greetThread = (slug: string, signal?: AbortSignal) =>
   request<{ role: string; display_name: string; response: string }>(`/api/v1/design/threads/${slug}/greet`, { method: "POST", signal });

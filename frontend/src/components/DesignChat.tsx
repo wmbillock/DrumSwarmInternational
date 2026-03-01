@@ -7,6 +7,7 @@ interface ChatEntry {
   message: string;
   tags?: string[];
   isUser: boolean;
+  internal?: boolean;
 }
 
 interface Props {
@@ -15,10 +16,10 @@ interface Props {
 }
 
 const ROLE_COLORS: Record<string, string> = {
-  program_coordinator: "var(--accent, #6c9)",
-  music_writer: "var(--warning, #fc6)",
-  drill_writer: "var(--info, #6cf)",
-  choreographer: "var(--danger, #f69)",
+  program_coordinator: "var(--success, #3fb950)",
+  music_writer: "var(--warning, #d29922)",
+  drill_writer: "var(--info, #58a6ff)",
+  choreographer: "var(--danger, #f85149)",
   judge: "var(--danger, #f44)",
 };
 
@@ -30,10 +31,17 @@ const ROLE_LABELS: Record<string, string> = {
   judge: "Judge",
 };
 
+const ROLE_ICONS: Record<string, string> = {
+  program_coordinator: "\u{1F4E3}",
+  music_writer: "\u{1F3D7}",
+  drill_writer: "\u{1F3A8}",
+  choreographer: "\u{1F6E1}",
+  judge: "\u{2696}",
+};
+
 /** Minimal inline markdown: **bold**, *italic*, `code`, and line breaks. */
 function renderInlineMarkdown(text: string) {
   const parts: (string | JSX.Element)[] = [];
-  // Split on markdown tokens: **bold**, *italic*, `code`
   const regex = /(\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`)/g;
   let last = 0;
   let match: RegExpExecArray | null;
@@ -57,12 +65,81 @@ function renderInlineMarkdown(text: string) {
   return parts;
 }
 
+function TypingIndicator({ role, displayName }: { role: string; displayName: string }) {
+  const icon = ROLE_ICONS[role] || "";
+  const color = ROLE_COLORS[role] || "var(--text-muted)";
+  return (
+    <div className="chat-typing">
+      <span className="chat-typing-dots"><span /><span /><span /></span>
+      <span style={{ color }}>{icon} {displayName}</span> is thinking...
+    </div>
+  );
+}
+
+/** Group consecutive internal messages together for collapsible display */
+function groupMessages(messages: ChatEntry[]): (ChatEntry | { type: "deliberation"; entries: ChatEntry[] })[] {
+  const result: (ChatEntry | { type: "deliberation"; entries: ChatEntry[] })[] = [];
+  let internalBatch: ChatEntry[] = [];
+
+  const flushInternal = () => {
+    if (internalBatch.length > 0) {
+      result.push({ type: "deliberation", entries: [...internalBatch] });
+      internalBatch = [];
+    }
+  };
+
+  for (const m of messages) {
+    if (m.internal) {
+      internalBatch.push(m);
+    } else {
+      flushInternal();
+      result.push(m);
+    }
+  }
+  flushInternal();
+  return result;
+}
+
+function MessageBubble({ m }: { m: ChatEntry }) {
+  const roleClass = m.isUser ? "user" : `agent ${m.role}${m.internal ? " internal" : ""}`;
+  const icon = !m.isUser ? (ROLE_ICONS[m.role] || "") : "";
+
+  return (
+    <div className={`chat-msg ${roleClass}`}>
+      <div className="chat-msg-header">
+        <span className="chat-sender">
+          {m.isUser ? "You (Director)" : (
+            <span
+              className="badge"
+              style={{
+                borderLeft: `3px solid ${ROLE_COLORS[m.role] || "var(--text-muted)"}`,
+                paddingLeft: 6,
+              }}
+            >
+              {icon && <span style={{ marginRight: 4 }}>{icon}</span>}
+              {m.displayName || ROLE_LABELS[m.role] || m.role}
+            </span>
+          )}
+        </span>
+        {m.tags && m.tags.length > 0 && (
+          <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+            [{m.tags.join(", ")}]
+          </span>
+        )}
+      </div>
+      <div className="chat-msg-body">{renderInlineMarkdown(m.message)}</div>
+    </div>
+  );
+}
+
 export function DesignChat({ showSlug, onSpecUpdate }: Props) {
   const [messages, setMessages] = useState<ChatEntry[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [typingRole, setTypingRole] = useState<{ role: string; displayName: string } | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   // Load message history on mount, then greet if empty
   useEffect(() => {
@@ -77,7 +154,6 @@ export function DesignChat({ showSlug, onSpecUpdate }: Props) {
           isUser: m.role === "user",
         }));
         if (history.length === 0) {
-          // Auto-greet: have the PC welcome the director
           try {
             const greeting = await v1.greetThread(showSlug, ctrl.signal);
             history.push({
@@ -97,7 +173,7 @@ export function DesignChat({ showSlug, onSpecUpdate }: Props) {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView?.({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, typingRole]);
 
   const handleSend = async () => {
     const text = input.trim();
@@ -106,17 +182,45 @@ export function DesignChat({ showSlug, onSpecUpdate }: Props) {
     setMessages(prev => [...prev, { role: "user", message: text, isUser: true }]);
     setInput("");
     setSending(true);
+    setTypingRole(null);
+
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
 
     try {
-      const resp = await v1.postMessage(showSlug, text);
-      appendAgentResponses(resp);
+      await v1.postMessageStream(showSlug, text, {
+        onTyping: (typing) => {
+          setTypingRole({ role: typing.role, displayName: typing.display_name });
+        },
+        onMessage: (msg) => {
+          setTypingRole(null);
+          setMessages(prev => [...prev, {
+            role: msg.role,
+            displayName: msg.display_name,
+            message: msg.response,
+            tags: msg.tags,
+            isUser: false,
+            internal: msg.internal,
+          }]);
+        },
+        onDone: () => {
+          setTypingRole(null);
+          onSpecUpdate();
+        },
+        onError: (err) => {
+          setTypingRole(null);
+          setMessages(prev => [...prev, { role: "system", message: `Error: ${err.message}`, isUser: false }]);
+        },
+      }, ctrl.signal);
     } catch (err: any) {
-      setMessages(prev => [
-        ...prev,
-        { role: "system", message: `Error: ${err.message}`, isUser: false },
-      ]);
+      if (err.name !== "AbortError") {
+        setTypingRole(null);
+        setMessages(prev => [...prev, { role: "system", message: `Error: ${err.message}`, isUser: false }]);
+      }
     } finally {
       setSending(false);
+      setTypingRole(null);
+      abortRef.current = null;
     }
   };
 
@@ -159,12 +263,17 @@ export function DesignChat({ showSlug, onSpecUpdate }: Props) {
     }
   };
 
+  const grouped = groupMessages(messages);
+
   return (
     <div className="chat-panel">
       <div className="chat-toolbar">
         <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>Design Room Meeting</span>
         <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 8 }}>
-          PC + Architect + UX + QA
+          {ROLE_ICONS.program_coordinator} PC
+          {" "}{ROLE_ICONS.music_writer} Arch
+          {" "}{ROLE_ICONS.drill_writer} UX
+          {" "}{ROLE_ICONS.choreographer} QA
         </span>
       </div>
       <div className="chat-messages">
@@ -180,53 +289,39 @@ export function DesignChat({ showSlug, onSpecUpdate }: Props) {
             </p>
           </div>
         )}
-        {messages.map((m, i) => (
-          <div key={i}>
-          {/* Show a round divider when a user message starts a new round */}
-          {m.isUser && i > 0 && (
-            <div style={{
-              borderTop: "1px solid var(--border, #333)",
-              margin: "12px 0 8px",
-              paddingTop: 4,
-              fontSize: 10,
-              color: "var(--text-muted)",
-              textAlign: "center",
-            }}>
-              Round {messages.slice(0, i).filter(msg => msg.isUser).length + 1}
-            </div>
-          )}
-          <div className={`chat-msg ${m.isUser ? "user" : "agent"}`}>
-            <div className="chat-msg-header">
-              <span className="chat-sender">
-                {m.isUser ? "You (Director)" : (
-                  <span
-                    className="badge"
-                    style={{
-                      borderLeft: `3px solid ${ROLE_COLORS[m.role] || "var(--text-muted)"}`,
-                      paddingLeft: 6,
-                    }}
-                  >
-                    {m.displayName || ROLE_LABELS[m.role] || m.role}
-                  </span>
-                )}
-              </span>
-              {m.tags && m.tags.length > 0 && (
-                <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
-                  [{m.tags.join(", ")}]
-                </span>
+        {grouped.map((item, i) => {
+          if ("type" in item && item.type === "deliberation") {
+            return (
+              <details key={`delib-${i}`} className="chat-deliberation" open>
+                <summary>Team Deliberation ({item.entries.length} messages)</summary>
+                {item.entries.map((m, j) => (
+                  <MessageBubble key={`${i}-${j}`} m={m} />
+                ))}
+              </details>
+            );
+          }
+          const m = item as ChatEntry;
+          // Find original index to count user rounds
+          const originalIdx = messages.indexOf(m);
+          return (
+            <div key={i}>
+              {m.isUser && originalIdx > 0 && (
+                <div style={{
+                  borderTop: "1px solid var(--border, #333)",
+                  margin: "12px 0 8px",
+                  paddingTop: 4,
+                  fontSize: 10,
+                  color: "var(--text-muted)",
+                  textAlign: "center",
+                }}>
+                  Round {messages.slice(0, originalIdx).filter(msg => msg.isUser).length + 1}
+                </div>
               )}
+              <MessageBubble m={m} />
             </div>
-            <div className="chat-msg-body">{renderInlineMarkdown(m.message)}</div>
-          </div>
-          </div>
-        ))}
-        {sending && (
-          <div className="chat-msg agent">
-            <div className="chat-msg-body" style={{ color: "var(--text-muted)", fontStyle: "italic" }}>
-              Design team is collaborating — specialists are pitching ideas and the PC is coordinating...
-            </div>
-          </div>
-        )}
+          );
+        })}
+        {typingRole && <TypingIndicator role={typingRole.role} displayName={typingRole.displayName} />}
         <div ref={bottomRef} />
       </div>
       <div className="chat-input-row">

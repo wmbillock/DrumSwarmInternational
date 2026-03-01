@@ -858,6 +858,35 @@ class OllamaClient(LLMClient):
         except Exception:
             return False
 
+    def _resolve_override(self, model_override: str) -> Optional[str]:
+        """Return model_override only if it's available locally in Ollama.
+
+        When the SmartRouter passes a model_override meant for another provider
+        (e.g. 'claude-haiku-4-5-20251001'), we should ignore it rather than 404.
+        """
+        import urllib.request
+
+        try:
+            req = urllib.request.Request(f"{self._base_url}/api/tags", method="GET")
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                data = _json.loads(resp.read())
+                available = [m["name"].lower() for m in data.get("models", [])]
+        except Exception:
+            return None
+
+        override_lower = model_override.lower()
+        # Exact match
+        if override_lower in available:
+            return model_override
+        # Base name match (e.g. "qwen2.5-coder" matches "qwen2.5-coder:32b")
+        base = override_lower.split(":")[0]
+        for m in available:
+            if m.startswith(base):
+                return model_override
+
+        logger.debug("Ignoring model_override %r — not available in Ollama", model_override)
+        return None
+
     def _get_best_model(self, model_tier: ModelTier) -> str:
         """Pick the best available local model for the requested tier."""
         import urllib.request
@@ -901,7 +930,12 @@ class OllamaClient(LLMClient):
         import urllib.error
 
         model_override = kwargs.pop("model_override", None)
-        model = model_override or self._get_best_model(model_tier)
+        # Ignore model_override if it's not a locally-available Ollama model
+        # (SmartRouter passes provider-specific overrides to all providers)
+        if model_override:
+            model = self._resolve_override(model_override) or self._get_best_model(model_tier)
+        else:
+            model = self._get_best_model(model_tier)
 
         # Convert messages to Ollama format, filtering to valid roles
         ollama_messages = []

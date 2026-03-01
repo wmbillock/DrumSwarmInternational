@@ -598,6 +598,30 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .chat-msg.agent .chat-msg-body {
   background: var(--bg-card); border: 1px solid var(--border); border-bottom-left-radius: 4px;
 }
+
+/* Role-specific tinted backgrounds */
+.chat-msg.agent.program_coordinator .chat-msg-body {
+  background: rgba(60, 180, 100, 0.08); border-color: rgba(60, 180, 100, 0.25);
+  border-top: 2px solid rgba(60, 180, 100, 0.4);
+}
+.chat-msg.agent.program_coordinator .chat-msg-body { font-size: 13.5px; }
+
+.chat-msg.agent.music_writer .chat-msg-body {
+  background: rgba(210, 160, 40, 0.08); border-color: rgba(210, 160, 40, 0.25);
+}
+.chat-msg.agent.drill_writer .chat-msg-body {
+  background: rgba(80, 160, 240, 0.08); border-color: rgba(80, 160, 240, 0.25);
+}
+.chat-msg.agent.choreographer .chat-msg-body {
+  background: rgba(240, 100, 140, 0.08); border-color: rgba(240, 100, 140, 0.25);
+}
+.chat-msg.agent.judge .chat-msg-body {
+  background: rgba(248, 81, 73, 0.06); border: 1px solid rgba(248, 81, 73, 0.3);
+  border-left: 3px solid var(--danger); border-radius: 4px;
+  font-size: 12px; padding: 4px 10px;
+}
+
+/* Internal deliberation (Round 2 follow-ups) */
 .chat-msg.internal { opacity: 0.7; }
 .chat-msg.internal .chat-msg-body {
   border-style: dashed; font-size: 12px;
@@ -606,6 +630,35 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   font-size: 9px; padding: 1px 4px; border-radius: 3px;
   background: var(--bg-hover); color: var(--text-muted); text-transform: uppercase;
 }
+
+/* Typing indicator */
+.chat-typing {
+  display: flex; align-items: center; gap: 8px; padding: 4px 12px;
+  font-size: 12px; color: var(--text-muted); font-style: italic;
+}
+.chat-typing-dots {
+  display: inline-flex; gap: 3px;
+}
+.chat-typing-dots span {
+  width: 5px; height: 5px; border-radius: 50%; background: var(--text-muted);
+  animation: typing-bounce 1.2s infinite;
+}
+.chat-typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.chat-typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typing-bounce {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+
+/* Deliberation collapsible section */
+.chat-deliberation {
+  margin: 4px 0 8px;
+}
+.chat-deliberation summary {
+  font-size: 11px; color: var(--text-muted); cursor: pointer;
+  padding: 2px 0; user-select: none;
+}
+.chat-deliberation summary:hover { color: var(--text-secondary); }
 
 .chat-input-row {
   display: flex; gap: 6px; padding: 8px 10px;

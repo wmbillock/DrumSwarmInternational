@@ -4,11 +4,13 @@ Extracted from the monolithic router.py. All business logic lives in
 backend/services/; these routes only translate HTTP ↔ service calls.
 """
 
+import json
 import re
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
 
 from backend.api.v1.helpers import _shows_dir, _show_dir, _get_llm_client, _llm_chat
 from backend.api.v1.schemas import CreateThreadRequest, PostMessageRequest, UpdateSpecRequest
@@ -22,30 +24,35 @@ router = APIRouter(prefix="/api/v1")
 
 _DESIGN_ROLE_PROMPTS = {
     "music_writer": (
-        "You are the Systems Architect. "
+        "You are the Systems Architect. Direct, technical, no fluff. "
         "Your domain: backend, APIs, data models, service layers, database schemas, data flow. "
         "You think about how things connect under the hood. "
         "Always propose concrete: name the models, sketch the endpoints, specify the data types. "
-        "Push back on vague requirements — demand specifics you can build against."
+        "Push back on vague requirements — demand specifics you can build against. "
+        "Use short declarative sentences. Say 'we need X' not 'perhaps we could consider X'."
     ),
     "drill_writer": (
-        "You are the UX Designer. "
+        "You are the UX Designer. Visual, user-focused, opinionated about experience. "
         "Your domain: frontend pages, components, user journeys, interactions, state management. "
         "You think about what the user sees and does. "
         "Always propose concrete: name the components, describe the layout, specify the user flow. "
-        "Challenge the team when the UX is unclear or the interaction model is confusing."
+        "Challenge the team when the UX is unclear or the interaction model is confusing. "
+        "Paint the picture — describe what the user actually sees and clicks."
     ),
     "choreographer": (
-        "You are the QA Specialist. "
+        "You are the QA Specialist. Skeptical, precise, the team's reality check. "
         "Your domain: testing strategy, edge cases, error handling, integration points, failure modes. "
         "You think about what can go wrong. "
         "Always raise concrete risks: name the edge case, describe the failure scenario, suggest the test. "
-        "Push the team to define acceptance criteria before building."
+        "Push the team to define acceptance criteria before building. "
+        "Ask the uncomfortable questions nobody else is asking."
     ),
     "program_coordinator": (
-        "You are the Program Coordinator. You track what's decided vs. still open "
+        "You are the Program Coordinator. Decisive, action-oriented, impatient with vagueness. "
+        "You track what's decided vs. still open "
         "and push for specifics the agent swarm needs to execute. "
-        "Your job is to synthesize and drive — never let the conversation stall."
+        "Your job is to make decisions and drive — never let the conversation stall. "
+        "Don't summarize what others said. Lock things in."
     ),
 }
 
@@ -72,7 +79,8 @@ Brief so far:
 {role_context}
 
 RULES — follow these exactly:
-- MAX 60 WORDS. Two or three punchy sentences.
+- MAX 80 WORDS. Two to four punchy sentences.
+- Write in your natural voice. Be opinionated. Use short declarative sentences or questions — not corporate speak.
 - Be specific: name components, endpoints, test cases, pages — never speak in generalities.
 - If another specialist proposed something, react to it: agree and extend, or challenge with a concrete alternative.
 - End with a sharp question to keep design moving forward.
@@ -93,9 +101,10 @@ Director just said: "{user_message}"
 {specialist_context}
 
 RULES — follow these exactly:
-- MAX 60 WORDS total.
+- MAX 80 WORDS total.
 - The Brief and Prompt tabs auto-update after each exchange. Never mention saving files.
-- Synthesize the specialist proposals. Name specific decisions to lock in.
+- Make a decision and justify it. Name what you're locking in with "Locking in:" prefix.
+- Don't summarize what specialists said — decide. Pick the best approach and commit to it.
 - End with a sharp follow-up question directed at a specific specialist by name.
 - Drive forward — the design should feel like it's moving, not stalling.
 - Never recap what the director said. Never be vague. Be concrete.
@@ -113,10 +122,9 @@ This exchange so far:
 
 RULES — follow these exactly:
 - MAX 50 WORDS total.
-- Synthesize the round. Lock in decisions with "Decision:" prefix.
-- Identify the single most important open question and pose it.
+- State ONE decision with "Decision:" prefix. Then ONE open question. That's it.
 - If the design feels solid for this topic, say "Ready to move on" and suggest the next topic.
-- Never recap. Keep momentum.
+- Never recap. Never summarize. Decide and move.
 """
 
 _SPEC_UPDATE_TEMPLATE = """Update the show spec (Brief) based on the design conversation.
@@ -537,6 +545,156 @@ def v1_post_thread_message(slug: str, req: PostMessageRequest):
         "response": responses[0]["response"],
         "responses": responses,
     }
+
+
+@router.post("/design/threads/{slug}/messages/stream")
+def v1_post_thread_message_stream(slug: str, req: PostMessageRequest):
+    """SSE streaming variant — messages appear as each agent responds.
+
+    Returns text/event-stream with one 'message' event per agent response,
+    followed by a 'done' event after spec update + lint.
+    """
+    show_dir = _show_dir(slug)
+    from backend.services.note_router import route_note
+    from backend.services.show_persistence import read_spec
+
+    tags = route_note(req.message)
+    specialist_roles = set(_SPECIALIST_ROLES)
+
+    # Persist user message
+    notes_path = show_dir / "design_notes.md"
+    tag_comment = f"<!-- tags: {', '.join(tags)} -->\n"
+    entry = f"\n**[user]** {req.message}\n"
+    with open(notes_path, "a", encoding="utf-8") as f:
+        f.write(tag_comment + entry)
+
+    spec_content = read_spec(show_dir) or "(no spec yet)"
+    llm_client = _get_llm_client()
+
+    def _sse_event(event_type: str, data: dict) -> str:
+        return f"event: {event_type}\ndata: {json.dumps(data)}\n\n"
+
+    def generate():
+        responses: list[dict] = []
+        heard_from: set[str] = set()
+
+        if not llm_client:
+            fallback = {
+                "role": "program_coordinator",
+                "display_name": _DESIGN_ROLE_DISPLAY["program_coordinator"],
+                "tags": tags,
+                "response": "LLM unavailable — connect an LLM backend for collaborative design.",
+            }
+            yield _sse_event("message", fallback)
+            responses.append(fallback)
+            yield _sse_event("done", {"status": "ok"})
+            return
+
+        # Round 1: Specialists respond
+        exchange_ctx = ""
+        for spec_role in sorted(specialist_roles):
+            yield _sse_event("typing", {"role": spec_role, "display_name": _DESIGN_ROLE_DISPLAY.get(spec_role, spec_role)})
+            resp = _invoke_specialist(
+                llm_client, slug, spec_role, notes_path,
+                spec_content, exchange_ctx, req.message, tags,
+            )
+            if resp:
+                responses.append(resp)
+                heard_from.add(spec_role)
+                exchange_ctx = _build_exchange_context(responses)
+                yield _sse_event("message", resp)
+
+        # Round 1 PC marshal
+        specialist_inputs = [f"{r['display_name']}: {r['response']}" for r in responses]
+        specialist_ctx = "Specialist input:\n" + "\n".join(specialist_inputs) if specialist_inputs else ""
+
+        notes_content = notes_path.read_text(encoding="utf-8", errors="replace") if notes_path.exists() else "(no notes yet)"
+        if len(notes_content) > 4000:
+            notes_content = "...\n" + notes_content[-4000:]
+
+        yield _sse_event("typing", {"role": "program_coordinator", "display_name": "Program Coordinator"})
+        pc_prompt = _PC_MARSHAL_TEMPLATE.format(
+            slug=slug,
+            spec_content=spec_content[:2000],
+            notes_content=notes_content,
+            user_message=req.message,
+            specialist_context=specialist_ctx,
+        )
+        pc_text = _llm_chat(llm_client, pc_prompt, req.message)
+        if pc_text:
+            pc_entry = f"\n<!-- tags: {', '.join(tags)} -->\n**[program_coordinator]** {pc_text}\n"
+            with open(notes_path, "a", encoding="utf-8") as f:
+                f.write(pc_entry)
+            pc_resp = {
+                "role": "program_coordinator",
+                "display_name": _DESIGN_ROLE_DISPLAY["program_coordinator"],
+                "tags": tags,
+                "response": pc_text,
+            }
+            responses.append(pc_resp)
+            yield _sse_event("message", pc_resp)
+
+            # Round 2: Specialist follow-ups (marked as internal)
+            exchange_ctx = _build_exchange_context(responses)
+            round2_had_responses = False
+            for spec_role in sorted(_SPECIALIST_ROLES):
+                yield _sse_event("typing", {"role": spec_role, "display_name": _DESIGN_ROLE_DISPLAY.get(spec_role, spec_role)})
+                followup_prompt = (
+                    f"The Program Coordinator just said: \"{pc_text}\"\n\n"
+                    f"Respond from your specialist perspective. React to what "
+                    f"the team proposed, add your angle, or answer the PC's question."
+                )
+                resp = _invoke_specialist(
+                    llm_client, slug, spec_role, notes_path,
+                    spec_content, exchange_ctx, followup_prompt, tags,
+                )
+                if resp:
+                    resp["internal"] = True  # Mark round 2 as internal deliberation
+                    responses.append(resp)
+                    heard_from.add(spec_role)
+                    exchange_ctx = _build_exchange_context(responses)
+                    round2_had_responses = True
+                    yield _sse_event("message", resp)
+
+            # Round 2 PC wrap-up
+            if round2_had_responses:
+                gap_hint = _identify_gaps(spec_content, heard_from)
+                wrap_exchange = _build_exchange_context(responses)
+
+                yield _sse_event("typing", {"role": "program_coordinator", "display_name": "Program Coordinator"})
+                pc_followup_prompt = _PC_FOLLOWUP_TEMPLATE.format(
+                    slug=slug,
+                    spec_content=spec_content[:2000],
+                    exchange_context=wrap_exchange,
+                    gap_hint=gap_hint,
+                )
+                pc_wrap = _llm_chat(llm_client, pc_followup_prompt, "Wrap up this round of discussion.")
+                if pc_wrap:
+                    pc_wrap_entry = f"\n<!-- tags: {', '.join(tags)} -->\n**[program_coordinator]** {pc_wrap}\n"
+                    with open(notes_path, "a", encoding="utf-8") as f:
+                        f.write(pc_wrap_entry)
+                    pc_wrap_resp = {
+                        "role": "program_coordinator",
+                        "display_name": _DESIGN_ROLE_DISPLAY["program_coordinator"],
+                        "tags": tags,
+                        "response": pc_wrap,
+                    }
+                    responses.append(pc_wrap_resp)
+                    yield _sse_event("message", pc_wrap_resp)
+
+        # Spec update + lint (after all responses)
+        pre_lint_count = len(responses)
+        if responses:
+            _update_spec_from_conversation(llm_client, show_dir, notes_path, spec_content)
+        _run_lint_and_judge(show_dir, notes_path, responses)
+
+        # Emit any judge messages added by lint
+        for r in responses[pre_lint_count:]:
+            yield _sse_event("message", r)
+
+        yield _sse_event("done", {"status": "ok"})
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 
 @router.post("/design/threads/{slug}/greet")
