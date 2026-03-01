@@ -1,4 +1,14 @@
-"""Tour coordinator service — schedules competition rounds and advances tour status."""
+"""Tour coordinator service — schedules competition rounds and advances tour status.
+
+Competition model:
+- Each corps is assigned ONE show for the entire season (round-robin).
+- A corps performs that same show repeatedly, refining it each time.
+- Competitions are capacity-limited events: up to `corps_per_contest` corps per
+  competition, randomly assigned from those still needing scores.
+- Each corps appears at most once per competition.
+- When all corps have `required_scores` completions, finals occurs.
+- Finals: every corps performs one last time; highest score per show wins.
+"""
 
 from __future__ import annotations
 
@@ -15,18 +25,25 @@ logger = logging.getLogger(__name__)
 CAPTIONS = ["brass", "percussion", "guard", "visual", "general_effect", "ensemble_technique"]
 
 
-def assign_corps_shows(season_dir: Path) -> dict[str, str]:
-    """Assign each corps ONE show for the entire season.
+# ---------------------------------------------------------------------------
+# Show assignment
+# ---------------------------------------------------------------------------
 
-    Uses division-based assignments if available (corps already assigned to shows
-    via assign_corps in season_persistence). Falls back to round-robin across
-    available shows if no division assignments exist.
+
+def assign_corps_shows(season_dir: Path) -> dict[str, str]:
+    """Assign each corps ONE show for the entire season via round-robin.
+
+    With 8 corps and 4 shows: corps 0→show 0, corps 1→show 1, corps 2→show 2,
+    corps 3→show 3, corps 4→show 0, corps 5→show 1, ... ("1,2,3,4,1,2,3,4").
+
+    If division assignments already exist (corps manually assigned to shows),
+    those are honored first; only unassigned corps get round-robin.
 
     Stores result in season.yaml under corps_show_assignments.
-    Returns the assignment dict {corps_id: show_slug}.
+    Returns {corps_id: show_slug}.
     """
     data = load_season(season_dir)
-    corps_ids = list(data.get("registered_corps", []))
+    corps_ids = sorted(data.get("registered_corps", []))
     shows = list(data.get("shows") or [])
     divisions = data.get("divisions") or {}
 
@@ -35,7 +52,7 @@ def assign_corps_shows(season_dir: Path) -> dict[str, str]:
 
     assignments: dict[str, str] = {}
 
-    # Check if corps are already assigned to shows via divisions
+    # Honor existing division assignments first
     for show_slug in shows:
         div_corps = divisions.get(show_slug, [])
         for cid in div_corps:
@@ -47,7 +64,7 @@ def assign_corps_shows(season_dir: Path) -> dict[str, str]:
     for i, cid in enumerate(unassigned):
         assignments[cid] = shows[i % len(shows)]
 
-    # Persist assignments
+    # Persist
     data["corps_show_assignments"] = assignments
     save_season(season_dir, data)
 
@@ -63,48 +80,94 @@ def _get_corps_show_assignments(season_dir: Path, data: dict) -> dict[str, str]:
     return assign_corps_shows(season_dir)
 
 
-def generate_schedule(season_dir: Path) -> list[dict]:
-    """Create competition rounds where each corps performs THEIR assigned show.
+# ---------------------------------------------------------------------------
+# Schedule generation
+# ---------------------------------------------------------------------------
 
-    Creates exactly `required_scores` rounds. Every corps appears in every round,
-    performing the same show they were assigned for the season.
+
+def generate_schedule(season_dir: Path) -> list[dict]:
+    """Create competitions until every corps has `required_scores` completions.
+
+    Each competition holds up to `corps_per_contest` corps, randomly selected
+    from those still needing scores. A corps appears at most once per
+    competition. When not enough corps remain to fill a full contest, the
+    competition runs with fewer.
+
+    After all regular competitions, a finals round is appended where every
+    corps performs one last time.
     """
     data = load_season(season_dir)
     season_id = data.get("season_id", season_dir.name)
-    corps_ids = list(data.get("registered_corps", []))
+    corps_ids = sorted(data.get("registered_corps", []))
     if not corps_ids:
         return []
 
     config = data.get("config") or {}
     required_scores = int(config.get("required_scores", 1))
+    corps_per_contest = int(config.get("corps_per_contest", max(2, len(corps_ids))))
+    corps_per_contest = max(2, min(corps_per_contest, len(corps_ids)))
 
-    # Get per-corps show assignments
     assignments = _get_corps_show_assignments(season_dir, data)
 
+    # Track how many scores each corps still needs
+    remaining = {cid: required_scores for cid in corps_ids}
+
     schedule: list[dict] = []
-    for round_num in range(1, required_scores + 1):
-        # Build per-corps performance list
+    comp_num = 1
+
+    while any(r > 0 for r in remaining.values()):
+        # Pool of corps still needing scores
+        pool = [cid for cid, r in remaining.items() if r > 0]
+        if not pool:
+            break
+
+        random.shuffle(pool)
+        slot = pool[:corps_per_contest]
+
+        # Build per-corps performance entries
         corps_performances = []
-        for cid in sorted(corps_ids):
-            show_slug = assignments.get(cid, "tour")
+        for cid in sorted(slot):
             corps_performances.append({
                 "corps_id": cid,
-                "show_slug": show_slug,
+                "show_slug": assignments.get(cid, "tour"),
             })
+            remaining[cid] -= 1
 
         schedule.append({
-            "round": round_num,
-            "competition_id": f"{season_id}-round-{round_num}",
+            "round": comp_num,
+            "competition_id": f"{season_id}-comp-{comp_num}",
             "corps_performances": corps_performances,
-            "corps_ids": sorted(corps_ids),  # Backward compat
+            "corps_ids": sorted(slot),  # backward compat
             "status": "pending",
         })
+        comp_num += 1
+
+    # Finals: every corps performs one last time
+    finals_performances = []
+    for cid in sorted(corps_ids):
+        finals_performances.append({
+            "corps_id": cid,
+            "show_slug": assignments.get(cid, "tour"),
+        })
+    schedule.append({
+        "round": comp_num,
+        "competition_id": f"{season_id}-finals",
+        "corps_performances": finals_performances,
+        "corps_ids": sorted(corps_ids),
+        "status": "pending",
+        "is_finals": True,
+    })
 
     return schedule
 
 
+# ---------------------------------------------------------------------------
+# Competition execution
+# ---------------------------------------------------------------------------
+
+
 def run_competition_round(season_dir: Path) -> dict:
-    """Score the next scheduled round and trigger improvement cycles."""
+    """Score the next scheduled competition and trigger improvement cycles."""
     data = load_season(season_dir)
     schedule = list(data.get("schedule") or [])
     if not schedule:
@@ -118,7 +181,7 @@ def run_competition_round(season_dir: Path) -> dict:
 
     next_round = next((entry for entry in schedule if entry.get("status") != "completed"), None)
     if not next_round:
-        return {"status": "complete", "message": "All rounds completed", "schedule": schedule}
+        return {"status": "complete", "message": "All competitions completed", "schedule": schedule}
 
     corps_ids = list(next_round.get("corps_ids") or [])
     if not corps_ids:
@@ -131,7 +194,8 @@ def run_competition_round(season_dir: Path) -> dict:
     try:
         dispatch_result = dispatch_round_agents(next_round, season_dir)
     except Exception:
-        logger.warning("Agent dispatch failed for round %s, continuing with scoring", next_round.get("round"), exc_info=True)
+        logger.warning("Agent dispatch failed for competition %s, continuing with scoring",
+                        next_round.get("competition_id"), exc_info=True)
 
     standings = _score_round(season_dir, next_round)
     next_round["status"] = "completed"
@@ -144,6 +208,7 @@ def run_competition_round(season_dir: Path) -> dict:
         "status": "completed",
         "round": next_round.get("round"),
         "competition_id": next_round.get("competition_id"),
+        "is_finals": next_round.get("is_finals", False),
         "standings": standings.get("results", []),
         "dispatch": dispatch_result,
         "improvements": improvement_summary,
@@ -160,7 +225,6 @@ def get_tour_status(season_dir: Path) -> dict:
         data["schedule"] = schedule
         save_season(season_dir, data)
 
-    # Backfill missing round/status fields for legacy schedule entries
     for idx, entry in enumerate(schedule):
         entry.setdefault("round", idx + 1)
         entry.setdefault("status", "pending")
@@ -173,6 +237,7 @@ def get_tour_status(season_dir: Path) -> dict:
         "season_id": data.get("season_id", season_dir.name),
         "status": data.get("metadata", {}).get("status", "planning"),
         "auto_advance": bool((data.get("config") or {}).get("auto_advance", False)),
+        "corps_show_assignments": data.get("corps_show_assignments", {}),
         "current_round": current,
         "history": history,
         "upcoming": upcoming,
@@ -180,30 +245,19 @@ def get_tour_status(season_dir: Path) -> dict:
     }
 
 
-def _pick_show_slug(season_data: dict, corps_ids: list[str], round_num: int = 1) -> str:
-    """Legacy fallback — pick a show slug for a round.
-
-    Kept for backward compatibility with old schedule formats.
-    New schedules use per-corps assignments via corps_performances.
-    """
-    shows = list(season_data.get("shows") or [])
-    if shows:
-        return shows[(round_num - 1) % len(shows)]
-    divisions = season_data.get("divisions") or {}
-    div_slugs = list(divisions.keys())
-    if div_slugs:
-        return div_slugs[(round_num - 1) % len(div_slugs)]
-    return "tour"
+# ---------------------------------------------------------------------------
+# Scoring
+# ---------------------------------------------------------------------------
 
 
 def _score_round(season_dir: Path, round_entry: dict) -> dict:
-    """Score a round — handles both per-corps shows and legacy single-show format."""
+    """Score a competition — handles per-corps shows and legacy single-show format."""
     from backend.api.app import get_task_manager
     from backend.api.v1.helpers import _get_db_session
     from backend.services.competition_executor import execute_competition
 
     season_id = season_dir.name
-    competition_id = round_entry.get("competition_id") or f"{season_id}-round"
+    competition_id = round_entry.get("competition_id") or f"{season_id}-comp"
 
     tm = get_task_manager()
     llm_client = tm.llm_client if tm else None
@@ -211,7 +265,6 @@ def _score_round(season_dir: Path, round_entry: dict) -> dict:
     corps_performances = round_entry.get("corps_performances")
 
     if corps_performances:
-        # New format: per-corps show assignments
         # Group corps by show_slug to minimize executor calls
         show_groups: dict[str, list[str]] = {}
         for perf in corps_performances:
@@ -239,7 +292,7 @@ def _score_round(season_dir: Path, round_entry: dict) -> dict:
             finally:
                 db.close()
 
-        # Re-rank all results together by final_score
+        # Re-rank all results together by final_score (cross-show ranking)
         all_results.sort(key=lambda r: r.get("final_score", 0), reverse=True)
         for rank, r in enumerate(all_results, 1):
             r["rank"] = rank
@@ -269,6 +322,27 @@ def _score_round(season_dir: Path, round_entry: dict) -> dict:
             return result["standings_data"]
         finally:
             db.close()
+
+
+def _pick_show_slug(season_data: dict, corps_ids: list[str], round_num: int = 1) -> str:
+    """Legacy fallback — pick a show slug for a round.
+
+    Kept for backward compatibility with old schedule formats.
+    New schedules use per-corps assignments via corps_performances.
+    """
+    shows = list(season_data.get("shows") or [])
+    if shows:
+        return shows[(round_num - 1) % len(shows)]
+    divisions = season_data.get("divisions") or {}
+    div_slugs = list(divisions.keys())
+    if div_slugs:
+        return div_slugs[(round_num - 1) % len(div_slugs)]
+    return "tour"
+
+
+# ---------------------------------------------------------------------------
+# Auto-advance / touring
+# ---------------------------------------------------------------------------
 
 
 def set_auto_advance(season_dir: Path, enabled: bool) -> dict:
@@ -312,6 +386,11 @@ def find_touring_seasons() -> list[Path]:
     return touring
 
 
+# ---------------------------------------------------------------------------
+# Agent dispatch
+# ---------------------------------------------------------------------------
+
+
 def dispatch_round_agents(round_entry: dict, season_dir: Path) -> dict:
     """Dispatch executive_directors for each corps — using their assigned show."""
     from backend.api.app import get_task_manager
@@ -331,7 +410,6 @@ def dispatch_round_agents(round_entry: dict, season_dir: Path) -> dict:
         for perf in corps_performances:
             corps_shows[perf["corps_id"]] = perf.get("show_slug", "tour")
     else:
-        # Legacy: all corps get the same show
         show_slug = round_entry.get("show_slug", "tour")
         for cid in round_entry.get("corps_ids", []):
             corps_shows[cid] = show_slug
@@ -369,10 +447,15 @@ def dispatch_round_agents(round_entry: dict, season_dir: Path) -> dict:
             db.close()
 
     logger.info(
-        "Round dispatch: %d dispatched, %d skipped for %s",
+        "Competition dispatch: %d dispatched, %d skipped for %s",
         len(dispatched), len(skipped), competition_id,
     )
     return {"dispatched": dispatched, "skipped": skipped}
+
+
+# ---------------------------------------------------------------------------
+# Post-competition improvements
+# ---------------------------------------------------------------------------
 
 
 def _trigger_improvements(corps_ids: list[str], standings: dict) -> dict:

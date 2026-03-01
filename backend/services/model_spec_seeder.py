@@ -22,9 +22,9 @@ DEFAULT_SPECS: list[tuple[str, str, str, str]] = [
         "architecture,documentation,complex_reasoning",
     ),
     (
-        "claude-sonnet-4-5",
+        "claude-sonnet-4-6",
         "anthropic",
-        "claude-sonnet-4-5-20250929",
+        "claude-sonnet-4-6",
         "general,frontend,backend",
     ),
     (

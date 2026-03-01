@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 # Model tier -> actual model ID mapping (Anthropic)
 MODEL_TIER_MAP = {
     ModelTier.OPUS: "claude-opus-4-6",
-    ModelTier.SONNET: "claude-sonnet-4-5-20250929",
+    ModelTier.SONNET: "claude-sonnet-4-6",
     ModelTier.HAIKU: "claude-haiku-4-5-20251001",
 }
 
