@@ -36,8 +36,8 @@ def assign_corps_shows(season_dir: Path) -> dict[str, str]:
     With 8 corps and 4 shows: corps 0→show 0, corps 1→show 1, corps 2→show 2,
     corps 3→show 3, corps 4→show 0, corps 5→show 1, ... ("1,2,3,4,1,2,3,4").
 
-    If division assignments already exist (corps manually assigned to shows),
-    those are honored first; only unassigned corps get round-robin.
+    Divisions (world_class, open_class) are promotion/relegation tiers and
+    do NOT influence show assignment.
 
     Stores result in season.yaml under corps_show_assignments.
     Returns {corps_id: show_slug}.
@@ -45,23 +45,13 @@ def assign_corps_shows(season_dir: Path) -> dict[str, str]:
     data = load_season(season_dir)
     corps_ids = sorted(data.get("registered_corps", []))
     shows = list(data.get("shows") or [])
-    divisions = data.get("divisions") or {}
 
     if not corps_ids or not shows:
         return {}
 
+    # Round-robin: each corps gets exactly one show
     assignments: dict[str, str] = {}
-
-    # Honor existing division assignments first
-    for show_slug in shows:
-        div_corps = divisions.get(show_slug, [])
-        for cid in div_corps:
-            if cid in corps_ids and cid not in assignments:
-                assignments[cid] = show_slug
-
-    # Round-robin remaining unassigned corps across shows
-    unassigned = [cid for cid in corps_ids if cid not in assignments]
-    for i, cid in enumerate(unassigned):
+    for i, cid in enumerate(corps_ids):
         assignments[cid] = shows[i % len(shows)]
 
     # Persist
@@ -233,11 +223,23 @@ def get_tour_status(season_dir: Path) -> dict:
     current = next((entry for entry in schedule if entry.get("status") != "completed"), None)
     upcoming = [entry for entry in schedule if entry.get("status") == "pending"]
 
+    # Build slug -> short_name mapping from show status files
+    from backend.services.yaml_util import safe_load_yaml_dict
+    show_names: dict[str, str] = {}
+    for slug in data.get("shows", []):
+        status_path = season_dir.parent.parent / "shows" / slug / "status.yaml"
+        if status_path.is_file():
+            show_data = safe_load_yaml_dict(status_path.read_text(encoding="utf-8"))
+            short = show_data.get("short_name", "")
+            if short:
+                show_names[slug] = short
+
     return {
         "season_id": data.get("season_id", season_dir.name),
         "status": data.get("metadata", {}).get("status", "planning"),
         "auto_advance": bool((data.get("config") or {}).get("auto_advance", False)),
         "corps_show_assignments": data.get("corps_show_assignments", {}),
+        "show_names": show_names,
         "current_round": current,
         "history": history,
         "upcoming": upcoming,

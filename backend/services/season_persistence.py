@@ -139,8 +139,6 @@ def add_show(season_dir: Path, show_slug: str) -> dict:
     data = load_season(season_dir)
     shows = list(dict.fromkeys(data.get("shows", []) + [show_slug]))
     data["shows"] = shows
-    data.setdefault("divisions", {})
-    data["divisions"].setdefault(show_slug, [])
     save_season(season_dir, data)
     return data
 
@@ -148,19 +146,29 @@ def add_show(season_dir: Path, show_slug: str) -> dict:
 def remove_show(season_dir: Path, show_slug: str) -> dict:
     data = load_season(season_dir)
     data["shows"] = [s for s in data.get("shows", []) if s != show_slug]
-    data.get("divisions", {}).pop(show_slug, None)
+    # Also remove from corps_show_assignments if any corps had this show
+    csa = data.get("corps_show_assignments", {})
+    data["corps_show_assignments"] = {k: v for k, v in csa.items() if v != show_slug}
     save_season(season_dir, data)
     return data
 
 
-def assign_corps(season_dir: Path, show_slug: str, corps_ids: list[str]) -> dict:
+def assign_division(season_dir: Path, division: str, corps_ids: list[str]) -> dict:
+    """Assign corps to a division tier (e.g. world_class, open_class).
+
+    Divisions are promotion/relegation tiers — NOT show assignments.
+    Corps are promoted after sustained success or relegated after sustained
+    poor performance, similar to professional soccer leagues.
+    """
     data = load_season(season_dir)
-    if show_slug not in data.get("shows", []):
-        data["shows"] = list(dict.fromkeys(data.get("shows", []) + [show_slug]))
     data.setdefault("divisions", {})
-    data["divisions"][show_slug] = sorted(set(corps_ids))
+    data["divisions"][division] = sorted(set(corps_ids))
     save_season(season_dir, data)
     return data
+
+
+# Keep old name as alias for backward compat in API routes
+assign_corps = assign_division
 
 
 def update_config(season_dir: Path, config: dict) -> dict:

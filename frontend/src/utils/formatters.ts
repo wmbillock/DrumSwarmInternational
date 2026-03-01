@@ -58,6 +58,7 @@ const KNOWN_CAPTIONS = new Set([
   "brass",
   "percussion",
   "ensemble_technique",
+  "final",
 ]);
 
 const KNOWN_ROLES = new Set([
@@ -78,6 +79,8 @@ const KNOWN_ROLES = new Set([
   "visual_tech",
   "timing_judge",
   "performer",
+  "designer",
+  "tech",
 ]);
 
 function warnUnknown(kind: string, value: string) {

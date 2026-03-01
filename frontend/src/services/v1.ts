@@ -634,6 +634,9 @@ export const applyDraft = (seasonId: string, assignments: Record<string, string[
     body: JSON.stringify({ assignments }),
   });
 
+export const assignCorpsShows = (seasonId: string) =>
+  request<{ status: string; corps_show_assignments: Record<string, string> }>(`/api/v1/seasons/${seasonId}/assign-shows`, { method: "POST" });
+
 export interface V1FinalsStandingRow {
   rank: number;
   corps_id: string;

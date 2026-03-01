@@ -173,6 +173,18 @@ def v1_get_season(season_id: str):
     data = load_season(season_dir)
     meta = data.get("metadata", {})
     data["name"] = meta.get("name", season_id)
+
+    # Build slug -> short_name mapping from show status files
+    show_names: dict[str, str] = {}
+    for slug in data.get("shows", []):
+        status_path = root / "shows" / slug / "status.yaml"
+        if status_path.is_file():
+            show_data = safe_load_yaml_dict(status_path.read_text(encoding="utf-8"))
+            short = show_data.get("short_name", "")
+            if short:
+                show_names[slug] = short
+    data["show_names"] = show_names
+
     return data
 
 
@@ -554,6 +566,32 @@ def v1_get_tour_status(season_id: str):
     return get_tour_status(season_dir)
 
 
+@router.post("/seasons/{season_id}/assign-shows")
+def v1_assign_corps_shows(season_id: str):
+    """Assign each corps ONE show for the season via round-robin.
+
+    Honors existing division assignments first; unassigned corps get
+    round-robin. Returns {corps_id: show_slug} mapping.
+    """
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    if not (season_dir / "season.yaml").is_file():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+
+    from backend.services.season_persistence import load_season
+    from backend.services.tour_coordinator import assign_corps_shows
+
+    data = load_season(season_dir)
+    if not data.get("shows"):
+        raise HTTPException(400, "No shows assigned to this season")
+    if not data.get("registered_corps"):
+        raise HTTPException(400, "No corps registered for this season")
+
+    assignments = assign_corps_shows(season_dir)
+    return {"status": "assigned", "corps_show_assignments": assignments}
+
+
 @router.post("/seasons/{season_id}/draft")
 def v1_run_show_draft(season_id: str):
     """Preview a show draft — returns picks without saving assignments."""
@@ -585,21 +623,30 @@ def v1_run_show_draft(season_id: str):
 
 @router.post("/seasons/{season_id}/draft/apply")
 def v1_apply_show_draft(season_id: str, req: DraftApplyRequest):
-    """Apply draft assignments — saves to season divisions."""
+    """Apply draft assignments — saves to corps_show_assignments.
+
+    The request contains {show_slug: [corps_ids]} which we invert to
+    {corps_id: show_slug} for the 1-show-per-corps model.
+    """
     _validate_id(season_id, "season_id")
     root = _get_root()
     season_dir = root / "seasons" / season_id
     if not (season_dir / "season.yaml").is_file():
         raise HTTPException(404, f"Season '{season_id}' not found")
 
-    from backend.services.season_persistence import assign_corps
+    from backend.services.season_persistence import load_season, save_season
 
-    results = {}
+    # Invert {show: [corps]} to {corps: show}
+    corps_show_map: dict[str, str] = {}
     for show_slug, corps_ids in req.assignments.items():
-        data = assign_corps(season_dir, show_slug, corps_ids)
-        results[show_slug] = corps_ids
+        for cid in corps_ids:
+            corps_show_map[cid] = show_slug
 
-    return {"status": "applied", "assignments": results}
+    data = load_season(season_dir)
+    data["corps_show_assignments"] = corps_show_map
+    save_season(season_dir, data)
+
+    return {"status": "applied", "corps_show_assignments": corps_show_map}
 
 
 # =========================================================================

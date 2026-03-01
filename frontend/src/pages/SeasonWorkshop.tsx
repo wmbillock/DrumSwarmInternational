@@ -23,7 +23,7 @@ export function SeasonWorkshop() {
   const [creating, setCreating] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
   const [config, setConfig] = useState({ corps_per_contest: 12, required_scores: 1 });
-  const [assignments, setAssignments] = useState<Record<string, string[]>>({});
+  const [assignments, setAssignments] = useState<Record<string, string>>({});
   const [savingConfig, setSavingConfig] = useState(false);
   const [locking, setLocking] = useState(false);
   const [startingTour, setStartingTour] = useState(false);
@@ -69,7 +69,7 @@ export function SeasonWorkshop() {
           corps_per_contest: data.config?.corps_per_contest ?? 12,
           required_scores: data.config?.required_scores ?? 1,
         });
-        setAssignments(data.divisions || {});
+        setAssignments(data.corps_show_assignments || {});
       })
       .catch(e => { if (e.name !== "AbortError") setError(e.message); })
       .finally(() => setDetailLoading(false));
@@ -211,7 +211,7 @@ export function SeasonWorkshop() {
       await v1.registerSeasonCorps(seasonId, corpsId);
       const updated = await v1.getSeason(seasonId);
       setDetail(updated);
-      setAssignments(updated.divisions || {});
+      setAssignments(updated.corps_show_assignments || {});
     } catch (e: any) {
       setError(e.message);
     }
@@ -222,7 +222,7 @@ export function SeasonWorkshop() {
     try {
       const updated = await v1.addSeasonShow(seasonId, showSlug);
       setDetail(updated);
-      setAssignments(updated.divisions || {});
+      setAssignments(updated.corps_show_assignments || {});
     } catch (e: any) {
       setError(e.message);
     }
@@ -233,7 +233,7 @@ export function SeasonWorkshop() {
     try {
       const updated = await v1.removeSeasonShow(seasonId, showSlug);
       setDetail(updated);
-      setAssignments(updated.divisions || {});
+      setAssignments(updated.corps_show_assignments || {});
     } catch (e: any) {
       setError(e.message);
     }
@@ -243,11 +243,10 @@ export function SeasonWorkshop() {
     if (!seasonId) return;
     setFinalizing(true);
     try {
-      const result = await v1.runShowDraft(seasonId);
-      await v1.applyDraft(seasonId, result.assignments);
+      const result = await v1.assignCorpsShows(seasonId);
+      setAssignments(result.corps_show_assignments || {});
       const updated = await v1.getSeason(seasonId);
       setDetail(updated);
-      setAssignments(updated.divisions || {});
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -351,7 +350,7 @@ export function SeasonWorkshop() {
     const unregisteredCorps = corps.filter(c => c.corps_type !== "system" && !registeredCorps.includes(c.corps_id));
     const selectedShows = detail.shows || [];
     const availableShows = showThreads.filter(t => t.status === "published" || t.status === "approved" || t.status === "needs_review");
-    const hasDraftAssignments = Object.values(assignments).some(a => a.length > 0);
+    const hasDraftAssignments = Object.keys(assignments).length > 0;
     const canStartTour = registeredCorps.length > 0
       && selectedShows.length > 0
       && hasDraftAssignments
@@ -539,22 +538,20 @@ export function SeasonWorkshop() {
                     <thead>
                       <tr style={{ borderBottom: "2px solid var(--border)" }}>
                         <th style={{ textAlign: "left", padding: "8px 12px", fontWeight: 600 }}>Corps</th>
-                        <th style={{ textAlign: "left", padding: "8px 12px", fontWeight: 600 }}>Assigned Shows</th>
+                        <th style={{ textAlign: "left", padding: "8px 12px", fontWeight: 600 }}>Assigned Show</th>
                       </tr>
                     </thead>
                     <tbody>
                       {registeredCorps.map(cid => {
                         const c = corpsById[cid];
-                        const assignedShows = Object.entries(assignments)
-                          .filter(([, corpsIds]) => corpsIds.includes(cid))
-                          .map(([slug]) => slug);
+                        const assignedShow = assignments[cid] || "";
                         return (
                           <tr key={cid} style={{ borderBottom: "1px solid var(--border)" }}>
                             <td style={{ padding: "8px 12px" }}>
                               {c?.display_name || `Corps ${cid.slice(0, 8)}`}
                             </td>
-                            <td style={{ padding: "8px 12px", color: assignedShows.length > 0 ? "var(--text)" : "var(--text-muted)" }}>
-                              {assignedShows.length > 0 ? assignedShows.map(s => slugToTitle(s)).join(", ") : "\u2014"}
+                            <td style={{ padding: "8px 12px", color: assignedShow ? "var(--text)" : "var(--text-muted)" }}>
+                              {assignedShow ? slugToTitle(assignedShow) : "\u2014"}
                             </td>
                           </tr>
                         );
@@ -624,9 +621,20 @@ export function SeasonWorkshop() {
                   <h4 style={{ marginBottom: 8 }}>Schedule</h4>
                   <DataTable<Record<string, unknown>>
                     columns={[
+                      { key: "round", label: "#" },
                       { key: "competition_id", label: "Competition" },
-                      { key: "show_slug", label: "Show", render: (v) => slugToTitle(String(v || "")) },
-                      { key: "corps_ids", label: "Corps", render: (v) => Array.isArray(v) ? `${v.length} corps` : "0 corps" },
+                      {
+                        key: "corps_ids",
+                        label: "Corps",
+                        render: (v, row) => {
+                          const count = Array.isArray(v) ? v.length : 0;
+                          if ((row as any).is_finals) return `Finals — ${count} corps`;
+                          const perfs = Array.isArray((row as any).corps_performances) ? (row as any).corps_performances as { show_slug: string }[] : [];
+                          const showCount = new Set(perfs.map(p => p.show_slug)).size;
+                          return `${count} corps / ${showCount || "?"} shows`;
+                        },
+                      },
+                      { key: "status", label: "Status" },
                     ]}
                     data={detail.schedule as Record<string, unknown>[]}
                     emptyMessage="No schedule generated."

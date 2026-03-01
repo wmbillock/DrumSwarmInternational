@@ -2,8 +2,12 @@ import type { ReactNode } from "react";
 
 export interface TourScheduleEntry {
   competition_id: string;
-  show_slug: string;
+  show_slug?: string;
   corps_ids: string[];
+  corps_performances?: { corps_id: string; show_slug: string }[];
+  is_finals?: boolean;
+  round?: number;
+  status?: string;
 }
 
 export interface TourScheduleProps {
@@ -27,11 +31,16 @@ export function TourSchedule({
   let paletteIndex = 0;
 
   const normalized = schedule.map((entry) => {
-    if (!colorByShow[entry.show_slug]) {
-      colorByShow[entry.show_slug] = PALETTE[paletteIndex % PALETTE.length];
+    // Derive show slugs from corps_performances or fall back to show_slug
+    const shows = entry.corps_performances
+      ? [...new Set(entry.corps_performances.map((p) => p.show_slug))]
+      : entry.show_slug ? [entry.show_slug] : [];
+    const primaryShow = shows[0] || "unknown";
+    if (!colorByShow[primaryShow]) {
+      colorByShow[primaryShow] = PALETTE[paletteIndex % PALETTE.length];
       paletteIndex += 1;
     }
-    const status = statusByCompetition[entry.competition_id] || "scheduled";
+    const status = statusByCompetition[entry.competition_id] || entry.status || "scheduled";
     const state = currentCompetitionId === entry.competition_id
       ? "current"
       : STATUS_COMPLETE.has(status)
@@ -41,9 +50,10 @@ export function TourSchedule({
           : "upcoming";
     return {
       ...entry,
+      shows,
       status,
       state,
-      color: colorByShow[entry.show_slug],
+      color: colorByShow[primaryShow],
     };
   });
 
@@ -72,7 +82,13 @@ export function TourSchedule({
         }}
       />
       <div>
-        <div style={{ fontWeight: 600 }}>{renderTitle ? renderTitle(entry.show_slug) : entry.show_slug}</div>
+        <div style={{ fontWeight: 600 }}>
+          {entry.is_finals
+            ? "Finals"
+            : entry.shows.map((s: string, i: number) => (
+                <span key={s}>{i > 0 && ", "}{renderTitle ? renderTitle(s) : s}</span>
+              ))}
+        </div>
         <div className="text-muted" style={{ fontSize: 12 }}>{entry.competition_id}</div>
       </div>
       <div style={{ textAlign: "right" }}>

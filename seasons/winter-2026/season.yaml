@@ -5,10 +5,12 @@ metadata:
   description: Winter camps and early-season preparation. All 12 founding corps.
   start_date: '2026-01-15'
   end_date: '2026-03-31'
+  status: touring
 shows:
-- fix-performers-and-staff-differentiation
-- asynchronous-messaging-system
-- corps-creation-modal
+- ui-usability-quick-start-tooltips-next-actions-css-fix
+- dci-admin-chat-centralizing-swarm-enhancements
+- clean-up-personality-styling
+- implement-caption-awards-an-achievement-system-which-awards-humorous-achievements-at-significant-activity-milestones-corps-can-earn-caption-awards-as-can-individual-performers-and-staff-members
 divisions:
   world_class:
   - the-quiet-trumpets
@@ -25,55 +27,256 @@ divisions:
   - several-loud-rimshots
   - toss-and-pray
 config:
-  corps_per_contest: 12
-  required_scores: 1
+  corps_per_contest: 4
+  required_scores: 3
   max_rounds: 3
+  auto_advance: true
+locked: true
+registered_corps:
+- 31f9c159-b6ec-4ea1-8ed9-803cf2183349
+- 45b1dc02-2283-47c1-8420-b68c093b0061
+- 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+- 859f0d31-3e15-44d9-a698-158921ef03b9
+- aba0e198-0842-4a72-9274-c5ffb5b6072a
+- c5f1d328-685a-4c60-9c8c-fd880e516571
+- ec4c11f9-faaa-4113-86b3-902d19200bcb
+- ed5cd8c6-c0ee-4442-941e-e2cf9af0118e
 schedule:
 - round: 1
-  competition_id: winter-2026-camp-1
-  show_slug: fix-performers-and-staff-differentiation
+  competition_id: winter-2026-comp-1
+  corps_performances:
+  - corps_id: 859f0d31-3e15-44d9-a698-158921ef03b9
+    show_slug: implement-caption-awards-an-achievement-system-which-awards-humorous-achievements-at-significant-activity-milestones-corps-can-earn-caption-awards-as-can-individual-performers-and-staff-members
+  - corps_id: aba0e198-0842-4a72-9274-c5ffb5b6072a
+    show_slug: ui-usability-quick-start-tooltips-next-actions-css-fix
+  - corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+    show_slug: dci-admin-chat-centralizing-swarm-enhancements
+  - corps_id: ed5cd8c6-c0ee-4442-941e-e2cf9af0118e
+    show_slug: implement-caption-awards-an-achievement-system-which-awards-humorous-achievements-at-significant-activity-milestones-corps-can-earn-caption-awards-as-can-individual-performers-and-staff-members
   corps_ids:
-  - the-quiet-trumpets
-  - the-arrhythmic-drumline
-  - the-dropless-color-guard
-  - corps-is-stored-in-the-lips
-  - all-your-beats-are-belong-to-us
-  - the-backfield-flagboxes
-  - we-only-march-baris
-  - pit-happens
-  - sabre-rattling
-  - the-accidental-crescendo
-  - several-loud-rimshots
-  - toss-and-pray
-  status: pending
+  - 859f0d31-3e15-44d9-a698-158921ef03b9
+  - aba0e198-0842-4a72-9274-c5ffb5b6072a
+  - c5f1d328-685a-4c60-9c8c-fd880e516571
+  - ed5cd8c6-c0ee-4442-941e-e2cf9af0118e
+  status: completed
+  completed_at: '2026-03-01T03:41:07.444395+00:00'
+  standings:
+  - corps_id: aba0e198-0842-4a72-9274-c5ffb5b6072a
+    rank: 1
+    final_score: 44.515
+    raw_score: 44.515
+    caption_scores:
+      visual: 40.0
+      percussion: 41.5
+      brass: 41.5
+      guard: 41.5
+      general_effect: 40.0
+      ensemble_technique: 65.0
+  - corps_id: ed5cd8c6-c0ee-4442-941e-e2cf9af0118e
+    rank: 2
+    final_score: 40.56
+    raw_score: 40.56
+    caption_scores:
+      percussion: 40.0
+      visual: 41.5
+      brass: 40.0
+      guard: 40.0
+      ensemble_technique: 55.0
+      general_effect: 31.5
+  - corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+    rank: 3
+    final_score: 39.915
+    raw_score: 39.915
+    caption_scores:
+      brass: 41.5
+      visual: 48.5
+      percussion: 41.5
+      guard: 41.5
+      general_effect: 31.5
+      ensemble_technique: 40.0
+  - corps_id: 859f0d31-3e15-44d9-a698-158921ef03b9
+    rank: 4
+    final_score: 38.79
+    raw_score: 38.79
+    caption_scores:
+      visual: 41.5
+      brass: 40.0
+      percussion: 41.5
+      guard: 40.0
+      general_effect: 31.5
+      ensemble_technique: 41.5
 - round: 2
-  competition_id: winter-2026-camp-2
-  show_slug: asynchronous-messaging-system
+  competition_id: winter-2026-comp-2
+  corps_performances:
+  - corps_id: 45b1dc02-2283-47c1-8420-b68c093b0061
+    show_slug: dci-admin-chat-centralizing-swarm-enhancements
+  - corps_id: 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+    show_slug: clean-up-personality-styling
+  - corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+    show_slug: dci-admin-chat-centralizing-swarm-enhancements
+  - corps_id: ec4c11f9-faaa-4113-86b3-902d19200bcb
+    show_slug: clean-up-personality-styling
   corps_ids:
-  - the-quiet-trumpets
-  - the-arrhythmic-drumline
-  - the-dropless-color-guard
-  - corps-is-stored-in-the-lips
-  - all-your-beats-are-belong-to-us
-  - the-backfield-flagboxes
-  - we-only-march-baris
-  - pit-happens
-  - sabre-rattling
-  - the-accidental-crescendo
-  - several-loud-rimshots
-  - toss-and-pray
+  - 45b1dc02-2283-47c1-8420-b68c093b0061
+  - 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+  - c5f1d328-685a-4c60-9c8c-fd880e516571
+  - ec4c11f9-faaa-4113-86b3-902d19200bcb
+  status: completed
+  completed_at: '2026-03-01T03:46:02.434425+00:00'
+  standings:
+  - corps_id: 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+    rank: 1
+    final_score: 44.645
+    raw_score: 44.645
+    caption_scores:
+      visual: 41.5
+      guard: 61.5
+      brass: 41.5
+      percussion: 40.0
+      general_effect: 41.5
+      ensemble_technique: 41.5
+  - corps_id: ec4c11f9-faaa-4113-86b3-902d19200bcb
+    rank: 2
+    final_score: 42.325
+    raw_score: 42.325
+    caption_scores:
+      guard: 38.5
+      visual: 60.0
+      brass: 41.5
+      percussion: 41.5
+      general_effect: 38.5
+      ensemble_technique: 40.0
+  - corps_id: 45b1dc02-2283-47c1-8420-b68c093b0061
+    rank: 3
+    final_score: 38.81
+    raw_score: 38.81
+    caption_scores:
+      visual: 40.0
+      brass: 40.0
+      percussion: 41.5
+      guard: 31.5
+      general_effect: 40.0
+      ensemble_technique: 40.0
+  - corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+    rank: 4
+    final_score: 38.385000000000005
+    raw_score: 38.385000000000005
+    caption_scores:
+      brass: 41.5
+      visual: 40.0
+      guard: 40.0
+      percussion: 40.0
+      ensemble_technique: 40.0
+      general_effect: 31.5
+- round: 3
+  competition_id: winter-2026-comp-3
+  corps_performances:
+  - corps_id: 31f9c159-b6ec-4ea1-8ed9-803cf2183349
+    show_slug: ui-usability-quick-start-tooltips-next-actions-css-fix
+  - corps_id: 45b1dc02-2283-47c1-8420-b68c093b0061
+    show_slug: dci-admin-chat-centralizing-swarm-enhancements
+  - corps_id: 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+    show_slug: clean-up-personality-styling
+  - corps_id: 859f0d31-3e15-44d9-a698-158921ef03b9
+    show_slug: implement-caption-awards-an-achievement-system-which-awards-humorous-achievements-at-significant-activity-milestones-corps-can-earn-caption-awards-as-can-individual-performers-and-staff-members
+  corps_ids:
+  - 31f9c159-b6ec-4ea1-8ed9-803cf2183349
+  - 45b1dc02-2283-47c1-8420-b68c093b0061
+  - 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+  - 859f0d31-3e15-44d9-a698-158921ef03b9
   status: pending
-locked: false
-registered_corps:
-- the-quiet-trumpets
-- the-arrhythmic-drumline
-- the-dropless-color-guard
-- corps-is-stored-in-the-lips
-- all-your-beats-are-belong-to-us
-- the-backfield-flagboxes
-- we-only-march-baris
-- pit-happens
-- sabre-rattling
-- the-accidental-crescendo
-- several-loud-rimshots
-- toss-and-pray
+- round: 4
+  competition_id: winter-2026-comp-4
+  corps_performances:
+  - corps_id: 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+    show_slug: clean-up-personality-styling
+  - corps_id: 859f0d31-3e15-44d9-a698-158921ef03b9
+    show_slug: implement-caption-awards-an-achievement-system-which-awards-humorous-achievements-at-significant-activity-milestones-corps-can-earn-caption-awards-as-can-individual-performers-and-staff-members
+  - corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+    show_slug: dci-admin-chat-centralizing-swarm-enhancements
+  - corps_id: ed5cd8c6-c0ee-4442-941e-e2cf9af0118e
+    show_slug: implement-caption-awards-an-achievement-system-which-awards-humorous-achievements-at-significant-activity-milestones-corps-can-earn-caption-awards-as-can-individual-performers-and-staff-members
+  corps_ids:
+  - 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+  - 859f0d31-3e15-44d9-a698-158921ef03b9
+  - c5f1d328-685a-4c60-9c8c-fd880e516571
+  - ed5cd8c6-c0ee-4442-941e-e2cf9af0118e
+  status: pending
+- round: 5
+  competition_id: winter-2026-comp-5
+  corps_performances:
+  - corps_id: 31f9c159-b6ec-4ea1-8ed9-803cf2183349
+    show_slug: ui-usability-quick-start-tooltips-next-actions-css-fix
+  - corps_id: 45b1dc02-2283-47c1-8420-b68c093b0061
+    show_slug: dci-admin-chat-centralizing-swarm-enhancements
+  - corps_id: ec4c11f9-faaa-4113-86b3-902d19200bcb
+    show_slug: clean-up-personality-styling
+  - corps_id: ed5cd8c6-c0ee-4442-941e-e2cf9af0118e
+    show_slug: implement-caption-awards-an-achievement-system-which-awards-humorous-achievements-at-significant-activity-milestones-corps-can-earn-caption-awards-as-can-individual-performers-and-staff-members
+  corps_ids:
+  - 31f9c159-b6ec-4ea1-8ed9-803cf2183349
+  - 45b1dc02-2283-47c1-8420-b68c093b0061
+  - ec4c11f9-faaa-4113-86b3-902d19200bcb
+  - ed5cd8c6-c0ee-4442-941e-e2cf9af0118e
+  status: pending
+- round: 6
+  competition_id: winter-2026-comp-6
+  corps_performances:
+  - corps_id: 31f9c159-b6ec-4ea1-8ed9-803cf2183349
+    show_slug: ui-usability-quick-start-tooltips-next-actions-css-fix
+  - corps_id: aba0e198-0842-4a72-9274-c5ffb5b6072a
+    show_slug: ui-usability-quick-start-tooltips-next-actions-css-fix
+  - corps_id: ec4c11f9-faaa-4113-86b3-902d19200bcb
+    show_slug: clean-up-personality-styling
+  corps_ids:
+  - 31f9c159-b6ec-4ea1-8ed9-803cf2183349
+  - aba0e198-0842-4a72-9274-c5ffb5b6072a
+  - ec4c11f9-faaa-4113-86b3-902d19200bcb
+  status: pending
+- round: 7
+  competition_id: winter-2026-comp-7
+  corps_performances:
+  - corps_id: aba0e198-0842-4a72-9274-c5ffb5b6072a
+    show_slug: ui-usability-quick-start-tooltips-next-actions-css-fix
+  corps_ids:
+  - aba0e198-0842-4a72-9274-c5ffb5b6072a
+  status: pending
+- round: 8
+  competition_id: winter-2026-finals
+  corps_performances:
+  - corps_id: 31f9c159-b6ec-4ea1-8ed9-803cf2183349
+    show_slug: ui-usability-quick-start-tooltips-next-actions-css-fix
+  - corps_id: 45b1dc02-2283-47c1-8420-b68c093b0061
+    show_slug: dci-admin-chat-centralizing-swarm-enhancements
+  - corps_id: 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+    show_slug: clean-up-personality-styling
+  - corps_id: 859f0d31-3e15-44d9-a698-158921ef03b9
+    show_slug: implement-caption-awards-an-achievement-system-which-awards-humorous-achievements-at-significant-activity-milestones-corps-can-earn-caption-awards-as-can-individual-performers-and-staff-members
+  - corps_id: aba0e198-0842-4a72-9274-c5ffb5b6072a
+    show_slug: ui-usability-quick-start-tooltips-next-actions-css-fix
+  - corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+    show_slug: dci-admin-chat-centralizing-swarm-enhancements
+  - corps_id: ec4c11f9-faaa-4113-86b3-902d19200bcb
+    show_slug: clean-up-personality-styling
+  - corps_id: ed5cd8c6-c0ee-4442-941e-e2cf9af0118e
+    show_slug: implement-caption-awards-an-achievement-system-which-awards-humorous-achievements-at-significant-activity-milestones-corps-can-earn-caption-awards-as-can-individual-performers-and-staff-members
+  corps_ids:
+  - 31f9c159-b6ec-4ea1-8ed9-803cf2183349
+  - 45b1dc02-2283-47c1-8420-b68c093b0061
+  - 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+  - 859f0d31-3e15-44d9-a698-158921ef03b9
+  - aba0e198-0842-4a72-9274-c5ffb5b6072a
+  - c5f1d328-685a-4c60-9c8c-fd880e516571
+  - ec4c11f9-faaa-4113-86b3-902d19200bcb
+  - ed5cd8c6-c0ee-4442-941e-e2cf9af0118e
+  status: pending
+  is_finals: true
+corps_show_assignments:
+  31f9c159-b6ec-4ea1-8ed9-803cf2183349: ui-usability-quick-start-tooltips-next-actions-css-fix
+  45b1dc02-2283-47c1-8420-b68c093b0061: dci-admin-chat-centralizing-swarm-enhancements
+  7e95402f-0e83-4f4a-985a-a1d8b5af17a5: clean-up-personality-styling
+  859f0d31-3e15-44d9-a698-158921ef03b9: implement-caption-awards-an-achievement-system-which-awards-humorous-achievements-at-significant-activity-milestones-corps-can-earn-caption-awards-as-can-individual-performers-and-staff-members
+  aba0e198-0842-4a72-9274-c5ffb5b6072a: ui-usability-quick-start-tooltips-next-actions-css-fix
+  c5f1d328-685a-4c60-9c8c-fd880e516571: dci-admin-chat-centralizing-swarm-enhancements
+  ec4c11f9-faaa-4113-86b3-902d19200bcb: clean-up-personality-styling
+  ed5cd8c6-c0ee-4442-941e-e2cf9af0118e: implement-caption-awards-an-achievement-system-which-awards-humorous-achievements-at-significant-activity-milestones-corps-can-earn-caption-awards-as-can-individual-performers-and-staff-members

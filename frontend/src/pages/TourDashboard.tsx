@@ -8,8 +8,10 @@ import { useOperations } from "../hooks/useOperations";
 interface TourRound {
   round: number;
   competition_id: string;
-  show_slug: string;
+  show_slug?: string;
   corps_ids: string[];
+  corps_performances?: { corps_id: string; show_slug: string }[];
+  is_finals?: boolean;
   status: string;
   completed_at?: string;
   standings?: { corps_id: string; rank: number; final_score: number }[];
@@ -22,6 +24,7 @@ interface TourStatus {
   history: TourRound[];
   upcoming: TourRound[];
   schedule: TourRound[];
+  show_names?: Record<string, string>;
 }
 
 interface TouringSeason {
@@ -490,6 +493,8 @@ function TourSeasonCard({
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const ts = season.tourStatus;
   const seasonStatus = (season.metadata?.status as string) || ts?.status || "unknown";
+  const showNames = ts?.show_names || {};
+  const showTitle = (slug: string) => showNames[slug] || slugToTitle(slug);
 
   if (!ts) {
     return (
@@ -537,24 +542,19 @@ function TourSeasonCard({
   const roundColumns = [
     { key: "round", label: "#", render: (_v: unknown, r: TourRound) => `${r.round ?? "?"}` },
     {
-      key: "show_slug",
-      label: "Show",
-      render: (_v: unknown, r: TourRound) => (
-        <span
-          style={{ cursor: "pointer", textDecoration: "underline", color: "var(--accent)" }}
-          onClick={(e: React.MouseEvent) => {
-            e.stopPropagation();
-            onShowClick(r.show_slug);
-          }}
-        >
-          {slugToTitle(r.show_slug)}
-        </span>
-      ),
-    },
-    {
       key: "corps_ids",
       label: "Corps",
-      render: (_v: unknown, r: TourRound) => `${r.corps_ids?.length ?? 0}`,
+      render: (_v: unknown, r: TourRound) => {
+        if (r.is_finals) return <span style={{ fontWeight: 600 }}>All {r.corps_ids?.length ?? 0} corps</span>;
+        const shows = r.corps_performances
+          ? [...new Set(r.corps_performances.map((p) => p.show_slug))]
+          : r.show_slug ? [r.show_slug] : [];
+        return (
+          <span style={{ fontSize: 12 }}>
+            {r.corps_ids?.length ?? 0} corps / {shows.length} {shows.length === 1 ? "show" : "shows"}
+          </span>
+        );
+      },
     },
     {
       key: "status",
@@ -571,14 +571,14 @@ function TourSeasonCard({
     },
     {
       key: "standings",
-      label: "Winner / Score",
+      label: "Top Score",
       render: (_v: unknown, r: TourRound) => {
         if (r.status !== "completed" || !r.standings?.length) return <span className="text-muted">&mdash;</span>;
-        const winner = r.standings[0];
-        const name = corpsNames[winner.corps_id] || winner.corps_id?.slice(0, 8);
+        const top = r.standings[0];
+        const name = corpsNames[top.corps_id] || top.corps_id?.slice(0, 8);
         return (
           <span style={{ fontSize: 12 }}>
-            <strong>{name}</strong> {winner.final_score?.toFixed(1)}
+            <strong>{name}</strong> {top.final_score?.toFixed(1)}
           </span>
         );
       },
@@ -770,9 +770,9 @@ function TourSeasonCard({
                 Next Up: Round {ts.current_round.round} &mdash;{" "}
                 <span
                   style={{ cursor: "pointer", textDecoration: "underline", color: "var(--accent)" }}
-                  onClick={() => onShowClick(ts.current_round!.show_slug)}
+                  onClick={() => ts.current_round!.show_slug && onShowClick(ts.current_round!.show_slug)}
                 >
-                  {slugToTitle(ts.current_round.show_slug)}
+                  {ts.current_round.show_slug ? showTitle(ts.current_round.show_slug) : "Mixed Shows"}
                 </span>
               </h4>
               <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>

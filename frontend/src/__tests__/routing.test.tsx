@@ -1,7 +1,12 @@
-import { describe, it, expect, vi, beforeAll } from "vitest";
-import { render } from "@testing-library/react";
+import { describe, it, expect, vi, beforeAll, afterEach } from "vitest";
+import { render, cleanup } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { AppLayout } from "../layouts/AppLayout";
+
+// Mock react-tooltip to avoid MutationObserver teardown errors in jsdom
+vi.mock("react-tooltip", () => ({
+  Tooltip: () => null,
+}));
 
 // Mock fetch globally so pages that fetch on mount don't fail
 beforeAll(() => {
@@ -9,6 +14,10 @@ beforeAll(() => {
     ok: true,
     json: () => Promise.resolve([]),
   }));
+});
+
+afterEach(() => {
+  cleanup();
 });
 
 // Use lazy imports to avoid AbortSignal mismatch with data router

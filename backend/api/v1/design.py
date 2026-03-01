@@ -305,6 +305,7 @@ def v1_list_threads():
         updated_at = datetime.fromtimestamp(status_path.stat().st_mtime, tz=timezone.utc).isoformat()
         threads.append({
             "slug": d.name,
+            "short_name": status.get("short_name", ""),
             "status": status.get("status", "unknown"),
             "has_spec": (d / "spec.md").exists(),
             "summary": summary,
