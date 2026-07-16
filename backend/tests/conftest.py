@@ -21,6 +21,11 @@ import backend.models.show  # noqa: F401
 import backend.models.work_log  # noqa: F401
 import backend.models.performer  # noqa: F401
 import backend.models.messaging_thread  # noqa: F401
+import backend.models.season_run  # noqa: F401
+import backend.models.rehearsal_block  # noqa: F401
+import backend.models.mission_packet  # noqa: F401
+import backend.models.judging_tape  # noqa: F401
+import backend.models.critique_adjustment  # noqa: F401
 
 
 # Enable test mode globally — skips lifespan heavy init (LLM, metronome, seeder)

@@ -41,6 +41,7 @@ class Performer(Base):
     )
     name: Mapped[str] = mapped_column(String(100), unique=True)
     role_type: Mapped[str] = mapped_column(String(50), index=True)
+    corps_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
     trust_score: Mapped[float] = mapped_column(Float, default=50.0)
     total_sessions: Mapped[int] = mapped_column(Integer, default=0)
     successful_sessions: Mapped[int] = mapped_column(Integer, default=0)

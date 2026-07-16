@@ -14,6 +14,10 @@ from typing import Any, Callable, Optional
 from sqlalchemy.orm import Session
 
 from backend.services.agent_lifecycle import check_tool_permission
+from backend.services.mission_packet_service import (
+    MissionScopeViolation,
+    assert_tool_call_in_scope,
+)
 
 
 @dataclass
@@ -88,6 +92,24 @@ class ToolExecutor:
         if not check_tool_permission(db, session_id, tool_name):
             raise ToolPermissionDenied(
                 f"Session {session_id} does not have permission to use '{tool_name}'"
+            )
+
+        try:
+            assert_tool_call_in_scope(
+                db,
+                session_id=session_id,
+                tool_name=tool_name,
+                arguments=arguments,
+            )
+        except MissionScopeViolation as exc:
+            return ToolResult(
+                success=False,
+                output={
+                    "blocked": True,
+                    "blocker_code": "mission_scope_violation",
+                    "message": str(exc),
+                },
+                error=str(exc),
             )
 
         # Get and run the tool

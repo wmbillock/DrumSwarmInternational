@@ -46,6 +46,25 @@ from backend.models.agent_experience import AgentExperience
 from backend.models.agent_memory import AgentMemory, TaskMemory, MemoryType
 from backend.models.self_improvement_log import SelfImprovementLog, ImprovementStatus
 from backend.models.metrics import MetricsEvent, MetricsAggregate, MetricsTrend
+from backend.models.season_run import (
+    CorpsEventPhase,
+    CorpsEventState,
+    CorpsSeasonPhase,
+    CorpsSeasonState,
+    SeasonEvent,
+    SeasonEventStatus,
+    SeasonEventType,
+    SeasonRun,
+    SeasonRunStatus,
+)
+from backend.models.rehearsal_block import (
+    RehearsalBlock,
+    RehearsalBlockStatus,
+    RehearsalBlockType,
+)
+from backend.models.mission_packet import MissionPacket
+from backend.models.judging_tape import JudgingTape
+from backend.models.critique_adjustment import CritiqueAdjustment
 
 __all__ = [
     "Segment", "SegmentType", "SegmentStatus",
@@ -80,4 +99,12 @@ __all__ = [
     "AgentMemory", "TaskMemory", "MemoryType",
     "SelfImprovementLog", "ImprovementStatus",
     "MetricsEvent", "MetricsAggregate", "MetricsTrend",
+    "SeasonRun", "SeasonRunStatus",
+    "SeasonEvent", "SeasonEventType", "SeasonEventStatus",
+    "CorpsSeasonState", "CorpsSeasonPhase",
+    "CorpsEventState", "CorpsEventPhase",
+    "RehearsalBlock", "RehearsalBlockType", "RehearsalBlockStatus",
+    "MissionPacket",
+    "JudgingTape",
+    "CritiqueAdjustment",
 ]

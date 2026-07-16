@@ -6,10 +6,13 @@ into a reusable service that both the /run endpoint and tour_coordinator share.
 
 import logging
 from pathlib import Path
+from dataclasses import dataclass
 from typing import Optional
 
 from sqlalchemy.orm import Session
 
+from backend.models.judging_tape import JudgingTape
+from backend.models.score import Score
 from backend.models.score import JudgeType
 from backend.services.scoring_service import CompositeScore, DEFAULT_WEIGHTS, record_score
 from backend.services.scoring_engine import compute_standings
@@ -18,6 +21,53 @@ from backend.services.yaml_util import atomic_write, safe_dump_yaml
 from backend.services.llm_client import LLMClient
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class CompetitionResult:
+    score: Score
+    tape: JudgingTape
+
+
+def record_competition_result(
+    db: Session,
+    *,
+    season_event_id: str,
+    corps_id: str,
+    rep_id: str | None,
+    artifact_id: str | None,
+    score_payload: dict,
+    tape_text: str,
+) -> CompetitionResult:
+    if rep_id is None and artifact_id is None:
+        raise ValueError("Competition result must link to rep_id or artifact_id.")
+
+    caption = str(score_payload["caption"])
+    value = float(score_payload["value"])
+    judge_type = JudgeType(caption)
+    score = Score(
+        corps_id=corps_id,
+        rep_id=rep_id,
+        season_event_id=season_event_id,
+        artifact_id=artifact_id,
+        judge_type=judge_type,
+        value=value,
+        box=max(1, min(5, int(value / 20))),
+    )
+    tape = JudgingTape(
+        season_event_id=season_event_id,
+        corps_id=corps_id,
+        rep_id=rep_id,
+        artifact_id=artifact_id,
+        caption=caption,
+        tape_text=tape_text,
+    )
+    db.add(score)
+    db.add(tape)
+    db.commit()
+    db.refresh(score)
+    db.refresh(tape)
+    return CompetitionResult(score=score, tape=tape)
 
 
 def execute_competition(

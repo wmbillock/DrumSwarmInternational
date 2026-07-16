@@ -338,6 +338,21 @@ def run_agent(
     if drill_context_str:
         manifest_context = f"{manifest_context}\n\n{drill_context_str}" if manifest_context else drill_context_str
 
+    try:
+        from backend.services.mission_packet_service import (
+            get_mission_packet,
+            render_mission_packet,
+        )
+
+        mission_packet = get_mission_packet(db, session_id=session_id)
+        if mission_packet is not None:
+            rendered = render_mission_packet(mission_packet)
+            manifest_context = (
+                f"{manifest_context}\n\n{rendered}" if manifest_context else rendered
+            )
+    except Exception:
+        logger.debug("Failed to load mission packet context", exc_info=True)
+
     from backend.models.work_log import WorkLogEventType
 
     _emit({
