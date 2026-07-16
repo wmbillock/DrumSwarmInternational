@@ -34,6 +34,23 @@ def _build_finals_payload(season_dir: Path) -> dict:
     corps_ids = data.get("registered_corps", [])
     divisions = data.get("divisions", {})
 
+    # Build corps_id -> display_name mapping from DB
+    corps_names: dict[str, str] = {}
+    try:
+        from backend.models.corps import Corps
+        db = _get_db_session()
+        try:
+            for cid in corps_ids:
+                corps_obj = db.get(Corps, cid)
+                if corps_obj:
+                    corps_names[cid] = corps_obj.name
+        finally:
+            db.close()
+    except Exception:
+        pass
+
+    registered_set = set(corps_ids)
+
     qualification: dict[str, bool] = {}
     score_counts: dict[str, int] = {}
     scores_by_corps: dict[str, float] = {}
@@ -62,6 +79,7 @@ def _build_finals_payload(season_dir: Path) -> dict:
             {
                 "rank": idx + 1,
                 "corps_id": cid,
+                "display_name": corps_names.get(cid, cid),
                 "score": scores_by_corps.get(cid, 0.0),
                 "qualified": qualification.get(cid, False),
                 "scores_count": score_counts.get(cid, 0),
@@ -72,9 +90,11 @@ def _build_finals_payload(season_dir: Path) -> dict:
     overall = rank_rows(corps_ids)
     division_rows = []
     for show_slug, corps_list in (divisions or {}).items():
+        # Filter to only registered corps — stale division entries get dropped
+        valid_corps = [cid for cid in (corps_list or []) if cid in registered_set]
         division_rows.append({
             "show_slug": show_slug,
-            "standings": rank_rows(list(corps_list or [])),
+            "standings": rank_rows(valid_corps),
         })
 
     return {
@@ -685,6 +705,147 @@ def v1_get_post_mortem(season_id: str, corps_id: str):
     if content is None:
         raise HTTPException(404, f"No post-mortem found for {corps_id} in season {season_id}")
     return {"corps_id": corps_id, "season_id": season_id, "content": content}
+
+
+@router.get("/seasons/{season_id}/artifacts/{corps_id}")
+def v1_get_corps_artifacts(season_id: str, corps_id: str):
+    """Get detailed artifact review for a corps in a season.
+
+    Returns reps, artifacts, segment tree, score history, and spec completion.
+    """
+    _validate_id(season_id, "season_id")
+    root = _get_root()
+    season_dir = root / "seasons" / season_id
+    if not (season_dir / "season.yaml").is_file():
+        raise HTTPException(404, f"Season '{season_id}' not found")
+
+    from backend.models.corps import Corps
+    from backend.models.artifact import Artifact
+    from backend.models.rep import Rep, RepStatus
+    from backend.models.segment import Segment
+    from backend.models.show import Show
+
+    db = _get_db_session()
+    try:
+        corps = db.get(Corps, corps_id)
+        if not corps:
+            raise HTTPException(404, f"Corps '{corps_id}' not found")
+
+        # --- Segment tree ---
+        show = db.query(Show).filter(Show.corps_id == corps_id).first()
+        segment_tree = []
+        segment_ids: list[str] = []
+        if show and show.segment_root_id:
+            # BFS to build tree
+            from collections import deque
+            queue = deque([show.segment_root_id])
+            while queue:
+                sid = queue.popleft()
+                seg = db.get(Segment, sid)
+                if not seg:
+                    continue
+                segment_ids.append(sid)
+                children = db.query(Segment).filter(Segment.parent_id == sid).all()
+                child_ids = [c.id for c in children]
+                queue.extend(child_ids)
+                segment_tree.append({
+                    "id": seg.id,
+                    "parent_id": seg.parent_id,
+                    "type": seg.type.value,
+                    "title": seg.title,
+                    "description": seg.description,
+                    "status": seg.status.value,
+                    "caption": seg.caption,
+                    "children": child_ids,
+                })
+
+        # --- Reps ---
+        reps_data = {"pending": 0, "in_progress": 0, "completed": 0, "failed": 0, "total": 0, "items": []}
+        if segment_ids:
+            reps = db.query(Rep).filter(Rep.segment_id.in_(segment_ids)).all()
+            for rep in reps:
+                reps_data["total"] += 1
+                status_key = rep.status.value
+                if status_key in reps_data:
+                    reps_data[status_key] += 1
+                reps_data["items"].append({
+                    "id": rep.id,
+                    "segment_id": rep.segment_id,
+                    "status": rep.status.value,
+                    "result": (rep.result[:500] if rep.result else None),
+                    "error": rep.error,
+                    "assigned_to": rep.assigned_to,
+                    "created_at": rep.created_at.isoformat() if rep.created_at else None,
+                    "updated_at": rep.updated_at.isoformat() if rep.updated_at else None,
+                })
+
+        # --- Artifacts ---
+        artifacts = (
+            db.query(Artifact)
+            .filter(Artifact.corps_id == corps_id)
+            .order_by(Artifact.created_at.desc())
+            .all()
+        )
+        artifacts_data = [a.to_dict() for a in artifacts]
+
+        # --- Score history ---
+        perf_dir = season_dir / "performances" / corps_id
+        score_history: list[dict] = []
+        if perf_dir.exists():
+            for f in sorted(perf_dir.glob("scores*.yaml")):
+                try:
+                    sc = safe_load_yaml_dict(f.read_text(encoding="utf-8"))
+                    if isinstance(sc, dict):
+                        sc["source_file"] = f.name
+                        score_history.append(sc)
+                except Exception:
+                    pass
+            # Also include per-round critique files
+            for f in sorted(perf_dir.glob("critique_round_*.md")):
+                score_history.append({
+                    "source_file": f.name,
+                    "type": "critique",
+                    "round": f.stem.replace("critique_round_", ""),
+                })
+
+        # --- Spec completion ---
+        spec_completion = None
+        from backend.services.season_persistence import load_season
+        season_data = load_season(season_dir)
+        show_slugs = season_data.get("shows", [])
+        # Check corps_show_assignments for this corps' specific show
+        assignments = season_data.get("corps_show_assignments", {})
+        corps_show = assignments.get(corps_id)
+        if corps_show:
+            show_slugs = [corps_show]
+
+        for slug in show_slugs:
+            show_dir = root / "shows" / slug
+            if show_dir.exists():
+                try:
+                    from backend.services.spec_checker import check_spec_completion
+                    spec_completion = check_spec_completion(
+                        show_dir,
+                        db=db,
+                        corps_ids=[corps_id],
+                        segment_root_id=show.segment_root_id if show else None,
+                    )
+                except Exception:
+                    pass
+                break
+
+        return {
+            "corps_id": corps_id,
+            "corps_name": corps.name,
+            "season_id": season_id,
+            "segment_tree": segment_tree,
+            "reps": reps_data,
+            "artifacts": artifacts_data,
+            "score_history": score_history,
+            "spec_completion": spec_completion,
+        }
+    finally:
+        db.close()
 
 
 @router.post("/seasons/{season_id}/post-mortems/generate")

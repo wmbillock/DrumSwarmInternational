@@ -11,23 +11,32 @@ router = APIRouter(prefix="/api/v1")
 
 @router.get("/evolution/selection-events")
 def v1_selection_events(performer_id: Optional[str] = None, limit: int = 50):
-    """Get selection/drafting events."""
+    """Get selection/drafting events — session assignments linking performers to roles."""
+    from backend.models.agent_session import AgentSession
+    from backend.models.agent_definition import AgentDefinition
     from backend.models.performer import Performer
 
     db = _get_db_session()
     try:
-        query = db.query(Performer)
+        query = (
+            db.query(AgentSession, AgentDefinition.role, AgentDefinition.nickname, Performer)
+            .join(AgentDefinition, AgentSession.definition_id == AgentDefinition.id)
+            .join(Performer, AgentSession.performer_id == Performer.id)
+        )
         if performer_id:
-            query = query.filter(Performer.id == performer_id)
-        performers = query.order_by(Performer.updated_at.desc()).limit(limit).all()
+            query = query.filter(AgentSession.performer_id == performer_id)
+        results = query.order_by(AgentSession.started_at.desc()).limit(limit).all()
         return [{
-            "performer_id": p.id,
-            "name": p.name,
-            "role_type": p.role_type,
-            "status": p.status.value,
-            "trust_score": round(p.trust_score, 1),
-            "updated_at": p.updated_at.isoformat() if p.updated_at else None,
-        } for p in performers]
+            "session_id": session.id,
+            "performer_id": performer.id,
+            "performer_name": performer.name,
+            "role": role,
+            "nickname": nickname,
+            "corps_id": session.corps_id,
+            "status": session.status.value,
+            "trust_score": round(performer.trust_score, 1),
+            "started_at": session.started_at.isoformat() if session.started_at else None,
+        } for session, role, nickname, performer in results]
     finally:
         db.close()
 

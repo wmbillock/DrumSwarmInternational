@@ -1,0 +1,12 @@
+corps_id: cavaliers
+generated_at: '2026-03-06T03:34:49.896398+00:00'
+entries:
+- entry_id: cavaliers-tour-s1
+  season_id: tour-s1
+  show_slug: tour
+  placement: 1
+  final_score: 12.075
+  artifacts:
+    standings: seasons/tour-s1/standings.yaml
+    corps_scores: seasons/tour-s1/performances/cavaliers/scores.yaml
+  runs: []

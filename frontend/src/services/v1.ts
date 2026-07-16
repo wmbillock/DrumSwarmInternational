@@ -640,6 +640,7 @@ export const assignCorpsShows = (seasonId: string) =>
 export interface V1FinalsStandingRow {
   rank: number;
   corps_id: string;
+  display_name?: string;
   score: number;
   qualified: boolean;
   scores_count: number;
@@ -685,6 +686,88 @@ export interface V1DeployResult {
 
 export const deploySeasonWinner = (seasonId: string) =>
   request<V1DeployResult>(`/api/v1/seasons/${seasonId}/deploy-winner`, { method: "POST" });
+
+// --- Artifact Review ---
+
+export interface V1SegmentNode {
+  id: string;
+  parent_id: string | null;
+  type: string;
+  title: string;
+  description: string | null;
+  status: string;
+  caption: string | null;
+  children: string[];
+}
+
+export interface V1RepItem {
+  id: string;
+  segment_id: string;
+  status: string;
+  result: string | null;
+  error: string | null;
+  assigned_to: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface V1RepsSummary {
+  pending: number;
+  in_progress: number;
+  completed: number;
+  failed: number;
+  total: number;
+  items: V1RepItem[];
+}
+
+export interface V1ArtifactItem {
+  id: string;
+  artifact_type: string;
+  file_path: string;
+  label: string | null;
+  corps_id: string | null;
+  corps_name: string | null;
+  season_id: string | null;
+  show_slug: string | null;
+  size_bytes: number | null;
+  created_at: string | null;
+}
+
+export interface V1SpecCompletion {
+  deliverables_total: number;
+  deliverables_met: number;
+  completion_pct: number;
+  details: { deliverable: string; status: "met" | "unmet"; evidence: string }[];
+}
+
+export interface V1ArtifactReview {
+  corps_id: string;
+  corps_name: string;
+  season_id: string;
+  segment_tree: V1SegmentNode[];
+  reps: V1RepsSummary;
+  artifacts: V1ArtifactItem[];
+  score_history: Record<string, unknown>[];
+  spec_completion: V1SpecCompletion | null;
+}
+
+export interface V1ShowReadiness {
+  ready: boolean;
+  gaps: string[];
+  scores: {
+    corps_count: number;
+    avg_score: number;
+    min_required: number;
+    per_corps: Record<string, number>;
+  } | null;
+  spec_completion: V1SpecCompletion | null;
+}
+
+export const getCorpsArtifactReview = (seasonId: string, corpsId: string, signal?: AbortSignal) =>
+  request<V1ArtifactReview>(`/api/v1/seasons/${seasonId}/artifacts/${corpsId}`, { signal });
+
+export const getShowReadiness = (slug: string, signal?: AbortSignal) =>
+  request<V1ShowReadiness>(`/api/v1/shows/${slug}/readiness`, { signal });
 
 // --- Messaging ---
 
@@ -915,14 +998,17 @@ export interface CorpsScore {
 
 export interface AgentLeaderEntry {
   rank: number;
+  performer_id: string;
+  name: string;
   role: string;
-  nickname: string;
-  corps_id: string;
+  agent_category: string;
+  is_verified: boolean;
+  trust_score: number;
   total_sessions: number;
   completed_sessions: number;
   failed_sessions: number;
   success_rate: number;
-  period_days: number;
+  status: string;
 }
 
 export interface RoleBottleneck {

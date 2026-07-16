@@ -1,0 +1,48 @@
+competition_id: winter-2026-comp-3
+generated_at: '2026-03-01T03:49:29.810766+00:00'
+results:
+- caption_scores:
+    brass: 70.0
+    ensemble_technique: 78.5
+    general_effect: 68.5
+    guard: 68.5
+    percussion: 68.5
+    visual: 70.0
+  corps_id: 31f9c159-b6ec-4ea1-8ed9-803cf2183349
+  final_score: 70.435
+  rank: 1
+  raw_score: 70.435
+- caption_scores:
+    brass: 41.5
+    ensemble_technique: 41.5
+    general_effect: 40.0
+    guard: 41.5
+    percussion: 41.5
+    visual: 41.5
+  corps_id: 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+  final_score: 41.17
+  rank: 2
+  raw_score: 41.17
+- caption_scores:
+    brass: 31.5
+    ensemble_technique: 41.5
+    general_effect: 31.5
+    guard: 41.5
+    percussion: 41.5
+    visual: 41.5
+  corps_id: 45b1dc02-2283-47c1-8420-b68c093b0061
+  final_score: 37.6
+  rank: 3
+  raw_score: 37.6
+- caption_scores:
+    brass: 31.5
+    ensemble_technique: 40.0
+    general_effect: 31.5
+    guard: 41.5
+    percussion: 41.5
+    visual: 40.0
+  corps_id: 859f0d31-3e15-44d9-a698-158921ef03b9
+  final_score: 37.195
+  rank: 4
+  raw_score: 37.195
+season_id: winter-2026

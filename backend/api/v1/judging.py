@@ -1,4 +1,7 @@
-"""V1 API — Judging routes."""
+"""V1 API — Judging routes.
+
+Uses JudgesTape model for judge feedback records.
+"""
 
 from fastapi import APIRouter, HTTPException
 
@@ -9,21 +12,21 @@ router = APIRouter(prefix="/api/v1")
 
 @router.get("/judging/tapes")
 def v1_list_judging_tapes(corps_id: str = None, limit: int = 50):
-    """List judging tapes (score records)."""
-    from backend.models.reputation import Reputation
+    """List judging tapes (consolidated judge feedback per competition)."""
+    from backend.models.judges_tape import JudgesTape
     db = _get_db_session()
     try:
-        q = db.query(Reputation)
+        q = db.query(JudgesTape)
         if corps_id:
-            q = q.filter(Reputation.corps_id == corps_id)
-        tapes = q.order_by(Reputation.created_at.desc()).limit(limit).all()
+            _validate_id(corps_id, "corps_id")
+            q = q.filter(JudgesTape.corps_id == corps_id)
+        tapes = q.order_by(JudgesTape.created_at.desc()).limit(limit).all()
         return [{
             "id": t.id,
             "corps_id": t.corps_id,
-            "agent_id": t.agent_id,
-            "dimension": t.dimension,
-            "score": t.score,
-            "critique": t.critique,
+            "competition_id": t.competition_id,
+            "overall_assessment": t.overall_assessment,
+            "caption_feedbacks": t.caption_feedbacks,
             "created_at": t.created_at.isoformat() if t.created_at else None,
         } for t in tapes]
     finally:
@@ -33,19 +36,18 @@ def v1_list_judging_tapes(corps_id: str = None, limit: int = 50):
 @router.get("/judging/tapes/{tape_id}")
 def v1_get_judging_tape(tape_id: str):
     """Get a single judging tape."""
-    from backend.models.reputation import Reputation
+    from backend.models.judges_tape import JudgesTape
     db = _get_db_session()
     try:
-        tape = db.query(Reputation).filter(Reputation.id == tape_id).first()
+        tape = db.query(JudgesTape).filter(JudgesTape.id == tape_id).first()
         if not tape:
             raise HTTPException(404, "Tape not found")
         return {
             "id": tape.id,
             "corps_id": tape.corps_id,
-            "agent_id": tape.agent_id,
-            "dimension": tape.dimension,
-            "score": tape.score,
-            "critique": tape.critique,
+            "competition_id": tape.competition_id,
+            "overall_assessment": tape.overall_assessment,
+            "caption_feedbacks": tape.caption_feedbacks,
             "created_at": tape.created_at.isoformat() if tape.created_at else None,
         }
     finally:
@@ -54,48 +56,48 @@ def v1_get_judging_tape(tape_id: str):
 
 @router.get("/judging/corps/{corps_id}/actions")
 def v1_critique_actions(corps_id: str):
-    """Get critique action items for a corps."""
-    from backend.models.reputation import Reputation
+    """Get critique action items for a corps from judge feedback."""
+    _validate_id(corps_id, "corps_id")
+    from backend.models.judges_tape import JudgesTape
     db = _get_db_session()
     try:
-        reps = (
-            db.query(Reputation)
-            .filter(Reputation.corps_id == corps_id)
-            .filter(Reputation.critique.isnot(None))
-            .order_by(Reputation.created_at.desc())
-            .limit(20)
+        tapes = (
+            db.query(JudgesTape)
+            .filter(JudgesTape.corps_id == corps_id)
+            .order_by(JudgesTape.created_at.desc())
+            .limit(10)
             .all()
         )
-        return [{
-            "id": r.id,
-            "agent_id": r.agent_id,
-            "dimension": r.dimension,
-            "score": r.score,
-            "critique": r.critique,
-            "created_at": r.created_at.isoformat() if r.created_at else None,
-        } for r in reps]
+        actions = []
+        for tape in tapes:
+            for caption, info in (tape.caption_feedbacks or {}).items():
+                if info.get("feedback"):
+                    actions.append({
+                        "competition_id": tape.competition_id,
+                        "caption": caption,
+                        "score": info.get("value", 0),
+                        "feedback": info["feedback"],
+                        "created_at": tape.created_at.isoformat() if tape.created_at else None,
+                    })
+        return actions
     finally:
         db.close()
 
 
-@router.get("/judging/corps/{corps_id}/tapes/{rep_id}/export")
-def v1_export_judge_tape(corps_id: str, rep_id: str):
+@router.get("/judging/corps/{corps_id}/tapes/{tape_id}/export")
+def v1_export_judge_tape(corps_id: str, tape_id: str):
     """Export a judging tape as markdown."""
-    from backend.models.reputation import Reputation
+    _validate_id(corps_id, "corps_id")
+    from backend.models.judges_tape import JudgesTape
+    from backend.services.judge_service import export_tape_markdown
     db = _get_db_session()
     try:
-        rep = db.query(Reputation).filter(
-            Reputation.id == rep_id,
-            Reputation.corps_id == corps_id,
+        tape = db.query(JudgesTape).filter(
+            JudgesTape.id == tape_id,
+            JudgesTape.corps_id == corps_id,
         ).first()
-        if not rep:
+        if not tape:
             raise HTTPException(404, "Tape not found")
-        md = f"# Judging Tape: {rep.id}\n\n"
-        md += f"**Corps:** {rep.corps_id}\n"
-        md += f"**Agent:** {rep.agent_id}\n"
-        md += f"**Dimension:** {rep.dimension}\n"
-        md += f"**Score:** {rep.score}\n\n"
-        md += f"## Critique\n\n{rep.critique or 'No critique recorded.'}\n"
-        return {"markdown": md}
+        return {"markdown": export_tape_markdown(tape)}
     finally:
         db.close()

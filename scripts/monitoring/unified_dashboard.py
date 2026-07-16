@@ -13,6 +13,7 @@ import os
 import subprocess
 import sys
 import time
+import urllib.parse
 import urllib.request
 from datetime import datetime
 from pathlib import Path
@@ -58,7 +59,8 @@ GIT_STATUS_ICON = {
 
 def fetch(path):
     try:
-        req = urllib.request.Request(f"{API_BASE}{path}", headers={"Accept": "application/json"})
+        url = f"{API_BASE}{urllib.parse.quote(path, safe='/:?=&')}"
+        req = urllib.request.Request(url, headers={"Accept": "application/json"})
         with urllib.request.urlopen(req, timeout=3) as resp:
             return json.loads(resp.read().decode())
     except Exception:
@@ -67,6 +69,33 @@ def fetch(path):
 
 def backend_up():
     return fetch("/api/v1/shows") is not None
+
+
+def get_touring_corps() -> list[dict]:
+    """Get corps registered in touring seasons. Falls back to all corps."""
+    seasons = fetch("/api/v1/seasons") or []
+    touring = [s for s in seasons if (s.get("metadata") or {}).get("status") == "touring"
+               or s.get("status") == "touring"]
+    if not touring:
+        # No touring seasons — return all corps
+        return fetch("/api/v1/corps") or []
+
+    # Collect registered corps IDs from touring seasons
+    registered_ids: set[str] = set()
+    for s in touring:
+        sid = s.get("season_id", s.get("dir_name", ""))
+        season_data = fetch(f"/api/v1/seasons/{sid}")
+        if season_data:
+            for cid in (season_data.get("registered_corps") or []):
+                registered_ids.add(cid)
+
+    if not registered_ids:
+        return fetch("/api/v1/corps") or []
+
+    # Filter corps list to only registered ones
+    all_corps = fetch("/api/v1/corps") or []
+    return [c for c in all_corps
+            if (c.get("corps_id") or c.get("id")) in registered_ids]
 
 
 def clear():
@@ -124,30 +153,38 @@ def render_metrics():
         _render_quick_ref()
         return
 
-    shows = fetch("/api/v1/shows") or []
-    total = len(shows)
-    active = sum(1 for s in shows if s.get("status") == "active")
-    draft = sum(1 for s in shows if s.get("status") == "draft")
-    done = sum(1 for s in shows if s.get("status") == "completed")
-
-    print(f"  {BOLD}SHOWS{RESET}  {total} total")
-    print(f"  {GREEN}Active: {active}{RESET}  {YELLOW}Draft: {draft}{RESET}  {BLUE}Done: {done}{RESET}")
-
-    for show in shows:
-        if show.get("status") != "active" or not show.get("corps_id"):
-            continue
-        corps_id = show["corps_id"]
-        corps = fetch(f"/api/v1/corps/{corps_id}")
-        if not corps:
-            continue
-        print()
-        print(f"  {BOLD}{corps.get('name', '?')}{RESET}")
-        roster = fetch(f"/api/v1/corps/{corps_id}/roster") or []
-        if roster:
-            active_agents = sum(1 for a in roster if a.get("status") == "active")
-            print(f"  Agents: {GREEN}{active_agents}{RESET}/{len(roster)}")
-
+    # Corps overview — only touring season corps
+    corps_list = get_touring_corps()
+    print(f"  {BOLD}CORPS{RESET}  {len(corps_list)} registered")
+    for c in corps_list[:8]:
+        name = c.get("display_name") or c.get("name") or c.get("corps_id", "?")[:12]
+        status = c.get("status", "unknown")
+        icon = STATUS_ICON.get(status, f"{DIM}\u25cb{RESET}")
+        print(f"    {icon} {name}")
+    if len(corps_list) > 8:
+        print(f"    {DIM}... +{len(corps_list) - 8} more{RESET}")
     print()
+
+    # Seasons overview
+    seasons = fetch("/api/v1/seasons") or []
+    touring = [s for s in seasons if (s.get("metadata") or {}).get("status") == "touring"]
+    print(f"  {BOLD}SEASONS{RESET}  {len(seasons)} total  {GREEN}{len(touring)} touring{RESET}")
+    for s in touring[:3]:
+        sid = s.get("season_id", "?")
+        tour = fetch(f"/api/v1/seasons/{sid}/tour-status")
+        if tour:
+            completed = len(tour.get("history") or [])
+            total_r = len(tour.get("schedule") or [])
+            print(f"    {CYAN}{sid}{RESET}  {completed}/{total_r} rounds")
+    print()
+
+    # Shows
+    shows = fetch("/api/v1/shows") or []
+    published = sum(1 for s in shows if s.get("status") == "published")
+    draft = sum(1 for s in shows if s.get("status") == "draft")
+    print(f"  {BOLD}SHOWS{RESET}  {len(shows)} total  {GREEN}Published: {published}{RESET}  {YELLOW}Draft: {draft}{RESET}")
+    print()
+
     _render_quick_ref()
 
 
@@ -176,21 +213,22 @@ def render_agents():
     print(f"{BOLD}{GREEN}AGENTS{RESET}  {DIM}{now}{RESET}")
     print()
 
-    shows = fetch("/api/v1/shows") or []
-    active_shows = [s for s in shows if s.get("status") == "active" and s.get("corps_id")]
-
-    if not active_shows:
-        print(f"  {DIM}No active corps. Create and activate a show.{RESET}")
+    corps_list = get_touring_corps()
+    if not corps_list:
+        print(f"  {DIM}No corps registered.{RESET}")
         return
 
-    for show in active_shows:
-        corps_id = show["corps_id"]
-        title = show.get("title", "Untitled")
-        roster = fetch(f"/api/v1/corps/{corps_id}/roster") or []
-
-        if not roster:
-            print(f"  {DIM}{title}: no agents{RESET}")
+    found_any = False
+    for corps in corps_list:
+        corps_id = corps.get("corps_id") or corps.get("id")
+        if not corps_id:
             continue
+        roster = fetch(f"/api/v1/corps/{corps_id}/roster") or []
+        if not roster:
+            continue
+
+        found_any = True
+        name = corps.get("display_name") or corps.get("name") or corps_id[:12]
 
         by_status = {}
         for agent in roster:
@@ -203,7 +241,7 @@ def render_agents():
             if s in counts:
                 icon = STATUS_ICON.get(s, "?")
                 parts.append(f"{icon} {counts[s]}")
-        print(f"  {BOLD}{title}{RESET}  {' '.join(parts)}")
+        print(f"  {BOLD}{name}{RESET}  {' '.join(parts)}")
         print()
 
         # Tree
@@ -213,9 +251,12 @@ def render_agents():
             by_parent.setdefault(pid, []).append(a)
 
         roots = by_parent.get(None, [])
-        for root in roots:
-            _render_agent_tree(root, by_parent, depth=0)
+        for root_agent in roots:
+            _render_agent_tree(root_agent, by_parent, depth=0)
         print()
+
+    if not found_any:
+        print(f"  {DIM}No agents active across any corps.{RESET}")
 
 
 def _render_agent_tree(agent, by_parent, depth):
@@ -324,24 +365,21 @@ def render_changes():
     print(f"{DIM}{'─' * 50}{RESET}")
     print()
 
-    # Completed reps
-    shows = fetch("/api/v1/shows") or []
-    active = [s for s in shows if s.get("status") == "active"]
-    print(f"  {BOLD}COMPLETED REPS{RESET}")
-    found = False
-    for show in active[:3]:
-        coord_root = show.get("segment_root_id")
-        if not coord_root:
-            continue
-        reps = fetch(f"/api/v1/segments/{coord_root}/reps") or []
-        if reps:
-            found = True
-            completed = sum(1 for r in reps if r.get("status") == "completed")
-            failed = sum(1 for r in reps if r.get("status") == "failed")
-            pending = sum(1 for r in reps if r.get("status") in ("pending", "assigned", "in_progress"))
-            print(f"  {GREEN}{completed} done{RESET}  {CYAN}{pending} wip{RESET}  {RED}{failed} fail{RESET}")
-    if not found:
-        print(f"  {DIM}No reps yet.{RESET}")
+    # Recent competition activity
+    recent = fetch("/api/v1/competitions/recent-activity") or []
+    print(f"  {BOLD}RECENT ACTIVITY{RESET}")
+    if recent:
+        for entry in recent[:5]:
+            comp_id = entry.get("competition_id", "?")
+            rnd = entry.get("round", "?")
+            top = entry.get("top_standings", [])
+            winner = ""
+            if top:
+                winner_name = top[0].get("corps_name") or top[0].get("corps_id", "?")[:10]
+                winner = f"  {GREEN}\u2192 {winner_name}{RESET}"
+            print(f"    R{rnd} {comp_id[:30]}{winner}")
+    else:
+        print(f"  {DIM}No competition activity yet.{RESET}")
 
 
 def _git_status():
@@ -389,18 +427,22 @@ def render_memory():
         print(f"  {DIM}Backend offline.{RESET}")
         return
 
-    shows = fetch("/api/v1/shows") or []
-    active_shows = [s for s in shows if s.get("status") == "active" and s.get("corps_id")]
-
-    if not active_shows:
-        print(f"  {DIM}No active corps.{RESET}")
+    corps_list = get_touring_corps()
+    if not corps_list:
+        print(f"  {DIM}No corps registered.{RESET}")
         return
 
-    for show in active_shows[:3]:
-        corps_id = show["corps_id"]
+    found_any = False
+    for corps in corps_list[:6]:
+        corps_id = corps.get("corps_id") or corps.get("id")
+        if not corps_id:
+            continue
         roster = fetch(f"/api/v1/corps/{corps_id}/roster") or []
-        title = show.get("title", "Untitled")
-        print(f"  {BOLD}{title}{RESET}")
+        if not roster:
+            continue
+
+        name = corps.get("display_name") or corps.get("name") or corps_id[:12]
+        header_printed = False
 
         for agent in roster[:8]:
             identity = agent.get("nickname") or agent.get("role", "?")
@@ -412,6 +454,11 @@ def render_memory():
             avg_conf = stats.get("avg_confidence", 0)
             by_type = stats.get("by_type", {})
 
+            if not header_printed:
+                print(f"  {BOLD}{name}{RESET}")
+                header_printed = True
+                found_any = True
+
             parts = []
             for mt, count in sorted(by_type.items()):
                 parts.append(f"{mt}:{count}")
@@ -420,7 +467,11 @@ def render_memory():
             role = agent.get("role", "?").replace("_", " ").title()[:18]
             print(f"    {role:<20} {GREEN}{total}{RESET} mem  {CYAN}{tasks}{RESET} tasks  conf:{avg_conf:.1f}  ({type_str})")
 
-        print()
+        if header_printed:
+            print()
+
+    if not found_any:
+        print(f"  {DIM}No memory data found across corps.{RESET}")
 
 
 # --- View: Lifecycle ---
@@ -434,35 +485,21 @@ def render_lifecycle():
         print(f"  {DIM}Backend offline.{RESET}")
         return
 
-    shows = fetch("/api/v1/shows") or []
-    active_shows = [s for s in shows if s.get("status") == "active" and s.get("corps_id")]
-
-    if not active_shows:
-        print(f"  {DIM}No active corps.{RESET}")
+    corps_list = get_touring_corps()
+    if not corps_list:
+        print(f"  {DIM}No corps registered.{RESET}")
         return
 
-    for show in active_shows[:3]:
-        corps_id = show["corps_id"]
-        corps = fetch(f"/api/v1/corps/{corps_id}")
-        if not corps:
+    for corps in corps_list[:6]:
+        corps_id = corps.get("corps_id") or corps.get("id")
+        if not corps_id:
             continue
 
-        title = show.get("title", "Untitled")
+        name = corps.get("display_name") or corps.get("name") or corps_id[:12]
+        status = corps.get("status", "unknown")
         mascot = corps.get("mascot", "—")
-        theme = corps.get("theme_id", "—")
-        print(f"  {BOLD}{title}{RESET}  {DIM}({mascot} / {theme}){RESET}")
-        print()
-
-        # Ageouts
-        ageouts = fetch(f"/api/v1/corps/{corps_id}/ageouts") or []
-        if ageouts:
-            print(f"  {YELLOW}Pending Ageouts: {len(ageouts)}{RESET}")
-            for a in ageouts[:5]:
-                print(f"    {a.get('name', '?')} — age {a.get('age', '?')}")
-        else:
-            print(f"  {GREEN}No pending ageouts{RESET}")
-
-        print()
+        icon = STATUS_ICON.get(status, f"{DIM}\u25cb{RESET}")
+        print(f"  {icon} {BOLD}{name}{RESET}  {DIM}({status} / {mascot}){RESET}")
 
         # Roster classification breakdown
         roster = fetch(f"/api/v1/corps/{corps_id}/roster") or []
@@ -472,7 +509,6 @@ def render_lifecycle():
                 cls = agent.get("classification", "unknown")
                 by_class.setdefault(cls, []).append(agent)
 
-            print(f"  {BOLD}Classification Breakdown{RESET}")
             class_icons = {
                 "performing_member": f"{YELLOW}\u266b{RESET}",
                 "instructional_staff": f"{BLUE}\u2691{RESET}",
@@ -480,22 +516,24 @@ def render_lifecycle():
                 "logistics": f"{GREEN}\u2699{RESET}",
                 "dci_assigned": f"{DIM}\u2696{RESET}",
             }
+            parts = []
             for cls in ["administrative_staff", "instructional_staff", "performing_member", "logistics", "dci_assigned"]:
                 agents = by_class.get(cls, [])
                 if agents:
-                    icon = class_icons.get(cls, "?")
-                    active = sum(1 for a in agents if a.get("status") == "active")
+                    ci = class_icons.get(cls, "?")
+                    active_count = sum(1 for a in agents if a.get("status") == "active")
                     label = cls.replace("_", " ").title()
-                    print(f"    {icon} {label}: {active}/{len(agents)}")
-
+                    parts.append(f"{ci} {label}: {active_count}/{len(agents)}")
+            if parts:
+                print(f"    {', '.join(parts)}")
         print()
 
-        # Self-improvement pending
-        pending = fetch("/api/v1/self-improvement/pending") or []
-        if pending:
-            print(f"  {CYAN}Pending Improvements: {len(pending)}{RESET}")
-            for p in pending[:5]:
-                print(f"    v{p.get('old_version', '?')}→v{p.get('new_version', '?')}: {p.get('reason', '?')[:40]}")
+    # Self-improvement pending
+    pending = fetch("/api/v1/self-improvement/pending") or []
+    if pending:
+        print(f"  {CYAN}Pending Improvements: {len(pending)}{RESET}")
+        for p in pending[:5]:
+            print(f"    v{p.get('old_version', '?')}\u2192v{p.get('new_version', '?')}: {p.get('reason', '?')[:40]}")
         print()
 
 

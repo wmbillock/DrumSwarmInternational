@@ -19,8 +19,6 @@ def api_metrics_corps_scoreboard(
     from backend.models.corps import Corps, CorpsStatus
     from backend.models.agent_session import AgentSession, SessionStatus
     from backend.models.rep import Rep, RepStatus
-    from backend.models.segment import Segment
-    from backend.models.show import Show
 
     db = _get_db_session()
     try:
@@ -47,15 +45,18 @@ def api_metrics_corps_scoreboard(
             completed_sessions = sum(1 for s in sessions if s.status == SessionStatus.COMPLETED)
             failed_sessions = sum(1 for s in sessions if s.status == SessionStatus.FAILED)
 
-            show = db.query(Show).filter(Show.corps_id == corps.id).first()
+            # Query reps assigned to sessions in this corps
+            session_ids = [s.id for s in sessions]
             total_reps = 0
             completed_reps = 0
             failed_reps = 0
-            if show and show.segment_root_id:
+            if session_ids:
                 all_reps = (
                     db.query(Rep)
-                    .join(Segment)
-                    .filter(Rep.created_at >= cutoff)
+                    .filter(
+                        Rep.assigned_to.in_(session_ids),
+                        Rep.created_at >= cutoff,
+                    )
                     .all()
                 )
                 total_reps = len(all_reps)
@@ -111,61 +112,61 @@ def api_metrics_agent_leaderboard(
     period_days: int = 7,
     limit: int = 30,
 ):
-    """Agent leaderboard: rank agents by session count and success rate."""
-    from backend.models.agent_session import AgentSession, SessionStatus
-    from backend.models.agent_definition import AgentDefinition
+    """Agent leaderboard — Performer is the single source of truth.
+
+    Returns performers ranked by trust score with lifetime session counts
+    from the Performer model. Optionally filtered to a specific corps.
+    """
+    from backend.models.performer import Performer, PerformerStatus
+    from backend.models.agent_session import AgentSession
 
     db = _get_db_session()
     try:
         now = datetime.now(timezone.utc)
-        cutoff = now - timedelta(days=period_days)
 
-        query = (
-            db.query(AgentSession, AgentDefinition.role, AgentDefinition.nickname)
-            .join(AgentDefinition, AgentSession.definition_id == AgentDefinition.id)
-            .filter(AgentSession.started_at >= cutoff)
-        )
+        query = db.query(Performer).filter(Performer.status != PerformerStatus.RETIRED)
+
         if corps_id:
-            query = query.filter(AgentSession.corps_id == corps_id)
+            performer_ids = (
+                db.query(AgentSession.performer_id)
+                .filter(
+                    AgentSession.corps_id == corps_id,
+                    AgentSession.performer_id.isnot(None),
+                )
+                .distinct()
+                .all()
+            )
+            ids = [pid for (pid,) in performer_ids]
+            query = query.filter(Performer.id.in_(ids)) if ids else query.filter(False)
 
-        buckets: dict[tuple, dict] = {}
-        for session, role, nickname in query.all():
-            key = (role, nickname, session.corps_id)
-            if key not in buckets:
-                buckets[key] = {"total": 0, "completed": 0, "failed": 0}
-            buckets[key]["total"] += 1
-            if session.status == SessionStatus.COMPLETED:
-                buckets[key]["completed"] += 1
-            elif session.status == SessionStatus.FAILED:
-                buckets[key]["failed"] += 1
+        performers = query.order_by(Performer.trust_score.desc()).limit(limit).all()
 
         leaders = []
-        for (role, nickname, cid), counts in buckets.items():
-            total = counts["total"]
-            completed = counts["completed"]
-            failed = counts["failed"]
-            success_rate = (completed / max(total, 1)) * 100
-
+        for rank, p in enumerate(performers, 1):
+            success_rate = (
+                (p.successful_sessions / max(p.total_sessions, 1)) * 100
+                if p.total_sessions > 0 else 0
+            )
             leaders.append({
-                "role": role,
-                "nickname": nickname,
-                "corps_id": cid,
-                "total_sessions": total,
-                "completed_sessions": completed,
-                "failed_sessions": failed,
+                "rank": rank,
+                "performer_id": p.id,
+                "name": p.name,
+                "role": p.role_type,
+                "agent_category": p.agent_category,
+                "is_verified": p.is_verified,
+                "trust_score": round(p.trust_score, 1),
+                "total_sessions": p.total_sessions,
+                "completed_sessions": p.successful_sessions,
+                "failed_sessions": p.failed_sessions,
                 "success_rate": round(success_rate, 1),
-                "period_days": period_days,
+                "status": p.status.value,
             })
-
-        leaders.sort(key=lambda x: (-x["completed_sessions"], -x["success_rate"]))
-        for rank, l in enumerate(leaders[:limit], 1):
-            l["rank"] = rank
 
         return {
             "period_days": period_days,
             "corps_id": corps_id,
             "generated_at": now.isoformat(),
-            "leaderboard": leaders[:limit],
+            "leaderboard": leaders,
         }
     finally:
         db.close()

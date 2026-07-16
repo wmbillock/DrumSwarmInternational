@@ -116,11 +116,11 @@ class TaskManager:
             logger.info("Metronome started (every %ds)", METRONOME_INTERVAL_SECONDS)
 
     def _reap_orphaned_sessions(self) -> None:
-        """On startup, find sessions marked ACTIVE in DB with no matching asyncio task.
+        """On startup, mark stale ACTIVE sessions as COMPLETED (graceful cleanup).
 
-        These are orphans from a previous crash — bulk-transition them to FAILED.
-        Uses a single UPDATE statement instead of per-session fail_session() calls
-        to avoid expensive achievement checks blocking startup.
+        Sessions left ACTIVE from a previous run are not failures — they were
+        interrupted by a server restart. Mark them completed so they don't
+        pollute failure counts. Only mark as FAILED if they had errors.
         """
         from datetime import datetime, timezone
         from sqlalchemy import update
@@ -128,7 +128,6 @@ class TaskManager:
 
         db = self._session_factory()
         try:
-            # Count orphans for logging
             orphan_count = (
                 db.query(AgentSession)
                 .filter(AgentSession.status == SessionStatus.ACTIVE)
@@ -137,30 +136,54 @@ class TaskManager:
             if orphan_count == 0:
                 return
 
-            # Bulk-update all ACTIVE sessions to FAILED
             now = datetime.now(timezone.utc)
+            # Mark orphans as COMPLETED (not FAILED) — they were interrupted,
+            # not broken. This prevents inflating failure counts on restart.
             db.execute(
                 update(AgentSession)
                 .where(AgentSession.status == SessionStatus.ACTIVE)
                 .values(
-                    status=SessionStatus.FAILED,
+                    status=SessionStatus.COMPLETED,
                     ended_at=now,
-                    error="orphaned: no matching task on startup",
+                    error="interrupted: server restart",
                 )
             )
             db.commit()
-            logger.info("Reaped %d orphaned session(s) on startup", orphan_count)
+            logger.info("Cleaned up %d interrupted session(s) on startup", orphan_count)
         except Exception:
             logger.debug("Orphan reaping failed", exc_info=True)
         finally:
             db.close()
 
     def stop(self) -> None:
-        """Stop the metronome and cascade-cancel ALL active tasks."""
+        """Stop the metronome and gracefully complete active tasks."""
         self._stopped = True
         if self._metronome_task and not self._metronome_task.done():
             self._metronome_task.cancel()
-        # Cascade-cancel all active agent tasks
+
+        # Mark all tracked sessions as completed before cancelling tasks
+        if self.active_tasks:
+            from backend.models.agent_session import AgentSession, SessionStatus
+            db = self._session_factory()
+            try:
+                from datetime import datetime, timezone
+                now = datetime.now(timezone.utc)
+                for session_id in list(self.active_tasks.keys()):
+                    try:
+                        session = db.get(AgentSession, session_id)
+                        if session and session.status == SessionStatus.ACTIVE:
+                            session.status = SessionStatus.COMPLETED
+                            session.ended_at = now
+                            session.error = "interrupted: server shutdown"
+                    except Exception:
+                        pass
+                db.commit()
+            except Exception:
+                logger.debug("Graceful session cleanup failed", exc_info=True)
+            finally:
+                db.close()
+
+        # Then cancel asyncio tasks
         for session_id, task in list(self.active_tasks.items()):
             if not task.done():
                 task.cancel()
@@ -866,7 +889,13 @@ class TaskManager:
                     if basics_only and target_role not in basics_roles:
                         continue
                     session_id = self.get_session_for_role(db, corps_id, target_role)
-                    if session_id and not self.is_active(session_id):
+                    if not session_id:
+                        logger.warning(
+                            "Handoff to %s in corps %s dropped — no session available",
+                            target_role, corps_id[:8],
+                        )
+                        continue
+                    if not self.is_active(session_id):
                         # Build task description from handoff message
                         task_desc = (
                             f"You have received a handoff from {msg.from_role}.\n\n"
@@ -876,6 +905,11 @@ class TaskManager:
                             task_desc += f"\n{msg.body}\n"
                         if msg.segment_id:
                             task_desc += f"\nSegment ID: {msg.segment_id}\n"
+                        # Include available tools so the agent knows its capabilities
+                        from backend.services.corps_service import ROLE_TOOLS
+                        tools = ROLE_TOOLS.get(target_role, [])
+                        if tools:
+                            task_desc += f"\nYour available tools: {', '.join(tools)}\n"
                         task_desc += (
                             "\nProcess this handoff by executing the required work. "
                             "Use your tools to inspect the segments and create/complete reps as needed."

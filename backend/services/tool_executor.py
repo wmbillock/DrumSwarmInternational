@@ -93,6 +93,10 @@ class ToolExecutor:
         # Get and run the tool
         tool_func = self.registry.get_tool(tool_name)
         try:
+            # Work with a copy so we don't mutate the caller's dict
+            # (mutation breaks failure fingerprint matching)
+            arguments = dict(arguments)
+
             # Inject db if the tool function accepts it
             sig = inspect.signature(tool_func)
             params = list(sig.parameters.keys())

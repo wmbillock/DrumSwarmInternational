@@ -632,7 +632,11 @@ def v1_get_recap(competition_id: str, format: str = "json"):
         generate_recap_sheet, export_recap_markdown, export_recap_csv,
     )
 
-    rows = generate_recap_sheet(season_id, show_slug)
+    db = _get_db_session()
+    try:
+        rows = generate_recap_sheet(season_id, show_slug, competition_id=competition_id, db=db)
+    finally:
+        db.close()
     if not rows:
         if format == "json":
             return []

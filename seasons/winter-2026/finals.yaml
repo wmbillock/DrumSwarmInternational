@@ -1,0 +1,80 @@
+season_id: winter-2026
+status: completed
+generated_at: '2026-03-06T03:26:21.482401+00:00'
+required_scores: 3
+qualification:
+  31f9c159-b6ec-4ea1-8ed9-803cf2183349: true
+  45b1dc02-2283-47c1-8420-b68c093b0061: true
+  7e95402f-0e83-4f4a-985a-a1d8b5af17a5: true
+  859f0d31-3e15-44d9-a698-158921ef03b9: true
+  aba0e198-0842-4a72-9274-c5ffb5b6072a: true
+  c5f1d328-685a-4c60-9c8c-fd880e516571: true
+  ec4c11f9-faaa-4113-86b3-902d19200bcb: true
+  ed5cd8c6-c0ee-4442-941e-e2cf9af0118e: true
+score_counts:
+  31f9c159-b6ec-4ea1-8ed9-803cf2183349: 4
+  45b1dc02-2283-47c1-8420-b68c093b0061: 5
+  7e95402f-0e83-4f4a-985a-a1d8b5af17a5: 11
+  859f0d31-3e15-44d9-a698-158921ef03b9: 10
+  aba0e198-0842-4a72-9274-c5ffb5b6072a: 5
+  c5f1d328-685a-4c60-9c8c-fd880e516571: 6
+  ec4c11f9-faaa-4113-86b3-902d19200bcb: 5
+  ed5cd8c6-c0ee-4442-941e-e2cf9af0118e: 9
+overall:
+- rank: 1
+  corps_id: 31f9c159-b6ec-4ea1-8ed9-803cf2183349
+  display_name: All Your Beats Are Belong To Us
+  score: 42.995000000000005
+  qualified: true
+  scores_count: 4
+- rank: 2
+  corps_id: aba0e198-0842-4a72-9274-c5ffb5b6072a
+  display_name: Corps Is Stored In The Lips
+  score: 40.255
+  qualified: true
+  scores_count: 5
+- rank: 3
+  corps_id: ec4c11f9-faaa-4113-86b3-902d19200bcb
+  display_name: Transgressive Transgender Trumpets
+  score: 40.14
+  qualified: true
+  scores_count: 5
+- rank: 4
+  corps_id: 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+  display_name: Pit Happens
+  score: 40.03
+  qualified: true
+  scores_count: 11
+- rank: 5
+  corps_id: 45b1dc02-2283-47c1-8420-b68c093b0061
+  display_name: The Arrhythmic Drumline
+  score: 37.96
+  qualified: true
+  scores_count: 5
+- rank: 6
+  corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+  display_name: The Lindenhurst Legato Longtones
+  score: 37.36
+  qualified: true
+  scores_count: 6
+- rank: 7
+  corps_id: 859f0d31-3e15-44d9-a698-158921ef03b9
+  display_name: We Only March Baris
+  score: 36.005
+  qualified: true
+  scores_count: 10
+- rank: 8
+  corps_id: ed5cd8c6-c0ee-4442-941e-e2cf9af0118e
+  display_name: Several Loud Rimshots
+  score: 33.925
+  qualified: true
+  scores_count: 9
+divisions:
+- show_slug: world_class
+  standings: []
+- show_slug: open_class
+  standings: []
+winner:
+  corps_id: 31f9c159-b6ec-4ea1-8ed9-803cf2183349
+  division: null
+  declared_at: '2026-03-06T03:26:21.482431+00:00'

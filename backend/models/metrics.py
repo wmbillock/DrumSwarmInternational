@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
+import sqlalchemy as sa
 from sqlalchemy import DateTime, Float, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -35,7 +36,9 @@ class MetricsEvent(Base):
     unit: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     tags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON string
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=sa.text("(datetime('now'))"),
     )
 
     def __repr__(self) -> str:
@@ -73,7 +76,9 @@ class MetricsAggregate(Base):
 
     # Metadata
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=sa.text("(datetime('now'))"),
     )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -127,7 +132,9 @@ class MetricsTrend(Base):
 
     # Metadata
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=sa.text("(datetime('now'))"),
     )
 
     def __repr__(self) -> str:

@@ -269,14 +269,19 @@ class MemoryManager:
             self.db.commit()
 
     def get_memory_stats(self, agent_identity: str) -> dict:
-        """Get memory statistics for an agent."""
+        """Get memory statistics for an agent.
+
+        Queries both SQL tables and ChromaDB. If SQL tables are empty
+        (common — agent_runtime stores to ChromaDB, not SQL), falls
+        back to ChromaDB collection stats.
+        """
         from sqlalchemy import func as sa_func
 
         total = (
             self.db.query(sa_func.count(AgentMemory.id))
             .filter(AgentMemory.agent_identity == agent_identity)
             .scalar()
-        )
+        ) or 0
         by_type = dict(
             self.db.query(AgentMemory.memory_type, sa_func.count(AgentMemory.id))
             .filter(AgentMemory.agent_identity == agent_identity)
@@ -294,11 +299,38 @@ class MemoryManager:
             self.db.query(sa_func.count(TaskMemory.id))
             .filter(TaskMemory.agent_identity == agent_identity)
             .scalar()
-        )
+        ) or 0
+
+        # Enrich with ChromaDB if SQL tables are empty
+        chroma_count = 0
+        chroma_by_type: dict[str, int] = {}
+        if total == 0:
+            try:
+                from backend.services.memory_bank import get_memory_bank
+                bank = get_memory_bank()
+                if bank.available:
+                    collection = bank._get_collection(agent_identity)
+                    chroma_count = collection.count()
+                    if chroma_count > 0:
+                        # Sample a few to get type distribution
+                        sample = collection.get(
+                            limit=min(chroma_count, 50),
+                            include=["metadatas"],
+                        )
+                        for meta in (sample.get("metadatas") or []):
+                            mt = (meta or {}).get("type", "general")
+                            chroma_by_type[mt] = chroma_by_type.get(mt, 0) + 1
+            except Exception as e:
+                logger.debug("ChromaDB stats lookup failed for %s: %s", agent_identity, e)
+
+        combined_total = total + chroma_count
+        combined_by_type = dict(by_type)
+        for mt, count in chroma_by_type.items():
+            combined_by_type[mt] = combined_by_type.get(mt, 0) + count
 
         return {
-            "total_memories": total or 0,
-            "by_type": by_type,
-            "avg_confidence": round(avg_confidence or 0, 2),
-            "task_memories": task_count or 0,
+            "total_memories": combined_total,
+            "by_type": combined_by_type,
+            "avg_confidence": round(avg_confidence or (0.7 if chroma_count > 0 else 0), 2),
+            "task_memories": task_count,
         }

@@ -1,4 +1,4 @@
-"""Tests for evaluation service — post-show performer evaluation."""
+"""Tests for evaluation service — post-competition score-based trust bonuses."""
 
 import pytest
 from sqlalchemy import create_engine
@@ -62,29 +62,23 @@ def _make_session(db, corps, performer, status=SessionStatus.COMPLETED):
 class TestEvaluateCorps:
     def test_evaluate_empty_corps(self, db, corps):
         result = evaluate_corps(db, corps.id)
-        assert result["performers_evaluated"] == 0
+        assert result["bonuses_awarded"] == 0
         assert result["corps_id"] == corps.id
 
-    def test_evaluate_successful_session(self, db, corps, performer):
+    def test_evaluate_completed_session_no_scores(self, db, corps, performer):
+        """Completed session without rep scores gets no bonus."""
         _make_session(db, corps, performer, status=SessionStatus.COMPLETED)
         result = evaluate_corps(db, corps.id)
-        assert result["performers_evaluated"] == 1
-        detail = result["details"][0]
-        assert detail["success"] is True
-        assert detail["performer_name"] == "Test Player"
-        # Trust should have increased
+        # No rep scores → no bonus
+        assert result["bonuses_awarded"] == 0
         db.refresh(performer)
-        assert performer.trust_score > 50.0
+        assert performer.trust_score == 50.0
 
-    def test_evaluate_failed_session(self, db, corps, performer):
+    def test_evaluate_failed_session_ignored(self, db, corps, performer):
+        """Failed sessions are not evaluated for bonuses."""
         _make_session(db, corps, performer, status=SessionStatus.FAILED)
         result = evaluate_corps(db, corps.id)
-        assert result["performers_evaluated"] == 1
-        detail = result["details"][0]
-        assert detail["success"] is False
-        # Trust should have decreased
-        db.refresh(performer)
-        assert performer.trust_score < 50.0
+        assert result["bonuses_awarded"] == 0
 
     def test_evaluate_ignores_sessions_without_performer(self, db, corps):
         defn = AgentDefinition(
@@ -101,4 +95,4 @@ class TestEvaluateCorps:
         db.add(session)
         db.commit()
         result = evaluate_corps(db, corps.id)
-        assert result["performers_evaluated"] == 0
+        assert result["bonuses_awarded"] == 0

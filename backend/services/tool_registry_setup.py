@@ -34,9 +34,15 @@ def register_service_tools(registry: ToolRegistry) -> None:
         rep = _create(db, segment_id=segment_id)
         return {"id": rep.id, "status": rep.status.value, "segment_id": rep.segment_id}
 
-    def transition_rep(db, rep_id: str, new_status: str, assigned_to: str = "", result: str = "", error: str = ""):
+    def transition_rep(db, rep_id: str, new_status: str, assigned_to: str = "", result: str = "", error: str = "", session_id: str = ""):
         from backend.models.rep import RepStatus
         from backend.services.rep_service import transition_rep as _transition
+        # Auto-fill assigned_to with the calling agent's session_id when
+        # transitioning to 'assigned' and no explicit value was provided.
+        # This fixes the "self" problem: agents no longer need to know their
+        # own session_id — the tool executor injects it automatically.
+        if new_status == "assigned" and not assigned_to and session_id:
+            assigned_to = session_id
         rep = _transition(
             db,
             rep_id=rep_id,

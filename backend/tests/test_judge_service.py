@@ -41,8 +41,8 @@ class TestParseJudgeResponse:
 
     def test_invalid_json_fallback(self):
         result = _parse_judge_response("not valid json at all", JudgeType.GUARD)
-        assert result.rep_score == 70.0
-        assert result.perf_score == 70.0
+        assert result.rep_score == 45.0
+        assert result.perf_score == 35.0
         assert "could not be parsed" in result.feedback
 
     def test_score_clamping(self):
@@ -70,8 +70,10 @@ class TestStubJudgeResult:
             if jt == JudgeType.TIMING:
                 continue
             r = _stub_judge_result(jt, "test-corps", "test-show")
-            assert 60 <= r.rep_score <= 89
-            assert 60 <= r.perf_score <= 89
+            # Rep: 50-75 base scaled by completeness (default 1.0)
+            assert 20 <= r.rep_score <= 75
+            # Perf: 30-60 base, scaled more aggressively by completeness
+            assert 15 <= r.perf_score <= 60
 
 
 class TestInvokeJudge:
@@ -98,7 +100,7 @@ class TestInvokeJudge:
         context = JudgeContext(corps_id="c1", show_slug="s1")
         result = invoke_judge(JudgeType.BRASS, context, mock_client)
         # Should get stub scores, not crash
-        assert 60 <= result.rep_score <= 89
+        assert 15 <= result.rep_score <= 75
         assert "Stub score" in result.feedback
 
 

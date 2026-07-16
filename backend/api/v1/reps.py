@@ -10,20 +10,29 @@ router = APIRouter(prefix="/api/v1")
 
 @router.get("/reps/{rep_id}/critique")
 def v1_get_critique(rep_id: str):
-    """Get critique/feedback for a rep."""
-    from backend.models.reputation import Reputation
+    """Get critique/feedback for a rep — returns scores and result."""
+    from backend.models.rep import Rep
+    from backend.models.score import Score
     db = _get_db_session()
     try:
-        rep = db.query(Reputation).filter(Reputation.id == rep_id).first()
+        rep = db.get(Rep, rep_id)
         if not rep:
             raise HTTPException(404, "Rep not found")
+        scores = db.query(Score).filter(Score.rep_id == rep_id).all()
         return {
             "id": rep.id,
-            "corps_id": rep.corps_id,
-            "agent_id": rep.agent_id,
-            "score": rep.score,
-            "critique": rep.critique,
-            "dimension": rep.dimension,
+            "segment_id": rep.segment_id,
+            "status": rep.status.value,
+            "assigned_to": rep.assigned_to,
+            "result": rep.result,
+            "scores": [{
+                "id": s.id,
+                "judge_type": s.judge_type.value if s.judge_type else None,
+                "value": s.value,
+                "box": s.box,
+                "feedback": s.feedback,
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+            } for s in scores],
             "created_at": rep.created_at.isoformat() if rep.created_at else None,
         }
     finally:

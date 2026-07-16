@@ -586,11 +586,11 @@ def run_agent(
             status=result.status, corps_id=corps_id,
         ))
 
-        # Store session summary in memory bank
+        # Store session summary in memory bank (ChromaDB)
+        agent_identity = definition.nickname or definition.role
         try:
             memory_bank = get_memory_bank()
             if memory_bank.available and result.final_response:
-                agent_identity = definition.nickname or definition.role
                 summary = (
                     f"Task: {task_description[:500]}\n"
                     f"Result ({result.status}): {result.final_response[:1000]}\n"
@@ -605,6 +605,21 @@ def run_agent(
                 )
         except Exception:
             logger.debug("Memory bank storage failed", exc_info=True)
+
+        # Store in SQL memory tables (episodic + explicit)
+        try:
+            from backend.services.memory_manager import MemoryManager
+            mgr = MemoryManager(db)
+            mgr.store_after_action(
+                session_id=session_id,
+                agent_identity=agent_identity,
+                task_description=task_description,
+                result_summary=result.final_response or "",
+                success=result.status == RunStatus.COMPLETED,
+                tool_calls_made=result.tool_calls_made,
+            )
+        except Exception:
+            logger.debug("SQL memory storage failed", exc_info=True)
 
         # Index completed drill book outcomes in vector store
         if corps_id and result.status == RunStatus.COMPLETED:

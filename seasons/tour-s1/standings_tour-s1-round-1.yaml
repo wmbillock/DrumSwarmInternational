@@ -1,0 +1,77 @@
+season_id: tour-s1
+competition_id: tour-s1-round-1
+show_slug: tour
+generated_at: '2026-03-06T03:29:25.126122+00:00'
+results:
+- corps_id: cavaliers
+  rank: 1
+  final_score: 12.075
+  raw_score: 12.075
+  caption_scores:
+    visual: 12.5
+    brass: 12.5
+    guard: 12.5
+    percussion: 10.0
+    general_effect: 12.5
+    ensemble_technique: 12.5
+  caption_details:
+    visual:
+      rep: 15.0
+      perf: 10.0
+      tot: 12.5
+    brass:
+      rep: 15.0
+      perf: 10.0
+      tot: 12.5
+    guard:
+      rep: 15.0
+      perf: 10.0
+      tot: 12.5
+    percussion:
+      rep: 15.0
+      perf: 5.0
+      tot: 10.0
+    general_effect:
+      rep: 15.0
+      perf: 10.0
+      tot: 12.5
+    ensemble_technique:
+      rep: 15.0
+      perf: 10.0
+      tot: 12.5
+- corps_id: scouts
+  rank: 2
+  final_score: 12.01
+  raw_score: 12.01
+  caption_scores:
+    visual: 11.5
+    brass: 12.5
+    guard: 12.5
+    percussion: 12.5
+    ensemble_technique: 11.5
+    general_effect: 11.5
+  caption_details:
+    visual:
+      rep: 15.0
+      perf: 8.0
+      tot: 11.5
+    brass:
+      rep: 15.0
+      perf: 10.0
+      tot: 12.5
+    guard:
+      rep: 15.0
+      perf: 10.0
+      tot: 12.5
+    percussion:
+      rep: 15.0
+      perf: 10.0
+      tot: 12.5
+    ensemble_technique:
+      rep: 15.0
+      perf: 8.0
+      tot: 11.5
+    general_effect:
+      rep: 15.0
+      perf: 8.0
+      tot: 11.5

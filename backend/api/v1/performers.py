@@ -141,21 +141,140 @@ def v1_performer_stats(performer_id: str):
 
 @router.get("/performers/{performer_id}/genome")
 def v1_performer_genome(performer_id: str):
-    """Get performer genome (evolution traits)."""
+    """Get performer genome — trust trajectory and session history."""
     from backend.models.performer import Performer
+    from backend.models.capability_ledger import CapabilityLedgerEntry
 
     db = _get_db_session()
     try:
         p = db.get(Performer, performer_id)
         if not p:
             raise HTTPException(404, "Performer not found")
+
+        # Build trust trajectory from ledger
+        trust_changes = (
+            db.query(CapabilityLedgerEntry)
+            .filter(
+                CapabilityLedgerEntry.performer_id == performer_id,
+                CapabilityLedgerEntry.trust_after.isnot(None),
+            )
+            .order_by(CapabilityLedgerEntry.created_at)
+            .all()
+        )
+
+        success_rate = (
+            (p.successful_sessions / max(p.total_sessions, 1)) * 100
+            if p.total_sessions > 0 else 0
+        )
+
         return {
             "id": p.id,
             "name": p.name,
             "role_type": p.role_type,
+            "agent_category": p.agent_category,
             "trust_score": round(p.trust_score, 1),
             "specialties": p.specialties,
-            "genome": p.genome if hasattr(p, "genome") else {},
+            "total_sessions": p.total_sessions,
+            "successful_sessions": p.successful_sessions,
+            "failed_sessions": p.failed_sessions,
+            "success_rate": round(success_rate, 1),
+            "trust_trajectory": [{
+                "trust_after": e.trust_after,
+                "entry_type": e.entry_type.value if e.entry_type else None,
+                "details": e.details,
+                "created_at": e.created_at.isoformat() if e.created_at else None,
+            } for e in trust_changes],
         }
+    finally:
+        db.close()
+
+
+@router.post("/performers/backfill")
+def v1_backfill_performers():
+    """Backfill performer categories and session linkages.
+
+    1. Updates existing performers' agent_category/is_verified based on their role
+    2. Links unlinked sessions to performers via audition
+    3. Creates missing performers for roles that have sessions but no performers
+    """
+    from datetime import datetime, timezone
+    from backend.models.performer import Performer, AgentCategory
+    from backend.models.agent_session import AgentSession
+    from backend.models.agent_definition import AgentDefinition, ROLE_CLASSIFICATIONS
+    from backend.services.performer_service import (
+        _CLASSIFICATION_TO_CATEGORY,
+        _STAFF_CLASSIFICATIONS,
+        audition_for_role,
+    )
+
+    db = _get_db_session()
+    try:
+        stats = {"categories_fixed": 0, "sessions_linked": 0, "performers_created": 0}
+
+        # 1. Fix existing performers' categories based on their role_type
+        all_performers = db.query(Performer).all()
+        for p in all_performers:
+            classification = ROLE_CLASSIFICATIONS.get(p.role_type)
+            if not classification:
+                continue
+            expected_cat = _CLASSIFICATION_TO_CATEGORY.get(
+                classification, AgentCategory.PERFORMER.value
+            )
+            is_staff = classification in _STAFF_CLASSIFICATIONS
+            changed = False
+            if p.agent_category != expected_cat:
+                p.agent_category = expected_cat
+                changed = True
+            if is_staff and not p.is_verified:
+                p.is_verified = True
+                p.verified_at = datetime.now(timezone.utc)
+                p.verified_by = "backfill"
+                changed = True
+            if changed:
+                stats["categories_fixed"] += 1
+
+        db.commit()
+
+        # 2. Link unlinked sessions to performers
+        unlinked = (
+            db.query(AgentSession)
+            .filter(AgentSession.performer_id.is_(None))
+            .all()
+        )
+        for session in unlinked:
+            defn = db.get(AgentDefinition, session.definition_id)
+            if not defn:
+                continue
+            try:
+                performer = audition_for_role(db, defn.role)
+                if performer:
+                    session.performer_id = performer.id
+                    stats["sessions_linked"] += 1
+            except Exception:
+                pass
+
+        db.commit()
+
+        # 3. Recompute session counters from linked sessions
+        from backend.models.agent_session import SessionStatus
+        counters_fixed = 0
+        for p in db.query(Performer).all():
+            sessions = (
+                db.query(AgentSession)
+                .filter(AgentSession.performer_id == p.id)
+                .all()
+            )
+            total = len(sessions)
+            completed = sum(1 for s in sessions if s.status == SessionStatus.COMPLETED)
+            failed = sum(1 for s in sessions if s.status in (SessionStatus.FAILED, SessionStatus.TIMED_OUT))
+            if p.total_sessions != total or p.successful_sessions != completed or p.failed_sessions != failed:
+                p.total_sessions = total
+                p.successful_sessions = completed
+                p.failed_sessions = failed
+                counters_fixed += 1
+
+        db.commit()
+        stats["counters_fixed"] = counters_fixed
+        return stats
     finally:
         db.close()

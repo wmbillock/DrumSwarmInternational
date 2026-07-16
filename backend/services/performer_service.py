@@ -16,9 +16,26 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from backend.models.performer import AgentCategory, Performer, PerformerStatus
+from backend.models.agent_definition import ROLE_CLASSIFICATIONS, AgentClassification
 from backend.services.memory_bank import get_memory_bank
 
 logger = logging.getLogger(__name__)
+
+# Map AgentClassification → AgentCategory for performer creation
+_CLASSIFICATION_TO_CATEGORY: dict[AgentClassification, str] = {
+    AgentClassification.ADMINISTRATIVE_STAFF: AgentCategory.ADMINISTRATIVE_STAFF.value,
+    AgentClassification.INSTRUCTIONAL_STAFF: AgentCategory.INSTRUCTIONAL_STAFF.value,
+    AgentClassification.LOGISTICS: AgentCategory.INSTRUCTIONAL_STAFF.value,
+    AgentClassification.DCI_ASSIGNED: AgentCategory.INSTRUCTIONAL_STAFF.value,
+}
+
+# Roles that should be auto-verified as staff on creation
+_STAFF_CLASSIFICATIONS = {
+    AgentClassification.ADMINISTRATIVE_STAFF,
+    AgentClassification.INSTRUCTIONAL_STAFF,
+    AgentClassification.LOGISTICS,
+    AgentClassification.DCI_ASSIGNED,
+}
 
 # Trust thresholds
 TRUST_RETIREMENT_THRESHOLD = 20.0
@@ -69,19 +86,33 @@ def create_performer(
     role_type: str,
     name: Optional[str] = None,
 ) -> Performer:
-    """Create a new performer with initial trust score."""
+    """Create a new performer with initial trust score.
+
+    Automatically sets agent_category and is_verified based on the role's
+    classification (staff roles are auto-verified).
+    """
     if name is None:
         name = _generate_name(db)
+
+    classification = ROLE_CLASSIFICATIONS.get(role_type)
+    category = _CLASSIFICATION_TO_CATEGORY.get(
+        classification, AgentCategory.PERFORMER.value
+    ) if classification else AgentCategory.PERFORMER.value
+    is_staff = classification in _STAFF_CLASSIFICATIONS if classification else False
 
     performer = Performer(
         name=name,
         role_type=role_type,
         trust_score=TRUST_INITIAL,
+        agent_category=category,
+        is_verified=is_staff,
+        verified_at=datetime.now(timezone.utc) if is_staff else None,
+        verified_by="system" if is_staff else None,
     )
     db.add(performer)
     db.commit()
     db.refresh(performer)
-    logger.info("Created performer %s (%s) for role %s", performer.id, name, role_type)
+    logger.info("Created %s %s (%s) for role %s", "staff" if is_staff else "performer", performer.id, name, role_type)
     return performer
 
 

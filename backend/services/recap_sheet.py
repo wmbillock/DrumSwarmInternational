@@ -5,7 +5,9 @@ import io
 from dataclasses import dataclass, field
 from typing import Optional
 
-from backend.models.score import JudgeType
+from sqlalchemy.orm import Session
+
+from backend.models.score import JudgeType, Score
 from backend.services.scoring_service import DEFAULT_WEIGHTS
 
 
@@ -22,14 +24,56 @@ class RecapRow:
     final_score: float = 0.0
 
 
+def _load_db_caption_details(
+    db: Session, corps_ids: list[str],
+) -> dict[str, dict[str, dict[str, float]]]:
+    """Query Score table for rep/perf breakdown per corps per caption.
+
+    Returns {corps_id: {caption: {"rep": x, "perf": y, "tot": z}}}.
+    Uses the latest score per (corps_id, judge_type).
+    """
+    from sqlalchemy import select, and_
+
+    details: dict[str, dict[str, dict[str, float]]] = {}
+    if not corps_ids:
+        return details
+
+    stmt = (
+        select(Score)
+        .where(Score.corps_id.in_(corps_ids))
+        .order_by(Score.created_at.desc())
+    )
+    all_scores = db.execute(stmt).scalars().all()
+
+    # Keep only the latest score per (corps_id, judge_type)
+    latest: dict[tuple[str, str], Score] = {}
+    for s in all_scores:
+        key = (s.corps_id, s.judge_type.value if hasattr(s.judge_type, 'value') else str(s.judge_type))
+        if key not in latest:
+            latest[key] = s
+
+    for (cid, caption), score in latest.items():
+        if cid not in details:
+            details[cid] = {}
+        rep = score.rep_score if score.rep_score is not None else score.value
+        perf = score.perf_score if score.perf_score is not None else score.value
+        tot = (rep + perf) / 2 if (score.rep_score is not None and score.perf_score is not None) else score.value
+        details[cid][caption] = {"rep": rep, "perf": perf, "tot": tot}
+
+    return details
+
+
 def generate_recap_sheet(
     season_id: str,
     show_slug: str,
     standings_data: Optional[dict] = None,
+    competition_id: Optional[str] = None,
+    db: Optional[Session] = None,
 ) -> list[RecapRow]:
     """Build recap rows from standings data.
 
     If standings_data not provided, loads from filesystem.
+    Tries per-competition file first, then global standings.yaml.
     """
     import os
     from pathlib import Path
@@ -37,13 +81,44 @@ def generate_recap_sheet(
     if standings_data is None:
         from backend.services.yaml_util import safe_load_yaml_dict
         root = Path(os.environ.get("DCI_ROOT", "."))
-        standings_path = root / "seasons" / season_id / "standings.yaml"
-        if not standings_path.exists():
-            return []
-        standings_data = safe_load_yaml_dict(standings_path.read_text())
+        season_dir = root / "seasons" / season_id
+
+        # Try per-competition standings file first
+        if competition_id:
+            per_comp = season_dir / f"standings_{competition_id}.yaml"
+            if per_comp.exists():
+                standings_data = safe_load_yaml_dict(per_comp.read_text())
+
+        # Try schedule entry in season.yaml
+        if (not standings_data or not standings_data.get("results")) and competition_id:
+            season_yaml = season_dir / "season.yaml"
+            if season_yaml.is_file():
+                season_data = safe_load_yaml_dict(season_yaml.read_text())
+                for entry in (season_data.get("schedule") or []):
+                    if entry.get("competition_id") == competition_id and entry.get("standings"):
+                        standings_data = {
+                            "season_id": season_id,
+                            "results": entry["standings"],
+                        }
+                        break
+
+        # Fall back to global standings.yaml
+        if not standings_data or not standings_data.get("results"):
+            standings_path = season_dir / "standings.yaml"
+            if not standings_path.exists():
+                return []
+            standings_data = safe_load_yaml_dict(standings_path.read_text())
+
+    # Check if any results lack caption_details — if so, try DB enrichment
+    results = standings_data.get("results", [])
+    needs_db = any(not r.get("caption_details") for r in results)
+    db_details: dict[str, dict[str, dict[str, float]]] = {}
+    if needs_db and db is not None:
+        corps_ids = [r["corps_id"] for r in results]
+        db_details = _load_db_caption_details(db, corps_ids)
 
     rows = []
-    for result in standings_data.get("results", []):
+    for result in results:
         row = RecapRow(
             corps_id=result["corps_id"],
             corps_name=result.get("display_name", result["corps_id"][:8]),
@@ -52,15 +127,26 @@ def generate_recap_sheet(
             final_score=result.get("final_score", 0.0),
         )
 
-        # Build per-caption breakdown from caption_scores
+        # Build per-caption breakdown from caption_details (rep/perf/tot) if available
+        caption_details = result.get("caption_details", {})
+        # Fall back to DB-sourced details if standings data lacks them
+        if not caption_details and result["corps_id"] in db_details:
+            caption_details = db_details[result["corps_id"]]
         caption_scores_raw = result.get("caption_scores", {})
         for caption, value in caption_scores_raw.items():
-            # Value is the total_score (average of rep+perf)
-            row.caption_scores[caption] = {
-                "rep": value,  # Without separate data, use total for both
-                "perf": value,
-                "tot": value,
-            }
+            detail = caption_details.get(caption)
+            if detail and "rep" in detail and "perf" in detail:
+                row.caption_scores[caption] = {
+                    "rep": detail["rep"],
+                    "perf": detail["perf"],
+                    "tot": detail.get("tot", value),
+                }
+            else:
+                row.caption_scores[caption] = {
+                    "rep": value,
+                    "perf": value,
+                    "tot": value,
+                }
 
         rows.append(row)
 

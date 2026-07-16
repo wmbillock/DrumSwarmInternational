@@ -16,6 +16,7 @@ import os
 import subprocess
 import threading
 import time
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -62,9 +63,8 @@ def _get(key: str, default: Any = None) -> Any:
 def _http_get(path: str, timeout: float = _FETCH_TIMEOUT) -> Any:
     """GET an API endpoint, return parsed JSON or None."""
     try:
-        req = urllib.request.Request(
-            f"{API_BASE}{path}", headers={"Accept": "application/json"}
-        )
+        url = f"{API_BASE}{urllib.parse.quote(path, safe='/:?=&')}"
+        req = urllib.request.Request(url, headers={"Accept": "application/json"})
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read().decode())
     except Exception:
@@ -152,26 +152,29 @@ def _refresh_shows_summary(backend_up: bool) -> None:
     shows = _http_get("/api/v1/shows") or []
     result = {
         "total": len(shows),
+        "published": sum(1 for s in shows if s.get("status") == "published"),
         "active": sum(1 for s in shows if s.get("status") == "active"),
         "draft": sum(1 for s in shows if s.get("status") == "draft"),
         "completed": sum(1 for s in shows if s.get("status") == "completed"),
         "active_details": [],
     }
 
-    for show in shows:
-        if show.get("status") != "active" or not show.get("corps_id"):
+    # Use touring corps for active details
+    corps_list = _get_touring_corps()
+    for corps in corps_list[:8]:
+        corps_id = corps.get("corps_id") or corps.get("id")
+        if not corps_id:
             continue
-        corps_id = show["corps_id"]
-        corps = _http_get(f"/api/v1/corps/{corps_id}")
         roster = _http_get(f"/api/v1/corps/{corps_id}/roster") or []
         active_agents = sum(1 for a in roster if a.get("status") == "active")
-        result["active_details"].append({
-            "title": show.get("title", "?"),
-            "corps_id": corps_id,
-            "corps_name": corps.get("name", "?") if corps else "?",
-            "total_agents": len(roster),
-            "active_agents": active_agents,
-        })
+        if roster:
+            result["active_details"].append({
+                "title": corps.get("display_name") or corps.get("name", "?"),
+                "corps_id": corps_id,
+                "corps_name": corps.get("display_name") or corps.get("name", "?"),
+                "total_agents": len(roster),
+                "active_agents": active_agents,
+            })
 
     _put("shows_summary", result)
 
@@ -182,14 +185,17 @@ def _refresh_agent_roster(backend_up: bool) -> None:
             _put("agent_roster", [])
         return
 
-    shows = _http_get("/api/v1/shows") or []
-    active_shows = [s for s in shows if s.get("status") == "active" and s.get("corps_id")]
+    corps_list = _get_touring_corps()
     results = []
 
-    for show in active_shows:
-        corps_id = show["corps_id"]
-        title = show.get("title", "Untitled")
+    for corps in corps_list:
+        corps_id = corps.get("corps_id") or corps.get("id")
+        if not corps_id:
+            continue
+        title = corps.get("display_name") or corps.get("name") or corps_id[:12]
         roster = _http_get(f"/api/v1/corps/{corps_id}/roster") or []
+        if not roster:
+            continue
 
         by_status: dict[str, int] = {}
         for agent in roster:
@@ -313,24 +319,18 @@ def _refresh_completed_reps(backend_up: bool) -> None:
             _put("completed_reps", [])
         return
 
-    shows = _http_get("/api/v1/shows") or []
-    active = [s for s in shows if s.get("status") == "active"]
+    # Use recent competition activity instead of active show reps
+    recent = _http_get("/api/v1/competitions/recent-activity") or []
     results = []
-    for show in active[:3]:
-        coord_root = show.get("segment_root_id")
-        if not coord_root:
-            continue
-        reps = _http_get(f"/api/v1/segments/{coord_root}/reps") or []
-        if reps:
-            results.append({
-                "title": show.get("title", "?"),
-                "completed": sum(1 for r in reps if r.get("status") == "completed"),
-                "failed": sum(1 for r in reps if r.get("status") == "failed"),
-                "pending": sum(
-                    1 for r in reps
-                    if r.get("status") in ("pending", "assigned", "in_progress")
-                ),
-            })
+    for entry in recent[:5]:
+        top = entry.get("top_standings", [])
+        winner = top[0].get("corps_name", "?") if top else "?"
+        results.append({
+            "competition_id": entry.get("competition_id", "?"),
+            "round": entry.get("round", "?"),
+            "winner": winner,
+            "completed_at": entry.get("completed_at", ""),
+        })
     _put("completed_reps", results)
 
 
@@ -340,14 +340,17 @@ def _refresh_agent_memory(backend_up: bool) -> None:
             _put("agent_memory", [])
         return
 
-    shows = _http_get("/api/v1/shows") or []
-    active_shows = [s for s in shows if s.get("status") == "active" and s.get("corps_id")]
+    corps_list = _get_touring_corps()
     results = []
 
-    for show in active_shows[:3]:
-        corps_id = show["corps_id"]
+    for corps in corps_list[:6]:
+        corps_id = corps.get("corps_id") or corps.get("id")
+        if not corps_id:
+            continue
         roster = _http_get(f"/api/v1/corps/{corps_id}/roster") or []
-        title = show.get("title", "Untitled")
+        if not roster:
+            continue
+        title = corps.get("display_name") or corps.get("name") or corps_id[:12]
 
         agents = []
         for agent in roster[:8]:
@@ -363,7 +366,8 @@ def _refresh_agent_memory(backend_up: bool) -> None:
                 "by_type": stats.get("by_type", {}),
             })
 
-        results.append({"title": title, "corps_id": corps_id, "agents": agents})
+        if agents:
+            results.append({"title": title, "corps_id": corps_id, "agents": agents})
 
     _put("agent_memory", results)
 
@@ -374,19 +378,16 @@ def _refresh_lifecycle(backend_up: bool) -> None:
             _put("lifecycle", [])
         return
 
-    shows = _http_get("/api/v1/shows") or []
-    active_shows = [s for s in shows if s.get("status") == "active" and s.get("corps_id")]
+    corps_list = _get_touring_corps()
     results = []
+    pending_improvements = _http_get("/api/v1/self-improvement/pending") or []
 
-    for show in active_shows[:3]:
-        corps_id = show["corps_id"]
-        corps = _http_get(f"/api/v1/corps/{corps_id}")
-        if not corps:
+    for corps in corps_list[:6]:
+        corps_id = corps.get("corps_id") or corps.get("id")
+        if not corps_id:
             continue
 
-        ageouts = _http_get(f"/api/v1/corps/{corps_id}/ageouts") or []
         roster = _http_get(f"/api/v1/corps/{corps_id}/roster") or []
-        pending_improvements = _http_get("/api/v1/self-improvement/pending") or []
 
         by_class: dict[str, dict] = {}
         for agent in roster:
@@ -397,11 +398,10 @@ def _refresh_lifecycle(backend_up: bool) -> None:
                 entry["active"] += 1
 
         results.append({
-            "title": show.get("title", "Untitled"),
+            "title": corps.get("display_name") or corps.get("name") or corps_id[:12],
             "corps_id": corps_id,
+            "status": corps.get("status", "unknown"),
             "mascot": corps.get("mascot", "—"),
-            "theme": corps.get("theme_id", "—"),
-            "ageouts": ageouts,
             "by_classification": by_class,
             "pending_improvements": pending_improvements,
         })
@@ -417,6 +417,30 @@ def _refresh_corps_list(backend_up: bool) -> None:
         return
     corps = _http_get("/api/v1/corps") or []
     _put("corps_list", corps)
+
+
+def _get_touring_corps() -> list[dict]:
+    """Get corps registered in touring seasons. Falls back to all corps."""
+    seasons = _http_get("/api/v1/seasons") or []
+    touring = [s for s in seasons if (s.get("metadata") or {}).get("status") == "touring"
+               or s.get("status") == "touring"]
+    if not touring:
+        return _http_get("/api/v1/corps") or []
+
+    registered_ids: set[str] = set()
+    for s in touring:
+        sid = s.get("season_id", s.get("dir_name", ""))
+        season_data = _http_get(f"/api/v1/seasons/{sid}")
+        if season_data:
+            for cid in (season_data.get("registered_corps") or []):
+                registered_ids.add(cid)
+
+    if not registered_ids:
+        return _http_get("/api/v1/corps") or []
+
+    all_corps = _http_get("/api/v1/corps") or []
+    return [c for c in all_corps
+            if (c.get("corps_id") or c.get("id")) in registered_ids]
 
 
 # ── Defaults ──────────────────────────────────────────────────────────

@@ -194,22 +194,22 @@ class TestPerformerListing:
         assert len(brass) == 2
 
     def test_list_staff_only(self, db):
-        from backend.services.performer_service import create_performer, hire_staff, list_performers, update_trust
-        p1 = create_performer(db, "brass_tech", name="Staff One")
-        update_trust(db, p1.id, 15.0, "boost")  # push above 60
-        hire_staff(db, p1.id, category="instructional_staff")
-        create_performer(db, "brass_tech", name="Performer One")
+        from backend.services.performer_service import create_performer, list_performers
+        # brass_tech auto-classifies as instructional_staff
+        create_performer(db, "brass_tech", name="Staff One")
+        # Use a role not in ROLE_CLASSIFICATIONS → defaults to performer category
+        create_performer(db, "member", name="Performer One")
 
         staff = list_performers(db, staff_only=True)
         assert len(staff) == 1
         assert staff[0].name == "Staff One"
 
     def test_list_performers_only(self, db):
-        from backend.services.performer_service import create_performer, hire_staff, list_performers, update_trust
-        p1 = create_performer(db, "brass_tech", name="Staff Two")
-        update_trust(db, p1.id, 15.0, "boost")
-        hire_staff(db, p1.id, category="instructional_staff")
-        create_performer(db, "guard_tech", name="Performer Two")
+        from backend.services.performer_service import create_performer, list_performers
+        # brass_tech auto-classifies as instructional_staff
+        create_performer(db, "brass_tech", name="Staff Two")
+        # Use a role not in ROLE_CLASSIFICATIONS → defaults to performer category
+        create_performer(db, "member", name="Performer Two")
 
         perfs = list_performers(db, performers_only=True)
         assert len(perfs) == 1
@@ -265,7 +265,8 @@ class TestStaffHireRelease:
 
     def test_is_staff_property(self, db):
         from backend.services.performer_service import create_performer, hire_staff, update_trust
-        p = create_performer(db, "brass_tech", name="Prop Test")
+        # Use a non-classified role so it starts as performer category
+        p = create_performer(db, "member", name="Prop Test")
         assert p.is_staff is False
         update_trust(db, p.id, 15.0, "boost")
         hire_staff(db, p.id, category="administrative_staff")

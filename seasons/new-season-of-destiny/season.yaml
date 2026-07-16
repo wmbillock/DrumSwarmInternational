@@ -1,0 +1,1698 @@
+season_id: new-season-of-destiny
+metadata:
+  name: New season of destiny
+  status: touring
+shows:
+- clean-up-personality-styling
+- corps-auto-staffing-with-visible-hiring
+- compile-time
+- corps-lifecycle-redesign
+- corps-logo-generation
+- dci-admin-chat-centralizing-swarm-enhancements
+divisions: {}
+config:
+  corps_per_contest: 10
+  required_scores: 3
+  auto_advance: true
+schedule:
+- round: 1
+  competition_id: new-season-of-destiny-comp-1
+  corps_performances:
+  - corps_id: 19836c66-b398-48a4-9958-f669b7e7859d
+    show_slug: clean-up-personality-styling
+  - corps_id: 2ebf7478-75be-4a30-9c69-5e1756e11d31
+    show_slug: corps-auto-staffing-with-visible-hiring
+  - corps_id: 45b1dc02-2283-47c1-8420-b68c093b0061
+    show_slug: corps-lifecycle-redesign
+  - corps_id: 7a70c3c6-5693-4af8-9c3b-4480988bf8d4
+    show_slug: dci-admin-chat-centralizing-swarm-enhancements
+  - corps_id: 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+    show_slug: clean-up-personality-styling
+  - corps_id: 846e48f0-8398-4b9e-93f6-ad78619d3fb7
+    show_slug: corps-auto-staffing-with-visible-hiring
+  - corps_id: 9847fbbc-7d97-4e56-b8cf-cf206d28ce64
+    show_slug: corps-lifecycle-redesign
+  - corps_id: ca6a4d81-a1da-4036-8e9c-8ffc405ef5de
+    show_slug: clean-up-personality-styling
+  - corps_id: ec4c11f9-faaa-4113-86b3-902d19200bcb
+    show_slug: compile-time
+  - corps_id: ed5cd8c6-c0ee-4442-941e-e2cf9af0118e
+    show_slug: corps-lifecycle-redesign
+  corps_ids:
+  - 19836c66-b398-48a4-9958-f669b7e7859d
+  - 2ebf7478-75be-4a30-9c69-5e1756e11d31
+  - 45b1dc02-2283-47c1-8420-b68c093b0061
+  - 7a70c3c6-5693-4af8-9c3b-4480988bf8d4
+  - 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+  - 846e48f0-8398-4b9e-93f6-ad78619d3fb7
+  - 9847fbbc-7d97-4e56-b8cf-cf206d28ce64
+  - ca6a4d81-a1da-4036-8e9c-8ffc405ef5de
+  - ec4c11f9-faaa-4113-86b3-902d19200bcb
+  - ed5cd8c6-c0ee-4442-941e-e2cf9af0118e
+  status: completed
+  completed_at: '2026-03-06T03:15:56.148639+00:00'
+  standings:
+  - corps_id: ec4c11f9-faaa-4113-86b3-902d19200bcb
+    rank: 1
+    final_score: 58.150000000000006
+    raw_score: 58.150000000000006
+    caption_scores:
+      visual: 60.0
+      percussion: 60.0
+      guard: 60.0
+      brass: 60.0
+      general_effect: 55.0
+      ensemble_technique: 55.0
+    caption_details:
+      visual:
+        rep: 72.0
+        perf: 48.0
+        tot: 60.0
+      percussion:
+        rep: 72.0
+        perf: 48.0
+        tot: 60.0
+      guard:
+        rep: 72.0
+        perf: 48.0
+        tot: 60.0
+      brass:
+        rep: 72.0
+        perf: 48.0
+        tot: 60.0
+      general_effect:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      ensemble_technique:
+        rep: 68.0
+        perf: 42.0
+        tot: 55.0
+  - corps_id: ed5cd8c6-c0ee-4442-941e-e2cf9af0118e
+    rank: 2
+    final_score: 58.145
+    raw_score: 58.145
+    caption_scores:
+      percussion: 60.0
+      brass: 55.0
+      guard: 58.5
+      visual: 60.0
+      ensemble_technique: 55.0
+      general_effect: 60.0
+    caption_details:
+      percussion:
+        rep: 78.0
+        perf: 42.0
+        tot: 60.0
+      brass:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      guard:
+        rep: 75.0
+        perf: 42.0
+        tot: 58.5
+      visual:
+        rep: 78.0
+        perf: 42.0
+        tot: 60.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      general_effect:
+        rep: 78.0
+        perf: 42.0
+        tot: 60.0
+  - corps_id: 9847fbbc-7d97-4e56-b8cf-cf206d28ce64
+    rank: 3
+    final_score: 57.795
+    raw_score: 57.795
+    caption_scores:
+      percussion: 60.0
+      brass: 58.5
+      guard: 55.0
+      visual: 60.0
+      general_effect: 55.0
+      ensemble_technique: 60.0
+    caption_details:
+      percussion:
+        rep: 78.0
+        perf: 42.0
+        tot: 60.0
+      brass:
+        rep: 75.0
+        perf: 42.0
+        tot: 58.5
+      guard:
+        rep: 78.0
+        perf: 32.0
+        tot: 55.0
+      visual:
+        rep: 78.0
+        perf: 42.0
+        tot: 60.0
+      general_effect:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      ensemble_technique:
+        rep: 92.0
+        perf: 28.0
+        tot: 60.0
+  - corps_id: 19836c66-b398-48a4-9958-f669b7e7859d
+    rank: 4
+    final_score: 55.0
+    raw_score: 55.0
+    caption_scores:
+      percussion: 55.0
+      visual: 55.0
+      brass: 55.0
+      guard: 55.0
+      general_effect: 55.0
+      ensemble_technique: 55.0
+    caption_details:
+      percussion:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      visual:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      brass:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      guard:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      general_effect:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+  - corps_id: 846e48f0-8398-4b9e-93f6-ad78619d3fb7
+    rank: 5
+    final_score: 55.0
+    raw_score: 55.0
+    caption_scores:
+      guard: 55.0
+      percussion: 55.0
+      brass: 55.0
+      visual: 55.0
+      ensemble_technique: 55.0
+      general_effect: 55.0
+    caption_details:
+      guard:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      percussion:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      brass:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      visual:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      general_effect:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+  - corps_id: ca6a4d81-a1da-4036-8e9c-8ffc405ef5de
+    rank: 6
+    final_score: 54.25
+    raw_score: 54.25
+    caption_scores:
+      visual: 55.0
+      percussion: 55.0
+      guard: 55.0
+      brass: 55.0
+      ensemble_technique: 50.0
+      general_effect: 55.0
+    caption_details:
+      visual:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      percussion:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      guard:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      brass:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+      general_effect:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+  - corps_id: 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+    rank: 7
+    final_score: 54.150000000000006
+    raw_score: 54.150000000000006
+    caption_scores:
+      guard: 55.0
+      brass: 50.0
+      percussion: 55.0
+      visual: 55.0
+      ensemble_technique: 55.0
+      general_effect: 55.0
+    caption_details:
+      guard:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      brass:
+        rep: 68.0
+        perf: 32.0
+        tot: 50.0
+      percussion:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      visual:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      general_effect:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+  - corps_id: 7a70c3c6-5693-4af8-9c3b-4480988bf8d4
+    rank: 8
+    final_score: 54.150000000000006
+    raw_score: 54.150000000000006
+    caption_scores:
+      guard: 50.0
+      visual: 55.0
+      brass: 55.0
+      percussion: 55.0
+      ensemble_technique: 55.0
+      general_effect: 55.0
+    caption_details:
+      guard:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+      visual:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      brass:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      percussion:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      general_effect:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+  - corps_id: 2ebf7478-75be-4a30-9c69-5e1756e11d31
+    rank: 9
+    final_score: 53.975
+    raw_score: 53.975
+    caption_scores:
+      brass: 46.5
+      percussion: 55.0
+      visual: 58.5
+      guard: 55.0
+      general_effect: 55.0
+      ensemble_technique: 55.0
+    caption_details:
+      brass:
+        rep: 65.0
+        perf: 28.0
+        tot: 46.5
+      percussion:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      visual:
+        rep: 75.0
+        perf: 42.0
+        tot: 58.5
+      guard:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      general_effect:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+  - corps_id: 45b1dc02-2283-47c1-8420-b68c093b0061
+    rank: 10
+    final_score: 53.400000000000006
+    raw_score: 53.400000000000006
+    caption_scores:
+      visual: 55.0
+      guard: 50.0
+      brass: 55.0
+      percussion: 55.0
+      ensemble_technique: 50.0
+      general_effect: 55.0
+    caption_details:
+      visual:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      guard:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+      brass:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      percussion:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+      general_effect:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+- round: 2
+  competition_id: new-season-of-destiny-comp-2
+  corps_performances:
+  - corps_id: 19836c66-b398-48a4-9958-f669b7e7859d
+    show_slug: clean-up-personality-styling
+  - corps_id: 2ebf7478-75be-4a30-9c69-5e1756e11d31
+    show_slug: corps-auto-staffing-with-visible-hiring
+  - corps_id: 31f9c159-b6ec-4ea1-8ed9-803cf2183349
+    show_slug: compile-time
+  - corps_id: 45b1dc02-2283-47c1-8420-b68c093b0061
+    show_slug: corps-lifecycle-redesign
+  - corps_id: 709d9dc4-2a92-487a-92d0-c8b5ead59939
+    show_slug: corps-logo-generation
+  - corps_id: 846e48f0-8398-4b9e-93f6-ad78619d3fb7
+    show_slug: corps-auto-staffing-with-visible-hiring
+  - corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+    show_slug: dci-admin-chat-centralizing-swarm-enhancements
+  - corps_id: ca6a4d81-a1da-4036-8e9c-8ffc405ef5de
+    show_slug: clean-up-personality-styling
+  - corps_id: e503c207-1d63-460d-b080-63a92a17e979
+    show_slug: corps-auto-staffing-with-visible-hiring
+  - corps_id: ec4c11f9-faaa-4113-86b3-902d19200bcb
+    show_slug: compile-time
+  corps_ids:
+  - 19836c66-b398-48a4-9958-f669b7e7859d
+  - 2ebf7478-75be-4a30-9c69-5e1756e11d31
+  - 31f9c159-b6ec-4ea1-8ed9-803cf2183349
+  - 45b1dc02-2283-47c1-8420-b68c093b0061
+  - 709d9dc4-2a92-487a-92d0-c8b5ead59939
+  - 846e48f0-8398-4b9e-93f6-ad78619d3fb7
+  - c5f1d328-685a-4c60-9c8c-fd880e516571
+  - ca6a4d81-a1da-4036-8e9c-8ffc405ef5de
+  - e503c207-1d63-460d-b080-63a92a17e979
+  - ec4c11f9-faaa-4113-86b3-902d19200bcb
+  status: completed
+  completed_at: '2026-03-06T03:25:48.880379+00:00'
+  standings:
+  - corps_id: ec4c11f9-faaa-4113-86b3-902d19200bcb
+    rank: 1
+    final_score: 58.150000000000006
+    raw_score: 58.150000000000006
+    caption_scores:
+      visual: 60.0
+      guard: 60.0
+      percussion: 60.0
+      brass: 60.0
+      general_effect: 55.0
+      ensemble_technique: 55.0
+    caption_details:
+      visual:
+        rep: 72.0
+        perf: 48.0
+        tot: 60.0
+      guard:
+        rep: 72.0
+        perf: 48.0
+        tot: 60.0
+      percussion:
+        rep: 72.0
+        perf: 48.0
+        tot: 60.0
+      brass:
+        rep: 72.0
+        perf: 48.0
+        tot: 60.0
+      general_effect:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+  - corps_id: 19836c66-b398-48a4-9958-f669b7e7859d
+    rank: 2
+    final_score: 55.0
+    raw_score: 55.0
+    caption_scores:
+      visual: 55.0
+      brass: 55.0
+      guard: 55.0
+      percussion: 55.0
+      ensemble_technique: 55.0
+      general_effect: 55.0
+    caption_details:
+      visual:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      brass:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      guard:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      percussion:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      general_effect:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+  - corps_id: 846e48f0-8398-4b9e-93f6-ad78619d3fb7
+    rank: 3
+    final_score: 54.95
+    raw_score: 54.95
+    caption_scores:
+      guard: 56.5
+      brass: 50.0
+      visual: 55.0
+      percussion: 55.0
+      general_effect: 58.5
+      ensemble_technique: 53.5
+    caption_details:
+      guard:
+        rep: 75.0
+        perf: 38.0
+        tot: 56.5
+      brass:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+      visual:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      percussion:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      general_effect:
+        rep: 72.0
+        perf: 45.0
+        tot: 58.5
+      ensemble_technique:
+        rep: 75.0
+        perf: 32.0
+        tot: 53.5
+  - corps_id: ca6a4d81-a1da-4036-8e9c-8ffc405ef5de
+    rank: 4
+    final_score: 54.25
+    raw_score: 54.25
+    caption_scores:
+      brass: 55.0
+      guard: 55.0
+      percussion: 55.0
+      visual: 55.0
+      general_effect: 55.0
+      ensemble_technique: 50.0
+    caption_details:
+      brass:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      guard:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      percussion:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      visual:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      general_effect:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+  - corps_id: 45b1dc02-2283-47c1-8420-b68c093b0061
+    rank: 5
+    final_score: 54.25
+    raw_score: 54.25
+    caption_scores:
+      percussion: 55.0
+      guard: 55.0
+      brass: 55.0
+      visual: 55.0
+      general_effect: 55.0
+      ensemble_technique: 50.0
+    caption_details:
+      percussion:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      guard:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      brass:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      visual:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      general_effect:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+  - corps_id: 2ebf7478-75be-4a30-9c69-5e1756e11d31
+    rank: 6
+    final_score: 54.150000000000006
+    raw_score: 54.150000000000006
+    caption_scores:
+      visual: 55.0
+      percussion: 55.0
+      guard: 55.0
+      brass: 50.0
+      general_effect: 55.0
+      ensemble_technique: 55.0
+    caption_details:
+      visual:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      percussion:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      guard:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      brass:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+      general_effect:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+  - corps_id: 31f9c159-b6ec-4ea1-8ed9-803cf2183349
+    rank: 7
+    final_score: 54.150000000000006
+    raw_score: 54.150000000000006
+    caption_scores:
+      brass: 55.0
+      guard: 45.0
+      visual: 55.0
+      percussion: 60.0
+      general_effect: 55.0
+      ensemble_technique: 55.0
+    caption_details:
+      brass:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      guard:
+        rep: 62.0
+        perf: 28.0
+        tot: 45.0
+      visual:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      percussion:
+        rep: 72.0
+        perf: 48.0
+        tot: 60.0
+      general_effect:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+  - corps_id: e503c207-1d63-460d-b080-63a92a17e979
+    rank: 8
+    final_score: 53.395
+    raw_score: 53.395
+    caption_scores:
+      visual: 50.0
+      guard: 58.5
+      brass: 50.0
+      percussion: 55.0
+      ensemble_technique: 50.0
+      general_effect: 55.0
+    caption_details:
+      visual:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+      guard:
+        rep: 75.0
+        perf: 42.0
+        tot: 58.5
+      brass:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+      percussion:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+      general_effect:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+  - corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+    rank: 9
+    final_score: 52.3
+    raw_score: 52.3
+    caption_scores:
+      percussion: 60.0
+      brass: 50.0
+      visual: 55.0
+      guard: 50.0
+      general_effect: 50.0
+      ensemble_technique: 50.0
+    caption_details:
+      percussion:
+        rep: 78.0
+        perf: 42.0
+        tot: 60.0
+      brass:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+      visual:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      guard:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+      general_effect:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+  - corps_id: 709d9dc4-2a92-487a-92d0-c8b5ead59939
+    rank: 10
+    final_score: 40.815
+    raw_score: 40.815
+    caption_scores:
+      visual: 33.5
+      brass: 33.5
+      guard: 50.0
+      percussion: 50.0
+      general_effect: 30.0
+      ensemble_technique: 50.0
+    caption_details:
+      visual:
+        rep: 45.0
+        perf: 22.0
+        tot: 33.5
+      brass:
+        rep: 45.0
+        perf: 22.0
+        tot: 33.5
+      guard:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+      percussion:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+      general_effect:
+        rep: 45.0
+        perf: 15.0
+        tot: 30.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+- round: 3
+  competition_id: new-season-of-destiny-comp-3
+  corps_performances:
+  - corps_id: 19836c66-b398-48a4-9958-f669b7e7859d
+    show_slug: clean-up-personality-styling
+  - corps_id: 31f9c159-b6ec-4ea1-8ed9-803cf2183349
+    show_slug: compile-time
+  - corps_id: 45b1dc02-2283-47c1-8420-b68c093b0061
+    show_slug: corps-lifecycle-redesign
+  - corps_id: 709d9dc4-2a92-487a-92d0-c8b5ead59939
+    show_slug: corps-logo-generation
+  - corps_id: 7a70c3c6-5693-4af8-9c3b-4480988bf8d4
+    show_slug: dci-admin-chat-centralizing-swarm-enhancements
+  - corps_id: 9847fbbc-7d97-4e56-b8cf-cf206d28ce64
+    show_slug: corps-lifecycle-redesign
+  - corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+    show_slug: dci-admin-chat-centralizing-swarm-enhancements
+  - corps_id: e503c207-1d63-460d-b080-63a92a17e979
+    show_slug: corps-auto-staffing-with-visible-hiring
+  - corps_id: ec4c11f9-faaa-4113-86b3-902d19200bcb
+    show_slug: compile-time
+  - corps_id: ed5cd8c6-c0ee-4442-941e-e2cf9af0118e
+    show_slug: corps-lifecycle-redesign
+  corps_ids:
+  - 19836c66-b398-48a4-9958-f669b7e7859d
+  - 31f9c159-b6ec-4ea1-8ed9-803cf2183349
+  - 45b1dc02-2283-47c1-8420-b68c093b0061
+  - 709d9dc4-2a92-487a-92d0-c8b5ead59939
+  - 7a70c3c6-5693-4af8-9c3b-4480988bf8d4
+  - 9847fbbc-7d97-4e56-b8cf-cf206d28ce64
+  - c5f1d328-685a-4c60-9c8c-fd880e516571
+  - e503c207-1d63-460d-b080-63a92a17e979
+  - ec4c11f9-faaa-4113-86b3-902d19200bcb
+  - ed5cd8c6-c0ee-4442-941e-e2cf9af0118e
+  status: completed
+  completed_at: '2026-03-06T03:45:29.762735+00:00'
+  standings:
+  - corps_id: ed5cd8c6-c0ee-4442-941e-e2cf9af0118e
+    rank: 1
+    final_score: 59.075
+    raw_score: 59.075
+    caption_scores:
+      visual: 60.0
+      brass: 55.0
+      guard: 61.5
+      percussion: 60.0
+      general_effect: 58.5
+      ensemble_technique: 60.0
+    caption_details:
+      visual:
+        rep: 78.0
+        perf: 42.0
+        tot: 60.0
+      brass:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      guard:
+        rep: 85.0
+        perf: 38.0
+        tot: 61.5
+      percussion:
+        rep: 78.0
+        perf: 42.0
+        tot: 60.0
+      general_effect:
+        rep: 75.0
+        perf: 42.0
+        tot: 58.5
+      ensemble_technique:
+        rep: 78.0
+        perf: 42.0
+        tot: 60.0
+  - corps_id: 9847fbbc-7d97-4e56-b8cf-cf206d28ce64
+    rank: 2
+    final_score: 56.445
+    raw_score: 56.445
+    caption_scores:
+      visual: 55.0
+      guard: 58.5
+      brass: 55.0
+      percussion: 60.0
+      general_effect: 55.0
+      ensemble_technique: 55.0
+    caption_details:
+      visual:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      guard:
+        rep: 75.0
+        perf: 42.0
+        tot: 58.5
+      brass:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      percussion:
+        rep: 82.0
+        perf: 38.0
+        tot: 60.0
+      general_effect:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+  - corps_id: 7a70c3c6-5693-4af8-9c3b-4480988bf8d4
+    rank: 3
+    final_score: 55.0
+    raw_score: 55.0
+    caption_scores:
+      visual: 55.0
+      percussion: 55.0
+      brass: 55.0
+      guard: 55.0
+      ensemble_technique: 55.0
+      general_effect: 55.0
+    caption_details:
+      visual:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      percussion:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      brass:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      guard:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      general_effect:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+  - corps_id: 31f9c159-b6ec-4ea1-8ed9-803cf2183349
+    rank: 4
+    final_score: 53.35
+    raw_score: 53.35
+    caption_scores:
+      guard: 50.0
+      visual: 60.0
+      percussion: 60.0
+      brass: 50.0
+      ensemble_technique: 53.0
+      general_effect: 50.0
+    caption_details:
+      guard:
+        rep: 62.0
+        perf: 38.0
+        tot: 50.0
+      visual:
+        rep: 72.0
+        perf: 48.0
+        tot: 60.0
+      percussion:
+        rep: 72.0
+        perf: 48.0
+        tot: 60.0
+      brass:
+        rep: 62.0
+        perf: 38.0
+        tot: 50.0
+      ensemble_technique:
+        rep: 68.0
+        perf: 38.0
+        tot: 53.0
+      general_effect:
+        rep: 62.0
+        perf: 38.0
+        tot: 50.0
+  - corps_id: e503c207-1d63-460d-b080-63a92a17e979
+    rank: 5
+    final_score: 52.455
+    raw_score: 52.455
+    caption_scores:
+      visual: 55.0
+      brass: 50.0
+      percussion: 55.0
+      guard: 51.5
+      general_effect: 50.0
+      ensemble_technique: 55.0
+    caption_details:
+      visual:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      brass:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+      percussion:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      guard:
+        rep: 75.0
+        perf: 28.0
+        tot: 51.5
+      general_effect:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+  - corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+    rank: 6
+    final_score: 49.705
+    raw_score: 49.705
+    caption_scores:
+      brass: 46.5
+      visual: 55.0
+      percussion: 50.0
+      guard: 50.0
+      ensemble_technique: 48.0
+      general_effect: 50.0
+    caption_details:
+      brass:
+        rep: 65.0
+        perf: 28.0
+        tot: 46.5
+      visual:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      percussion:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+      guard:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+      ensemble_technique:
+        rep: 68.0
+        perf: 28.0
+        tot: 48.0
+      general_effect:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+  - corps_id: 709d9dc4-2a92-487a-92d0-c8b5ead59939
+    rank: 7
+    final_score: 47.7
+    raw_score: 47.7
+    caption_scores:
+      guard: 45.0
+      visual: 45.0
+      brass: 45.0
+      percussion: 50.0
+      general_effect: 50.0
+      ensemble_technique: 50.0
+    caption_details:
+      guard:
+        rep: 62.0
+        perf: 28.0
+        tot: 45.0
+      visual:
+        rep: 62.0
+        perf: 28.0
+        tot: 45.0
+      brass:
+        rep: 62.0
+        perf: 28.0
+        tot: 45.0
+      percussion:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+      general_effect:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+- round: 4
+  competition_id: new-season-of-destiny-comp-4
+  corps_performances:
+  - corps_id: 2ebf7478-75be-4a30-9c69-5e1756e11d31
+    show_slug: corps-auto-staffing-with-visible-hiring
+  - corps_id: 31f9c159-b6ec-4ea1-8ed9-803cf2183349
+    show_slug: compile-time
+  - corps_id: 709d9dc4-2a92-487a-92d0-c8b5ead59939
+    show_slug: corps-logo-generation
+  - corps_id: 7a70c3c6-5693-4af8-9c3b-4480988bf8d4
+    show_slug: dci-admin-chat-centralizing-swarm-enhancements
+  - corps_id: 846e48f0-8398-4b9e-93f6-ad78619d3fb7
+    show_slug: corps-auto-staffing-with-visible-hiring
+  - corps_id: 859f0d31-3e15-44d9-a698-158921ef03b9
+    show_slug: compile-time
+  - corps_id: 9847fbbc-7d97-4e56-b8cf-cf206d28ce64
+    show_slug: corps-lifecycle-redesign
+  - corps_id: aba0e198-0842-4a72-9274-c5ffb5b6072a
+    show_slug: corps-logo-generation
+  - corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+    show_slug: dci-admin-chat-centralizing-swarm-enhancements
+  - corps_id: ed5cd8c6-c0ee-4442-941e-e2cf9af0118e
+    show_slug: corps-lifecycle-redesign
+  corps_ids:
+  - 2ebf7478-75be-4a30-9c69-5e1756e11d31
+  - 31f9c159-b6ec-4ea1-8ed9-803cf2183349
+  - 709d9dc4-2a92-487a-92d0-c8b5ead59939
+  - 7a70c3c6-5693-4af8-9c3b-4480988bf8d4
+  - 846e48f0-8398-4b9e-93f6-ad78619d3fb7
+  - 859f0d31-3e15-44d9-a698-158921ef03b9
+  - 9847fbbc-7d97-4e56-b8cf-cf206d28ce64
+  - aba0e198-0842-4a72-9274-c5ffb5b6072a
+  - c5f1d328-685a-4c60-9c8c-fd880e516571
+  - ed5cd8c6-c0ee-4442-941e-e2cf9af0118e
+  status: completed
+  completed_at: '2026-03-06T03:49:17.299843+00:00'
+  standings:
+  - corps_id: 846e48f0-8398-4b9e-93f6-ad78619d3fb7
+    rank: 1
+    final_score: 55.515
+    raw_score: 55.515
+    caption_scores:
+      percussion: 58.5
+      brass: 50.0
+      guard: 55.0
+      visual: 55.0
+      general_effect: 58.5
+      ensemble_technique: 55.0
+    caption_details:
+      percussion:
+        rep: 75.0
+        perf: 42.0
+        tot: 58.5
+      brass:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+      guard:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      visual:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      general_effect:
+        rep: 75.0
+        perf: 42.0
+        tot: 58.5
+      ensemble_technique:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+  - corps_id: 859f0d31-3e15-44d9-a698-158921ef03b9
+    rank: 2
+    final_score: 55.0
+    raw_score: 55.0
+    caption_scores:
+      percussion: 55.0
+      guard: 55.0
+      visual: 55.0
+      brass: 55.0
+      general_effect: 55.0
+      ensemble_technique: 55.0
+    caption_details:
+      percussion:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      guard:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      visual:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      brass:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      general_effect:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+  - corps_id: aba0e198-0842-4a72-9274-c5ffb5b6072a
+    rank: 3
+    final_score: 55.0
+    raw_score: 55.0
+    caption_scores:
+      visual: 55.0
+      brass: 55.0
+      percussion: 55.0
+      guard: 55.0
+      ensemble_technique: 55.0
+      general_effect: 55.0
+    caption_details:
+      visual:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      brass:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      percussion:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      guard:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      general_effect:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+  - corps_id: 2ebf7478-75be-4a30-9c69-5e1756e11d31
+    rank: 4
+    final_score: 52.55
+    raw_score: 52.55
+    caption_scores:
+      visual: 55.0
+      percussion: 55.0
+      guard: 50.0
+      brass: 50.0
+      general_effect: 55.0
+      ensemble_technique: 50.0
+    caption_details:
+      visual:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      percussion:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      guard:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+      brass:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+      general_effect:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+- round: 5
+  competition_id: new-season-of-destiny-comp-5
+  corps_performances:
+  - corps_id: 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+    show_slug: clean-up-personality-styling
+  - corps_id: 859f0d31-3e15-44d9-a698-158921ef03b9
+    show_slug: compile-time
+  - corps_id: aba0e198-0842-4a72-9274-c5ffb5b6072a
+    show_slug: corps-logo-generation
+  - corps_id: ca6a4d81-a1da-4036-8e9c-8ffc405ef5de
+    show_slug: clean-up-personality-styling
+  - corps_id: e503c207-1d63-460d-b080-63a92a17e979
+    show_slug: corps-auto-staffing-with-visible-hiring
+  corps_ids:
+  - 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+  - 859f0d31-3e15-44d9-a698-158921ef03b9
+  - aba0e198-0842-4a72-9274-c5ffb5b6072a
+  - ca6a4d81-a1da-4036-8e9c-8ffc405ef5de
+  - e503c207-1d63-460d-b080-63a92a17e979
+  status: completed
+  completed_at: '2026-03-06T03:53:34.781706+00:00'
+  standings:
+  - corps_id: 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+    rank: 1
+    final_score: 55.0
+    raw_score: 55.0
+    caption_scores:
+      visual: 55.0
+      brass: 55.0
+      percussion: 55.0
+      guard: 55.0
+      ensemble_technique: 55.0
+      general_effect: 55.0
+    caption_details:
+      visual:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      brass:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      percussion:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      guard:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      general_effect:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+  - corps_id: e503c207-1d63-460d-b080-63a92a17e979
+    rank: 2
+    final_score: 54.75
+    raw_score: 54.75
+    caption_scores:
+      guard: 55.0
+      percussion: 55.0
+      visual: 60.0
+      brass: 50.0
+      general_effect: 55.0
+      ensemble_technique: 55.0
+    caption_details:
+      guard:
+        rep: 78.0
+        perf: 32.0
+        tot: 55.0
+      percussion:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      visual:
+        rep: 78.0
+        perf: 42.0
+        tot: 60.0
+      brass:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+      general_effect:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+  - corps_id: ca6a4d81-a1da-4036-8e9c-8ffc405ef5de
+    rank: 3
+    final_score: 54.25
+    raw_score: 54.25
+    caption_scores:
+      percussion: 55.0
+      visual: 55.0
+      brass: 55.0
+      guard: 55.0
+      ensemble_technique: 50.0
+      general_effect: 55.0
+    caption_details:
+      percussion:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      visual:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      brass:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      guard:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+      general_effect:
+        rep: 68.0
+        perf: 42.0
+        tot: 55.0
+  - corps_id: 859f0d31-3e15-44d9-a698-158921ef03b9
+    rank: 4
+    final_score: 52.800000000000004
+    raw_score: 52.800000000000004
+    caption_scores:
+      percussion: 55.0
+      visual: 55.0
+      brass: 55.0
+      guard: 55.0
+      general_effect: 45.0
+      ensemble_technique: 55.0
+    caption_details:
+      percussion:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      visual:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      brass:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      guard:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      general_effect:
+        rep: 62.0
+        perf: 28.0
+        tot: 45.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+  - corps_id: aba0e198-0842-4a72-9274-c5ffb5b6072a
+    rank: 5
+    final_score: 52.31
+    raw_score: 52.31
+    caption_scores:
+      percussion: 55.0
+      visual: 55.0
+      brass: 48.0
+      guard: 55.0
+      ensemble_technique: 45.0
+      general_effect: 55.0
+    caption_details:
+      percussion:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      visual:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      brass:
+        rep: 68.0
+        perf: 28.0
+        tot: 48.0
+      guard:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      ensemble_technique:
+        rep: 62.0
+        perf: 28.0
+        tot: 45.0
+      general_effect:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+- round: 6
+  competition_id: new-season-of-destiny-comp-6
+  corps_performances:
+  - corps_id: 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+    show_slug: clean-up-personality-styling
+  - corps_id: 859f0d31-3e15-44d9-a698-158921ef03b9
+    show_slug: compile-time
+  - corps_id: aba0e198-0842-4a72-9274-c5ffb5b6072a
+    show_slug: corps-logo-generation
+  corps_ids:
+  - 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+  - 859f0d31-3e15-44d9-a698-158921ef03b9
+  - aba0e198-0842-4a72-9274-c5ffb5b6072a
+  status: completed
+  completed_at: '2026-03-06T03:55:59.469837+00:00'
+  standings:
+  - corps_id: 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+    rank: 1
+    final_score: 55.0
+    raw_score: 55.0
+    caption_scores:
+      brass: 55.0
+      guard: 55.0
+      visual: 55.0
+      percussion: 55.0
+      ensemble_technique: 55.0
+      general_effect: 55.0
+    caption_details:
+      brass:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      guard:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      visual:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      percussion:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      general_effect:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+  - corps_id: 859f0d31-3e15-44d9-a698-158921ef03b9
+    rank: 2
+    final_score: 55.0
+    raw_score: 55.0
+    caption_scores:
+      visual: 55.0
+      brass: 55.0
+      guard: 55.0
+      percussion: 55.0
+      ensemble_technique: 55.0
+      general_effect: 55.0
+    caption_details:
+      visual:
+        rep: 68.0
+        perf: 42.0
+        tot: 55.0
+      brass:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      guard:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      percussion:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      ensemble_technique:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      general_effect:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+  - corps_id: aba0e198-0842-4a72-9274-c5ffb5b6072a
+    rank: 3
+    final_score: 53.394999999999996
+    raw_score: 53.394999999999996
+    caption_scores:
+      percussion: 55.0
+      visual: 60.0
+      brass: 50.0
+      guard: 50.0
+      ensemble_technique: 46.5
+      general_effect: 58.5
+    caption_details:
+      percussion:
+        rep: 72.0
+        perf: 38.0
+        tot: 55.0
+      visual:
+        rep: 72.0
+        perf: 48.0
+        tot: 60.0
+      brass:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+      guard:
+        rep: 72.0
+        perf: 28.0
+        tot: 50.0
+      ensemble_technique:
+        rep: 65.0
+        perf: 28.0
+        tot: 46.5
+      general_effect:
+        rep: 72.0
+        perf: 45.0
+        tot: 58.5
+- round: 7
+  competition_id: new-season-of-destiny-finals
+  corps_performances:
+  - corps_id: 19836c66-b398-48a4-9958-f669b7e7859d
+    show_slug: clean-up-personality-styling
+  - corps_id: 2ebf7478-75be-4a30-9c69-5e1756e11d31
+    show_slug: corps-auto-staffing-with-visible-hiring
+  - corps_id: 31f9c159-b6ec-4ea1-8ed9-803cf2183349
+    show_slug: compile-time
+  - corps_id: 45b1dc02-2283-47c1-8420-b68c093b0061
+    show_slug: corps-lifecycle-redesign
+  - corps_id: 709d9dc4-2a92-487a-92d0-c8b5ead59939
+    show_slug: corps-logo-generation
+  - corps_id: 7a70c3c6-5693-4af8-9c3b-4480988bf8d4
+    show_slug: dci-admin-chat-centralizing-swarm-enhancements
+  - corps_id: 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+    show_slug: clean-up-personality-styling
+  - corps_id: 846e48f0-8398-4b9e-93f6-ad78619d3fb7
+    show_slug: corps-auto-staffing-with-visible-hiring
+  - corps_id: 859f0d31-3e15-44d9-a698-158921ef03b9
+    show_slug: compile-time
+  - corps_id: 9847fbbc-7d97-4e56-b8cf-cf206d28ce64
+    show_slug: corps-lifecycle-redesign
+  - corps_id: aba0e198-0842-4a72-9274-c5ffb5b6072a
+    show_slug: corps-logo-generation
+  - corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+    show_slug: dci-admin-chat-centralizing-swarm-enhancements
+  - corps_id: ca6a4d81-a1da-4036-8e9c-8ffc405ef5de
+    show_slug: clean-up-personality-styling
+  - corps_id: e503c207-1d63-460d-b080-63a92a17e979
+    show_slug: corps-auto-staffing-with-visible-hiring
+  - corps_id: ec4c11f9-faaa-4113-86b3-902d19200bcb
+    show_slug: compile-time
+  - corps_id: ed5cd8c6-c0ee-4442-941e-e2cf9af0118e
+    show_slug: corps-lifecycle-redesign
+  corps_ids:
+  - 19836c66-b398-48a4-9958-f669b7e7859d
+  - 2ebf7478-75be-4a30-9c69-5e1756e11d31
+  - 31f9c159-b6ec-4ea1-8ed9-803cf2183349
+  - 45b1dc02-2283-47c1-8420-b68c093b0061
+  - 709d9dc4-2a92-487a-92d0-c8b5ead59939
+  - 7a70c3c6-5693-4af8-9c3b-4480988bf8d4
+  - 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+  - 846e48f0-8398-4b9e-93f6-ad78619d3fb7
+  - 859f0d31-3e15-44d9-a698-158921ef03b9
+  - 9847fbbc-7d97-4e56-b8cf-cf206d28ce64
+  - aba0e198-0842-4a72-9274-c5ffb5b6072a
+  - c5f1d328-685a-4c60-9c8c-fd880e516571
+  - ca6a4d81-a1da-4036-8e9c-8ffc405ef5de
+  - e503c207-1d63-460d-b080-63a92a17e979
+  - ec4c11f9-faaa-4113-86b3-902d19200bcb
+  - ed5cd8c6-c0ee-4442-941e-e2cf9af0118e
+  status: completed
+  is_finals: true
+  completed_at: '2026-03-06T03:57:04.307051+00:00'
+  standings: []
+locked: true
+corps_show_assignments:
+  19836c66-b398-48a4-9958-f669b7e7859d: clean-up-personality-styling
+  2ebf7478-75be-4a30-9c69-5e1756e11d31: corps-auto-staffing-with-visible-hiring
+  31f9c159-b6ec-4ea1-8ed9-803cf2183349: compile-time
+  45b1dc02-2283-47c1-8420-b68c093b0061: corps-lifecycle-redesign
+  709d9dc4-2a92-487a-92d0-c8b5ead59939: corps-logo-generation
+  7a70c3c6-5693-4af8-9c3b-4480988bf8d4: dci-admin-chat-centralizing-swarm-enhancements
+  7e95402f-0e83-4f4a-985a-a1d8b5af17a5: clean-up-personality-styling
+  846e48f0-8398-4b9e-93f6-ad78619d3fb7: corps-auto-staffing-with-visible-hiring
+  859f0d31-3e15-44d9-a698-158921ef03b9: compile-time
+  9847fbbc-7d97-4e56-b8cf-cf206d28ce64: corps-lifecycle-redesign
+  aba0e198-0842-4a72-9274-c5ffb5b6072a: corps-logo-generation
+  c5f1d328-685a-4c60-9c8c-fd880e516571: dci-admin-chat-centralizing-swarm-enhancements
+  ca6a4d81-a1da-4036-8e9c-8ffc405ef5de: clean-up-personality-styling
+  e503c207-1d63-460d-b080-63a92a17e979: corps-auto-staffing-with-visible-hiring
+  ec4c11f9-faaa-4113-86b3-902d19200bcb: compile-time
+  ed5cd8c6-c0ee-4442-941e-e2cf9af0118e: corps-lifecycle-redesign
+registered_corps:
+- 19836c66-b398-48a4-9958-f669b7e7859d
+- 2ebf7478-75be-4a30-9c69-5e1756e11d31
+- 31f9c159-b6ec-4ea1-8ed9-803cf2183349
+- 45b1dc02-2283-47c1-8420-b68c093b0061
+- 709d9dc4-2a92-487a-92d0-c8b5ead59939
+- 7a70c3c6-5693-4af8-9c3b-4480988bf8d4
+- 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+- 846e48f0-8398-4b9e-93f6-ad78619d3fb7
+- 859f0d31-3e15-44d9-a698-158921ef03b9
+- 9847fbbc-7d97-4e56-b8cf-cf206d28ce64
+- aba0e198-0842-4a72-9274-c5ffb5b6072a
+- c5f1d328-685a-4c60-9c8c-fd880e516571
+- ca6a4d81-a1da-4036-8e9c-8ffc405ef5de
+- e503c207-1d63-460d-b080-63a92a17e979
+- ec4c11f9-faaa-4113-86b3-902d19200bcb
+- ed5cd8c6-c0ee-4442-941e-e2cf9af0118e

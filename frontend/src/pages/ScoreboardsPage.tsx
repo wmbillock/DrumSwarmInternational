@@ -160,13 +160,15 @@ export function ScoreboardsPage() {
         <DataTable<AgentLeaderEntry & Record<string, unknown>>
           columns={[
             { key: "rank", label: "Rank", sortable: true, render: (v) => <span className={`standings-rank rank-${String(v)}`}>{medalForRank(Number(v))}</span> },
-            { key: "role", label: "Role", sortable: true, render: (v) => <span style={{ fontWeight: 600 }}>{formatRole(String(v))}</span> },
-            { key: "nickname", label: "Nickname", render: (v) => String(v || "—") },
-            { key: "total_sessions", label: "Sessions", render: (v) => String(v ?? 0) },
-            { key: "completed_sessions", label: "Completed", render: (v) => String(v ?? 0) },
-            { key: "failed_sessions", label: "Failed", render: (v) => (
-              <span style={{ color: Number(v) > 0 ? "var(--danger)" : undefined }}>{String(v ?? 0)}</span>
+            { key: "name", label: "Name", render: (v) => <span style={{ fontWeight: 600 }}>{String(v)}</span> },
+            { key: "role", label: "Role", sortable: true, render: (v) => formatRole(String(v)) },
+            { key: "agent_category", label: "Category", render: (v) => (
+              <Badge variant="default">{String(v || "performer").replace(/_/g, " ")}</Badge>
             ) },
+            { key: "trust_score", label: "Trust", sortable: true, render: (v) => (
+              <span className="standings-score">{Number(v).toFixed(1)}</span>
+            ) },
+            { key: "total_sessions", label: "Sessions", render: (_v, row) => `${row.completed_sessions}/${row.total_sessions}` },
             { key: "success_rate", label: "Success Rate", render: (v) => (
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <div className="progress-bar" style={{ width: 80 }}>
@@ -178,9 +180,10 @@ export function ScoreboardsPage() {
                 <span>{Math.round(Number(v))}%</span>
               </div>
             ) },
+            { key: "status", label: "Status", render: (v) => <Badge variant={v === "active" ? "success" : "default"}>{formatStatus(String(v))}</Badge> },
           ]}
           data={agentsList as (AgentLeaderEntry & Record<string, unknown>)[]}
-          onRowClick={(row) => navigate(`/corps/${row.corps_id}`)}
+          onRowClick={(row) => navigate(`/performers`)}
           emptyMessage="No agent data available"
         />
       )}

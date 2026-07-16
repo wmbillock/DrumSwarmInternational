@@ -1,7 +1,9 @@
-"""Evaluation service — post-show evaluation of performer trust and corps performance.
+"""Evaluation service — post-competition score-based trust adjustments.
 
-After a show completes, evaluate each performer's contributions and adjust trust scores
-based on rep scores, session outcomes, and penalties.
+After a competition completes, check if any performers earned score-based
+trust bonuses (high rep scores). The base trust update for session
+success/failure is handled in agent_lifecycle._terminate_session; this
+service adds score-aware bonuses on top.
 """
 
 import logging
@@ -16,19 +18,26 @@ from backend.models.score import Score
 
 logger = logging.getLogger(__name__)
 
+# Bonus trust for high-scoring reps (on top of the base session trust)
+_SCORE_BONUS_THRESHOLD = 80.0
+_SCORE_BONUS_DELTA = 2.0
+
 
 def evaluate_corps(db: Session, corps_id: str) -> dict:
-    """Evaluate all performers in a corps after show completion.
+    """Apply score-based trust bonuses for completed sessions in a corps.
 
-    Returns a summary of trust adjustments made.
+    Only awards bonuses for sessions with high-scoring reps. The base
+    trust adjustment for session success/failure is already handled by
+    _terminate_session via record_session_completion.
     """
-    from backend.services.performer_service import record_session_completion
+    from backend.services.performer_service import update_trust
 
     sessions = (
         db.query(AgentSession)
         .filter(
             AgentSession.corps_id == corps_id,
             AgentSession.performer_id.isnot(None),
+            AgentSession.status == SessionStatus.COMPLETED,
         )
         .all()
     )
@@ -39,31 +48,27 @@ def evaluate_corps(db: Session, corps_id: str) -> dict:
         if not performer:
             continue
 
-        # Determine success from session status
-        success = session.status == SessionStatus.COMPLETED
-
-        # Get average score for this session's reps
         avg_score = _get_session_avg_score(db, session)
-
-        # Record session outcome
-        try:
-            record_session_completion(db, performer.id, success=success, score=avg_score)
-        except Exception as e:
-            logger.warning("Failed to record session completion for %s: %s", performer.name, e)
-            continue
-
-        results.append({
-            "performer_id": performer.id,
-            "performer_name": performer.name,
-            "role": performer.role_type,
-            "success": success,
-            "avg_score": avg_score,
-            "trust_score": performer.trust_score,
-        })
+        if avg_score is not None and avg_score >= _SCORE_BONUS_THRESHOLD:
+            try:
+                update_trust(
+                    db, performer.id, _SCORE_BONUS_DELTA,
+                    reason=f"high_score_bonus (avg={avg_score:.1f})",
+                )
+                results.append({
+                    "performer_id": performer.id,
+                    "performer_name": performer.name,
+                    "role": performer.role_type,
+                    "avg_score": avg_score,
+                    "bonus": _SCORE_BONUS_DELTA,
+                    "trust_score": performer.trust_score,
+                })
+            except Exception as e:
+                logger.warning("Score bonus failed for %s: %s", performer.name, e)
 
     return {
         "corps_id": corps_id,
-        "performers_evaluated": len(results),
+        "bonuses_awarded": len(results),
         "details": results,
     }
 

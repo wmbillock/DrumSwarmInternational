@@ -18,6 +18,7 @@ def v1_system_ping():
 @router.get("/system/health")
 def v1_system_health():
     """Get swarm-wide health metrics."""
+    from fastapi.responses import JSONResponse
     from backend.services.system_health import get_swarm_health
     import dataclasses
     import logging
@@ -27,7 +28,10 @@ def v1_system_health():
         return dataclasses.asdict(health)
     except Exception as e:
         logging.getLogger(__name__).warning("Health check failed: %s", e)
-        return {"status": "degraded", "error": str(e), "active_corps": 0, "total_agents": 0}
+        return JSONResponse(
+            status_code=503,
+            content={"status": "degraded", "error": str(e), "active_corps": 0, "total_agents": 0},
+        )
     finally:
         db.close()
 

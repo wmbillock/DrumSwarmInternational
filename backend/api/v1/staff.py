@@ -146,7 +146,7 @@ def v1_release_staff(body: ReleaseStaffRequest):
 def v1_get_staff_profile(performer_id: str):
     """Detailed performer profile including capability ledger and experience."""
     from backend.models.performer import Performer
-    from backend.models.capability_ledger import CapabilityLedger
+    from backend.models.capability_ledger import CapabilityLedgerEntry
     from backend.models.agent_experience import AgentExperience
 
     _validate_id(performer_id, "performer_id")
@@ -158,9 +158,9 @@ def v1_get_staff_profile(performer_id: str):
             raise HTTPException(404, f"Performer {performer_id} not found")
 
         ledger_entries = (
-            db.query(CapabilityLedger)
-            .filter(CapabilityLedger.performer_id == performer_id)
-            .order_by(CapabilityLedger.created_at.desc())
+            db.query(CapabilityLedgerEntry)
+            .filter(CapabilityLedgerEntry.performer_id == performer_id)
+            .order_by(CapabilityLedgerEntry.created_at.desc())
             .limit(20)
             .all()
         )
@@ -175,7 +175,9 @@ def v1_get_staff_profile(performer_id: str):
             "id": performer.id,
             "name": performer.name,
             "role_type": performer.role_type,
-            "trust_score": performer.trust_score,
+            "trust_score": round(performer.trust_score, 1),
+            "agent_category": performer.agent_category,
+            "is_verified": performer.is_verified,
             "total_sessions": performer.total_sessions,
             "successful_sessions": performer.successful_sessions,
             "failed_sessions": performer.failed_sessions,
@@ -186,9 +188,12 @@ def v1_get_staff_profile(performer_id: str):
             "capability_ledger": [
                 {
                     "id": entry.id,
-                    "capability": entry.capability,
-                    "delta": entry.delta,
-                    "reason": entry.reason,
+                    "entry_type": entry.entry_type.value if entry.entry_type else None,
+                    "role_type": entry.role_type,
+                    "score": entry.score,
+                    "trust_before": entry.trust_before,
+                    "trust_after": entry.trust_after,
+                    "details": entry.details,
                     "created_at": entry.created_at.isoformat() if entry.created_at else None,
                 }
                 for entry in ledger_entries

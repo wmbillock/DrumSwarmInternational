@@ -2,11 +2,30 @@ season_id: tour-s1
 metadata:
   season_id: tour-s1
   seed: 1
-shows: []
+  status: completed
+  winner: cavaliers
+shows:
+- bare-test
+- be-able-to-click-into-a-corps-detail-page-from-an-entry-on-the-performance-stats-scoreboards-page
+- clean-up-personality-styling
+- compile-time
+- dci-admin-chat-centralizing-swarm-enhancements
+- corps-logo-generation
+- corps-lifecycle-redesign
+- corps-auto-staffing-with-visible-hiring
+- divisions-and-competition-classes
+- implement-caption-awards-an-achievement-system-which-awards-humorous-achievements-at-significant-activity-milestones-corps-can-earn-caption-awards-as-can-individual-performers-and-staff-members
+- improve-the-corps-list-page
+- stack-overflow
+- test-startup
+- tour-show-s1
+- ui-usability-quick-start-tooltips-next-actions-css-fix
+- wire-up-the-trophy-system
 divisions: {}
 config:
   corps_per_contest: 12
-  required_scores: 1
+  required_scores: 3
+  auto_advance: true
 schedule:
 - round: 1
   competition_id: tour-s1-round-1
@@ -14,8 +33,117 @@ schedule:
   corps_ids:
   - cavaliers
   - scouts
-  status: pending
-locked: false
+  status: completed
+  completed_at: '2026-03-06T03:30:46.377440+00:00'
+  standings:
+  - corps_id: cavaliers
+    rank: 1
+    final_score: 12.075
+    raw_score: 12.075
+    caption_scores:
+      visual: 12.5
+      brass: 12.5
+      guard: 12.5
+      percussion: 10.0
+      general_effect: 12.5
+      ensemble_technique: 12.5
+    caption_details:
+      visual:
+        rep: 15.0
+        perf: 10.0
+        tot: 12.5
+      brass:
+        rep: 15.0
+        perf: 10.0
+        tot: 12.5
+      guard:
+        rep: 15.0
+        perf: 10.0
+        tot: 12.5
+      percussion:
+        rep: 15.0
+        perf: 5.0
+        tot: 10.0
+      general_effect:
+        rep: 15.0
+        perf: 10.0
+        tot: 12.5
+      ensemble_technique:
+        rep: 15.0
+        perf: 10.0
+        tot: 12.5
+  - corps_id: scouts
+    rank: 2
+    final_score: 12.01
+    raw_score: 12.01
+    caption_scores:
+      visual: 11.5
+      brass: 12.5
+      guard: 12.5
+      percussion: 12.5
+      ensemble_technique: 11.5
+      general_effect: 11.5
+    caption_details:
+      visual:
+        rep: 15.0
+        perf: 8.0
+        tot: 11.5
+      brass:
+        rep: 15.0
+        perf: 10.0
+        tot: 12.5
+      guard:
+        rep: 15.0
+        perf: 10.0
+        tot: 12.5
+      percussion:
+        rep: 15.0
+        perf: 10.0
+        tot: 12.5
+      ensemble_technique:
+        rep: 15.0
+        perf: 8.0
+        tot: 11.5
+      general_effect:
+        rep: 15.0
+        perf: 8.0
+        tot: 11.5
+locked: true
 registered_corps:
+- 19836c66-b398-48a4-9958-f669b7e7859d
+- 2ebf7478-75be-4a30-9c69-5e1756e11d31
+- 31f9c159-b6ec-4ea1-8ed9-803cf2183349
+- 45b1dc02-2283-47c1-8420-b68c093b0061
+- 709d9dc4-2a92-487a-92d0-c8b5ead59939
+- 7a70c3c6-5693-4af8-9c3b-4480988bf8d4
+- 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+- 846e48f0-8398-4b9e-93f6-ad78619d3fb7
+- 859f0d31-3e15-44d9-a698-158921ef03b9
+- 9847fbbc-7d97-4e56-b8cf-cf206d28ce64
+- aba0e198-0842-4a72-9274-c5ffb5b6072a
+- c5f1d328-685a-4c60-9c8c-fd880e516571
+- ca6a4d81-a1da-4036-8e9c-8ffc405ef5de
 - cavaliers
+- e503c207-1d63-460d-b080-63a92a17e979
+- ec4c11f9-faaa-4113-86b3-902d19200bcb
+- ed5cd8c6-c0ee-4442-941e-e2cf9af0118e
 - scouts
+corps_show_assignments:
+  19836c66-b398-48a4-9958-f669b7e7859d: bare-test
+  2ebf7478-75be-4a30-9c69-5e1756e11d31: be-able-to-click-into-a-corps-detail-page-from-an-entry-on-the-performance-stats-scoreboards-page
+  31f9c159-b6ec-4ea1-8ed9-803cf2183349: clean-up-personality-styling
+  45b1dc02-2283-47c1-8420-b68c093b0061: compile-time
+  709d9dc4-2a92-487a-92d0-c8b5ead59939: dci-admin-chat-centralizing-swarm-enhancements
+  7a70c3c6-5693-4af8-9c3b-4480988bf8d4: corps-logo-generation
+  7e95402f-0e83-4f4a-985a-a1d8b5af17a5: corps-lifecycle-redesign
+  846e48f0-8398-4b9e-93f6-ad78619d3fb7: corps-auto-staffing-with-visible-hiring
+  859f0d31-3e15-44d9-a698-158921ef03b9: divisions-and-competition-classes
+  9847fbbc-7d97-4e56-b8cf-cf206d28ce64: implement-caption-awards-an-achievement-system-which-awards-humorous-achievements-at-significant-activity-milestones-corps-can-earn-caption-awards-as-can-individual-performers-and-staff-members
+  aba0e198-0842-4a72-9274-c5ffb5b6072a: improve-the-corps-list-page
+  c5f1d328-685a-4c60-9c8c-fd880e516571: stack-overflow
+  ca6a4d81-a1da-4036-8e9c-8ffc405ef5de: test-startup
+  cavaliers: tour-show-s1
+  e503c207-1d63-460d-b080-63a92a17e979: ui-usability-quick-start-tooltips-next-actions-css-fix
+  ec4c11f9-faaa-4113-86b3-902d19200bcb: wire-up-the-trophy-system
+  ed5cd8c6-c0ee-4442-941e-e2cf9af0118e: bare-test
+  scouts: be-able-to-click-into-a-corps-detail-page-from-an-entry-on-the-performance-stats-scoreboards-page

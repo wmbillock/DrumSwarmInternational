@@ -140,11 +140,34 @@ def v1_toggle_tour(slug: str, payload: dict):
 
 
 @router.post("/shows/{slug}/complete")
-def v1_complete_show(slug: str):
-    """Mark a show as completed."""
-    from backend.services.show_persistence import get_show, update_show_status
+def v1_complete_show(slug: str, payload: dict | None = None):
+    """Mark a show as completed. Checks readiness unless force=true."""
+    from backend.services.show_persistence import get_show, update_show_status, check_show_readiness
     show = get_show(slug)
     if not show:
         raise HTTPException(404, "Show not found")
+
+    force = (payload or {}).get("force", False)
+    if not force:
+        readiness = check_show_readiness(slug)
+        if not readiness["ready"]:
+            raise HTTPException(
+                409,
+                {
+                    "detail": "Show is not ready for completion",
+                    "readiness": readiness,
+                },
+            )
+
     update_show_status(slug, "completed")
     return {"slug": slug, "status": "completed"}
+
+
+@router.get("/shows/{slug}/readiness")
+def v1_show_readiness(slug: str):
+    """Check whether a show is ready to be marked completed."""
+    from backend.services.show_persistence import get_show, check_show_readiness
+    show = get_show(slug)
+    if not show:
+        raise HTTPException(404, "Show not found")
+    return check_show_readiness(slug)

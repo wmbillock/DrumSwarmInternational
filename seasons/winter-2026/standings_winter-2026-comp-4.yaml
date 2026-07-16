@@ -1,0 +1,148 @@
+season_id: winter-2026
+competition_id: winter-2026-comp-4
+generated_at: '2026-03-01T04:18:26.546351+00:00'
+results:
+- corps_id: 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+  rank: 1
+  final_score: 40.2
+  raw_score: 40.2
+  caption_scores:
+    brass: 35.0
+    guard: 35.0
+    percussion: 53.5
+    ensemble_technique: 46.5
+    general_effect: 36.5
+    visual: 35.0
+  caption_details:
+    brass:
+      rep: 45.0
+      perf: 25.0
+      tot: 35.0
+    guard:
+      rep: 45.0
+      perf: 25.0
+      tot: 35.0
+    percussion:
+      rep: 75.0
+      perf: 32.0
+      tot: 53.5
+    ensemble_technique:
+      rep: 65.0
+      perf: 28.0
+      tot: 46.5
+    general_effect:
+      rep: 45.0
+      perf: 28.0
+      tot: 36.5
+    visual:
+      rep: 45.0
+      perf: 25.0
+      tot: 35.0
+- corps_id: ed5cd8c6-c0ee-4442-941e-e2cf9af0118e
+  rank: 2
+  final_score: 36.51
+  raw_score: 36.51
+  caption_scores:
+    guard: 36.5
+    visual: 30.0
+    brass: 30.0
+    percussion: 46.5
+    ensemble_technique: 40.0
+    general_effect: 35.0
+  caption_details:
+    guard:
+      rep: 45.0
+      perf: 28.0
+      tot: 36.5
+    visual:
+      rep: 45.0
+      perf: 15.0
+      tot: 30.0
+    brass:
+      rep: 45.0
+      perf: 15.0
+      tot: 30.0
+    percussion:
+      rep: 65.0
+      perf: 28.0
+      tot: 46.5
+    ensemble_technique:
+      rep: 55.0
+      perf: 25.0
+      tot: 40.0
+    general_effect:
+      rep: 45.0
+      perf: 25.0
+      tot: 35.0
+- corps_id: 859f0d31-3e15-44d9-a698-158921ef03b9
+  rank: 3
+  final_score: 33.985
+  raw_score: 33.985
+  caption_scores:
+    brass: 30.0
+    percussion: 35.0
+    visual: 35.0
+    guard: 36.5
+    ensemble_technique: 30.0
+    general_effect: 36.5
+  caption_details:
+    brass:
+      rep: 45.0
+      perf: 15.0
+      tot: 30.0
+    percussion:
+      rep: 45.0
+      perf: 25.0
+      tot: 35.0
+    visual:
+      rep: 45.0
+      perf: 25.0
+      tot: 35.0
+    guard:
+      rep: 45.0
+      perf: 28.0
+      tot: 36.5
+    ensemble_technique:
+      rep: 45.0
+      perf: 15.0
+      tot: 30.0
+    general_effect:
+      rep: 45.0
+      perf: 28.0
+      tot: 36.5
+- corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+  rank: 4
+  final_score: 30.85
+  raw_score: 30.85
+  caption_scores:
+    visual: 35.0
+    percussion: 35.0
+    guard: 35.0
+    brass: 30.0
+    general_effect: 20.0
+    ensemble_technique: 35.0
+  caption_details:
+    visual:
+      rep: 45.0
+      perf: 25.0
+      tot: 35.0
+    percussion:
+      rep: 45.0
+      perf: 25.0
+      tot: 35.0
+    guard:
+      rep: 45.0
+      perf: 25.0
+      tot: 35.0
+    brass:
+      rep: 35.0
+      perf: 25.0
+      tot: 30.0
+    general_effect:
+      rep: 25.0
+      perf: 15.0
+      tot: 20.0
+    ensemble_technique:
+      rep: 45.0
+      perf: 25.0
+      tot: 35.0

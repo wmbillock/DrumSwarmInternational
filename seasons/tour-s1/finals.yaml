@@ -1,0 +1,156 @@
+season_id: tour-s1
+status: completed
+generated_at: '2026-03-06T03:31:36.915286+00:00'
+required_scores: 3
+qualification:
+  19836c66-b398-48a4-9958-f669b7e7859d: false
+  2ebf7478-75be-4a30-9c69-5e1756e11d31: false
+  31f9c159-b6ec-4ea1-8ed9-803cf2183349: false
+  45b1dc02-2283-47c1-8420-b68c093b0061: false
+  709d9dc4-2a92-487a-92d0-c8b5ead59939: false
+  7a70c3c6-5693-4af8-9c3b-4480988bf8d4: false
+  7e95402f-0e83-4f4a-985a-a1d8b5af17a5: false
+  846e48f0-8398-4b9e-93f6-ad78619d3fb7: false
+  859f0d31-3e15-44d9-a698-158921ef03b9: false
+  9847fbbc-7d97-4e56-b8cf-cf206d28ce64: false
+  aba0e198-0842-4a72-9274-c5ffb5b6072a: false
+  c5f1d328-685a-4c60-9c8c-fd880e516571: false
+  ca6a4d81-a1da-4036-8e9c-8ffc405ef5de: false
+  cavaliers: false
+  e503c207-1d63-460d-b080-63a92a17e979: false
+  ec4c11f9-faaa-4113-86b3-902d19200bcb: false
+  ed5cd8c6-c0ee-4442-941e-e2cf9af0118e: false
+  scouts: false
+score_counts:
+  19836c66-b398-48a4-9958-f669b7e7859d: 0
+  2ebf7478-75be-4a30-9c69-5e1756e11d31: 0
+  31f9c159-b6ec-4ea1-8ed9-803cf2183349: 0
+  45b1dc02-2283-47c1-8420-b68c093b0061: 0
+  709d9dc4-2a92-487a-92d0-c8b5ead59939: 0
+  7a70c3c6-5693-4af8-9c3b-4480988bf8d4: 0
+  7e95402f-0e83-4f4a-985a-a1d8b5af17a5: 0
+  846e48f0-8398-4b9e-93f6-ad78619d3fb7: 0
+  859f0d31-3e15-44d9-a698-158921ef03b9: 0
+  9847fbbc-7d97-4e56-b8cf-cf206d28ce64: 0
+  aba0e198-0842-4a72-9274-c5ffb5b6072a: 0
+  c5f1d328-685a-4c60-9c8c-fd880e516571: 0
+  ca6a4d81-a1da-4036-8e9c-8ffc405ef5de: 0
+  cavaliers: 1
+  e503c207-1d63-460d-b080-63a92a17e979: 0
+  ec4c11f9-faaa-4113-86b3-902d19200bcb: 0
+  ed5cd8c6-c0ee-4442-941e-e2cf9af0118e: 0
+  scouts: 1
+overall:
+- rank: 1
+  corps_id: cavaliers
+  display_name: cavaliers
+  score: 12.075
+  qualified: false
+  scores_count: 1
+- rank: 2
+  corps_id: scouts
+  display_name: scouts
+  score: 12.01
+  qualified: false
+  scores_count: 1
+- rank: 3
+  corps_id: 19836c66-b398-48a4-9958-f669b7e7859d
+  display_name: The Phantom Registers
+  score: 0.0
+  qualified: false
+  scores_count: 0
+- rank: 4
+  corps_id: 2ebf7478-75be-4a30-9c69-5e1756e11d31
+  display_name: The South-Southwest Akron Conservatory Ambassadors
+  score: 0.0
+  qualified: false
+  scores_count: 0
+- rank: 5
+  corps_id: 31f9c159-b6ec-4ea1-8ed9-803cf2183349
+  display_name: All Your Beats Are Belong To Us
+  score: 0.0
+  qualified: false
+  scores_count: 0
+- rank: 6
+  corps_id: 45b1dc02-2283-47c1-8420-b68c093b0061
+  display_name: The Arrhythmic Drumline
+  score: 0.0
+  qualified: false
+  scores_count: 0
+- rank: 7
+  corps_id: 709d9dc4-2a92-487a-92d0-c8b5ead59939
+  display_name: Sabre Rattling
+  score: 0.0
+  qualified: false
+  scores_count: 0
+- rank: 8
+  corps_id: 7a70c3c6-5693-4af8-9c3b-4480988bf8d4
+  display_name: The Dropless Color Guard
+  score: 0.0
+  qualified: false
+  scores_count: 0
+- rank: 9
+  corps_id: 7e95402f-0e83-4f4a-985a-a1d8b5af17a5
+  display_name: Pit Happens
+  score: 0.0
+  qualified: false
+  scores_count: 0
+- rank: 10
+  corps_id: 846e48f0-8398-4b9e-93f6-ad78619d3fb7
+  display_name: The Backfield Flagboxes
+  score: 0.0
+  qualified: false
+  scores_count: 0
+- rank: 11
+  corps_id: 859f0d31-3e15-44d9-a698-158921ef03b9
+  display_name: We Only March Baris
+  score: 0.0
+  qualified: false
+  scores_count: 0
+- rank: 12
+  corps_id: 9847fbbc-7d97-4e56-b8cf-cf206d28ce64
+  display_name: The Quiet Trumpets
+  score: 0.0
+  qualified: false
+  scores_count: 0
+- rank: 13
+  corps_id: aba0e198-0842-4a72-9274-c5ffb5b6072a
+  display_name: Corps Is Stored In The Lips
+  score: 0.0
+  qualified: false
+  scores_count: 0
+- rank: 14
+  corps_id: c5f1d328-685a-4c60-9c8c-fd880e516571
+  display_name: The Lindenhurst Legato Longtones
+  score: 0.0
+  qualified: false
+  scores_count: 0
+- rank: 15
+  corps_id: ca6a4d81-a1da-4036-8e9c-8ffc405ef5de
+  display_name: Toss And Pray
+  score: 0.0
+  qualified: false
+  scores_count: 0
+- rank: 16
+  corps_id: e503c207-1d63-460d-b080-63a92a17e979
+  display_name: The Accidental Crescendo
+  score: 0.0
+  qualified: false
+  scores_count: 0
+- rank: 17
+  corps_id: ec4c11f9-faaa-4113-86b3-902d19200bcb
+  display_name: Transgressive Transgender Trumpets
+  score: 0.0
+  qualified: false
+  scores_count: 0
+- rank: 18
+  corps_id: ed5cd8c6-c0ee-4442-941e-e2cf9af0118e
+  display_name: Several Loud Rimshots
+  score: 0.0
+  qualified: false
+  scores_count: 0
+divisions: []
+winner:
+  corps_id: cavaliers
+  division: null
+  declared_at: '2026-03-06T03:31:36.915304+00:00'

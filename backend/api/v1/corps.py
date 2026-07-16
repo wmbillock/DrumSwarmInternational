@@ -863,31 +863,36 @@ def v1_send_chat(corps_id: str, data: dict):
 
 @router.get("/corps/{corps_id}/scoresheet")
 def v1_get_scoresheet(corps_id: str):
-    """Get latest scoresheet for a corps."""
+    """Get composite scoresheet for a corps from competition scores."""
     _validate_id(corps_id, "corps_id")
-    try:
-        from backend.models.scoresheet import Scoresheet
-    except ImportError:
-        import logging
-        logging.getLogger(__name__).debug("Scoresheet model not available, returning empty scoresheet for %s", corps_id)
-        return {"corps_id": corps_id, "scores": {}, "total": 0}
-
+    from backend.models.score import Score
     db = _get_db_session()
     try:
-        scoresheet = (
-            db.query(Scoresheet)
-            .filter(Scoresheet.corps_id == corps_id)
-            .order_by(Scoresheet.created_at.desc())
-            .first()
+        scores = (
+            db.query(Score)
+            .filter(Score.corps_id == corps_id)
+            .order_by(Score.created_at.desc())
+            .limit(20)
+            .all()
         )
-        if not scoresheet:
+        if not scores:
             return {"corps_id": corps_id, "scores": {}, "total": 0}
+        caption_scores = {}
+        for s in scores:
+            jt = s.judge_type.value if hasattr(s.judge_type, "value") else str(s.judge_type)
+            if jt not in caption_scores:
+                caption_scores[jt] = {
+                    "value": s.value,
+                    "rep": s.rep_score,
+                    "perf": s.perf_score,
+                    "box": s.box,
+                }
+        total = sum(v["value"] for v in caption_scores.values()) / max(1, len(caption_scores))
         return {
             "corps_id": corps_id,
-            "id": scoresheet.id,
-            "scores": scoresheet.scores if isinstance(scoresheet.scores, dict) else {},
-            "total": scoresheet.total_score or 0,
-            "created_at": scoresheet.created_at.isoformat() if scoresheet.created_at else None,
+            "scores": caption_scores,
+            "total": round(total, 2),
+            "created_at": scores[0].created_at.isoformat() if scores[0].created_at else None,
         }
     finally:
         db.close()
@@ -909,16 +914,31 @@ def v1_corps_roster(corps_id: str):
 
     db = _get_db_session()
     try:
-        sessions = (
-            db.query(AgentSession)
-            .filter(AgentSession.corps_id == corps_id)
+        # Get all definitions for this corps (one per role)
+        definitions = (
+            db.query(AgentDefinition)
+            .filter(AgentDefinition.corps_id == corps_id)
             .all()
         )
+
         results = []
-        for s in sessions:
-            defn = db.get(AgentDefinition, s.definition_id) if s.definition_id else None
-            performer = db.get(Performer, s.performer_id) if s.performer_id else None
-            role = defn.role if defn else "unknown"
+        for defn in definitions:
+            role = defn.role
+
+            # Find the most recent session for this definition
+            session = (
+                db.query(AgentSession)
+                .filter(
+                    AgentSession.definition_id == defn.id,
+                    AgentSession.corps_id == corps_id,
+                )
+                .order_by(AgentSession.started_at.desc())
+                .first()
+            )
+
+            performer = None
+            if session and session.performer_id:
+                performer = db.get(Performer, session.performer_id)
 
             # Classify into staff group
             classification = ROLE_CLASSIFICATIONS.get(role)
@@ -926,38 +946,38 @@ def v1_corps_roster(corps_id: str):
                 group = "Administrative Staff"
             elif classification == AgentClassification.INSTRUCTIONAL_STAFF:
                 group = "Instructional Staff"
-            elif classification == AgentClassification.PERFORMING_MEMBER:
-                group = "Performing Members"
+            elif classification == AgentClassification.DCI_ASSIGNED:
+                group = "DCI Assigned"
             else:
                 group = "Other"
 
-            # Calculate tenure
+            # Calculate tenure from first session for this role
             tenure_days = None
-            if s.started_at:
-                started = s.started_at.replace(tzinfo=timezone.utc) if s.started_at.tzinfo is None else s.started_at
+            if session and session.started_at:
+                started = session.started_at.replace(tzinfo=timezone.utc) if session.started_at.tzinfo is None else session.started_at
                 tenure_days = (datetime.now(timezone.utc) - started).days
 
             results.append({
-                "session_id": s.id,
-                "definition_id": s.definition_id,
+                "session_id": session.id if session else None,
+                "definition_id": defn.id,
                 "role": role,
-                "nickname": defn.nickname if defn else None,
-                "model_tier": defn.model_tier.value if defn else "unknown",
-                "status": s.status.value,
+                "nickname": defn.nickname,
+                "model_tier": defn.model_tier.value if defn.model_tier else "unknown",
+                "status": session.status.value if session else "no_session",
                 "group": group,
-                "started_at": s.started_at.isoformat() if s.started_at else None,
-                "ended_at": s.ended_at.isoformat() if s.ended_at else None,
+                "started_at": session.started_at.isoformat() if session and session.started_at else None,
+                "ended_at": session.ended_at.isoformat() if session and session.ended_at else None,
                 "tenure_days": tenure_days,
-                "performer_id": s.performer_id,
+                "performer_id": session.performer_id if session else None,
                 "performer_name": performer.name if performer else None,
-                "performer_trust_score": performer.trust_score if performer else None,
+                "performer_trust_score": round(performer.trust_score, 1) if performer else None,
                 "performer_status": performer.status.value if performer else None,
                 "performer_total_sessions": performer.total_sessions if performer else None,
                 "performer_successful_sessions": performer.successful_sessions if performer else None,
             })
 
-        # Sort: Administrative > Instructional > Performing, then by role name
-        group_order = {"Administrative Staff": 0, "Instructional Staff": 1, "Performing Members": 2, "Other": 3}
+        # Sort: Administrative > Instructional > DCI > Other, then by role name
+        group_order = {"Administrative Staff": 0, "Instructional Staff": 1, "DCI Assigned": 2, "Other": 3}
         results.sort(key=lambda r: (group_order.get(r["group"], 99), r["role"]))
         return results
     finally:
@@ -1638,24 +1658,26 @@ def v1_run_basics(corps_id: str, caption: str):
 @router.get("/corps/{corps_id}/banquet")
 def v1_get_banquet(corps_id: str):
     """Get banquet/awards data for a corps."""
-    from backend.models.reputation import Reputation
+    from backend.models.caption_award import CaptionAward
     db = _get_db_session()
     try:
-        reps = (
-            db.query(Reputation)
-            .filter(Reputation.corps_id == corps_id)
-            .order_by(Reputation.score.desc())
+        awards = (
+            db.query(CaptionAward)
+            .filter(CaptionAward.recipient_id == corps_id)
+            .order_by(CaptionAward.awarded_at.desc())
             .limit(50)
             .all()
         )
         return [{
-            "id": r.id,
-            "agent_id": r.agent_id,
-            "score": r.score,
-            "dimension": r.dimension,
-            "critique": r.critique,
-            "created_at": r.created_at.isoformat() if r.created_at else None,
-        } for r in reps]
+            "id": a.id,
+            "category": a.category.value if a.category else None,
+            "tier": a.tier.value if a.tier else None,
+            "recipient_type": a.recipient_type.value if a.recipient_type else None,
+            "citation": a.citation,
+            "season_id": a.season_id,
+            "competition_id": a.competition_id,
+            "awarded_at": a.awarded_at.isoformat() if a.awarded_at else None,
+        } for a in awards]
     finally:
         db.close()
 
@@ -1693,7 +1715,7 @@ def v1_hire_staff(corps_id: str, req: HireStaffRequest):
         # Spawn an active AgentSession linked to the performer
         session = AgentSession(
             id=str(uuid.uuid4()),
-            agent_definition_id=agent_def.id,
+            definition_id=agent_def.id,
             performer_id=req.performer_id,
             corps_id=corps_id,
             status=SessionStatus.ACTIVE,
@@ -1703,7 +1725,7 @@ def v1_hire_staff(corps_id: str, req: HireStaffRequest):
         db.commit()
 
         return {
-            "agent_definition_id": agent_def.id,
+            "definition_id": agent_def.id,
             "session_id": session.id,
             "corps_id": corps_id,
             "performer_id": req.performer_id,
@@ -1788,7 +1810,7 @@ def v1_list_corps_staff(corps_id: str):
         results = (
             db.query(AgentSession, Performer, AgentDefinition)
             .join(Performer, AgentSession.performer_id == Performer.id)
-            .join(AgentDefinition, AgentSession.agent_definition_id == AgentDefinition.id)
+            .join(AgentDefinition, AgentSession.definition_id == AgentDefinition.id)
             .filter(
                 AgentSession.corps_id == corps_id,
                 AgentSession.status == SessionStatus.ACTIVE,

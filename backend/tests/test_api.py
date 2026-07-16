@@ -103,7 +103,11 @@ class TestShowAPI:
         create_resp = client.post("/api/v1/shows", json={"title": "Complete"})
         slug = create_resp.json()["slug"]
         client.post(f"/api/v1/shows/{slug}/activate")
-        resp = client.post(f"/api/v1/shows/{slug}/complete")
+        # Without force, should be rejected (no scores)
+        resp_gated = client.post(f"/api/v1/shows/{slug}/complete")
+        assert resp_gated.status_code == 409
+        # With force, should succeed
+        resp = client.post(f"/api/v1/shows/{slug}/complete", json={"force": True})
         assert resp.status_code == 200
         assert resp.json()["status"] == "completed"
 

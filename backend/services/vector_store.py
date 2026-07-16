@@ -17,7 +17,7 @@ _available = None
 
 
 def _get_client():
-    """Lazily initialize ChromaDB client."""
+    """Lazily initialize ChromaDB client with persistent storage."""
     global _client, _available
     if _available is False:
         return None
@@ -25,9 +25,9 @@ def _get_client():
         return _client
     try:
         import chromadb
-        _client = chromadb.Client()
+        _client = chromadb.PersistentClient(path=".chromadb")
         _available = True
-        logger.info("ChromaDB client initialized (ephemeral)")
+        logger.info("ChromaDB client initialized (persistent at .chromadb/)")
         return _client
     except Exception:
         _available = False

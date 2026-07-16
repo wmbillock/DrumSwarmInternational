@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import * as v1 from "../services/v1";
+
+const ACTIVE_STATUSES = new Set(["draft", "needs_review", "approved", "published", "on_tour"]);
 
 export function ThreadList() {
   const navigate = useNavigate();
@@ -9,6 +11,7 @@ export function ThreadList() {
   const [error, setError] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState("");
   const [creating, setCreating] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("active");
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -18,6 +21,12 @@ export function ThreadList() {
       .finally(() => setLoading(false));
     return () => ctrl.abort();
   }, []);
+
+  const filteredThreads = useMemo(() => {
+    if (statusFilter === "all") return threads;
+    if (statusFilter === "active") return threads.filter(t => ACTIVE_STATUSES.has(t.status));
+    return threads.filter(t => t.status === statusFilter);
+  }, [threads, statusFilter]);
 
   const handleCreate = async () => {
     if (!newTitle.trim()) return;
@@ -46,7 +55,7 @@ export function ThreadList() {
     <div className="dashboard">
       <h2 className="page-title">Design Room</h2>
 
-      <div className="create-form" style={{ marginBottom: 16 }}>
+      <div className="create-form" style={{ marginBottom: 16, display: "flex", gap: 8, alignItems: "center" }}>
         <input
           value={newTitle}
           onChange={e => setNewTitle(e.target.value)}
@@ -56,11 +65,25 @@ export function ThreadList() {
         <button className="primary" onClick={handleCreate} disabled={creating || !newTitle.trim()}>
           {creating ? "Creating..." : "New Thread"}
         </button>
+        <select
+          className="show-library-filter"
+          value={statusFilter}
+          onChange={e => setStatusFilter(e.target.value)}
+          style={{ marginLeft: "auto" }}
+        >
+          <option value="active">Active ({threads.filter(t => ACTIVE_STATUSES.has(t.status)).length})</option>
+          <option value="all">All ({threads.length})</option>
+          <option value="draft">Draft</option>
+          <option value="needs_review">Needs Review</option>
+          <option value="approved">Approved</option>
+          <option value="published">Published</option>
+          <option value="completed">Completed</option>
+        </select>
       </div>
 
       {error && <div className="error-banner">{error}</div>}
 
-      {threads.length === 0 && <p className="empty">No design threads yet. Create one to get started.</p>}
+      {filteredThreads.length === 0 && <p className="empty">{statusFilter === "all" ? "No design threads yet. Create one to get started." : "No threads match this filter."}</p>}
 
       <div className="cc-table-wrap">
         <table className="cc-table">
@@ -73,7 +96,7 @@ export function ThreadList() {
             </tr>
           </thead>
           <tbody>
-            {threads.map(t => (
+            {filteredThreads.map(t => (
               <tr key={t.slug} className="clickable" onClick={() => navigate(`/design/${t.slug}`)}>
                 <td>{t.slug}</td>
                 <td style={{ fontSize: 12, fontStyle: "italic", color: "var(--text-secondary)" }}>{t.summary || "—"}</td>

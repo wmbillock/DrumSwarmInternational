@@ -56,7 +56,12 @@
       "Bash(xargs kill -9)",
       "Bash(source .venv/bin/activate)",
       "Bash(kill 68484)",
-      "Bash(./dci resume-hut:*)"
+      "Bash(./dci resume-hut:*)",
+      "Bash(curl -s http://localhost:4224/api/v1/system/llm-usage 2>&1 | head -80)",
+      "Bash(curl -s http://localhost:4224/api/v1/system/health 2>&1 | head -40)",
+      "Bash(curl -s http://localhost:4224/api/v1/system/resource-health 2>&1 | head -40)",
+      "Bash(git merge origin/main)",
+      "Bash(git add docs/outputs/tour_seed1.md seasons/tour-s1/standings.yaml && git commit -m \"$\\(cat <<'EOF'\nMerge origin/main: resolve timestamp conflicts \\(keep local\\)\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }

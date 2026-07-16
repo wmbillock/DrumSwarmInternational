@@ -299,12 +299,24 @@ def _score_round(season_dir: Path, round_entry: dict) -> dict:
         for rank, r in enumerate(all_results, 1):
             r["rank"] = rank
 
-        return {
+        # Write aggregated standings (overwrites per-show-group partial files)
+        from backend.services.yaml_util import atomic_write, safe_dump_yaml
+        from datetime import datetime, timezone
+        aggregated_standings = {
             "season_id": season_id,
             "competition_id": competition_id,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "results": all_results,
-            "scoring_errors": all_errors,
         }
+        if all_errors:
+            aggregated_standings["scoring_errors"] = all_errors
+        atomic_write(season_dir / "standings.yaml", safe_dump_yaml(aggregated_standings))
+        atomic_write(
+            season_dir / f"standings_{competition_id}.yaml",
+            safe_dump_yaml(aggregated_standings),
+        )
+
+        return aggregated_standings
     else:
         # Legacy format: single show_slug for whole round
         show_slug = round_entry.get("show_slug") or "tour"

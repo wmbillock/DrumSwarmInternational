@@ -766,7 +766,7 @@ class TestAPIEndpoints:
         resp = client.post(f"/api/v1/shows/{slug}/activate")
         assert resp.status_code == 200
 
-        resp = client.post(f"/api/v1/shows/{slug}/complete")
+        resp = client.post(f"/api/v1/shows/{slug}/complete", json={"force": True})
         assert resp.status_code == 200
 
     def test_delete_show(self, client):

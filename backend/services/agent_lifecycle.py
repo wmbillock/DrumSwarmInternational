@@ -1,7 +1,10 @@
+import logging
 from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from backend.models.agent_definition import (
     AgentDefinition,
@@ -140,6 +143,18 @@ def spawn_session(
     db.add(session)
     db.commit()
     db.refresh(session)
+
+    # Record metrics event
+    try:
+        from backend.services.metrics import record_event, MetricType
+        record_event(
+            db, MetricType.AGENT_SESSION_STARTED,
+            corps_id=corps_id, session_id=session.id,
+            agent_role=defn.role,
+        )
+    except Exception:
+        pass  # metrics are best-effort
+
     return session
 
 
@@ -204,6 +219,22 @@ def _terminate_session(
     db.commit()
     db.refresh(session)
 
+    # Record metrics event
+    try:
+        from backend.services.metrics import record_event, MetricType
+        mt = (MetricType.AGENT_SESSION_COMPLETED if new_status == SessionStatus.COMPLETED
+              else MetricType.AGENT_SESSION_FAILED)
+        role_type = session.definition.role if session.definition else "unknown"
+        duration = None
+        if session.started_at and session.ended_at:
+            duration = (session.ended_at - session.started_at).total_seconds()
+        record_event(
+            db, mt, corps_id=session.corps_id, session_id=session.id,
+            agent_role=role_type, value=duration, unit="seconds",
+        )
+    except Exception:
+        pass  # metrics are best-effort
+
     try:
         from backend.models.capability_ledger import LedgerEntryType
         from backend.services.capability_ledger_service import record_entry
@@ -236,7 +267,15 @@ def _terminate_session(
                 session_id=session.id,
             )
 
+        # Update performer trust score and session counters
         if performer:
+            try:
+                from backend.services.performer_service import record_session_completion
+                success = new_status == SessionStatus.COMPLETED
+                record_session_completion(db, performer.id, success)
+            except Exception as exc:
+                logger.debug("Failed to record session completion for performer %s: %s", performer.id, exc)
+
             check_performer_achievements(
                 db,
                 performer.id,

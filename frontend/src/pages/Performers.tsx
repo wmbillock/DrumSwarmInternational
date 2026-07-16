@@ -97,10 +97,10 @@ export function Performers() {
         <h2 className="page-title">Talent</h2>
       </div>
       <Tabs
-        tabs={[
-          { id: "performers", label: "Performers" },
-          { id: "staff", label: "Staff" },
-          { id: "all", label: "All" },
+        items={[
+          { key: "performers", label: "Performers" },
+          { key: "staff", label: "Staff" },
+          { key: "all", label: "All" },
         ]}
         active={tab}
         onChange={(id) => setTab(id as TabId)}

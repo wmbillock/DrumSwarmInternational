@@ -390,3 +390,106 @@ def update_show_status(slug: str, new_status: str) -> None:
     if not show_dir.exists():
         raise ValueError(f"Show '{slug}' not found")
     update_status(show_dir, new_status)
+
+
+# ---------------------------------------------------------------------------
+# Completion gating
+# ---------------------------------------------------------------------------
+
+# Minimum average score across corps to allow completion
+MIN_COMPLETION_SCORE = 50.0
+# Minimum spec completion percentage to allow completion
+MIN_SPEC_COMPLETION_PCT = 60.0
+
+
+def check_show_readiness(slug: str, db=None) -> dict:
+    """Check whether a show is ready to be marked completed.
+
+    Returns a readiness report:
+    {
+        "ready": bool,
+        "gaps": [str],  # reasons it's not ready
+        "scores": {"corps_count": int, "avg_score": float, "min_required": float},
+        "spec_completion": {...} | None,
+    }
+    """
+    from backend.services.yaml_util import safe_load_yaml_dict
+
+    show_dir = _shows_base_dir() / slug
+    if not show_dir.exists():
+        return {"ready": False, "gaps": [f"Show '{slug}' not found"], "scores": None, "spec_completion": None}
+
+    gaps: list[str] = []
+
+    # 1. Check competition scores from season standings
+    seasons_dir = show_dir.parent.parent / "seasons"
+    corps_scores: dict[str, float] = {}
+    if seasons_dir.exists():
+        for season_path in seasons_dir.iterdir():
+            if not season_path.is_dir():
+                continue
+            for perf_dir in (season_path / "performances").iterdir() if (season_path / "performances").exists() else []:
+                if not perf_dir.is_dir():
+                    continue
+                scores_path = perf_dir / "scores.yaml"
+                if scores_path.is_file():
+                    try:
+                        sc = safe_load_yaml_dict(scores_path.read_text(encoding="utf-8"))
+                        if isinstance(sc, dict):
+                            score_val = float(sc.get("final_score") or sc.get("raw_total") or 0.0)
+                            corps_id = perf_dir.name
+                            # Keep best score per corps
+                            if score_val > corps_scores.get(corps_id, 0.0):
+                                corps_scores[corps_id] = score_val
+                    except Exception:
+                        pass
+
+    scores_info = {
+        "corps_count": len(corps_scores),
+        "avg_score": round(sum(corps_scores.values()) / len(corps_scores), 2) if corps_scores else 0.0,
+        "min_required": MIN_COMPLETION_SCORE,
+        "per_corps": corps_scores,
+    }
+
+    if not corps_scores:
+        gaps.append("No competition scores exist for any corps")
+    elif scores_info["avg_score"] < MIN_COMPLETION_SCORE:
+        gaps.append(
+            f"Average score ({scores_info['avg_score']:.1f}) is below "
+            f"minimum threshold ({MIN_COMPLETION_SCORE})"
+        )
+
+    # 2. Check spec completion
+    spec_completion = None
+    try:
+        from backend.services.spec_checker import check_spec_completion
+        spec_completion = check_spec_completion(
+            show_dir,
+            db=db,
+            corps_ids=list(corps_scores.keys()) if corps_scores else None,
+        )
+    except Exception:
+        pass
+
+    if spec_completion and spec_completion["deliverables_total"] > 0:
+        if spec_completion["completion_pct"] < MIN_SPEC_COMPLETION_PCT:
+            gaps.append(
+                f"Spec completion ({spec_completion['completion_pct']:.0f}%) is below "
+                f"minimum threshold ({MIN_SPEC_COMPLETION_PCT}%)"
+            )
+
+    # Ready if scores OR spec meet threshold
+    has_good_scores = corps_scores and scores_info["avg_score"] >= MIN_COMPLETION_SCORE
+    has_good_spec = (
+        spec_completion
+        and spec_completion["deliverables_total"] > 0
+        and spec_completion["completion_pct"] >= MIN_SPEC_COMPLETION_PCT
+    )
+    ready = bool(has_good_scores or has_good_spec)
+
+    return {
+        "ready": ready,
+        "gaps": gaps if not ready else [],
+        "scores": scores_info,
+        "spec_completion": spec_completion,
+    }

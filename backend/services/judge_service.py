@@ -96,12 +96,39 @@ Output your evaluation as JSON with exactly these fields:
   "action_items": ["<specific improvement 1>", "<specific improvement 2>"]
 }
 
-Score guidelines:
-- 90-100: Exceptional, finalist-level work
-- 80-89: Strong, competitive performance
-- 70-79: Solid with clear areas for growth
-- 60-69: Adequate but needs improvement
-- Below 60: Significant deficiencies
+USE THE FULL 0-100 SCALE. Differentiate aggressively. Scores should span at least
+a 30-point range across corps — do NOT cluster all scores in a narrow band.
+
+SCORING ANCHORS — your scores MUST match your narrative:
+- 90-100: Championship-caliber. All deliverables complete, tested, polished, innovative.
+          Only award this for truly exceptional, production-ready work.
+- 80-89: Strong execution. Most deliverables implemented and working. Minor gaps only.
+         Code runs, tests pass, docs are clear.
+- 70-79: Solid partial execution. Multiple deliverables built and functional.
+         Some gaps but clear evidence of working code/features.
+- 60-69: Mixed results. Some code written but significant gaps remain.
+         Plans exist with limited execution evidence.
+- 50-59: Planning only. Specs and designs exist but NO working implementation.
+         A good spec with zero code = 55 max.
+- 40-49: Minimal planning, no execution. Incomplete specs, no deliverables.
+- 30-39: Barely started. Scaffolding files present but empty or trivial content.
+- 20-29: Almost nothing produced. Boilerplate only.
+- Below 20: No meaningful work.
+
+HARD RULES:
+1. Having spec.md + design_notes.md does NOT earn above 59. Files existing ≠ execution.
+2. If your narrative says "missing execution" or "no concrete artifacts," perf MUST be below 50.
+3. Scores above 70 require EVIDENCE of working code, tests, or functional features.
+4. perf_score should always be LOWER than rep_score when execution lags behind planning.
+5. A 15+ point gap between rep and perf is expected when plans are good but execution is weak.
+
+rep_score = quality of the CONTENT/PLAN (the "what"). Good plans earn 50-70.
+perf_score = quality of the EXECUTION/DELIVERY (the "how well").
+  - Nothing built: 20-35
+  - Partial scaffolding: 35-50
+  - Some working features: 50-70
+  - Most features working: 70-85
+  - Everything polished: 85-100
 
 Output ONLY the JSON object, no other text.
 """
@@ -180,6 +207,14 @@ def build_judge_context(
     ]
 
     # Compute artifact completeness — what did the corps actually produce?
+    # Separate planning artifacts (scaffolding) from execution artifacts (real work)
+    completed_sessions = sum(
+        1 for s in ctx.agent_sessions if s["status"] == "completed"
+    )
+    execution_logs = sum(
+        1 for log in ctx.work_logs
+        if log["event_type"] in ("agent_complete", "tool_success", "rep_completed")
+    )
     artifact_checks = {
         "has_spec": bool(ctx.spec_text and ctx.spec_text.strip()),
         "has_show_prompt": bool(ctx.show_prompt and ctx.show_prompt.strip()),
@@ -188,10 +223,18 @@ def build_judge_context(
         "has_active_agents": any(
             s["status"] in ("active", "completed") for s in ctx.agent_sessions
         ),
+        # Execution indicators (weighted higher)
+        "has_substantial_sessions": completed_sessions >= 5,
+        "has_execution_evidence": execution_logs >= 3,
     }
     ctx.artifact_details = artifact_checks
-    completed_checks = sum(1 for v in artifact_checks.values() if v)
-    ctx.artifact_completeness = completed_checks / max(1, len(artifact_checks))
+    # Weight execution indicators higher: planning checks worth 1, execution worth 2
+    planning_score = sum(1 for k, v in artifact_checks.items()
+                         if v and k.startswith("has_") and k not in ("has_substantial_sessions", "has_execution_evidence"))
+    execution_score = sum(2 for k, v in artifact_checks.items()
+                          if v and k in ("has_substantial_sessions", "has_execution_evidence"))
+    max_score = 5 + 4  # 5 planning + 2*2 execution
+    ctx.artifact_completeness = (planning_score + execution_score) / max_score
 
     return ctx
 
@@ -208,7 +251,11 @@ def _build_judge_user_message(context: JudgeContext) -> str:
         parts.append(f"  - {check}: {status}")
     if context.artifact_completeness < 0.4:
         parts.append("\n**WARNING: This corps has produced minimal or no artifacts. "
-                     "Score accordingly — missing work should result in scores below 50.**\n")
+                     "Score accordingly — missing work should result in perf_score below 40 "
+                     "and rep_score below 55.**\n")
+    elif context.artifact_completeness < 0.6:
+        parts.append("\n**NOTE: This corps has planning artifacts but limited execution evidence. "
+                     "Having specs/designs without working code caps perf_score at 50 max.**\n")
     parts.append("")
 
     if context.show_prompt:
@@ -261,9 +308,9 @@ def _parse_judge_response(response_text: str, judge_type: JudgeType) -> JudgeRes
         result.action_items = list(data.get("action_items", []))
     except (json.JSONDecodeError, ValueError, TypeError) as e:
         logger.warning("Failed to parse judge response for %s: %s", judge_type.value, e)
-        # Fallback: use stub scores
-        result.rep_score = 70.0
-        result.perf_score = 70.0
+        # Fallback: conservative middle-range scores (not optimistic 70)
+        result.rep_score = 45.0
+        result.perf_score = 35.0
         result.feedback = f"Judge response could not be parsed: {response_text[:200]}"
 
     return result
@@ -299,26 +346,34 @@ def _stub_judge_result(
 ) -> JudgeResult:
     """Deterministic fallback scores when LLM is unavailable.
 
-    Scores are scaled by artifact_completeness (0.0-1.0). A corps that
-    produced nothing gets ~20-30 points; a corps with all artifacts gets 60-90.
+    Scores are scaled by artifact_completeness (0.0-1.0).
+    Rep score (content quality): specs/plans present = higher rep.
+    Perf score (execution quality): actual deliverables present = higher perf.
+
+    Without any implementation artifacts, perf stays very low regardless of specs.
     """
     import hashlib
     seed = hashlib.sha256(f"{corps_id}:{show_slug}:{judge_type.value}".encode()).hexdigest()
 
-    # Base scores: 60-90 range for a fully-complete corps
-    raw_rep = (int(seed[:8], 16) % 30) + 60
-    raw_perf = (int(seed[8:16], 16) % 30) + 60
+    # Rep score: 50-75 range scaled by completeness (plans/specs exist?)
+    raw_rep = (int(seed[:8], 16) % 25) + 50
+    # Perf score: 30-60 range scaled more aggressively (was work actually done?)
+    raw_perf = (int(seed[8:16], 16) % 30) + 30
 
-    # Scale by artifact completeness: floor of 20, ceiling of raw score
-    # 0% artifacts → 20 points, 100% artifacts → full score
+    # Scale by artifact completeness: floor of 20
     floor = 20
     rep_score = floor + (raw_rep - floor) * artifact_completeness
-    perf_score = floor + (raw_perf - floor) * artifact_completeness
+    # Perf is harder to earn — completeness < 0.6 means no real execution
+    perf_floor = 15
+    perf_scale = max(0.0, (artifact_completeness - 0.4) / 0.6) if artifact_completeness > 0.4 else 0.0
+    perf_score = perf_floor + (raw_perf - perf_floor) * perf_scale
 
     if artifact_completeness < 0.2:
         feedback = "Stub score — corps produced no meaningful artifacts."
     elif artifact_completeness < 0.6:
-        feedback = "Stub score — corps produced partial work. Significant artifacts missing."
+        feedback = "Stub score — specs/plans present but no implementation evidence. Perf scored low."
+    elif artifact_completeness < 0.8:
+        feedback = "Stub score — partial work produced. LLM judging unavailable for detailed assessment."
     else:
         feedback = "Stub score — LLM judging unavailable."
 
