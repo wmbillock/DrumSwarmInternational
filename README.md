@@ -21,14 +21,14 @@ python -m pytest backend/tests/ -v
 Start the FastAPI server:
 
 ```bash
-uvicorn backend.api.app:app --reload --port 8000
+uvicorn backend.api.app:app --reload --port 4224
 ```
 
 The API serves two layers:
 - **Legacy routes** at `/api/...` — existing endpoints used by the current frontend
 - **V1 routes** at `/api/v1/...` — versioned API layer (see [API Reference](docs/api/openapi.md))
 
-Interactive docs at `http://localhost:8000/docs` (Swagger UI) and `http://localhost:8000/redoc`.
+Interactive docs at `http://localhost:4224/docs` (Swagger UI) and `http://localhost:4224/redoc`.
 
 ## Running the Frontend
 
@@ -38,7 +38,7 @@ npm install
 npm run dev
 ```
 
-Opens at `http://localhost:5173`. Expects the backend at `http://localhost:8000`.
+Opens at `http://localhost:5173`. Expects the backend at `http://localhost:4224`.
 
 ## Demo
 

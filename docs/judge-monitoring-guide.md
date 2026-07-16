@@ -267,10 +267,10 @@ The health monitor integrates with the metrics collector:
 
 ```bash
 # Check if monitoring service is running
-curl http://localhost:8000/api/health
+curl http://localhost:4224/api/health
 
 # View metrics
-curl http://localhost:8000/api/metrics/corps/<corps-id>
+curl http://localhost:4224/api/metrics/corps/<corps-id>
 ```
 
 ## Troubleshooting
