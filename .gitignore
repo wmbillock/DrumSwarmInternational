@@ -82,3 +82,6 @@ DCI_JUDGE_EVALUATION.json
 
 # Temp files
 nul
+
+# coverage artifact
+.coverage

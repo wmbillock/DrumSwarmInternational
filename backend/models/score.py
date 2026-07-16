@@ -34,6 +34,8 @@ class Score(Base):
     rep_id: Mapped[Optional[str]] = mapped_column(
         ForeignKey("reps.id"), nullable=True
     )
+    season_event_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
+    artifact_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
     segment_id: Mapped[Optional[str]] = mapped_column(
         ForeignKey("segments.id"), nullable=True
     )

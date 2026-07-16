@@ -233,10 +233,48 @@ export interface CreateCompReq {
   corps_ids: string[];
 }
 
+export interface CorpsSeasonSummary {
+  corps_id: string;
+  phase: string;
+  blocker_reason: string | null;
+  next_action: string;
+}
+
+export interface SeasonRunSummary {
+  season_run_id: string;
+  status: string;
+  regular_show_count: number;
+  winter_camp_count: number;
+  current_event_index: number;
+  blocker_reason: string | null;
+  corps: CorpsSeasonSummary[];
+}
+
+export interface CreateSeasonRunRequest {
+  name: string;
+  regular_show_count: number;
+  winter_camp_count: number;
+  corps_ids: string[];
+}
+
 // --- Corps ---
 
 export const listCorps = (signal?: AbortSignal, includeSystem = false) =>
   request<V1Corps[]>(`/api/v1/corps${includeSystem ? "?include_system=true" : ""}`, { signal });
+
+export const createSeasonRun = (payload: CreateSeasonRunRequest, signal?: AbortSignal) => {
+  if (payload.winter_camp_count < 1 || payload.winter_camp_count > 7) {
+    throw new Error("winter_camp_count must be between 1 and 7");
+  }
+  return request<SeasonRunSummary>("/api/v1/seasons/runs", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    signal,
+  });
+};
+
+export const getSeasonRunSummary = (seasonRunId: string, signal?: AbortSignal) =>
+  request<SeasonRunSummary>(`/api/v1/seasons/runs/${seasonRunId}/summary`, { signal });
 
 export interface StaffingStatus {
   total_roles: number;

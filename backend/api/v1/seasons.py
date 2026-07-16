@@ -7,6 +7,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from backend.api.v1.helpers import _get_root, _validate_id, _get_db_session, _slugify
 from backend.api.v1.schemas import (
@@ -23,6 +24,66 @@ from backend.api.v1.schemas import (
 from backend.services.yaml_util import safe_load_yaml_dict
 
 router = APIRouter(prefix="/api/v1")
+
+
+class CorpsSeasonSummary(BaseModel):
+    corps_id: str
+    phase: str
+    blocker_reason: str | None
+    next_action: str
+
+
+class SeasonRunSummary(BaseModel):
+    season_run_id: str
+    status: str
+    regular_show_count: int
+    winter_camp_count: int
+    current_event_index: int
+    blocker_reason: str | None
+    corps: list[CorpsSeasonSummary]
+
+
+class CreateSeasonRunRequest(BaseModel):
+    name: str
+    regular_show_count: int
+    winter_camp_count: int
+    corps_ids: list[str]
+
+
+def _next_action_for_phase(phase, blocker_reason: str | None) -> str:
+    if blocker_reason:
+        return "Resolve blocker before advancing."
+    return {
+        "staffing": "Hire and train corps staff.",
+        "offseason_training": "Run offseason learning.",
+        "designing_show": "Complete show design.",
+        "recruiting": "Recruit members.",
+        "winter_camps": "Run configured winter camps.",
+        "on_tour": "Run the next show-day block.",
+        "finals": "Run finals.",
+        "season_complete": "Review end-of-season evolution.",
+        "blocked": "Resolve blocker before advancing.",
+    }.get(getattr(phase, "value", str(phase)), "Continue season run.")
+
+
+def _season_run_summary(run) -> SeasonRunSummary:
+    return SeasonRunSummary(
+        season_run_id=run.id,
+        status=run.status.value,
+        regular_show_count=run.regular_show_count,
+        winter_camp_count=run.winter_camp_count,
+        current_event_index=run.current_event_index,
+        blocker_reason=run.blocker_reason,
+        corps=[
+            CorpsSeasonSummary(
+                corps_id=state.corps_id,
+                phase=state.phase.value,
+                blocker_reason=state.blocker_reason,
+                next_action=_next_action_for_phase(state.phase, state.blocker_reason),
+            )
+            for state in run.corps_states
+        ],
+    )
 
 
 def _build_finals_payload(season_dir: Path) -> dict:
@@ -159,6 +220,42 @@ def v1_create_season(req: CreateSeasonRequest):
         "dir_name": season_dir.name,
         "metadata": metadata,
     }
+
+
+@router.post("/seasons/runs", response_model=SeasonRunSummary)
+def v1_create_season_run(req: CreateSeasonRunRequest):
+    if req.regular_show_count < 1:
+        raise HTTPException(422, "regular_show_count must be at least 1")
+    if req.winter_camp_count < 1 or req.winter_camp_count > 7:
+        raise HTTPException(422, "winter_camp_count must be between 1 and 7")
+    db = _get_db_session()
+    try:
+        from backend.services.season_calendar import create_season_calendar
+
+        run = create_season_calendar(
+            db,
+            name=req.name,
+            regular_show_count=req.regular_show_count,
+            winter_camp_count=req.winter_camp_count,
+            corps_ids=req.corps_ids,
+        )
+        return _season_run_summary(run)
+    finally:
+        db.close()
+
+
+@router.get("/seasons/runs/{season_run_id}/summary", response_model=SeasonRunSummary)
+def v1_get_season_run_summary(season_run_id: str):
+    db = _get_db_session()
+    try:
+        from backend.models.season_run import SeasonRun
+
+        run = db.get(SeasonRun, season_run_id)
+        if run is None:
+            raise HTTPException(404, "Season run not found")
+        return _season_run_summary(run)
+    finally:
+        db.close()
 
 
 @router.get("/seasons/{season_id}")
